@@ -1,3 +1,181 @@
 from django.db import models
+from apps.accounts.models import User
 
-# Create your models here.
+class Shipment(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('pending', 'Pending Review'),
+        ('in_review', 'In Review'),
+        ('for_payment', 'For Payment'),
+        ('submitted', 'Submitted to BOC'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('revised', 'For Revision'),
+    ]
+
+    SHIPMENT_TYPE_CHOICES = [
+        ('lcl', 'LCL - Less Container Load'),
+        ('fcl', 'FCL - Full Container Load'),
+        ('air', 'Air Freight'),
+    ]
+
+    URGENCY_CHOICES = [
+        ('normal', 'Normal'),
+        ('urgent', 'Urgent'),
+    ]
+
+    IMPORT_TYPE_CHOICES = [
+        ('permanent', 'Permanent'),
+        ('repair', 'For Repair'),
+        ('sample', 'Sample'),
+    ]
+
+    # Core fields
+    hawb_number = models.CharField(max_length=100, unique=True)
+    consignee = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='shipments'
+    )
+    declarant = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True,
+        related_name='assigned_shipments'
+    )
+
+    # Shipment details
+    import_type = models.CharField(
+        max_length=20, 
+        choices=IMPORT_TYPE_CHOICES, 
+        default='permanent'
+    )
+    shipment_type = models.CharField(
+        max_length=10, 
+        choices=SHIPMENT_TYPE_CHOICES, 
+        blank=True, null=True
+    )
+    urgency = models.CharField(
+        max_length=10, 
+        choices=URGENCY_CHOICES, 
+        default='normal'
+    )
+    status = models.CharField(
+        max_length=20, 
+        choices=STATUS_CHOICES, 
+        default='pending'
+    )
+
+    # Cargo details
+    description = models.TextField(blank=True, null=True)
+    quantity = models.DecimalField(
+        max_digits=10, decimal_places=2, 
+        blank=True, null=True
+    )
+    gross_weight = models.DecimalField(
+        max_digits=10, decimal_places=2, 
+        blank=True, null=True
+    )
+    
+    # Financial details
+    declared_value = models.DecimalField(
+        max_digits=15, decimal_places=2, 
+        blank=True, null=True
+    )
+    freight_cost = models.DecimalField(
+        max_digits=15, decimal_places=2, 
+        blank=True, null=True
+    )
+    insurance_cost = models.DecimalField(
+        max_digits=15, decimal_places=2, 
+        blank=True, null=True
+    )
+    
+    # BOC details
+    boc_reference = models.CharField(max_length=100, blank=True, null=True)
+    boc_status = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Timestamps
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    processed_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"{self.hawb_number} - {self.consignee.username}"
+
+
+class ShipmentDocument(models.Model):
+    DOCUMENT_TYPE_CHOICES = [
+        ('invoice', 'Commercial Invoice'),
+        ('packing_list', 'Packing List'),
+        ('airway_bill', 'Airway Bill / Bill of Lading'),
+        ('other', 'Other Supporting Document'),
+    ]
+
+    shipment = models.ForeignKey(
+        Shipment, 
+        on_delete=models.CASCADE, 
+        related_name='documents'
+    )
+    document_type = models.CharField(
+        max_length=20, 
+        choices=DOCUMENT_TYPE_CHOICES
+    )
+    file = models.FileField(upload_to='shipment_documents/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.document_type} - {self.shipment.hawb_number}"
+
+
+class HSCode(models.Model):
+    code = models.CharField(max_length=20, unique=True)
+    description = models.TextField()
+    duty_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    unit = models.CharField(max_length=20, blank=True, null=True)
+    chapter = models.CharField(max_length=10, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.code} - {self.description[:50]}"
+
+
+class ShipmentHSCode(models.Model):
+    shipment = models.ForeignKey(
+        Shipment, 
+        on_delete=models.CASCADE, 
+        related_name='hs_codes'
+    )
+    hs_code = models.ForeignKey(
+        HSCode, 
+        on_delete=models.CASCADE
+    )
+    is_suggested = models.BooleanField(default=False)
+    is_confirmed = models.BooleanField(default=False)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.shipment.hawb_number} - {self.hs_code.code}"
+
+
+class StatusLog(models.Model):
+    shipment = models.ForeignKey(
+        Shipment, 
+        on_delete=models.CASCADE, 
+        related_name='status_logs'
+    )
+    changed_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True
+    )
+    old_status = models.CharField(max_length=20)
+    new_status = models.CharField(max_length=20)
+    notes = models.TextField(blank=True, null=True)
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.shipment.hawb_number}: {self.old_status} → {self.new_status}"
