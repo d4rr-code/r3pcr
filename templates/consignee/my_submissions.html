@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}My Submissions{% endblock %}
+{% block page_title %}My Submissions{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <p style="color:#94a3b8; font-size:14px;">{{ shipments.count }} total submission(s)</p>
+    <a href="{% url 'consignee:submit' %}" class="btn btn-primary">+ New Submission</a>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>HAWB Number</th>
+                <th>Import Type</th>
+                <th>Urgency</th>
+                <th>Declarant</th>
+                <th>Status</th>
+                <th>Date Submitted</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for shipment in shipments %}
+            <tr>
+                <td><strong>{{ shipment.hawb_number }}</strong></td>
+                <td>{{ shipment.get_import_type_display }}</td>
+                <td>
+                    {% if shipment.urgency == 'urgent' %}
+                        <span class="badge badge-rejected">Urgent</span>
+                    {% else %}
+                        <span class="badge badge-review">Normal</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if shipment.declarant %}
+                        {{ shipment.declarant.get_full_name|default:shipment.declarant.username }}
+                    {% else %}
+                        <span style="color:#94a3b8;">Unassigned</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge badge-{{ shipment.status }}">
+                        {{ shipment.get_status_display }}
+                    </span>
+                </td>
+                <td>{{ shipment.submitted_at|date:"M d, Y" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align:center; color:#94a3b8;">
+                    No submissions yet.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

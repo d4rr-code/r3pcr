@@ -7,24 +7,70 @@
 <div class="kpi-grid">
     <div class="kpi-card blue">
         <p class="kpi-label">Total Submissions</p>
-        <p class="kpi-value">0</p>
+        <p class="kpi-value">{{ total }}</p>
     </div>
     <div class="kpi-card yellow">
-        <p class="kpi-label">Under Review</p>
-        <p class="kpi-value">0</p>
+        <p class="kpi-label">Pending</p>
+        <p class="kpi-value">{{ pending }}</p>
+    </div>
+    <div class="kpi-card blue">
+        <p class="kpi-label">In Review</p>
+        <p class="kpi-value">{{ in_review }}</p>
     </div>
     <div class="kpi-card green">
         <p class="kpi-label">Approved</p>
-        <p class="kpi-value">0</p>
+        <p class="kpi-value">{{ approved }}</p>
     </div>
     <div class="kpi-card red">
         <p class="kpi-label">Rejected</p>
-        <p class="kpi-value">0</p>
+        <p class="kpi-value">{{ rejected }}</p>
     </div>
 </div>
 
 <div class="card">
-    <p class="card-title">Recent Submissions</p>
-    <p style="color: #94a3b8; font-size: 14px;">No submissions yet.</p>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <p class="card-title" style="margin:0;">Recent Submissions</p>
+        <a href="{% url 'consignee:submit' %}" class="btn btn-primary">
+            + New Submission
+        </a>
+    </div>
+
+    {% if recent_shipments %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>HAWB Number</th>
+                    <th>Import Type</th>
+                    <th>Urgency</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for shipment in recent_shipments %}
+                <tr>
+                    <td>{{ shipment.hawb_number }}</td>
+                    <td>{{ shipment.get_import_type_display }}</td>
+                    <td>{{ shipment.get_urgency_display }}</td>
+                    <td>
+                        <span class="badge badge-{{ shipment.status }}">
+                            {{ shipment.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ shipment.submitted_at|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: #94a3b8; font-size: 14px;">
+        No submissions yet. 
+        <a href="{% url 'consignee:submit' %}" style="color:#3b82f6;">
+            Submit your first shipment
+        </a>
+    </p>
+    {% endif %}
 </div>
 {% endblock %}
