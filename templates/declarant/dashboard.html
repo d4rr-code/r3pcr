@@ -7,24 +7,69 @@
 <div class="kpi-grid">
     <div class="kpi-card blue">
         <p class="kpi-label">Queue</p>
-        <p class="kpi-value">0</p>
+        <p class="kpi-value">{{ queue }}</p>
     </div>
     <div class="kpi-card yellow">
         <p class="kpi-label">In Progress</p>
-        <p class="kpi-value">0</p>
+        <p class="kpi-value">{{ in_progress }}</p>
     </div>
     <div class="kpi-card green">
-        <p class="kpi-label">Completed Today</p>
-        <p class="kpi-value">0</p>
+        <p class="kpi-label">Completed</p>
+        <p class="kpi-value">{{ completed }}</p>
     </div>
     <div class="kpi-card red">
         <p class="kpi-label">Rejected</p>
-        <p class="kpi-value">0</p>
+        <p class="kpi-value">{{ rejected }}</p>
     </div>
 </div>
 
 <div class="card">
-    <p class="card-title">Pending Queue</p>
-    <p style="color: #94a3b8; font-size: 14px;">No pending shipments.</p>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <p class="card-title" style="margin:0;">Pending Queue</p>
+        <a href="{% url 'declarant:queue' %}" class="btn btn-primary">
+            View Full Queue
+        </a>
+    </div>
+
+    {% if pending_shipments %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>HAWB Number</th>
+                    <th>Consignee</th>
+                    <th>Import Type</th>
+                    <th>Urgency</th>
+                    <th>Date Submitted</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in pending_shipments %}
+                <tr>
+                    <td><strong>{{ s.hawb_number }}</strong></td>
+                    <td>{{ s.consignee.get_full_name|default:s.consignee.username }}</td>
+                    <td>{{ s.get_import_type_display }}</td>
+                    <td>
+                        {% if s.urgency == 'urgent' %}
+                            <span class="badge badge-rejected">Urgent</span>
+                        {% else %}
+                            <span class="badge badge-review">Normal</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ s.submitted_at|date:"M d, Y" }}</td>
+                    <td>
+                        <a href="{% url 'declarant:claim' s.id %}" class="btn btn-primary">
+                            Claim
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color:#94a3b8; font-size:14px;">No pending shipments in queue.</p>
+    {% endif %}
 </div>
 {% endblock %}

@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Queue Manager{% endblock %}
+{% block page_title %}Queue Manager{% endblock %}
+
+{% block content %}
+
+<!-- Pending Shipments -->
+<div class="card" style="margin-bottom:24px;">
+    <p class="card-title">📋 Pending Shipments</p>
+
+    {% if pending %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>HAWB Number</th>
+                    <th>Consignee</th>
+                    <th>Import Type</th>
+                    <th>Urgency</th>
+                    <th>Documents</th>
+                    <th>Date Submitted</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in pending %}
+                <tr>
+                    <td><strong>{{ s.hawb_number }}</strong></td>
+                    <td>{{ s.consignee.get_full_name|default:s.consignee.username }}</td>
+                    <td>{{ s.get_import_type_display }}</td>
+                    <td>
+                        {% if s.urgency == 'urgent' %}
+                            <span class="badge badge-rejected">🔴 Urgent</span>
+                        {% else %}
+                            <span class="badge badge-review">🔵 Normal</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ s.documents.count }} file(s)</td>
+                    <td>{{ s.submitted_at|date:"M d, Y" }}</td>
+                    <td>
+                        <a href="{% url 'declarant:claim' s.id %}" 
+                           class="btn btn-primary">
+                            Claim & Process
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color:#94a3b8; font-size:14px;">No pending shipments.</p>
+    {% endif %}
+</div>
+
+<!-- In Review Shipments -->
+<div class="card">
+    <p class="card-title">🔄 My In-Progress Shipments</p>
+
+    {% if in_review %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>HAWB Number</th>
+                    <th>Consignee</th>
+                    <th>Import Type</th>
+                    <th>Urgency</th>
+                    <th>Date Submitted</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in in_review %}
+                <tr>
+                    <td><strong>{{ s.hawb_number }}</strong></td>
+                    <td>{{ s.consignee.get_full_name|default:s.consignee.username }}</td>
+                    <td>{{ s.get_import_type_display }}</td>
+                    <td>
+                        {% if s.urgency == 'urgent' %}
+                            <span class="badge badge-rejected">🔴 Urgent</span>
+                        {% else %}
+                            <span class="badge badge-review">🔵 Normal</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ s.submitted_at|date:"M d, Y" }}</td>
+                    <td>
+                        <a href="{% url 'declarant:process' s.id %}" 
+                           class="btn btn-success">
+                            Process
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color:#94a3b8; font-size:14px;">No shipments in progress.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

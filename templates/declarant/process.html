@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Process Shipment{% endblock %}
+{% block page_title %}Processing: {{ shipment.hawb_number }}{% endblock %}
+
+{% block content %}
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+
+    <!-- Left: Shipment Info -->
+    <div>
+        <div class="card" style="margin-bottom:24px;">
+            <p class="card-title">📦 Shipment Details</p>
+            <table style="width:100%;">
+                <tr>
+                    <td style="color:#94a3b8; padding:8px 0; font-size:13px;">HAWB Number</td>
+                    <td style="color:#f1f5f9; font-size:14px;">{{ shipment.hawb_number }}</td>
+                </tr>
+                <tr>
+                    <td style="color:#94a3b8; padding:8px 0; font-size:13px;">Consignee</td>
+                    <td style="color:#f1f5f9; font-size:14px;">
+                        {{ shipment.consignee.get_full_name|default:shipment.consignee.username }}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="color:#94a3b8; padding:8px 0; font-size:13px;">Import Type</td>
+                    <td style="color:#f1f5f9; font-size:14px;">{{ shipment.get_import_type_display }}</td>
+                </tr>
+                <tr>
+                    <td style="color:#94a3b8; padding:8px 0; font-size:13px;">Urgency</td>
+                    <td>
+                        {% if shipment.urgency == 'urgent' %}
+                            <span class="badge badge-rejected">Urgent</span>
+                        {% else %}
+                            <span class="badge badge-review">Normal</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="color:#94a3b8; padding:8px 0; font-size:13px;">Status</td>
+                    <td>
+                        <span class="badge badge-{{ shipment.status }}">
+                            {{ shipment.get_status_display }}
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="color:#94a3b8; padding:8px 0; font-size:13px;">Description</td>
+                    <td style="color:#f1f5f9; font-size:14px;">
+                        {{ shipment.description|default:"No description" }}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="color:#94a3b8; padding:8px 0; font-size:13px;">Date Submitted</td>
+                    <td style="color:#f1f5f9; font-size:14px;">
+                        {{ shipment.submitted_at|date:"M d, Y h:i A" }}
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Documents -->
+        <div class="card">
+            <p class="card-title">📄 Uploaded Documents</p>
+            {% if documents %}
+                {% for doc in documents %}
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #334155;">
+                    <div>
+                        <p style="color:#f1f5f9; font-size:14px;">
+                            {{ doc.get_document_type_display }}
+                        </p>
+                        <p style="color:#94a3b8; font-size:12px;">
+                            Uploaded: {{ doc.uploaded_at|date:"M d, Y" }}
+                        </p>
+                    </div>
+                    <a href="{{ doc.file.url }}" 
+                       target="_blank" 
+                       class="btn btn-secondary">
+                        View
+                    </a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color:#94a3b8; font-size:14px;">No documents uploaded.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right: Processing Form -->
+    <div>
+        <div class="card">
+            <p class="card-title">⚙️ Processing Workspace</p>
+            <p style="color:#94a3b8; font-size:13px; margin-bottom:20px;">
+                Computation module coming soon.
+            </p>
+            <div style="display:flex; gap:12px; margin-top:16px;">
+                <a href="{% url 'declarant:queue' %}" class="btn btn-secondary">
+                    ← Back to Queue
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
