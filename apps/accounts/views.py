@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
 from .models import User, OTP
 
 # ─── Login View ───────────────────────────────────────────
@@ -23,10 +25,31 @@ def login_view(request):
             # Store user id in session for OTP verification
             request.session['pre_auth_user_id'] = user.id
             
-            # TODO: Send OTP via SendGrid (we'll add this later)
-            print(f"OTP for {user.username}: {otp_code}")  # temporary
+            # Send OTP via Gmail
+            try:
+                send_mail(
+                    subject='R3-PCR Login OTP',
+                    message=f'Your OTP code is: {otp_code}\nThis expires in 10 minutes.',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    html_message=f'''
+                        <div style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto;">
+                            <h2 style="color: #3b82f6;">R3-PCR System</h2>
+                            <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
+                            <p>Your OTP code is:</p>
+                            <h1 style="color: #3b82f6; letter-spacing: 8px;">{otp_code}</h1>
+                            <p>This code expires in <strong>10 minutes</strong>.</p>
+                            <p style="color: #94a3b8; font-size: 12px;">
+                                If you did not request this, please ignore this email.
+                            </p>
+                        </div>
+                    '''
+                )
+            except Exception as e:
+                print(f"Email error: {e}")
+                print(f"OTP for {user.username}: {otp_code}")
             
-            messages.success(request, f'OTP sent to your email.')
+            messages.success(request, 'OTP sent to your email.')
             return redirect('accounts:verify_otp')
         else:
             messages.error(request, 'Invalid username or password.')
@@ -58,7 +81,7 @@ def verify_otp_view(request):
                 login(request, user)
                 del request.session['pre_auth_user_id']
                 
-                messages.success(request, f'Welcome, {user.first_name}!')
+                messages.success(request, f'Welcome, {user.first_name or user.username}!')
                 return redirect_by_role(user)
             else:
                 messages.error(request, 'Invalid or expired OTP.')
