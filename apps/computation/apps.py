@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class ComputationConfig(AppConfig):
-    name = 'computation'
+    name = 'apps.computation'
