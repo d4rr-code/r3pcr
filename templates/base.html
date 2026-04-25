@@ -1,0 +1,132 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R3-PCR | {% block title %}Dashboard{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-logo">
+            <h2>R3-PCR</h2>
+            <p>Pre-Clearance DSS</p>
+        </div>
+
+        <nav class="sidebar-nav">
+            {% if user.role == 'consignee' %}
+                <a href="/consignee/dashboard/" class="nav-item">
+                    📊 Dashboard
+                </a>
+                <a href="/consignee/submit/" class="nav-item">
+                    📤 New Submission
+                </a>
+                <a href="/consignee/submissions/" class="nav-item">
+                    📋 My Submissions
+                </a>
+                <a href="/consignee/notifications/" class="nav-item">
+                    🔔 Notifications
+                </a>
+                <a href="/consignee/settings/" class="nav-item">
+                    ⚙️ Account Settings
+                </a>
+
+            {% elif user.role == 'declarant' %}
+                <a href="/declarant/dashboard/" class="nav-item">
+                    📊 Dashboard
+                </a>
+                <a href="/declarant/queue/" class="nav-item">
+                    📋 Queue Manager
+                </a>
+                <a href="/declarant/notifications/" class="nav-item">
+                    🔔 Notifications
+                </a>
+
+            {% elif user.role == 'supervisor' %}
+                <a href="/supervisor/dashboard/" class="nav-item">
+                    📊 Command Center
+                </a>
+                <a href="/supervisor/analytics/" class="nav-item">
+                    📈 Analytics
+                </a>
+                <a href="/supervisor/users/" class="nav-item">
+                    👥 User Management
+                </a>
+                <a href="/supervisor/config/" class="nav-item">
+                    ⚙️ System Config
+                </a>
+                <a href="/supervisor/notifications/" class="nav-item">
+                    🔔 Notifications
+                </a>
+            {% endif %}
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <p class="user-name">{{ user.get_full_name|default:user.username }}</p>
+                <p class="user-role">{{ user.get_role_display }}</p>
+            </div>
+            <a href="/accounts/logout/" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+
+        <!-- Top Navbar -->
+        <div class="topbar">
+            <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+            <div class="topbar-right">
+                <span class="welcome-text">
+                    Welcome, {{ user.first_name|default:user.username }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        {% if messages %}
+        <div class="messages-container">
+            {% for message in messages %}
+            <div class="message {{ message.tags }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Page Content -->
+        <div class="content">
+            {% block content %}
+            {% endblock %}
+        </div>
+
+    </div>
+
+    <!-- Auto logout after 30 minutes -->
+    <script>
+        let timeout = setTimeout(function() {
+            window.location.href = '/accounts/logout/';
+        }, 30 * 60 * 1000);
+
+        document.addEventListener('mousemove', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(function() {
+                window.location.href = '/accounts/logout/';
+            }, 30 * 60 * 1000);
+        });
+
+        document.addEventListener('keypress', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(function() {
+                window.location.href = '/accounts/logout/';
+            }, 30 * 60 * 1000);
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -48,6 +48,11 @@ INSTALLED_APPS = [
     'apps.computation',
     'apps.analytics',
     'apps.notifications',
+
+    # ROLE APPS
+    'apps.supervisor',
+    'apps.consignee',
+    'apps.declarant',
 ]
 
 MIDDLEWARE = [

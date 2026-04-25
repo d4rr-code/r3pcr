@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}Command Center{% endblock %}
+{% block page_title %}Command Center{% endblock %}
+
+{% block content %}
+<div class="kpi-grid">
+    <div class="kpi-card blue">
+        <p class="kpi-label">Total Shipments</p>
+        <p class="kpi-value">0</p>
+    </div>
+    <div class="kpi-card yellow">
+        <p class="kpi-label">Pending</p>
+        <p class="kpi-value">0</p>
+    </div>
+    <div class="kpi-card green">
+        <p class="kpi-label">Approved</p>
+        <p class="kpi-value">0</p>
+    </div>
+    <div class="kpi-card red">
+        <p class="kpi-label">Rejected</p>
+        <p class="kpi-value">0</p>
+    </div>
+</div>
+
+<div class="card">
+    <p class="card-title">Recent Activity</p>
+    <p style="color: #94a3b8; font-size: 14px;">No recent activity yet.</p>
+</div>
+{% endblock %}

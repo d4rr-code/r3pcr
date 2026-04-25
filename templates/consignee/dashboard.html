@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}My Dashboard{% endblock %}
+{% block page_title %}My Dashboard{% endblock %}
+
+{% block content %}
+<div class="kpi-grid">
+    <div class="kpi-card blue">
+        <p class="kpi-label">Total Submissions</p>
+        <p class="kpi-value">0</p>
+    </div>
+    <div class="kpi-card yellow">
+        <p class="kpi-label">Under Review</p>
+        <p class="kpi-value">0</p>
+    </div>
+    <div class="kpi-card green">
+        <p class="kpi-label">Approved</p>
+        <p class="kpi-value">0</p>
+    </div>
+    <div class="kpi-card red">
+        <p class="kpi-label">Rejected</p>
+        <p class="kpi-value">0</p>
+    </div>
+</div>
+
+<div class="card">
+    <p class="card-title">Recent Submissions</p>
+    <p style="color: #94a3b8; font-size: 14px;">No submissions yet.</p>
+</div>
+{% endblock %}

@@ -22,8 +22,10 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('apps.accounts.urls', namespace='accounts')),
+    path('supervisor/', include('apps.supervisor.urls', namespace='supervisor')),
+    path('consignee/', include('apps.consignee.urls', namespace='consignee')),
+    path('declarant/', include('apps.declarant.urls', namespace='declarant')),
 ]
 
-# Serve media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
