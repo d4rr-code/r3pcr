@@ -4,6 +4,7 @@ from django.contrib import messages
 from decimal import Decimal
 from apps.shipments.models import Shipment, HSCode
 from .models import DutyComputation
+from .models import DutyComputation, ShippingAdvisory
 
 def compute_duties(declared_value, freight, insurance, exchange_rate, duty_rate, vat_rate=Decimal('0.12')):
     """
@@ -113,3 +114,103 @@ def hs_code_search(request):
         'results': results,
     }
     return render(request, 'computation/hs_search.html', context)
+
+def compute_wmcda(weight, volume, value, urgency, distance):
+    """
+    WMCDA - Weighted Multi-Criteria Decision Analysis
+    
+    Criteria & Weights:
+    - Cost Efficiency (W=0.35)
+    - Transit Time (W=0.30)
+    - Weight/Volume Suitability (W=0.20)
+    - Risk & Value (W=0.15)
+    """
+    # Normalize scores (0 to 1 scale, higher = better)
+    
+    # --- LCL Scores ---
+    lcl_cost = 0.8 if value < 5000 else 0.6
+    lcl_time = 0.4 if urgency == 'urgent' else 0.7
+    lcl_weight = 0.9 if weight < 500 else 0.5
+    lcl_risk = 0.6 if value < 10000 else 0.4
+
+    # --- FCL Scores ---
+    fcl_cost = 0.5 if value < 5000 else 0.9
+    fcl_time = 0.5 if urgency == 'urgent' else 0.8
+    fcl_weight = 0.4 if weight < 500 else 0.9
+    fcl_risk = 0.7
+
+    # --- Air Scores ---
+    air_cost = 0.3 if value < 5000 else 0.5
+    air_time = 0.9 if urgency == 'urgent' else 0.6
+    air_weight = 0.9 if weight < 100 else 0.3
+    air_risk = 0.9 if value > 10000 else 0.7
+
+    # Weights
+    w_cost = 0.35
+    w_time = 0.30
+    w_weight = 0.20
+    w_risk = 0.15
+
+    # Total Weighted Scores
+    lcl_tws = (lcl_cost * w_cost) + (lcl_time * w_time) + (lcl_weight * w_weight) + (lcl_risk * w_risk)
+    fcl_tws = (fcl_cost * w_cost) + (fcl_time * w_time) + (fcl_weight * w_weight) + (fcl_risk * w_risk)
+    air_tws = (air_cost * w_cost) + (air_time * w_time) + (air_weight * w_weight) + (air_risk * w_risk)
+
+    scores = {
+        'lcl': round(lcl_tws, 4),
+        'fcl': round(fcl_tws, 4),
+        'air': round(air_tws, 4),
+    }
+
+    # Get recommendation (highest score wins)
+    recommended = max(scores, key=scores.get)
+
+    return scores, recommended
+
+
+@login_required
+def shipping_advisory(request, shipment_id):
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    existing = ShippingAdvisory.objects.filter(shipment=shipment).first()
+    result = None
+    scores = None
+
+    if request.method == 'POST':
+        try:
+            weight = float(request.POST.get('gross_weight', 0))
+            volume = float(request.POST.get('cargo_volume', 0))
+            value = float(request.POST.get('declared_value', 0))
+            urgency = request.POST.get('urgency_level', 'normal')
+            distance = float(request.POST.get('distance_km', 0))
+
+            scores, recommended = compute_wmcda(weight, volume, value, urgency, distance)
+
+            advisory, created = ShippingAdvisory.objects.update_or_create(
+                shipment=shipment,
+                defaults={
+                    'gross_weight': weight,
+                    'cargo_volume': volume,
+                    'declared_value': value,
+                    'urgency_level': urgency,
+                    'distance_km': distance,
+                    'lcl_score': scores['lcl'],
+                    'fcl_score': scores['fcl'],
+                    'air_score': scores['air'],
+                    'recommended_type': recommended,
+                    'computed_by': request.user,
+                }
+            )
+
+            result = recommended
+            messages.success(request, f'Advisory computed! Recommended: {recommended.upper()}')
+
+        except Exception as e:
+            messages.error(request, f'Error: {e}')
+
+    context = {
+        'shipment': shipment,
+        'existing': existing,
+        'result': result,
+        'scores': scores,
+    }
+    return render(request, 'computation/advisory.html', context)

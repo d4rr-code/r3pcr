@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+
+{% block title %}Shipping Advisory{% endblock %}
+{% block page_title %}Shipping Type Advisory — {{ shipment.hawb_number }}{% endblock %}
+
+{% block content %}
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+
+    <!-- Left: Input Form -->
+    <div class="card">
+        <p class="card-title">📋 Advisory Inputs</p>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="message {{ message.tags }}" style="margin-bottom:16px;">
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label class="form-label">Gross Weight (kg) *</label>
+                <input
+                    type="number"
+                    name="gross_weight"
+                    class="form-input"
+                    step="0.01"
+                    placeholder="e.g. 250"
+                    value="{{ existing.gross_weight|default:'' }}"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Cargo Volume (CBM) *</label>
+                <input
+                    type="number"
+                    name="cargo_volume"
+                    class="form-input"
+                    step="0.01"
+                    placeholder="e.g. 2.5"
+                    value="{{ existing.cargo_volume|default:'' }}"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Declared Value (USD) *</label>
+                <input
+                    type="number"
+                    name="declared_value"
+                    class="form-input"
+                    step="0.01"
+                    placeholder="e.g. 5000"
+                    value="{{ existing.declared_value|default:'' }}"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Urgency Level *</label>
+                <select name="urgency_level" class="form-input" required>
+                    <option value="normal" 
+                        {% if existing.urgency_level == 'normal' %}selected{% endif %}>
+                        Normal
+                    </option>
+                    <option value="urgent"
+                        {% if existing.urgency_level == 'urgent' %}selected{% endif %}>
+                        Urgent
+                    </option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Distance (km) *</label>
+                <input
+                    type="number"
+                    name="distance_km"
+                    class="form-input"
+                    step="0.01"
+                    placeholder="e.g. 1500"
+                    value="{{ existing.distance_km|default:'' }}"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;">
+                🚢 Compute Advisory
+            </button>
+        </form>
+    </div>
+
+    <!-- Right: Results -->
+    <div>
+        <div class="card" style="margin-bottom:16px;">
+            <p class="card-title">📊 WMCDA Results</p>
+
+            {% if scores %}
+            <!-- New Result -->
+            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+
+                <!-- LCL -->
+                <div style="padding:16px; background:#0f172a; border-radius:8px;
+                    {% if result == 'lcl' %}border:2px solid #22c55e;{% else %}border:1px solid #334155;{% endif %}">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <p style="color:#f1f5f9; font-weight:600;">🚢 LCL</p>
+                            <p style="color:#94a3b8; font-size:12px;">Less Container Load</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <p style="color:#f1f5f9; font-size:24px; font-weight:700;">
+                                {{ scores.lcl }}
+                            </p>
+                            {% if result == 'lcl' %}
+                            <span class="badge badge-approved">✓ Recommended</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FCL -->
+                <div style="padding:16px; background:#0f172a; border-radius:8px;
+                    {% if result == 'fcl' %}border:2px solid #22c55e;{% else %}border:1px solid #334155;{% endif %}">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <p style="color:#f1f5f9; font-weight:600;">🏭 FCL</p>
+                            <p style="color:#94a3b8; font-size:12px;">Full Container Load</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <p style="color:#f1f5f9; font-size:24px; font-weight:700;">
+                                {{ scores.fcl }}
+                            </p>
+                            {% if result == 'fcl' %}
+                            <span class="badge badge-approved">✓ Recommended</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Air -->
+                <div style="padding:16px; background:#0f172a; border-radius:8px;
+                    {% if result == 'air' %}border:2px solid #22c55e;{% else %}border:1px solid #334155;{% endif %}">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <p style="color:#f1f5f9; font-weight:600;">✈️ Air Freight</p>
+                            <p style="color:#94a3b8; font-size:12px;">Air Cargo</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <p style="color:#f1f5f9; font-size:24px; font-weight:700;">
+                                {{ scores.air }}
+                            </p>
+                            {% if result == 'air' %}
+                            <span class="badge badge-approved">✓ Recommended</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% elif existing %}
+            <!-- Existing Result -->
+            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+                <div style="padding:16px; background:#0f172a; border-radius:8px;
+                    {% if existing.recommended_type == 'lcl' %}border:2px solid #22c55e;{% else %}border:1px solid #334155;{% endif %}">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <p style="color:#f1f5f9; font-weight:600;">🚢 LCL</p>
+                            <p style="color:#94a3b8; font-size:12px;">Less Container Load</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <p style="color:#f1f5f9; font-size:24px; font-weight:700;">
+                                {{ existing.lcl_score }}
+                            </p>
+                            {% if existing.recommended_type == 'lcl' %}
+                            <span class="badge badge-approved">✓ Recommended</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div style="padding:16px; background:#0f172a; border-radius:8px;
+                    {% if existing.recommended_type == 'fcl' %}border:2px solid #22c55e;{% else %}border:1px solid #334155;{% endif %}">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <p style="color:#f1f5f9; font-weight:600;">🏭 FCL</p>
+                            <p style="color:#94a3b8; font-size:12px;">Full Container Load</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <p style="color:#f1f5f9; font-size:24px; font-weight:700;">
+                                {{ existing.fcl_score }}
+                            </p>
+                            {% if existing.recommended_type == 'fcl' %}
+                            <span class="badge badge-approved">✓ Recommended</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div style="padding:16px; background:#0f172a; border-radius:8px;
+                    {% if existing.recommended_type == 'air' %}border:2px solid #22c55e;{% else %}border:1px solid #334155;{% endif %}">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <p style="color:#f1f5f9; font-weight:600;">✈️ Air Freight</p>
+                            <p style="color:#94a3b8; font-size:12px;">Air Cargo</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <p style="color:#f1f5f9; font-size:24px; font-weight:700;">
+                                {{ existing.air_score }}
+                            </p>
+                            {% if existing.recommended_type == 'air' %}
+                            <span class="badge badge-approved">✓ Recommended</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <p style="color:#94a3b8; font-size:12px; text-align:right;">
+                    Last computed: {{ existing.computed_at|date:"M d, Y h:i A" }}
+                </p>
+            </div>
+
+            {% else %}
+            <p style="color:#94a3b8; font-size:14px;">
+                Fill in the form and click Compute to see results.
+            </p>
+
+            <!-- Criteria Reference -->
+            <div style="margin-top:20px; padding:16px; background:#0f172a; border-radius:8px;">
+                <p style="color:#94a3b8; font-size:12px; margin-bottom:8px;">
+                    📌 WMCDA Criteria & Weights:
+                </p>
+                <p style="color:#64748b; font-size:12px; line-height:1.8;">
+                    Cost Efficiency — 35%<br>
+                    Transit Time — 30%<br>
+                    Weight/Volume Suitability — 20%<br>
+                    Risk & Value — 15%
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+        <a href="{% url 'declarant:process' shipment.id %}"
+           class="btn btn-secondary">
+            ← Back to Shipment
+        </a>
+    </div>
+
+</div>
+{% endblock %}
