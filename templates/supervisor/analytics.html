@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics{% endblock %}
+{% block page_title %}Analytics Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Status Overview -->
+<div class="kpi-grid" style="margin-bottom:24px;">
+    <div class="kpi-card blue">
+        <p class="kpi-label">Total Shipments</p>
+        <p class="kpi-value">{{ total_shipments }}</p>
+    </div>
+    <div class="kpi-card yellow">
+        <p class="kpi-label">Pending</p>
+        <p class="kpi-value">{{ status_data.pending }}</p>
+    </div>
+    <div class="kpi-card blue">
+        <p class="kpi-label">In Review</p>
+        <p class="kpi-value">{{ status_data.in_review }}</p>
+    </div>
+    <div class="kpi-card green">
+        <p class="kpi-label">Approved</p>
+        <p class="kpi-value">{{ status_data.approved }}</p>
+    </div>
+    <div class="kpi-card red">
+        <p class="kpi-label">Rejected</p>
+        <p class="kpi-value">{{ status_data.rejected }}</p>
+    </div>
+</div>
+
+<!-- Declarant Performance -->
+<div class="card">
+    <p class="card-title">👥 Declarant Performance</p>
+    {% if declarant_data %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Declarant</th>
+                    <th>Total Handled</th>
+                    <th>Approved</th>
+                    <th>Rejected</th>
+                    <th>Approval Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in declarant_data %}
+                <tr>
+                    <td>{{ d.name }}</td>
+                    <td>{{ d.total }}</td>
+                    <td>
+                        <span class="badge badge-approved">{{ d.approved }}</span>
+                    </td>
+                    <td>
+                        <span class="badge badge-rejected">{{ d.rejected }}</span>
+                    </td>
+                    <td>
+                        {% if d.total > 0 %}
+                            {{ d.approved|floatformat:0 }}/{{ d.total }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color:#94a3b8; font-size:14px;">No declarant data yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

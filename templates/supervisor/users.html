@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}User Management{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <p style="color:#94a3b8; font-size:14px;">{{ users.count }} total user(s)</p>
+    <a href="{% url 'supervisor:add_user' %}" class="btn btn-primary">+ Add User</a>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.get_full_name|default:u.username }}</td>
+                <td>{{ u.username }}</td>
+                <td>{{ u.email }}</td>
+                <td>
+                    <span class="badge badge-review">
+                        {{ u.get_role_display }}
+                    </span>
+                </td>
+                <td>
+                    {% if u.is_active %}
+                        <span class="badge badge-approved">Active</span>
+                    {% else %}
+                        <span class="badge badge-rejected">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if u != request.user %}
+                    <a href="{% url 'supervisor:toggle_user' u.id %}"
+                       class="btn {% if u.is_active %}btn-danger{% else %}btn-success{% endif %}">
+                        {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
+                    </a>
+                    {% else %}
+                    <span style="color:#94a3b8; font-size:12px;">You</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
