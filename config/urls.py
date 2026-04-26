@@ -25,6 +25,7 @@ urlpatterns = [
     path('supervisor/', include('apps.supervisor.urls', namespace='supervisor')),
     path('consignee/', include('apps.consignee.urls', namespace='consignee')),
     path('declarant/', include('apps.declarant.urls', namespace='declarant')),
+    path('computation/', include('apps.computation.urls', namespace='computation')),
 ]
 
 if settings.DEBUG:

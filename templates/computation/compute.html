@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}Duty Computation{% endblock %}
+{% block page_title %}EDT/VAT/TLC Computation — {{ shipment.hawb_number }}{% endblock %}
+
+{% block content %}
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+
+    <!-- Left: Input Form -->
+    <div class="card">
+        <p class="card-title">📋 Computation Inputs</p>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="message {{ message.tags }}" style="margin-bottom:16px;">
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <!-- HS Code Search -->
+            <div class="form-group">
+                <label class="form-label">HS Code</label>
+                <select name="hs_code" class="form-input">
+                    <option value="">-- Select HS Code --</option>
+                    {% for hs in hs_codes %}
+                    <option value="{{ hs.id }}"
+                        {% if existing and existing.hs_code.id == hs.id %}selected{% endif %}>
+                        {{ hs.code }} — {{ hs.description|truncatechars:40 }}
+                        ({{ hs.duty_rate }}%)
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Declared Value -->
+            <div class="form-group">
+                <label class="form-label">Declared Value (USD) *</label>
+                <input
+                    type="number"
+                    name="declared_value"
+                    class="form-input"
+                    step="0.01"
+                    placeholder="0.00"
+                    value="{{ existing.declared_value|default:'' }}"
+                    required
+                >
+            </div>
+
+            <!-- Freight Cost -->
+            <div class="form-group">
+                <label class="form-label">Freight Cost (USD) *</label>
+                <input
+                    type="number"
+                    name="freight_cost"
+                    class="form-input"
+                    step="0.01"
+                    placeholder="0.00"
+                    value="{{ existing.freight_cost|default:'' }}"
+                    required
+                >
+            </div>
+
+            <!-- Insurance Cost -->
+            <div class="form-group">
+                <label class="form-label">Insurance Cost (USD) *</label>
+                <input
+                    type="number"
+                    name="insurance_cost"
+                    class="form-input"
+                    step="0.01"
+                    placeholder="0.00"
+                    value="{{ existing.insurance_cost|default:'' }}"
+                    required
+                >
+            </div>
+
+            <!-- Exchange Rate -->
+            <div class="form-group">
+                <label class="form-label">Exchange Rate (USD to PHP) *</label>
+                <input
+                    type="number"
+                    name="exchange_rate"
+                    class="form-input"
+                    step="0.0001"
+                    placeholder="e.g. 56.50"
+                    value="{{ existing.exchange_rate|default:'56.50' }}"
+                    required
+                >
+            </div>
+
+            <!-- Duty Rate -->
+            <div class="form-group">
+                <label class="form-label">Duty Rate (%) *</label>
+                <input
+                    type="number"
+                    name="duty_rate"
+                    class="form-input"
+                    step="0.01"
+                    placeholder="e.g. 5"
+                    value="{{ existing.duty_rate|default:'' }}"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;">
+                🧮 Compute Duties & Taxes
+            </button>
+        </form>
+    </div>
+
+    <!-- Right: Results -->
+    <div>
+        <div class="card">
+            <p class="card-title">📊 Computation Results</p>
+
+            {% if result %}
+            <!-- New Result -->
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
+                    <span style="color:#94a3b8; font-size:13px;">CIF Value (PHP)</span>
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        ₱{{ result.dutiable_value|floatformat:2 }}
+                    </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
+                    <span style="color:#94a3b8; font-size:13px;">Customs Duty</span>
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        ₱{{ result.customs_duty|floatformat:2 }}
+                    </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
+                    <span style="color:#94a3b8; font-size:13px;">VAT Base</span>
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        ₱{{ result.vat_base|floatformat:2 }}
+                    </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
+                    <span style="color:#94a3b8; font-size:13px;">VAT Amount (12%)</span>
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        ₱{{ result.vat_amount|floatformat:2 }}
+                    </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:16px; background:#172554; border-radius:8px; border:1px solid #3b82f6;">
+                    <span style="color:#93c5fd; font-size:15px; font-weight:600;">
+                        Total Landed Cost
+                    </span>
+                    <span style="color:#3b82f6; font-size:18px; font-weight:700;">
+                        ₱{{ result.total_landed_cost|floatformat:2 }}
+                    </span>
+                </div>
+            </div>
+
+            {% elif existing %}
+            <!-- Existing Saved Result -->
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
+                    <span style="color:#94a3b8; font-size:13px;">CIF Value (PHP)</span>
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        ₱{{ existing.dutiable_value|floatformat:2 }}
+                    </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
+                    <span style="color:#94a3b8; font-size:13px;">Customs Duty</span>
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        ₱{{ existing.customs_duty|floatformat:2 }}
+                    </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
+                    <span style="color:#94a3b8; font-size:13px;">VAT Base</span>
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        ₱{{ existing.vat_base|floatformat:2 }}
+                    </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
+                    <span style="color:#94a3b8; font-size:13px;">VAT Amount (12%)</span>
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        ₱{{ existing.vat_amount|floatformat:2 }}
+                    </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:16px; background:#172554; border-radius:8px; border:1px solid #3b82f6;">
+                    <span style="color:#93c5fd; font-size:15px; font-weight:600;">
+                        Total Landed Cost
+                    </span>
+                    <span style="color:#3b82f6; font-size:18px; font-weight:700;">
+                        ₱{{ existing.total_landed_cost|floatformat:2 }}
+                    </span>
+                </div>
+                <p style="color:#94a3b8; font-size:12px; text-align:right;">
+                    Last computed: {{ existing.computed_at|date:"M d, Y h:i A" }}
+                </p>
+            </div>
+
+            {% else %}
+            <p style="color:#94a3b8; font-size:14px;">
+                Fill in the form and click Compute to see results.
+            </p>
+
+            <!-- Formula Reference -->
+            <div style="margin-top:20px; padding:16px; background:#0f172a; border-radius:8px;">
+                <p style="color:#94a3b8; font-size:12px; margin-bottom:8px;">
+                    📌 Formula Reference:
+                </p>
+                <p style="color:#64748b; font-size:12px; line-height:1.8;">
+                    CIF Value = (Declared + Freight + Insurance) × Exchange Rate<br>
+                    Customs Duty = CIF Value × Duty Rate<br>
+                    VAT Base = CIF Value + Customs Duty<br>
+                    VAT Amount = VAT Base × 12%<br>
+                    Total Landed Cost = CIF + Duty + VAT
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Back Button -->
+        <div style="margin-top:16px;">
+            <a href="{% url 'declarant:process' shipment.id %}" 
+               class="btn btn-secondary">
+                ← Back to Shipment
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

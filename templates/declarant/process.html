@@ -90,13 +90,15 @@
         <div class="card">
             <p class="card-title">⚙️ Processing Workspace</p>
             <p style="color:#94a3b8; font-size:13px; margin-bottom:20px;">
-                Computation module coming soon.
+            Compute duties and taxes for this shipment.
             </p>
-            <div style="display:flex; gap:12px; margin-top:16px;">
-                <a href="{% url 'declarant:queue' %}" class="btn btn-secondary">
-                    ← Back to Queue
-                </a>
-            </div>
+            <a href="{% url 'computation:compute' shipment.id %}" 
+                class="btn btn-primary" style="width:100%; text-align:center; margin-bottom:12px;">
+                🧮 Open Computation Module
+            </a>
+            <a href="{% url 'declarant:queue' %}" class="btn btn-secondary">
+                ← Back to Queue
+            </a>
         </div>
     </div>
 
