@@ -28,7 +28,7 @@
                 <a href="/consignee/submissions/" class="nav-item">
                     📋 My Submissions
                 </a>
-                <a href="/consignee/notifications/" class="nav-item">
+                <a href="{% url 'notifications:list' %}" class="nav-item">
                     🔔 Notifications
                 </a>
                 <a href="/consignee/settings/" class="nav-item">
@@ -42,7 +42,7 @@
                 <a href="/declarant/queue/" class="nav-item">
                     📋 Queue Manager
                 </a>
-                <a href="/declarant/notifications/" class="nav-item">
+                <a href="{% url 'notifications:list' %}" class="nav-item">
                     🔔 Notifications
                 </a>
 
@@ -59,7 +59,7 @@
                 <a href="/supervisor/config/" class="nav-item">
                     ⚙️ System Config
                 </a>
-                <a href="/supervisor/notifications/" class="nav-item">
+                <a href="{% url 'notifications:list' %}" class="nav-item">
                     🔔 Notifications
                 </a>
             {% endif %}

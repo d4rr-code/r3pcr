@@ -26,6 +26,7 @@ urlpatterns = [
     path('consignee/', include('apps.consignee.urls', namespace='consignee')),
     path('declarant/', include('apps.declarant.urls', namespace='declarant')),
     path('computation/', include('apps.computation.urls', namespace='computation')),
+    path('notifications/', include('apps.notifications.urls', namespace='notifications')),
 ]
 
 if settings.DEBUG:

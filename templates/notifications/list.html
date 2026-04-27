@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <p class="card-title" style="margin:0;">
+            All Notifications
+        </p>
+        <p style="color:#94a3b8; font-size:13px;">
+            {{ notifications.count }} total
+        </p>
+    </div>
+
+    {% if notifications %}
+        {% for n in notifications %}
+        <div style="padding:16px; border-bottom:1px solid #334155;
+            {% if not n.is_read %}background:#1a2744;{% endif %}">
+            <div style="display:flex; justify-content:space-between; align-items:start;">
+                <div>
+                    <p style="color:#f1f5f9; font-size:14px; font-weight:600; margin-bottom:4px;">
+                        {% if not n.is_read %}🔵 {% endif %}{{ n.title }}
+                    </p>
+                    <p style="color:#94a3b8; font-size:13px; margin-bottom:4px;">
+                        {{ n.message }}
+                    </p>
+                    {% if n.shipment %}
+                    <p style="color:#3b82f6; font-size:12px;">
+                        HAWB: {{ n.shipment.hawb_number }}
+                    </p>
+                    {% endif %}
+                </div>
+                <div style="text-align:right; min-width:120px;">
+                    <p style="color:#64748b; font-size:12px;">
+                        {{ n.created_at|date:"M d, Y" }}
+                    </p>
+                    <p style="color:#64748b; font-size:12px;">
+                        {{ n.created_at|time:"h:i A" }}
+                    </p>
+                    <span class="badge {% if n.is_read %}badge-review{% else %}badge-pending{% endif %}"
+                          style="margin-top:4px; display:inline-block;">
+                        {% if n.is_read %}Read{% else %}New{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div style="text-align:center; padding:40px;">
+            <p style="font-size:32px; margin-bottom:12px;">🔔</p>
+            <p style="color:#94a3b8; font-size:14px;">No notifications yet.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
