@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import pytesseract
 
 load_dotenv()
 
@@ -162,3 +163,5 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
 
+# Tesseract OCR
+pytesseract.pytesseract.tesseract_cmd = r'C:\Users\Francis\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
