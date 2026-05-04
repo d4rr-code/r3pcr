@@ -1,228 +1,388 @@
 {% extends 'base.html' %}
 
-{% block title %}Duty Computation{% endblock %}
-{% block page_title %}EDT/VAT/TLC Computation — {{ shipment.hawb_number }}{% endblock %}
+{% block title %}EDT Computation{% endblock %}
+{% block page_title %}Pre-Clearance Computation — {{ shipment.hawb_number }}{% endblock %}
 
 {% block content %}
-<div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
 
-    <!-- Left: Input Form -->
-    <div class="card">
-        <p class="card-title">📋 Computation Inputs</p>
+<!-- Shipment Info Bar -->
+<div class="card" style="margin-bottom:16px; padding:12px 20px;">
+    <div style="display:flex; gap:32px; flex-wrap:wrap;">
+        <div>
+            <span style="color:#94a3b8; font-size:12px;">Consignee</span>
+            <p style="color:#f1f5f9; font-size:14px; font-weight:600;">
+                {{ shipment.consignee.get_full_name|default:shipment.consignee.username }}
+            </p>
+        </div>
+        <div>
+            <span style="color:#94a3b8; font-size:12px;">HAWB Number</span>
+            <p style="color:#f1f5f9; font-size:14px; font-weight:600;">
+                {{ shipment.hawb_number }}
+            </p>
+        </div>
+        <div>
+            <span style="color:#94a3b8; font-size:12px;">Import Type</span>
+            <p style="color:#f1f5f9; font-size:14px; font-weight:600;">
+                {{ shipment.get_import_type_display }}
+            </p>
+        </div>
+        <div>
+            <span style="color:#94a3b8; font-size:12px;">Status</span>
+            <p>
+                <span class="badge badge-{{ shipment.status }}">
+                    {{ shipment.get_status_display }}
+                </span>
+            </p>
+        </div>
+    </div>
+</div>
 
-        {% if messages %}
-            {% for message in messages %}
-            <div class="message {{ message.tags }}" style="margin-bottom:16px;">
-                {{ message }}
-            </div>
-            {% endfor %}
-        {% endif %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="message {{ message.tags }}" style="margin-bottom:16px;">
+        {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}
 
-        <form method="POST">
-            {% csrf_token %}
+<form method="POST">
+{% csrf_token %}
 
-            <!-- HS Code Search -->
-            <div class="form-group">
-                <label class="form-label">HS Code</label>
-                <select name="hs_code" class="form-input">
-                    <option value="">-- Select HS Code --</option>
-                    {% for hs in hs_codes %}
-                    <option value="{{ hs.id }}"
-                        {% if existing and existing.hs_code.id == hs.id %}selected{% endif %}>
-                        {{ hs.code }} — {{ hs.description|truncatechars:40 }}
-                        ({{ hs.duty_rate }}%)
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
+<!-- Global Inputs -->
+<div class="card" style="margin-bottom:16px;">
+    <p class="card-title">⚙️ Shipment Parameters</p>
+    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:16px;">
 
-            <!-- Declared Value -->
-            <div class="form-group">
-                <label class="form-label">Declared Value (USD) *</label>
-                <input
-                    type="number"
-                    name="declared_value"
-                    class="form-input"
-                    step="0.01"
-                    placeholder="0.00"
-                    value="{{ existing.declared_value|default:'' }}"
-                    required
-                >
-            </div>
+        <div class="form-group">
+            <label class="form-label">HS Code</label>
+            <select name="hs_code" class="form-input" id="hs_code_select"
+                onchange="updateDutyRate(this)">
+                <option value="">-- Select HS Code --</option>
+                {% for hs in hs_codes %}
+                <option value="{{ hs.id }}"
+                    data-rate="{{ hs.duty_rate }}"
+                    {% if existing and existing.hs_code.id == hs.id %}selected{% endif %}>
+                    {{ hs.code }} — {{ hs.description|truncatechars:30 }}
+                    ({{ hs.duty_rate }}%)
+                </option>
+                {% endfor %}
+            </select>
+        </div>
 
-            <!-- Freight Cost -->
-            <div class="form-group">
-                <label class="form-label">Freight Cost (USD) *</label>
-                <input
-                    type="number"
-                    name="freight_cost"
-                    class="form-input"
-                    step="0.01"
-                    placeholder="0.00"
-                    value="{{ existing.freight_cost|default:'' }}"
-                    required
-                >
-            </div>
+        <div class="form-group">
+            <label class="form-label">Duty Rate (%)</label>
+            <input type="number" name="duty_rate" id="duty_rate"
+                class="form-input" step="0.01" placeholder="e.g. 5"
+                value="{{ existing.duty_rate|default:'' }}" required>
+        </div>
 
-            <!-- Insurance Cost -->
-            <div class="form-group">
-                <label class="form-label">Insurance Cost (USD) *</label>
-                <input
-                    type="number"
-                    name="insurance_cost"
-                    class="form-input"
-                    step="0.01"
-                    placeholder="0.00"
-                    value="{{ existing.insurance_cost|default:'' }}"
-                    required
-                >
-            </div>
+        <div class="form-group">
+            <label class="form-label">Exchange Rate (USD→PHP)</label>
+            <input type="number" name="exchange_rate"
+                class="form-input" step="0.000001" placeholder="e.g. 59.148"
+                value="{{ existing.exchange_rate|default:'59.148' }}" required>
+        </div>
 
-            <!-- Exchange Rate -->
-            <div class="form-group">
-                <label class="form-label">Exchange Rate (USD to PHP) *</label>
-                <input
-                    type="number"
-                    name="exchange_rate"
-                    class="form-input"
-                    step="0.0001"
-                    placeholder="e.g. 56.50"
-                    value="{{ existing.exchange_rate|default:'56.50' }}"
-                    required
-                >
-            </div>
+        <div class="form-group">
+            <label class="form-label">Total Freight (USD)</label>
+            <input type="number" name="total_freight"
+                class="form-input" step="0.01" placeholder="0.00"
+                value="{{ existing.freight_cost|default:'' }}" required>
+        </div>
 
-            <!-- Duty Rate -->
-            <div class="form-group">
-                <label class="form-label">Duty Rate (%) *</label>
-                <input
-                    type="number"
-                    name="duty_rate"
-                    class="form-input"
-                    step="0.01"
-                    placeholder="e.g. 5"
-                    value="{{ existing.duty_rate|default:'' }}"
-                    required
-                >
-            </div>
+        <div class="form-group">
+            <label class="form-label">Total Insurance (USD)</label>
+            <input type="number" name="total_insurance"
+                class="form-input" step="0.01" placeholder="0.00"
+                value="{{ existing.insurance_cost|default:'' }}" required>
+        </div>
 
-            <button type="submit" class="btn btn-primary" style="width:100%;">
-                🧮 Compute Duties & Taxes
-            </button>
-        </form>
+    </div>
+</div>
+
+<!-- Line Items Table -->
+<div class="card" style="margin-bottom:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <p class="card-title" style="margin:0;">📦 Item Line Entries</p>
+        <button type="button" class="btn btn-secondary" onclick="addRow()">
+            + Add Item
+        </button>
     </div>
 
-    <!-- Right: Results -->
-    <div>
-        <div class="card">
-            <p class="card-title">📊 Computation Results</p>
+    <div style="overflow-x:auto;">
+        <table id="items_table" style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#0f172a;">
+                    <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px; white-space:nowrap;">#</th>
+                    <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px; white-space:nowrap;">Description</th>
+                    <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px; white-space:nowrap;">EXW/FCA (USD)</th>
+                    <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px; white-space:nowrap;">Qty</th>
+                    <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px; white-space:nowrap;"></th>
+                </tr>
+            </thead>
+            <tbody id="items_body">
+                {% if items %}
+                    {% for item in items %}
+                    <tr>
+                        <td style="padding:8px 12px; color:#94a3b8; font-size:13px;">{{ item.no }}</td>
+                        <td style="padding:8px 12px;">
+                            <input type="text" name="description[]"
+                                class="form-input" style="min-width:200px;"
+                                value="{{ item.description }}" placeholder="Item description">
+                        </td>
+                        <td style="padding:8px 12px;">
+                            <input type="number" name="exw_value[]"
+                                class="form-input exw-input" step="0.01"
+                                value="{{ item.exw }}" placeholder="0.00">
+                        </td>
+                        <td style="padding:8px 12px;">
+                            <input type="number" name="quantity[]"
+                                class="form-input" style="width:80px;"
+                                value="{{ item.quantity }}" placeholder="0">
+                        </td>
+                        <td style="padding:8px 12px;">
+                            <button type="button" class="btn btn-danger"
+                                onclick="removeRow(this)" style="padding:4px 10px;">
+                                ✕
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td style="padding:8px 12px; color:#94a3b8; font-size:13px;">1</td>
+                        <td style="padding:8px 12px;">
+                            <input type="text" name="description[]"
+                                class="form-input" style="min-width:200px;"
+                                placeholder="Item description">
+                        </td>
+                        <td style="padding:8px 12px;">
+                            <input type="number" name="exw_value[]"
+                                class="form-input exw-input" step="0.01"
+                                placeholder="0.00">
+                        </td>
+                        <td style="padding:8px 12px;">
+                            <input type="number" name="quantity[]"
+                                class="form-input" style="width:80px;"
+                                placeholder="0">
+                        </td>
+                        <td style="padding:8px 12px;">
+                            <button type="button" class="btn btn-danger"
+                                onclick="removeRow(this)" style="padding:4px 10px;">
+                                ✕
+                            </button>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
 
-            {% if result %}
-            <!-- New Result -->
-            <div style="display:flex; flex-direction:column; gap:12px;">
-                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
-                    <span style="color:#94a3b8; font-size:13px;">CIF Value (PHP)</span>
-                    <span style="color:#f1f5f9; font-weight:600;">
-                        ₱{{ result.dutiable_value|floatformat:2 }}
-                    </span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
-                    <span style="color:#94a3b8; font-size:13px;">Customs Duty</span>
-                    <span style="color:#f1f5f9; font-weight:600;">
-                        ₱{{ result.customs_duty|floatformat:2 }}
-                    </span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
-                    <span style="color:#94a3b8; font-size:13px;">VAT Base</span>
-                    <span style="color:#f1f5f9; font-weight:600;">
-                        ₱{{ result.vat_base|floatformat:2 }}
-                    </span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
-                    <span style="color:#94a3b8; font-size:13px;">VAT Amount (12%)</span>
-                    <span style="color:#f1f5f9; font-weight:600;">
-                        ₱{{ result.vat_amount|floatformat:2 }}
-                    </span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding:16px; background:#172554; border-radius:8px; border:1px solid #3b82f6;">
-                    <span style="color:#93c5fd; font-size:15px; font-weight:600;">
-                        Total Landed Cost
-                    </span>
-                    <span style="color:#3b82f6; font-size:18px; font-weight:700;">
-                        ₱{{ result.total_landed_cost|floatformat:2 }}
-                    </span>
-                </div>
+    <div style="margin-top:12px; padding:8px 12px; background:#0f172a; border-radius:8px; display:flex; justify-content:space-between;">
+        <span style="color:#94a3b8; font-size:13px;">Total EXW Value:</span>
+        <span style="color:#f1f5f9; font-weight:600;" id="total_exw_display">$0.00</span>
+    </div>
+</div>
+
+<!-- Submit -->
+<div style="display:flex; gap:12px; margin-bottom:24px;">
+    <button type="submit" class="btn btn-primary">
+        🧮 Compute Duties & Taxes
+    </button>
+    <a href="{% url 'declarant:process' shipment.id %}" class="btn btn-secondary">
+        ← Back to Shipment
+    </a>
+</div>
+
+</form>
+
+<!-- Results -->
+{% if result or existing %}
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+
+    <!-- Per Item Results -->
+    {% if items %}
+    <div class="card">
+        <p class="card-title">📋 Per-Item Computation</p>
+        <div style="overflow-x:auto;">
+            <table style="width:100%; font-size:12px;">
+                <thead>
+                    <tr style="background:#0f172a;">
+                        <th style="padding:8px; color:#94a3b8; text-align:left;">#</th>
+                        <th style="padding:8px; color:#94a3b8; text-align:left;">Description</th>
+                        <th style="padding:8px; color:#94a3b8; text-align:right;">D/V (PHP)</th>
+                        <th style="padding:8px; color:#94a3b8; text-align:right;">CUD (PHP)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr style="border-top:1px solid #334155;">
+                        <td style="padding:8px; color:#94a3b8;">{{ item.no }}</td>
+                        <td style="padding:8px; color:#f1f5f9;">
+                            {{ item.description|truncatechars:30 }}
+                        </td>
+                        <td style="padding:8px; color:#f1f5f9; text-align:right;">
+                            ₱{{ item.dv_php|floatformat:2 }}
+                        </td>
+                        <td style="padding:8px; color:#f1f5f9; text-align:right;">
+                            ₱{{ item.cud|floatformat:2 }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Summary -->
+    <div class="card">
+        <p class="card-title">📊 Summary</p>
+        {% with s=result|default:existing %}
+        <div style="display:flex; flex-direction:column; gap:10px;">
+
+            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
+                <span style="color:#94a3b8; font-size:13px;">Taxable Value</span>
+                <span style="color:#f1f5f9; font-weight:600;">
+                    {% if result %}₱{{ result.taxable_value|floatformat:2 }}
+                    {% else %}₱{{ existing.dutiable_value|floatformat:2 }}{% endif %}
+                </span>
             </div>
 
-            {% elif existing %}
-            <!-- Existing Saved Result -->
-            <div style="display:flex; flex-direction:column; gap:12px;">
-                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
-                    <span style="color:#94a3b8; font-size:13px;">CIF Value (PHP)</span>
-                    <span style="color:#f1f5f9; font-weight:600;">
-                        ₱{{ existing.dutiable_value|floatformat:2 }}
-                    </span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
-                    <span style="color:#94a3b8; font-size:13px;">Customs Duty</span>
-                    <span style="color:#f1f5f9; font-weight:600;">
-                        ₱{{ existing.customs_duty|floatformat:2 }}
-                    </span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
-                    <span style="color:#94a3b8; font-size:13px;">VAT Base</span>
-                    <span style="color:#f1f5f9; font-weight:600;">
-                        ₱{{ existing.vat_base|floatformat:2 }}
-                    </span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding:12px; background:#0f172a; border-radius:8px;">
-                    <span style="color:#94a3b8; font-size:13px;">VAT Amount (12%)</span>
-                    <span style="color:#f1f5f9; font-weight:600;">
-                        ₱{{ existing.vat_amount|floatformat:2 }}
-                    </span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding:16px; background:#172554; border-radius:8px; border:1px solid #3b82f6;">
-                    <span style="color:#93c5fd; font-size:15px; font-weight:600;">
-                        Total Landed Cost
-                    </span>
-                    <span style="color:#3b82f6; font-size:18px; font-weight:700;">
-                        ₱{{ existing.total_landed_cost|floatformat:2 }}
-                    </span>
-                </div>
-                <p style="color:#94a3b8; font-size:12px; text-align:right;">
-                    Last computed: {{ existing.computed_at|date:"M d, Y h:i A" }}
-                </p>
+            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
+                <span style="color:#94a3b8; font-size:13px;">Customs Duties (CUD)</span>
+                <span style="color:#f1f5f9; font-weight:600;">
+                    {% if result %}₱{{ result.customs_duties|floatformat:2 }}
+                    {% else %}₱{{ existing.customs_duty|floatformat:2 }}{% endif %}
+                </span>
             </div>
 
-            {% else %}
-            <p style="color:#94a3b8; font-size:14px;">
-                Fill in the form and click Compute to see results.
+            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
+                <span style="color:#94a3b8; font-size:13px;">VAT (12%)</span>
+                <span style="color:#f1f5f9; font-weight:600;">
+                    {% if result %}₱{{ result.vat|floatformat:2 }}
+                    {% else %}₱{{ existing.vat_amount|floatformat:2 }}{% endif %}
+                </span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
+                <span style="color:#94a3b8; font-size:13px;">Brokerage Fee</span>
+                <span style="color:#f1f5f9; font-weight:600;">
+                    {% if result %}₱{{ result.brokerage_fee|floatformat:2 }}
+                    {% else %}—{% endif %}
+                </span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
+                <span style="color:#94a3b8; font-size:13px;">Customs Doc Stamp</span>
+                <span style="color:#f1f5f9; font-weight:600;">₱130.00</span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
+                <span style="color:#94a3b8; font-size:13px;">Import Processing Fee</span>
+                <span style="color:#f1f5f9; font-weight:600;">
+                    {% if result %}₱{{ result.ipf|floatformat:2 }}
+                    {% else %}—{% endif %}
+                </span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; padding:16px; background:#172554; border-radius:8px; border:2px solid #3b82f6;">
+                <span style="color:#93c5fd; font-size:15px; font-weight:600;">
+                    Total Landed Cost
+                </span>
+                <span style="color:#3b82f6; font-size:20px; font-weight:700;">
+                    {% if result %}₱{{ result.total_landed_cost|floatformat:2 }}
+                    {% else %}₱{{ existing.total_landed_cost|floatformat:2 }}{% endif %}
+                </span>
+            </div>
+
+            <p style="color:#64748b; font-size:11px; text-align:center;">
+                ESTIMATED COMPUTATION ONLY.<br>
+                FINAL ASSESSMENT WILL BE BASED ON CUSTOMS FINDINGS.
             </p>
-
-            <!-- Formula Reference -->
-            <div style="margin-top:20px; padding:16px; background:#0f172a; border-radius:8px;">
-                <p style="color:#94a3b8; font-size:12px; margin-bottom:8px;">
-                    📌 Formula Reference:
-                </p>
-                <p style="color:#64748b; font-size:12px; line-height:1.8;">
-                    CIF Value = (Declared + Freight + Insurance) × Exchange Rate<br>
-                    Customs Duty = CIF Value × Duty Rate<br>
-                    VAT Base = CIF Value + Customs Duty<br>
-                    VAT Amount = VAT Base × 12%<br>
-                    Total Landed Cost = CIF + Duty + VAT
-                </p>
-            </div>
-            {% endif %}
         </div>
-
-        <!-- Back Button -->
-        <div style="margin-top:16px;">
-            <a href="{% url 'declarant:process' shipment.id %}" 
-               class="btn btn-secondary">
-                ← Back to Shipment
-            </a>
-        </div>
+        {% endwith %}
     </div>
 
 </div>
+{% endif %}
+
+{% block extra_js %}
+<script>
+    // Auto-fill duty rate when HS code is selected
+    function updateDutyRate(select) {
+        const rate = select.options[select.selectedIndex].dataset.rate;
+        if (rate) {
+            document.getElementById('duty_rate').value = rate;
+        }
+    }
+
+    // Add new item row
+    function addRow() {
+        const tbody = document.getElementById('items_body');
+        const rowCount = tbody.rows.length + 1;
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td style="padding:8px 12px; color:#94a3b8; font-size:13px;">${rowCount}</td>
+            <td style="padding:8px 12px;">
+                <input type="text" name="description[]"
+                    class="form-input" style="min-width:200px;"
+                    placeholder="Item description">
+            </td>
+            <td style="padding:8px 12px;">
+                <input type="number" name="exw_value[]"
+                    class="form-input exw-input" step="0.01"
+                    placeholder="0.00" oninput="updateTotal()">
+            </td>
+            <td style="padding:8px 12px;">
+                <input type="number" name="quantity[]"
+                    class="form-input" style="width:80px;"
+                    placeholder="0">
+            </td>
+            <td style="padding:8px 12px;">
+                <button type="button" class="btn btn-danger"
+                    onclick="removeRow(this)" style="padding:4px 10px;">
+                    ✕
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    }
+
+    // Remove item row
+    function removeRow(btn) {
+        const row = btn.closest('tr');
+        row.remove();
+        updateRowNumbers();
+        updateTotal();
+    }
+
+    // Update row numbers
+    function updateRowNumbers() {
+        const rows = document.querySelectorAll('#items_body tr');
+        rows.forEach((row, index) => {
+            row.cells[0].textContent = index + 1;
+        });
+    }
+
+    // Update total EXW display
+    function updateTotal() {
+        const inputs = document.querySelectorAll('.exw-input');
+        let total = 0;
+        inputs.forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+        document.getElementById('total_exw_display').textContent =
+            '$' + total.toLocaleString('en-US', {minimumFractionDigits: 2});
+    }
+
+    // Attach listeners to existing inputs
+    document.querySelectorAll('.exw-input').forEach(input => {
+        input.addEventListener('input', updateTotal);
+    });
+
+    updateTotal();
+</script>
+{% endblock %}
+
 {% endblock %}

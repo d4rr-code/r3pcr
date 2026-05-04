@@ -1,96 +1,74 @@
 {% extends 'base.html' %}
 
 {% block title %}New Submission{% endblock %}
-{% block page_title %}New Shipment Submission{% endblock %}
+{% block page_title %}New Submission{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width: 700px;">
 
-    {% if messages %}
-        {% for message in messages %}
-        <div class="message {{ message.tags }}" style="margin-bottom:16px;">
-            {{ message }}
-        </div>
-        {% endfor %}
-    {% endif %}
+<div class="card" style="max-width:680px;">
+    <p class="card-title">📤 Submit New Shipment</p>
+
+    <div style="background:#1e3a5f; border:1px solid #3b82f6; border-radius:8px;
+                padding:12px 16px; margin-bottom:24px; color:#93c5fd; font-size:13px;">
+        ℹ️ A <strong>Shipment Reference No.</strong> (e.g. <code>R3PCR-2026-000001</code>)
+        will be automatically assigned after submission.
+    </div>
 
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
 
-        <!-- HAWB Number -->
-        <div class="form-group">
-            <label class="form-label">HAWB / BOL Number *</label>
-            <input 
-                type="text" 
-                name="hawb_number" 
-                class="form-input"
-                placeholder="e.g. HAWB-2026-001"
-                required
-            >
-        </div>
-
-        <!-- Import Type -->
         <div class="form-group">
             <label class="form-label">Import Type *</label>
             <select name="import_type" class="form-input" required>
-                <option value="">Select import type</option>
-                <option value="permanent">Permanent</option>
-                <option value="repair">For Repair</option>
-                <option value="sample">Sample</option>
+                <option value="">— Select —</option>
+                <option value="commercial">Commercial</option>
+                <option value="personal">Personal</option>
+                <option value="balikbayan">Balikbayan</option>
+                <option value="courier">Courier / Express</option>
             </select>
         </div>
 
-        <!-- Urgency -->
         <div class="form-group">
-            <label class="form-label">Urgency Level *</label>
+            <label class="form-label">Urgency *</label>
             <select name="urgency" class="form-input" required>
+                <option value="">— Select —</option>
                 <option value="normal">Normal</option>
                 <option value="urgent">Urgent</option>
             </select>
         </div>
 
-        <!-- Description -->
         <div class="form-group">
-            <label class="form-label">Cargo Description</label>
-            <textarea 
-                name="description" 
-                class="form-input"
-                rows="3"
-                placeholder="Brief description of the goods"
-            ></textarea>
+            <label class="form-label">Description of Goods</label>
+            <textarea name="description" class="form-input" rows="3"
+                placeholder="Brief description of the shipment contents..."></textarea>
         </div>
 
-        <!-- Document Uploads -->
-        <div style="margin-top: 24px; margin-bottom: 16px;">
-            <p class="card-title">Upload Documents</p>
-            <p style="color:#94a3b8; font-size:13px; margin-bottom:16px;">
-                Upload your shipment documents below. Accepted formats: PDF, JPG, PNG.
-            </p>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:8px;">
+            <div class="form-group">
+                <label class="form-label">📄 Commercial Invoice</label>
+                <input type="file" name="invoice" class="form-input"
+                    accept=".pdf,.jpg,.jpeg,.png">
+                <p style="color:#64748b; font-size:11px; margin-top:4px;">PDF or image</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">📦 Packing List</label>
+                <input type="file" name="packing_list" class="form-input"
+                    accept=".pdf,.jpg,.jpeg,.png">
+                <p style="color:#64748b; font-size:11px; margin-top:4px;">PDF or image</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">✈️ Airway Bill</label>
+                <input type="file" name="airway_bill" class="form-input"
+                    accept=".pdf,.jpg,.jpeg,.png">
+                <p style="color:#64748b; font-size:11px; margin-top:4px;">PDF or image</p>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label class="form-label">Commercial Invoice</label>
-            <input type="file" name="invoice" class="form-input" accept=".pdf,.jpg,.png">
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">Packing List</label>
-            <input type="file" name="packing_list" class="form-input" accept=".pdf,.jpg,.png">
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">Airway Bill / Bill of Lading</label>
-            <input type="file" name="airway_bill" class="form-input" accept=".pdf,.jpg,.png">
-        </div>
-
-        <div style="display:flex; gap:12px; margin-top:24px;">
-            <button type="submit" class="btn btn-primary">
-                Submit Shipment
-            </button>
-            <a href="{% url 'consignee:dashboard' %}" class="btn btn-secondary">
-                Cancel
-            </a>
+        <div style="display:flex; gap:12px; margin-top:16px;">
+            <button type="submit" class="btn btn-primary">Submit Shipment</button>
+            <a href="{% url 'consignee:my_submissions' %}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 </div>
+
 {% endblock %}

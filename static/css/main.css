@@ -259,10 +259,29 @@ tr:hover td {
     font-weight: 600;
 }
 
-.badge-pending { background: #422006; color: #fbbf24; }
-.badge-review { background: #172554; color: #93c5fd; }
-.badge-approved { background: #052e16; color: #86efac; }
-.badge-rejected { background: #450a0a; color: #fca5a5; }
+.badge-pending   { background: #422006; color: #fbbf24; }
+.badge-review    { background: #172554; color: #93c5fd; }
+.badge-approved  { background: #052e16; color: #86efac; }
+.badge-rejected  { background: #450a0a; color: #fca5a5; }
+.badge-secondary { background: #1e293b; color: #94a3b8; }
+.badge-success   { background: #052e16; color: #86efac; }
+.badge-danger    { background: #450a0a; color: #fca5a5; }
+.badge-info      { background: #172554; color: #93c5fd; }
+.badge-warning   { background: #422006; color: #fbbf24; }
+
+/* ─── Notification badge ──────────────────── */
+.notif-badge {
+    display: inline-block;
+    background: #3b82f6;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    line-height: 1.4;
+    vertical-align: middle;
+    margin-left: 2px;
+}
 
 /* ─── Buttons ─────────────────────────────── */
 .btn {
@@ -285,6 +304,8 @@ tr:hover td {
 .btn-danger:hover { background: #dc2626; }
 .btn-secondary { background: #334155; color: #f1f5f9; }
 .btn-secondary:hover { background: #475569; }
+.btn-warning { background: #d97706; color: white; }
+.btn-warning:hover { background: #b45309; }
 
 /* ─── Forms ───────────────────────────────── */
 .form-group {

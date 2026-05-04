@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}System Configuration{% endblock %}
+{% block page_title %}System Configuration{% endblock %}
+
+{% block content %}
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="message {{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<!-- Exchange Rate & VAT -->
+<div class="card" style="margin-bottom:24px;">
+    <p class="card-title">⚙️ Global Parameters</p>
+    <form method="POST">
+        {% csrf_token %}
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; max-width:600px;">
+            <div class="form-group">
+                <label class="form-label">Exchange Rate (USD → PHP)</label>
+                <input type="number" name="exchange_rate" class="form-input"
+                    step="0.0001" placeholder="e.g. 59.1480"
+                    value="{{ config.exchange_rate }}" required>
+                <p style="color:#64748b; font-size:11px; margin-top:4px;">
+                    Used in all duty computations.
+                </p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">VAT Rate (%)</label>
+                <input type="number" name="vat_rate" class="form-input"
+                    step="0.01" placeholder="e.g. 12"
+                    value="{{ config.vat_rate }}" required>
+                <p style="color:#64748b; font-size:11px; margin-top:4px;">
+                    Standard Philippine VAT is 12%.
+                </p>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:8px;">
+            Save Parameters
+        </button>
+    </form>
+</div>
+
+<!-- WMCDA Weights -->
+<div class="card" style="margin-bottom:24px;">
+    <p class="card-title">🎯 WMCDA Criterion Weights</p>
+    <p style="color:#94a3b8; font-size:13px; margin-bottom:16px;">
+        Weights used in the shipping advisory recommendation. Must total <strong>100%</strong>.
+    </p>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="exchange_rate" value="{{ config.exchange_rate }}">
+        <input type="hidden" name="vat_rate" value="{{ config.vat_rate }}">
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px; max-width:680px;">
+            <div class="form-group">
+                <label class="form-label">💰 Cost (%)</label>
+                <input type="number" name="wmcda_w_cost" class="form-input"
+                    step="0.1" min="0" max="100" placeholder="35"
+                    value="{{ config.wmcda_w_cost }}" required
+                    oninput="updateWmcdaSum()">
+            </div>
+            <div class="form-group">
+                <label class="form-label">⏱ Time (%)</label>
+                <input type="number" name="wmcda_w_time" class="form-input"
+                    step="0.1" min="0" max="100" placeholder="30"
+                    value="{{ config.wmcda_w_time }}" required
+                    oninput="updateWmcdaSum()">
+            </div>
+            <div class="form-group">
+                <label class="form-label">⚖️ Weight/Vol (%)</label>
+                <input type="number" name="wmcda_w_weight" class="form-input"
+                    step="0.1" min="0" max="100" placeholder="20"
+                    value="{{ config.wmcda_w_weight }}" required
+                    oninput="updateWmcdaSum()">
+            </div>
+            <div class="form-group">
+                <label class="form-label">🛡 Risk (%)</label>
+                <input type="number" name="wmcda_w_risk" class="form-input"
+                    step="0.1" min="0" max="100" placeholder="15"
+                    value="{{ config.wmcda_w_risk }}" required
+                    oninput="updateWmcdaSum()">
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:16px; margin-top:4px;">
+            <p style="color:#64748b; font-size:13px; margin:0;">
+                Sum: <span id="wmcda-sum" style="font-weight:700; color:#f1f5f9;">
+                    {{ config.wmcda_w_cost|add:config.wmcda_w_time|add:config.wmcda_w_weight|add:config.wmcda_w_risk }}
+                </span>%
+                <span id="wmcda-warning" style="color:#ef4444; font-size:12px; margin-left:8px; display:none;">
+                    ⚠ Must total 100%
+                </span>
+            </p>
+            <button type="submit" class="btn btn-primary">Save WMCDA Weights</button>
+        </div>
+    </form>
+</div>
+
+<!-- HS Code Duty Rates -->
+<div class="card">
+    <p class="card-title">📋 HS Code Duty Rates</p>
+    <p style="color:#94a3b8; font-size:13px; margin-bottom:16px;">
+        Update duty rates for individual HS codes. Changes apply immediately to new computations.
+    </p>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="exchange_rate" value="{{ config.exchange_rate }}">
+        <input type="hidden" name="vat_rate" value="{{ config.vat_rate }}">
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#0f172a;">
+                        <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px;">HS Code</th>
+                        <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px;">Description</th>
+                        <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px;">Chapter</th>
+                        <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px;">Duty Rate (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for hs in hs_codes %}
+                    <tr style="border-top:1px solid #334155;">
+                        <td style="padding:10px 12px; color:#f1f5f9; font-size:13px; font-weight:600;">
+                            {{ hs.code }}
+                            <input type="hidden" name="hs_id[]" value="{{ hs.id }}">
+                        </td>
+                        <td style="padding:10px 12px; color:#94a3b8; font-size:12px;">
+                            {{ hs.description|truncatechars:50 }}
+                        </td>
+                        <td style="padding:10px 12px; color:#64748b; font-size:12px;">
+                            {{ hs.chapter|default:"—" }}
+                        </td>
+                        <td style="padding:10px 12px;">
+                            <input type="number" name="hs_rate[]"
+                                class="form-input" style="width:100px;"
+                                step="0.01" value="{{ hs.duty_rate }}">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:16px;">
+            Save Duty Rates
+        </button>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateWmcdaSum() {
+    const fields = ['wmcda_w_cost', 'wmcda_w_time', 'wmcda_w_weight', 'wmcda_w_risk'];
+    let sum = 0;
+    fields.forEach(function(name) {
+        const el = document.querySelector('[name="' + name + '"]');
+        if (el) sum += parseFloat(el.value) || 0;
+    });
+    const sumEl  = document.getElementById('wmcda-sum');
+    const warnEl = document.getElementById('wmcda-warning');
+    if (sumEl) {
+        sumEl.textContent  = sum.toFixed(1);
+        sumEl.style.color  = Math.abs(sum - 100) < 0.5 ? '#22c55e' : '#ef4444';
+    }
+    if (warnEl) warnEl.style.display = Math.abs(sum - 100) < 0.5 ? 'none' : 'inline';
+}
+// Run once on load to colour the initial value
+document.addEventListener('DOMContentLoaded', updateWmcdaSum);
+</script>
+{% endblock %}

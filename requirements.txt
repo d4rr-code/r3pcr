@@ -1,0 +1,9 @@
+Django>=6.0,<7.0
+psycopg2-binary>=2.9
+python-dotenv>=1.0
+pytesseract>=0.3.10
+Pillow>=10.0
+pdf2image>=1.16
+gunicorn>=21.2
+whitenoise>=6.6
+dj-database-url>=2.1

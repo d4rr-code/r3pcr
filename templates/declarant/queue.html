@@ -5,100 +5,266 @@
 
 {% block content %}
 
-<!-- Pending Shipments -->
-<div class="card" style="margin-bottom:24px;">
-    <p class="card-title">📋 Pending Shipments</p>
+<!-- Filters -->
+<div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:flex-end;">
+    <!-- Live search (client-side) -->
+    <div style="flex:1; min-width:200px;">
+        <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">
+            Search (Ref No. / Consignee)
+        </label>
+        <input type="text" id="queue-search"
+               class="form-input" style="padding:7px 12px; font-size:13px;"
+               placeholder="e.g. R3PCR-2026 or Maria"
+               oninput="filterQueue()">
+    </div>
+    <!-- Server-side dropdowns -->
+    <form method="GET" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        <div style="min-width:140px;">
+            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Urgency</label>
+            <select name="urgency" class="form-input" style="padding:7px 12px; font-size:13px;"
+                    onchange="this.form.submit()">
+                <option value="">All Urgency</option>
+                <option value="urgent" {% if request.GET.urgency == 'urgent' %}selected{% endif %}>⚡ Urgent</option>
+                <option value="normal" {% if request.GET.urgency == 'normal' %}selected{% endif %}>Normal</option>
+            </select>
+        </div>
+        <div style="min-width:150px;">
+            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Section</label>
+            <select name="status" class="form-input" style="padding:7px 12px; font-size:13px;"
+                    onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="pending"   {% if request.GET.status == 'pending'   %}selected{% endif %}>Pending</option>
+                <option value="in_review" {% if request.GET.status == 'in_review' %}selected{% endif %}>In Review</option>
+            </select>
+        </div>
+        {% if request.GET.urgency or request.GET.status %}
+        <a href="{% url 'declarant:queue' %}"
+           class="btn btn-secondary" style="font-size:12px; padding:8px 14px; align-self:flex-end;">
+            ✕ Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- ─── Pending Queue ─────────────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;">
+    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
+        <p class="card-title" style="margin:0;">📋 Pending Queue</p>
+    </div>
 
     {% if pending %}
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>HAWB Number</th>
-                    <th>Consignee</th>
-                    <th>Import Type</th>
-                    <th>Urgency</th>
-                    <th>Documents</th>
-                    <th>Date Submitted</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for s in pending %}
-                <tr>
-                    <td><strong>{{ s.hawb_number }}</strong></td>
-                    <td>{{ s.consignee.get_full_name|default:s.consignee.username }}</td>
-                    <td>{{ s.get_import_type_display }}</td>
-                    <td>
-                        {% if s.urgency == 'urgent' %}
-                            <span class="badge badge-rejected">🔴 Urgent</span>
-                        {% else %}
-                            <span class="badge badge-review">🔵 Normal</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ s.documents.count }} file(s)</td>
-                    <td>{{ s.submitted_at|date:"M d, Y" }}</td>
-                    <td>
-                        <a href="{% url 'declarant:claim' s.id %}" 
-                           class="btn btn-primary">
-                            Claim & Process
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <table style="width:100%; border-collapse:collapse;">
+        <thead>
+            <tr style="background:#0f172a;">
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px; width:24px;"></th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Shipment Ref. No.</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Consignee</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Type</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Urgency</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Docs</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Submitted</th>
+                <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in pending %}
+            <tr style="border-top:1px solid #1e293b;"
+                onmouseover="this.style.background='#1e293b'"
+                onmouseout="this.style.background=''">
+                <!-- Expand toggle -->
+                <td style="padding:12px 8px 12px 16px; text-align:center;">
+                    {% if s.description %}
+                    <button onclick="toggleRow('pd-{{ s.id }}')"
+                            style="background:none; border:none; cursor:pointer;
+                                   color:#64748b; font-size:14px; padding:0;"
+                            title="Show description">▶</button>
+                    {% endif %}
+                </td>
+                <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:600;">
+                    {{ s.hawb_number }}
+                </td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                    {{ s.consignee.get_full_name|default:s.consignee.username }}
+                </td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:12px;">
+                    {{ s.import_type|capfirst|default:"—" }}
+                </td>
+                <td style="padding:12px 16px; font-size:12px;">
+                    {% if s.urgency == 'urgent' %}
+                        <span style="color:#ef4444; font-weight:700;">⚡ Urgent</span>
+                    {% else %}
+                        <span style="color:#64748b;">Normal</span>
+                    {% endif %}
+                </td>
+                <td style="padding:12px 16px; font-size:13px;">
+                    {% with docs=s.documents.all %}
+                    <span style="color:#64748b; font-size:12px;">{{ docs.count }}/3</span>
+                    {% for doc in docs %}
+                    <a href="{{ doc.file.url }}" target="_blank"
+                       style="color:#3b82f6; text-decoration:none; font-size:13px; margin-left:4px;"
+                       title="{{ doc.get_document_type_display }}">
+                        {% if doc.document_type == 'invoice' %}📄
+                        {% elif doc.document_type == 'packing_list' %}📦
+                        {% elif doc.document_type == 'airway_bill' %}✈️
+                        {% else %}📎{% endif %}
+                    </a>
+                    {% endfor %}
+                    {% endwith %}
+                </td>
+                <td style="padding:12px 16px; color:#64748b; font-size:12px;">
+                    {{ s.submitted_at|timesince }} ago
+                </td>
+                <td style="padding:12px 16px; text-align:center;">
+                    <form method="POST" action="{% url 'declarant:claim' s.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary"
+                                style="font-size:11px; padding:6px 14px;"
+                                onclick="return confirm('Claim shipment {{ s.hawb_number }}?')">
+                            Claim
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            <!-- Expandable description row -->
+            {% if s.description %}
+            <tr id="pd-{{ s.id }}" style="display:none; background:#0f172a;">
+                <td colspan="8" style="padding:10px 20px 14px 52px;">
+                    <p style="color:#94a3b8; font-size:12px; margin:0;">
+                        <strong style="color:#64748b;">Description:</strong>
+                        {{ s.description }}
+                    </p>
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
     {% else %}
-    <p style="color:#94a3b8; font-size:14px;">No pending shipments.</p>
+    <div style="padding:32px; text-align:center; color:#64748b;">
+        <p>No pending shipments in the queue.</p>
+    </div>
     {% endif %}
 </div>
 
-<!-- In Review Shipments -->
-<div class="card">
-    <p class="card-title">🔄 My In-Progress Shipments</p>
+<!-- ─── In Review (My Shipments) ─────────────────────────────────────────── -->
+<div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
+        <p class="card-title" style="margin:0;">🔍 My In-Review Shipments</p>
+    </div>
 
     {% if in_review %}
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>HAWB Number</th>
-                    <th>Consignee</th>
-                    <th>Import Type</th>
-                    <th>Urgency</th>
-                    <th>Date Submitted</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for s in in_review %}
-                <tr>
-                    <td><strong>{{ s.hawb_number }}</strong></td>
-                    <td>{{ s.consignee.get_full_name|default:s.consignee.username }}</td>
-                    <td>{{ s.get_import_type_display }}</td>
-                    <td>
-                        {% if s.urgency == 'urgent' %}
-                            <span class="badge badge-rejected">🔴 Urgent</span>
-                        {% else %}
-                            <span class="badge badge-review">🔵 Normal</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ s.submitted_at|date:"M d, Y" }}</td>
-                    <td>
-                        <a href="{% url 'declarant:process' s.id %}" 
-                           class="btn btn-success">
-                            Process
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <table style="width:100%; border-collapse:collapse;">
+        <thead>
+            <tr style="background:#0f172a;">
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px; width:24px;"></th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Shipment Ref. No.</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Consignee</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Type</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Urgency</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Docs</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Claimed</th>
+                <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in in_review %}
+            <tr style="border-top:1px solid #1e293b;"
+                onmouseover="this.style.background='#1e293b'"
+                onmouseout="this.style.background=''">
+                <td style="padding:12px 8px 12px 16px; text-align:center;">
+                    {% if s.description %}
+                    <button onclick="toggleRow('rv-{{ s.id }}')"
+                            style="background:none; border:none; cursor:pointer;
+                                   color:#64748b; font-size:14px; padding:0;">▶</button>
+                    {% endif %}
+                </td>
+                <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:600;">
+                    {{ s.hawb_number }}
+                </td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                    {{ s.consignee.get_full_name|default:s.consignee.username }}
+                </td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:12px;">
+                    {{ s.import_type|capfirst|default:"—" }}
+                </td>
+                <td style="padding:12px 16px; font-size:12px;">
+                    {% if s.urgency == 'urgent' %}
+                        <span style="color:#ef4444; font-weight:700;">⚡ Urgent</span>
+                    {% else %}
+                        <span style="color:#64748b;">Normal</span>
+                    {% endif %}
+                </td>
+                <td style="padding:12px 16px; font-size:13px;">
+                    {% with docs=s.documents.all %}
+                    <span style="color:#64748b; font-size:12px;">{{ docs.count }} file{{ docs.count|pluralize }}</span>
+                    {% for doc in docs %}
+                    <a href="{{ doc.file.url }}" target="_blank"
+                       style="color:#3b82f6; text-decoration:none; font-size:12px; margin-left:4px;"
+                       title="{{ doc.get_document_type_display }}">
+                        {% if doc.document_type == 'invoice' %}📄{% elif doc.document_type == 'packing_list' %}📦{% elif doc.document_type == 'airway_bill' %}✈️{% else %}📎{% endif %}
+                    </a>
+                    {% endfor %}
+                    {% endwith %}
+                </td>
+                <td style="padding:12px 16px; color:#64748b; font-size:12px;">
+                    {{ s.submitted_at|timesince }} ago
+                </td>
+                <td style="padding:12px 16px; text-align:center;">
+                    <a href="{% url 'declarant:process' s.id %}"
+                       class="btn btn-primary"
+                       style="font-size:11px; padding:6px 14px;">
+                        Process →
+                    </a>
+                </td>
+            </tr>
+            {% if s.description %}
+            <tr id="rv-{{ s.id }}" style="display:none; background:#0f172a;">
+                <td colspan="8" style="padding:10px 20px 14px 52px;">
+                    <p style="color:#94a3b8; font-size:12px; margin:0;">
+                        <strong style="color:#64748b;">Description:</strong>
+                        {{ s.description }}
+                    </p>
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
     {% else %}
-    <p style="color:#94a3b8; font-size:14px;">No shipments in progress.</p>
+    <div style="padding:32px; text-align:center; color:#64748b;">
+        <p>No shipments currently in review.</p>
+    </div>
     {% endif %}
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleRow(id) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    const isHidden = row.style.display === 'none' || row.style.display === '';
+    row.style.display = isHidden ? 'table-row' : 'none';
+    const btn = row.previousElementSibling.querySelector('button');
+    if (btn) btn.textContent = isHidden ? '▼' : '▶';
+}
+
+function filterQueue() {
+    const q = document.getElementById('queue-search').value.toLowerCase();
+    // Filter all data rows (not expand rows, not header rows)
+    document.querySelectorAll('tbody tr').forEach(function(row) {
+        // Skip expand-detail rows (they have an id like pd-X or rv-X)
+        if (row.id && (row.id.startsWith('pd-') || row.id.startsWith('rv-'))) return;
+        const text = row.innerText.toLowerCase();
+        const show = !q || text.includes(q);
+        row.style.display = show ? '' : 'none';
+        // Also hide the associated expand row if main row is hidden
+        const nextRow = row.nextElementSibling;
+        if (nextRow && nextRow.id && (nextRow.id.startsWith('pd-') || nextRow.id.startsWith('rv-'))) {
+            if (!show) nextRow.style.display = 'none';
+        }
+    });
+}
+</script>
 {% endblock %}

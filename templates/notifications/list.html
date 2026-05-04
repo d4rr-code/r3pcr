@@ -4,54 +4,125 @@
 {% block page_title %}Notifications{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <p class="card-title" style="margin:0;">
-            All Notifications
-        </p>
-        <p style="color:#94a3b8; font-size:13px;">
-            {{ notifications.count }} total
-        </p>
+
+<!-- ─── Header + Controls ─────────────────────────────────────────────────── -->
+<div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+
+    <!-- Filter Tabs -->
+    <div style="display:flex; background:#0f172a; border:1px solid #1e293b;
+                border-radius:8px; overflow:hidden;">
+        <a href="?filter=all"
+           style="padding:8px 18px; font-size:13px; text-decoration:none; font-weight:500;
+                  {% if filter_type == 'all' %}background:#1e293b; color:#f1f5f9;
+                  {% else %}color:#64748b;{% endif %}">
+            All
+        </a>
+        <a href="?filter=unread"
+           style="padding:8px 18px; font-size:13px; text-decoration:none; font-weight:500;
+                  border-left:1px solid #1e293b;
+                  {% if filter_type == 'unread' %}background:#1e293b; color:#f1f5f9;
+                  {% else %}color:#64748b;{% endif %}">
+            Unread
+            {% if unread_total %}
+            <span style="background:#3b82f6; color:#fff; font-size:10px; font-weight:700;
+                         padding:1px 6px; border-radius:10px; margin-left:4px;">
+                {{ unread_total }}
+            </span>
+            {% endif %}
+        </a>
+        <a href="?filter=read"
+           style="padding:8px 18px; font-size:13px; text-decoration:none; font-weight:500;
+                  border-left:1px solid #1e293b;
+                  {% if filter_type == 'read' %}background:#1e293b; color:#f1f5f9;
+                  {% else %}color:#64748b;{% endif %}">
+            Read
+        </a>
     </div>
 
-    {% if notifications %}
-        {% for n in notifications %}
-        <div style="padding:16px; border-bottom:1px solid #334155;
-            {% if not n.is_read %}background:#1a2744;{% endif %}">
-            <div style="display:flex; justify-content:space-between; align-items:start;">
-                <div>
-                    <p style="color:#f1f5f9; font-size:14px; font-weight:600; margin-bottom:4px;">
-                        {% if not n.is_read %}🔵 {% endif %}{{ n.title }}
-                    </p>
-                    <p style="color:#94a3b8; font-size:13px; margin-bottom:4px;">
-                        {{ n.message }}
-                    </p>
-                    {% if n.shipment %}
-                    <p style="color:#3b82f6; font-size:12px;">
-                        HAWB: {{ n.shipment.hawb_number }}
-                    </p>
-                    {% endif %}
-                </div>
-                <div style="text-align:right; min-width:120px;">
-                    <p style="color:#64748b; font-size:12px;">
-                        {{ n.created_at|date:"M d, Y" }}
-                    </p>
-                    <p style="color:#64748b; font-size:12px;">
-                        {{ n.created_at|time:"h:i A" }}
-                    </p>
-                    <span class="badge {% if n.is_read %}badge-review{% else %}badge-pending{% endif %}"
-                          style="margin-top:4px; display:inline-block;">
-                        {% if n.is_read %}Read{% else %}New{% endif %}
-                    </span>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    {% else %}
-        <div style="text-align:center; padding:40px;">
-            <p style="font-size:32px; margin-bottom:12px;">🔔</p>
-            <p style="color:#94a3b8; font-size:14px;">No notifications yet.</p>
-        </div>
+    <!-- Mark All Read -->
+    {% if unread_total %}
+    <form method="POST" action="{% url 'notifications:mark_all_read' %}" style="margin-left:auto;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-secondary" style="font-size:12px;">
+            ✓ Mark All Read
+        </button>
+    </form>
     {% endif %}
 </div>
+
+<!-- ─── Notifications List ────────────────────────────────────────────────── -->
+<div class="card" style="padding:0; overflow:hidden;">
+    {% if notifications %}
+    <div style="display:flex; flex-direction:column;">
+        {% for notif in notifications %}
+        <div style="padding:16px 20px; border-bottom:1px solid #1e293b;
+                    background:{% if not notif.is_read %}#0f1f3b{% else %}transparent{% endif %};
+                    display:flex; align-items:flex-start; gap:14px;"
+             onmouseover="this.style.background='#1e293b'"
+             onmouseout="this.style.background='{% if not notif.is_read %}#0f1f3b{% else %}transparent{% endif %}'">
+
+            <!-- Unread indicator dot -->
+            <div style="margin-top:4px; flex-shrink:0; width:8px; height:8px; border-radius:50%;
+                        background:{% if not notif.is_read %}#3b82f6{% else %}transparent{% endif %};
+                        border:{% if notif.is_read %}1px solid #334155{% else %}none{% endif %};">
+            </div>
+
+            <!-- Content -->
+            <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                    <span style="color:{% if not notif.is_read %}#f1f5f9{% else %}#94a3b8{% endif %};
+                                 font-size:14px; font-weight:{% if not notif.is_read %}600{% else %}400{% endif %};">
+                        {{ notif.title }}
+                    </span>
+                    <!-- Type badge -->
+                    <span style="font-size:10px; padding:2px 7px; border-radius:10px; font-weight:600;
+                        {% if notif.notification_type == 'approved' %}background:#14532d; color:#22c55e;
+                        {% elif notif.notification_type == 'rejected' %}background:#450a0a; color:#ef4444;
+                        {% elif notif.notification_type == 'payment' %}background:#3b1f00; color:#f59e0b;
+                        {% elif notif.notification_type == 'computation' %}background:#1e1b4b; color:#a78bfa;
+                        {% else %}background:#1e293b; color:#64748b;{% endif %}">
+                        {{ notif.notification_type|upper }}
+                    </span>
+                </div>
+                <p style="color:#64748b; font-size:13px; margin:0 0 6px; line-height:1.5;">
+                    {{ notif.message }}
+                </p>
+                <p style="color:#475569; font-size:11px; margin:0;">
+                    {{ notif.created_at|timesince }} ago · {{ notif.created_at|date:"M d, Y H:i" }}
+                    {% if notif.shipment %}
+                    · <span style="color:#3b82f6;">{{ notif.shipment.hawb_number }}</span>
+                    {% endif %}
+                </p>
+            </div>
+
+            <!-- Mark Read button (only for unread) -->
+            {% if not notif.is_read %}
+            <form method="POST" action="{% url 'notifications:mark_read' notif.id %}"
+                  style="flex-shrink:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary"
+                        style="font-size:11px; padding:4px 10px; white-space:nowrap;"
+                        title="Mark as read">
+                    Mark Read
+                </button>
+            </form>
+            {% endif %}
+
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="padding:56px; text-align:center; color:#64748b;">
+        <p style="font-size:36px; margin-bottom:12px;">🔔</p>
+        {% if filter_type == 'unread' %}
+        <p style="font-size:14px;">No unread notifications. You're all caught up!</p>
+        {% elif filter_type == 'read' %}
+        <p style="font-size:14px;">No read notifications yet.</p>
+        {% else %}
+        <p style="font-size:14px;">No notifications yet.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
 {% endblock %}

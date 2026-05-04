@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Account Settings{% endblock %}
+{% block page_title %}Account Settings{% endblock %}
+
+{% block content %}
+<div style="max-width:720px;">
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="message {{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<!-- Profile Section -->
+<div class="card" style="margin-bottom:24px;">
+    <p class="card-title">👤 Profile Information</p>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="profile">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div class="form-group">
+                <label class="form-label">First Name</label>
+                <input type="text" name="first_name" class="form-input"
+                    value="{{ user.first_name }}" placeholder="First name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Last Name</label>
+                <input type="text" name="last_name" class="form-input"
+                    value="{{ user.last_name }}" placeholder="Last name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" name="email" class="form-input"
+                    value="{{ user.email }}" placeholder="email@example.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <input type="text" name="phone_number" class="form-input"
+                    value="{{ user.phone_number|default:'' }}" placeholder="+63-9XX-XXX-XXXX">
+            </div>
+        </div>
+        <div style="margin-top:4px;">
+            <span style="color:#64748b; font-size:12px;">
+                Username: <strong style="color:#94a3b8;">{{ user.username }}</strong>
+                &nbsp;·&nbsp; Role: <strong style="color:#94a3b8;">{{ user.get_role_display }}</strong>
+            </span>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:16px;">
+            Save Profile
+        </button>
+    </form>
+</div>
+
+<!-- Password Section -->
+<div class="card">
+    <p class="card-title">🔒 Change Password</p>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="password">
+        <div style="display:flex; flex-direction:column; gap:16px; max-width:400px;">
+            <div class="form-group">
+                <label class="form-label">Current Password</label>
+                <input type="password" name="old_password" class="form-input"
+                    placeholder="Enter current password" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">New Password</label>
+                <input type="password" name="new_password" class="form-input"
+                    placeholder="Min. 8 characters" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Confirm New Password</label>
+                <input type="password" name="confirm_password" class="form-input"
+                    placeholder="Repeat new password" required>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:16px;">
+            Change Password
+        </button>
+    </form>
+</div>
+
+</div>
+{% endblock %}

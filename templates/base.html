@@ -29,9 +29,9 @@
                     📋 My Submissions
                 </a>
                 <a href="{% url 'notifications:list' %}" class="nav-item">
-                    🔔 Notifications
+                    🔔 Notifications{% if unread_notification_count %} <span class="notif-badge">{{ unread_notification_count }}</span>{% endif %}
                 </a>
-                <a href="/consignee/settings/" class="nav-item">
+                <a href="{% url 'accounts:settings' %}" class="nav-item">
                     ⚙️ Account Settings
                 </a>
 
@@ -43,12 +43,15 @@
                     📋 Queue Manager
                 </a>
                 <a href="{% url 'notifications:list' %}" class="nav-item">
-                    🔔 Notifications
+                    🔔 Notifications{% if unread_notification_count %} <span class="notif-badge">{{ unread_notification_count }}</span>{% endif %}
+                </a>
+                <a href="{% url 'accounts:settings' %}" class="nav-item">
+                    ⚙️ Account Settings
                 </a>
 
             {% elif user.role == 'supervisor' %}
                 <a href="/supervisor/dashboard/" class="nav-item">
-                    📊 Command Center
+                    📊 Dashboard
                 </a>
                 <a href="/supervisor/analytics/" class="nav-item">
                     📈 Analytics
@@ -56,11 +59,14 @@
                 <a href="/supervisor/users/" class="nav-item">
                     👥 User Management
                 </a>
-                <a href="/supervisor/config/" class="nav-item">
+                <a href="{% url 'supervisor:config' %}" class="nav-item">
                     ⚙️ System Config
                 </a>
                 <a href="{% url 'notifications:list' %}" class="nav-item">
-                    🔔 Notifications
+                    🔔 Notifications{% if unread_notification_count %} <span class="notif-badge">{{ unread_notification_count }}</span>{% endif %}
+                </a>
+                <a href="{% url 'accounts:settings' %}" class="nav-item">
+                    👤 Account Settings
                 </a>
             {% endif %}
         </nav>
@@ -106,24 +112,19 @@
 
     </div>
 
-    <!-- Auto logout after 30 minutes -->
+    <!-- Auto logout after 30 minutes of inactivity -->
     <script>
         let timeout = setTimeout(function() {
             window.location.href = '/accounts/logout/';
         }, 30 * 60 * 1000);
 
-        document.addEventListener('mousemove', () => {
-            clearTimeout(timeout);
-            timeout = setTimeout(function() {
-                window.location.href = '/accounts/logout/';
-            }, 30 * 60 * 1000);
-        });
-
-        document.addEventListener('keypress', () => {
-            clearTimeout(timeout);
-            timeout = setTimeout(function() {
-                window.location.href = '/accounts/logout/';
-            }, 30 * 60 * 1000);
+        ['mousemove', 'keypress', 'click', 'scroll'].forEach(function(evt) {
+            document.addEventListener(evt, function() {
+                clearTimeout(timeout);
+                timeout = setTimeout(function() {
+                    window.location.href = '/accounts/logout/';
+                }, 30 * 60 * 1000);
+            });
         });
     </script>
 

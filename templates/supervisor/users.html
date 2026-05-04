@@ -4,13 +4,53 @@
 {% block page_title %}User Management{% endblock %}
 
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-    <p style="color:#94a3b8; font-size:14px;">{{ users.count }} total user(s)</p>
-    <a href="{% url 'supervisor:add_user' %}" class="btn btn-primary">+ Add User</a>
+
+<!-- Controls -->
+<div style="display:flex; gap:10px; align-items:flex-end; margin-bottom:20px; flex-wrap:wrap;">
+    <!-- Search -->
+    <div style="flex:1; min-width:200px;">
+        <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">
+            Search (name / username / email)
+        </label>
+        <input type="text" id="user-search"
+               class="form-input" style="padding:7px 12px; font-size:13px;"
+               placeholder="e.g. Elena or bautista@email.com"
+               oninput="filterUsers()">
+    </div>
+    <!-- Role filter -->
+    <div style="min-width:150px;">
+        <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Role</label>
+        <select id="role-filter" class="form-input"
+                style="padding:7px 12px; font-size:13px;"
+                onchange="filterUsers()">
+            <option value="">All Roles</option>
+            <option value="consignee">Consignee</option>
+            <option value="declarant">Declarant</option>
+            <option value="supervisor">Supervisor</option>
+        </select>
+    </div>
+    <!-- Status filter -->
+    <div style="min-width:140px;">
+        <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Status</label>
+        <select id="status-filter" class="form-input"
+                style="padding:7px 12px; font-size:13px;"
+                onchange="filterUsers()">
+            <option value="">All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+        </select>
+    </div>
+    <div style="align-self:flex-end;">
+        <a href="{% url 'supervisor:add_user' %}" class="btn btn-primary">+ Add User</a>
+    </div>
 </div>
 
+<p id="user-count" style="color:#64748b; font-size:13px; margin-bottom:12px;">
+    {{ users.count }} user(s)
+</p>
+
 <div class="table-container">
-    <table>
+    <table id="users-table">
         <thead>
             <tr>
                 <th>Name</th>
@@ -23,14 +63,15 @@
         </thead>
         <tbody>
             {% for u in users %}
-            <tr>
+            <tr data-name="{{ u.get_full_name|lower }} {{ u.username|lower }}"
+                data-email="{{ u.email|lower }}"
+                data-role="{{ u.role|lower }}"
+                data-status="{% if u.is_active %}active{% else %}inactive{% endif %}">
                 <td>{{ u.get_full_name|default:u.username }}</td>
                 <td>{{ u.username }}</td>
                 <td>{{ u.email }}</td>
                 <td>
-                    <span class="badge badge-review">
-                        {{ u.get_role_display }}
-                    </span>
+                    <span class="badge badge-review">{{ u.get_role_display }}</span>
                 </td>
                 <td>
                     {% if u.is_active %}
@@ -42,7 +83,9 @@
                 <td>
                     {% if u != request.user %}
                     <a href="{% url 'supervisor:toggle_user' u.id %}"
-                       class="btn {% if u.is_active %}btn-danger{% else %}btn-success{% endif %}">
+                       class="btn {% if u.is_active %}btn-danger{% else %}btn-success{% endif %}"
+                       style="font-size:12px; padding:5px 12px;"
+                       onclick="return confirm('{% if u.is_active %}Deactivate{% else %}Activate{% endif %} {{ u.username }}?')">
                         {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
                     </a>
                     {% else %}
@@ -54,4 +97,34 @@
         </tbody>
     </table>
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterUsers() {
+    const q      = document.getElementById('user-search').value.toLowerCase();
+    const role   = document.getElementById('role-filter').value.toLowerCase();
+    const status = document.getElementById('status-filter').value.toLowerCase();
+    const rows   = document.querySelectorAll('#users-table tbody tr');
+    let visible  = 0;
+
+    rows.forEach(function(row) {
+        const name   = (row.dataset.name   || '').toLowerCase();
+        const email  = (row.dataset.email  || '').toLowerCase();
+        const rRole  = (row.dataset.role   || '').toLowerCase();
+        const rStat  = (row.dataset.status || '').toLowerCase();
+
+        const matchQ      = !q      || name.includes(q) || email.includes(q);
+        const matchRole   = !role   || rRole === role;
+        const matchStatus = !status || rStat === status;
+
+        const show = matchQ && matchRole && matchStatus;
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+
+    document.getElementById('user-count').textContent = visible + ' user(s)';
+}
+</script>
 {% endblock %}

@@ -1,65 +1,116 @@
 {% extends 'base.html' %}
 
 {% block title %}Analytics{% endblock %}
-{% block page_title %}Analytics Dashboard{% endblock %}
+{% block page_title %}Analytics{% endblock %}
 
 {% block content %}
 
-<!-- Status Overview -->
-<div class="kpi-grid" style="margin-bottom:24px;">
-    <div class="kpi-card blue">
-        <p class="kpi-label">Total Shipments</p>
-        <p class="kpi-value">{{ total_shipments }}</p>
-    </div>
-    <div class="kpi-card yellow">
-        <p class="kpi-label">Pending</p>
-        <p class="kpi-value">{{ status_data.pending }}</p>
-    </div>
-    <div class="kpi-card blue">
-        <p class="kpi-label">In Review</p>
-        <p class="kpi-value">{{ status_data.in_review }}</p>
-    </div>
-    <div class="kpi-card green">
-        <p class="kpi-label">Approved</p>
-        <p class="kpi-value">{{ status_data.approved }}</p>
-    </div>
-    <div class="kpi-card red">
-        <p class="kpi-label">Rejected</p>
-        <p class="kpi-value">{{ status_data.rejected }}</p>
+<!-- ─── Status Overview ───────────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:24px;">
+    <p class="card-title">📊 Shipment Status Breakdown
+        <span style="color:#64748b; font-weight:400; font-size:13px;">
+            — {{ total_shipments }} total
+        </span>
+    </p>
+
+    <div style="display:flex; flex-direction:column; gap:10px; max-width:700px;">
+        {% for status, count in status_data.items %}
+        {% with pct=status_pcts|default_if_none:"0" %}
+        <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:#94a3b8; font-size:13px; text-transform:capitalize;">
+                    {{ status|cut:"_"|capfirst }}
+                    {% if status == 'in_review' %}(In Review){% endif %}
+                    {% if status == 'for_payment' %}(For Payment){% endif %}
+                </span>
+                <span style="color:#f1f5f9; font-size:13px; font-weight:600;">
+                    {{ count }}
+                    <span style="color:#64748b; font-weight:400; font-size:12px;">
+                        ({% if status == 'pending' %}{{ status_pcts.pending }}
+                         {% elif status == 'in_review' %}{{ status_pcts.in_review }}
+                         {% elif status == 'for_payment' %}{{ status_pcts.for_payment }}
+                         {% elif status == 'submitted' %}{{ status_pcts.submitted }}
+                         {% elif status == 'approved' %}{{ status_pcts.approved }}
+                         {% else %}{{ status_pcts.rejected }}{% endif %}%)
+                    </span>
+                </span>
+            </div>
+            <div style="background:#1e293b; border-radius:4px; height:8px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px;
+                    width:{% if status == 'pending' %}{{ status_pcts.pending }}
+                          {% elif status == 'in_review' %}{{ status_pcts.in_review }}
+                          {% elif status == 'for_payment' %}{{ status_pcts.for_payment }}
+                          {% elif status == 'submitted' %}{{ status_pcts.submitted }}
+                          {% elif status == 'approved' %}{{ status_pcts.approved }}
+                          {% else %}{{ status_pcts.rejected }}{% endif %}%;
+                    background:{% if status == 'approved' %}#22c55e
+                               {% elif status == 'rejected' %}#ef4444
+                               {% elif status == 'in_review' %}#3b82f6
+                               {% elif status == 'for_payment' %}#f59e0b
+                               {% elif status == 'submitted' %}#8b5cf6
+                               {% else %}#475569{% endif %};">
+                </div>
+            </div>
+        </div>
+        {% endwith %}
+        {% endfor %}
     </div>
 </div>
 
-<!-- Declarant Performance -->
-<div class="card">
-    <p class="card-title">👥 Declarant Performance</p>
+<!-- ─── Declarant Performance ─────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;">
+    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
+        <p class="card-title" style="margin:0;">👤 Declarant Performance</p>
+    </div>
     {% if declarant_data %}
-    <div class="table-container">
-        <table>
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
             <thead>
-                <tr>
-                    <th>Declarant</th>
-                    <th>Total Handled</th>
-                    <th>Approved</th>
-                    <th>Rejected</th>
-                    <th>Approval Rate</th>
+                <tr style="background:#0f172a;">
+                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Declarant</th>
+                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Total</th>
+                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Approved</th>
+                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Rejected</th>
+                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Approval Rate</th>
+                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Avg. Days</th>
                 </tr>
             </thead>
             <tbody>
                 {% for d in declarant_data %}
-                <tr>
-                    <td>{{ d.name }}</td>
-                    <td>{{ d.total }}</td>
-                    <td>
-                        <span class="badge badge-approved">{{ d.approved }}</span>
+                <tr style="border-top:1px solid #1e293b;"
+                    onmouseover="this.style.background='#1e293b'"
+                    onmouseout="this.style.background=''">
+                    <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:500;">
+                        {{ d.name }}
                     </td>
-                    <td>
-                        <span class="badge badge-rejected">{{ d.rejected }}</span>
+                    <td style="padding:12px 16px; text-align:center; color:#94a3b8; font-size:13px;">
+                        {{ d.total }}
                     </td>
-                    <td>
-                        {% if d.total > 0 %}
-                            {{ d.approved|floatformat:0 }}/{{ d.total }}
+                    <td style="padding:12px 16px; text-align:center; color:#22c55e; font-size:13px; font-weight:600;">
+                        {{ d.approved }}
+                    </td>
+                    <td style="padding:12px 16px; text-align:center; color:#ef4444; font-size:13px; font-weight:600;">
+                        {{ d.rejected }}
+                    </td>
+                    <td style="padding:12px 16px; text-align:center;">
+                        <div style="display:flex; align-items:center; gap:8px; justify-content:center;">
+                            <div style="width:80px; background:#1e293b; border-radius:4px; height:6px; overflow:hidden;">
+                                <div style="height:100%; border-radius:4px;
+                                    width:{{ d.approval_rate }}%;
+                                    background:{% if d.approval_rate >= 75 %}#22c55e{% elif d.approval_rate >= 50 %}#f59e0b{% else %}#ef4444{% endif %};">
+                                </div>
+                            </div>
+                            <span style="color:{% if d.approval_rate >= 75 %}#22c55e{% elif d.approval_rate >= 50 %}#f59e0b{% else %}#ef4444{% endif %};
+                                         font-size:13px; font-weight:600; min-width:40px;">
+                                {{ d.approval_rate }}%
+                            </span>
+                        </div>
+                    </td>
+                    <td style="padding:12px 16px; text-align:center; color:#94a3b8; font-size:13px;">
+                        {% if d.avg_days != None %}
+                            {{ d.avg_days }} day{{ d.avg_days|pluralize }}
                         {% else %}
-                            N/A
+                            <span style="color:#475569;">—</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -68,7 +119,56 @@
         </table>
     </div>
     {% else %}
-    <p style="color:#94a3b8; font-size:14px;">No declarant data yet.</p>
+    <div style="padding:32px; text-align:center; color:#64748b;">
+        <p>No declarant data available.</p>
+    </div>
     {% endif %}
 </div>
+
+<!-- ─── Top HS Codes ──────────────────────────────────────────────────────── -->
+{% if top_hs %}
+<div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
+        <p class="card-title" style="margin:0;">📋 Top 5 Most-Used HS Codes</p>
+    </div>
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#0f172a;">
+                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">#</th>
+                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">HS Code</th>
+                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Description</th>
+                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Duty Rate</th>
+                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Uses</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for hs in top_hs %}
+                <tr style="border-top:1px solid #1e293b;"
+                    onmouseover="this.style.background='#1e293b'"
+                    onmouseout="this.style.background=''">
+                    <td style="padding:12px 16px; color:#475569; font-size:13px;">{{ forloop.counter }}</td>
+                    <td style="padding:12px 16px; color:#3b82f6; font-size:13px; font-weight:700;">
+                        {{ hs.hs_code__code }}
+                    </td>
+                    <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                        {{ hs.hs_code__description|default:"—"|truncatechars:60 }}
+                    </td>
+                    <td style="padding:12px 16px; text-align:center; color:#f1f5f9; font-size:13px;">
+                        {{ hs.hs_code__duty_rate|default:"—" }}%
+                    </td>
+                    <td style="padding:12px 16px; text-align:center;">
+                        <span style="background:#1e3a5f; color:#3b82f6; font-size:12px;
+                                     font-weight:700; padding:3px 10px; border-radius:12px;">
+                            {{ hs.count }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

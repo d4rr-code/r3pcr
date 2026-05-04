@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R3-PCR — Pre-Clearance Decision Support System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: #f1f5f9;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .hero {
+            text-align: center;
+            max-width: 680px;
+            padding: 48px 24px;
+        }
+        .logo {
+            font-size: 56px;
+            font-weight: 800;
+            color: #3b82f6;
+            letter-spacing: -2px;
+            margin-bottom: 8px;
+        }
+        .tagline {
+            font-size: 18px;
+            color: #94a3b8;
+            margin-bottom: 24px;
+            letter-spacing: 0.5px;
+        }
+        .company {
+            font-size: 13px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 48px;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 48px;
+        }
+        .feature-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px 16px;
+            text-align: center;
+        }
+        .feature-icon { font-size: 28px; margin-bottom: 8px; }
+        .feature-title { font-size: 13px; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
+        .feature-desc { font-size: 11px; color: #94a3b8; }
+        .btn-login {
+            display: inline-block;
+            background: #3b82f6;
+            color: #fff;
+            text-decoration: none;
+            padding: 14px 48px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: background 0.2s;
+        }
+        .btn-login:hover { background: #2563eb; }
+        .footer {
+            margin-top: 48px;
+            font-size: 12px;
+            color: #475569;
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <div class="logo">R3-PCR</div>
+        <div class="tagline">Pre-Clearance Decision Support System</div>
+        <div class="company">RTripleJ Customs Brokerage &nbsp;·&nbsp; Philippines</div>
+
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">🧮</div>
+                <div class="feature-title">EDT Computation</div>
+                <div class="feature-desc">Per-item duty & tax calculation using official ECDT formula</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <div class="feature-title">OCR Extraction</div>
+                <div class="feature-desc">Automated invoice field extraction via Tesseract OCR</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🚢</div>
+                <div class="feature-title">Shipping Advisory</div>
+                <div class="feature-desc">WMCDA-based LCL / FCL / Air recommendation engine</div>
+            </div>
+        </div>
+
+        <a href="/accounts/login/" class="btn-login">Login to System</a>
+
+        <div class="footer">
+            <p>Authorized personnel only &nbsp;·&nbsp; R3-PCR v1.0</p>
+        </div>
+    </div>
+</body>
+</html>

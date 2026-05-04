@@ -1,106 +1,189 @@
 {% extends 'base.html' %}
 
-{% block title %}Command Center{% endblock %}
-{% block page_title %}Command Center{% endblock %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
 
-<!-- KPI Cards -->
-<div class="kpi-grid" style="grid-template-columns: repeat(5, 1fr);">
-    <div class="kpi-card blue">
-        <p class="kpi-label">Total Shipments</p>
-        <p class="kpi-value">{{ total }}</p>
+<!-- ─── Stats Cards ───────────────────────────────────────────────────────── -->
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:16px; margin-bottom:24px;">
+    <div class="card" style="text-align:center; padding:20px;">
+        <p style="color:#64748b; font-size:12px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.06em;">Total</p>
+        <p style="color:#f1f5f9; font-size:32px; font-weight:700; margin:0;">{{ total }}</p>
     </div>
-    <div class="kpi-card yellow">
-        <p class="kpi-label">Pending</p>
-        <p class="kpi-value">{{ pending }}</p>
+    <div class="card" style="text-align:center; padding:20px;">
+        <p style="color:#64748b; font-size:12px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.06em;">Pending</p>
+        <p style="color:#f59e0b; font-size:32px; font-weight:700; margin:0;">{{ pending }}</p>
     </div>
-    <div class="kpi-card blue">
-        <p class="kpi-label">In Review</p>
-        <p class="kpi-value">{{ in_review }}</p>
+    <div class="card" style="text-align:center; padding:20px;">
+        <p style="color:#64748b; font-size:12px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.06em;">In Review</p>
+        <p style="color:#3b82f6; font-size:32px; font-weight:700; margin:0;">{{ in_review }}</p>
     </div>
-    <div class="kpi-card green">
-        <p class="kpi-label">Approved</p>
-        <p class="kpi-value">{{ approved }}</p>
+    <div class="card" style="text-align:center; padding:20px;">
+        <p style="color:#64748b; font-size:12px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.06em;">Approved</p>
+        <p style="color:#22c55e; font-size:32px; font-weight:700; margin:0;">{{ approved }}</p>
     </div>
-    <div class="kpi-card red">
-        <p class="kpi-label">Rejected</p>
-        <p class="kpi-value">{{ rejected }}</p>
+    <div class="card" style="text-align:center; padding:20px;">
+        <p style="color:#64748b; font-size:12px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.06em;">Rejected</p>
+        <p style="color:#ef4444; font-size:32px; font-weight:700; margin:0;">{{ rejected }}</p>
     </div>
-</div>
-
-<!-- User Summary -->
-<div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:24px;">
-    <div class="kpi-card blue">
-        <p class="kpi-label">Total Users</p>
-        <p class="kpi-value">{{ total_users }}</p>
+    <div class="card" style="text-align:center; padding:20px;">
+        <p style="color:#64748b; font-size:12px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.06em;">Users</p>
+        <p style="color:#a78bfa; font-size:32px; font-weight:700; margin:0;">{{ total_users }}</p>
     </div>
-    <div class="kpi-card green">
-        <p class="kpi-label">Consignees</p>
-        <p class="kpi-value">{{ total_consignees }}</p>
+    <div class="card" style="text-align:center; padding:20px;">
+        <p style="color:#64748b; font-size:12px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.06em;">Consignees</p>
+        <p style="color:#94a3b8; font-size:32px; font-weight:700; margin:0;">{{ total_consignees }}</p>
     </div>
-    <div class="kpi-card yellow">
-        <p class="kpi-label">Declarants</p>
-        <p class="kpi-value">{{ total_declarants }}</p>
+    <div class="card" style="text-align:center; padding:20px;">
+        <p style="color:#64748b; font-size:12px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.06em;">Declarants</p>
+        <p style="color:#94a3b8; font-size:32px; font-weight:700; margin:0;">{{ total_declarants }}</p>
     </div>
 </div>
 
-<!-- Recent Shipments -->
-<div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <p class="card-title" style="margin:0;">Recent Shipments</p>
-        <a href="{% url 'supervisor:analytics' %}" class="btn btn-secondary">
-            View Analytics
+<!-- ─── Shipments ─────────────────────────────────────────────────────────── -->
+<div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
+                display:flex; align-items:center; justify-content:space-between;">
+        <p class="card-title" style="margin:0;">📋 All Shipments
+            {% if recent.count %}<span style="color:#64748b; font-weight:400; font-size:13px;">— {{ recent.count }} result{{ recent.count|pluralize }}</span>{% endif %}
+        </p>
+        <a href="{% url 'supervisor:analytics' %}"
+           style="color:#3b82f6; font-size:13px; text-decoration:none;">
+            View Analytics →
         </a>
     </div>
 
+    <!-- Filter Bar -->
+    <form method="GET" style="padding:14px 20px; background:#0c1420;
+                              border-bottom:1px solid #1e293b;
+                              display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        <!-- Search -->
+        <div style="flex:1; min-width:180px;">
+            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">
+                Search (Ref No. / Consignee)
+            </label>
+            <input type="text" name="q" value="{{ q }}"
+                   class="form-input" style="padding:7px 12px; font-size:13px;"
+                   placeholder="e.g. R3PCR-2026 or Maria">
+        </div>
+        <!-- Status -->
+        <div style="min-width:150px;">
+            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Status</label>
+            <select name="status" class="form-input" style="padding:7px 12px; font-size:13px;">
+                <option value="">All Statuses</option>
+                <option value="pending"     {% if status_f == 'pending'     %}selected{% endif %}>Pending</option>
+                <option value="in_review"   {% if status_f == 'in_review'   %}selected{% endif %}>In Review</option>
+                <option value="for_payment" {% if status_f == 'for_payment' %}selected{% endif %}>For Payment</option>
+                <option value="submitted"   {% if status_f == 'submitted'   %}selected{% endif %}>Submitted</option>
+                <option value="approved"    {% if status_f == 'approved'    %}selected{% endif %}>Approved</option>
+                <option value="rejected"    {% if status_f == 'rejected'    %}selected{% endif %}>Rejected</option>
+            </select>
+        </div>
+        <!-- Date From -->
+        <div style="min-width:140px;">
+            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Date From</label>
+            <input type="date" name="date_from" value="{{ date_from }}"
+                   class="form-input" style="padding:7px 12px; font-size:13px;">
+        </div>
+        <!-- Date To -->
+        <div style="min-width:140px;">
+            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Date To</label>
+            <input type="date" name="date_to" value="{{ date_to }}"
+                   class="form-input" style="padding:7px 12px; font-size:13px;">
+        </div>
+        <div style="display:flex; gap:8px; align-self:flex-end;">
+            <button type="submit" class="btn btn-primary" style="font-size:12px; padding:8px 16px;">
+                Search
+            </button>
+            {% if q or status_f or date_from or date_to %}
+            <a href="{% url 'supervisor:dashboard' %}"
+               class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
+                Clear
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
     {% if recent %}
-    <div class="table-container">
-        <table>
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
             <thead>
-                <tr>
-                    <th>HAWB Number</th>
-                    <th>Consignee</th>
-                    <th>Declarant</th>
-                    <th>Import Type</th>
-                    <th>Urgency</th>
-                    <th>Status</th>
-                    <th>Date</th>
+                <tr style="background:#0f172a;">
+                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Shipment Ref. No.</th>
+                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Consignee</th>
+                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Declarant</th>
+                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Status</th>
+                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Submitted</th>
+                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for s in recent %}
-                <tr>
-                    <td><strong>{{ s.hawb_number }}</strong></td>
-                    <td>{{ s.consignee.get_full_name|default:s.consignee.username }}</td>
-                    <td>
-                        {% if s.declarant %}
-                            {{ s.declarant.get_full_name|default:s.declarant.username }}
+                <tr style="border-top:1px solid #1e293b;"
+                    onmouseover="this.style.background='#1e293b'"
+                    onmouseout="this.style.background=''">
+                    <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:600;">
+                        {{ s.hawb_number }}
+                    </td>
+                    <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                        {{ s.consignee.get_full_name|default:s.consignee.username }}
+                    </td>
+                    <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                        {% if s.declarant %}{{ s.declarant.get_full_name|default:s.declarant.username }}{% else %}—{% endif %}
+                    </td>
+                    <td style="padding:12px 16px;">
+                        {% if s.status == 'approved' %}
+                            <span class="badge badge-success">Approved</span>
+                        {% elif s.status == 'rejected' %}
+                            <span class="badge badge-danger">Rejected</span>
+                        {% elif s.status == 'in_review' %}
+                            <span class="badge badge-info">In Review</span>
+                        {% elif s.status == 'for_payment' %}
+                            <span class="badge badge-warning">For Payment</span>
+                        {% elif s.status == 'submitted' %}
+                            <span class="badge badge-info">Submitted</span>
                         {% else %}
-                            <span style="color:#94a3b8;">Unassigned</span>
+                            <span class="badge badge-secondary">Pending</span>
                         {% endif %}
                     </td>
-                    <td>{{ s.get_import_type_display }}</td>
-                    <td>
-                        {% if s.urgency == 'urgent' %}
-                            <span class="badge badge-rejected">Urgent</span>
-                        {% else %}
-                            <span class="badge badge-review">Normal</span>
-                        {% endif %}
+                    <td style="padding:12px 16px; color:#64748b; font-size:12px;">
+                        {{ s.submitted_at|date:"M d, Y" }}
                     </td>
-                    <td>
-                        <span class="badge badge-{{ s.status }}">
-                            {{ s.get_status_display }}
-                        </span>
+                    <td style="padding:12px 16px; text-align:center;">
+                        <div style="display:flex; gap:6px; justify-content:center;">
+                            <!-- Reset -->
+                            <form method="POST"
+                                  action="{% url 'supervisor:reset_shipment' s.id %}"
+                                  onsubmit="return confirm('Reset {{ s.hawb_number }} to Pending? This will clear the assigned declarant and any computation.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-warning"
+                                        style="font-size:11px; padding:4px 10px;">
+                                    Reset
+                                </button>
+                            </form>
+                            <!-- Delete -->
+                            <form method="POST"
+                                  action="{% url 'supervisor:delete_shipment' s.id %}"
+                                  onsubmit="return confirm('PERMANENTLY DELETE {{ s.hawb_number }}? This cannot be undone.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger"
+                                        style="font-size:11px; padding:4px 10px;">
+                                    Delete
+                                </button>
+                            </form>
+                        </div>
                     </td>
-                    <td>{{ s.submitted_at|date:"M d, Y" }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% else %}
-    <p style="color:#94a3b8; font-size:14px;">No shipments yet.</p>
+    <div style="padding:32px; text-align:center; color:#64748b;">
+        <p>No shipments yet.</p>
+    </div>
     {% endif %}
 </div>
+
 {% endblock %}
