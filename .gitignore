@@ -16,3 +16,12 @@ media/
 
 # VS Code
 .vscode/
+
+# Virtual environment (alternate name)
+.venv/
+
+# Claude Code internals
+.claude/
+
+# Windows line ending artifacts
+*.orig
