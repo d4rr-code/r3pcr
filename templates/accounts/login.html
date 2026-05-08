@@ -26,19 +26,9 @@
             text-align: center;
             margin-bottom: 30px;
         }
-        .logo h1 {
-            color: #3b82f6;
-            font-size: 28px;
-            font-weight: 700;
-        }
-        .logo p {
-            color: #94a3b8;
-            font-size: 13px;
-            margin-top: 4px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
+        .logo h1 { color: #3b82f6; font-size: 28px; font-weight: 700; }
+        .logo p  { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+        .form-group { margin-bottom: 20px; }
         label {
             display: block;
             color: #94a3b8;
@@ -55,9 +45,7 @@
             font-size: 14px;
             outline: none;
         }
-        input:focus {
-            border-color: #3b82f6;
-        }
+        input:focus { border-color: #3b82f6; }
         button {
             width: 100%;
             padding: 12px;
@@ -78,15 +66,20 @@
             font-size: 13px;
             margin-bottom: 8px;
         }
-        .message.error {
-            background: #450a0a;
-            color: #fca5a5;
-            border: 1px solid #991b1b;
+        .message.error   { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; }
+        .message.success { background: #052e16; color: #86efac; border: 1px solid #166534; }
+        .register-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #64748b;
+            font-size: 13px;
         }
-        .message.success {
-            background: #052e16;
-            color: #86efac;
-            border: 1px solid #166534;
+        .register-link a { color: #3b82f6; text-decoration: none; }
+        .register-link a:hover { text-decoration: underline; }
+        .divider {
+            border: none;
+            border-top: 1px solid #334155;
+            margin: 20px 0 16px;
         }
     </style>
 </head>
@@ -111,24 +104,22 @@
             {% csrf_token %}
             <div class="form-group">
                 <label>Username</label>
-                <input 
-                    type="text" 
-                    name="username" 
-                    placeholder="Enter your username"
-                    required
-                >
+                <input type="text" name="username"
+                       placeholder="Enter your username" required autofocus>
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input 
-                    type="password" 
-                    name="password" 
-                    placeholder="Enter your password"
-                    required
-                >
+                <input type="password" name="password"
+                       placeholder="Enter your password" required>
             </div>
             <button type="submit">Login</button>
         </form>
+
+        <hr class="divider">
+
+        <div class="register-link">
+            New consignee? <a href="{% url 'accounts:register' %}">Create an account</a>
+        </div>
     </div>
 </body>
 </html>

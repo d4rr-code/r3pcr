@@ -21,47 +21,112 @@
     <!-- ── Input Form ─────────────────────────────────────────────────── -->
     <div class="card">
         <p class="card-title">📋 Shipment Parameters</p>
+
+        {% if missing_fields %}
+        <div style="background:#450a0a; border:1px solid #7f1d1d; border-radius:8px;
+                    padding:12px 14px; margin-bottom:16px;">
+            <p style="color:#fca5a5; font-size:12px; font-weight:600; margin-bottom:6px;">
+                ⚠ Missing data — manual input required:
+            </p>
+            <ul style="margin:0; padding-left:16px; color:#fca5a5; font-size:12px;">
+                {% for f in missing_fields %}<li>{{ f }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if auto_data %}
+        <div style="background:#052e16; border:1px solid #166534; border-radius:8px;
+                    padding:10px 14px; margin-bottom:16px; font-size:12px; color:#86efac;">
+            ✅ Values pre-filled from shipment &amp; computation data. Review before computing.
+        </div>
+        {% endif %}
+
         <form method="POST">
             {% csrf_token %}
             <div class="form-group">
-                <label class="form-label">Gross Weight (kg)</label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label class="form-label" style="margin:0;">Gross Weight (kg)</label>
+                    {% if auto_sources.gross_weight %}
+                    <span style="font-size:10px; background:#1e3a5f; color:#93c5fd;
+                                 padding:2px 8px; border-radius:10px;">
+                        from {{ auto_sources.gross_weight }}
+                    </span>
+                    {% endif %}
+                </div>
                 <input type="number" name="gross_weight" class="form-input"
                     step="0.01" placeholder="e.g. 150"
-                    value="{{ existing.gross_weight|default:'' }}" required>
+                    value="{{ auto_data.gross_weight }}"
+                    {% if auto_data.gross_weight and 'Gross Weight' not in missing_fields %}style="border-color:#166534;"{% endif %}
+                    required>
             </div>
             <div class="form-group">
-                <label class="form-label">Cargo Volume (CBM)</label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label class="form-label" style="margin:0;">Cargo Volume (CBM)</label>
+                    {% if auto_sources.cargo_volume %}
+                    <span style="font-size:10px; background:#1e3a5f; color:#93c5fd;
+                                 padding:2px 8px; border-radius:10px;">
+                        from {{ auto_sources.cargo_volume }}
+                    </span>
+                    {% endif %}
+                </div>
                 <input type="number" name="cargo_volume" class="form-input"
                     step="0.001" placeholder="e.g. 2.5"
-                    value="{{ existing.cargo_volume|default:'' }}" required>
+                    value="{{ auto_data.cargo_volume }}"
+                    required>
             </div>
             <div class="form-group">
-                <label class="form-label">Declared Value (USD)</label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label class="form-label" style="margin:0;">Declared Value (USD)</label>
+                    {% if auto_sources.declared_value %}
+                    <span style="font-size:10px; background:#1e3a5f; color:#93c5fd;
+                                 padding:2px 8px; border-radius:10px;">
+                        from {{ auto_sources.declared_value }}
+                    </span>
+                    {% endif %}
+                </div>
                 <input type="number" name="declared_value" class="form-input"
                     step="0.01" placeholder="e.g. 5000"
-                    value="{{ existing.declared_value|default:'' }}" required>
+                    value="{{ auto_data.declared_value }}"
+                    {% if auto_data.declared_value and 'Declared Value' not in missing_fields %}style="border-color:#166534;"{% endif %}
+                    required>
             </div>
             <div class="form-group">
-                <label class="form-label">Urgency Level</label>
-                <select name="urgency_level" class="form-input">
-                    <option value="normal"
-                        {% if not existing or existing.urgency_level == 'normal' %}selected{% endif %}>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label class="form-label" style="margin:0;">Urgency Level</label>
+                    {% if auto_sources.urgency_level %}
+                    <span style="font-size:10px; background:#1e3a5f; color:#93c5fd;
+                                 padding:2px 8px; border-radius:10px;">
+                        from {{ auto_sources.urgency_level }}
+                    </span>
+                    {% endif %}
+                </div>
+                <select name="urgency_level" class="form-input" style="border-color:#166534;">
+                    <option value="normal" {% if auto_data.urgency_level != 'urgent' %}selected{% endif %}>
                         Normal
                     </option>
-                    <option value="urgent"
-                        {% if existing.urgency_level == 'urgent' %}selected{% endif %}>
+                    <option value="urgent" {% if auto_data.urgency_level == 'urgent' %}selected{% endif %}>
                         ⚡ Urgent
                     </option>
                 </select>
             </div>
             <div class="form-group">
-                <label class="form-label">Distance (km)</label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label class="form-label" style="margin:0;">Distance (km)</label>
+                    {% if auto_sources.distance_km %}
+                    <span style="font-size:10px; background:#1e3a5f; color:#93c5fd;
+                                 padding:2px 8px; border-radius:10px;">
+                        from {{ auto_sources.distance_km }}
+                    </span>
+                    {% endif %}
+                </div>
                 <input type="number" name="distance_km" class="form-input"
-                    step="1" placeholder="e.g. 1200"
-                    value="{{ existing.distance_km|default:'' }}" required>
+                    step="1" placeholder="e.g. 2600"
+                    value="{{ auto_data.distance_km }}"
+                    style="border-color:#166534;"
+                    required>
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%; margin-top:4px;">
-                Compute Recommendation
+                ⚙ Compute Recommendation
             </button>
         </form>
     </div>

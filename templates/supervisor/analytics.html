@@ -57,6 +57,108 @@
     </div>
 </div>
 
+<!-- ─── WMCDA Advisory Analytics ───────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:24px;">
+    <p class="card-title">🚢 WMCDA Shipping Advisory Analytics
+        <span style="color:#64748b; font-weight:400; font-size:13px;">
+            — {{ wmcda.total }} advisor{{ wmcda.total|pluralize:"y,ies" }} computed
+        </span>
+    </p>
+
+    {% if wmcda.total > 0 %}
+    <!-- Score summary row -->
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px;">
+        <!-- Air -->
+        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
+            <div style="font-size:22px; margin-bottom:6px;">✈️</div>
+            <div style="font-size:22px; font-weight:700; color:#3b82f6; margin-bottom:2px;">{{ wmcda.air }}</div>
+            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">Air Recommended</div>
+            <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px; background:#3b82f6; width:{{ wmcda.pct_air }}%;"></div>
+            </div>
+            <div style="font-size:11px; color:#3b82f6; font-weight:600;">{{ wmcda.pct_air }}%</div>
+            <div style="font-size:11px; color:#64748b; margin-top:6px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_air }}</strong></div>
+        </div>
+        <!-- LCL -->
+        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
+            <div style="font-size:22px; margin-bottom:6px;">📦</div>
+            <div style="font-size:22px; font-weight:700; color:#22c55e; margin-bottom:2px;">{{ wmcda.lcl }}</div>
+            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">LCL Recommended</div>
+            <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px; background:#22c55e; width:{{ wmcda.pct_lcl }}%;"></div>
+            </div>
+            <div style="font-size:11px; color:#22c55e; font-weight:600;">{{ wmcda.pct_lcl }}%</div>
+            <div style="font-size:11px; color:#64748b; margin-top:6px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_lcl }}</strong></div>
+        </div>
+        <!-- FCL -->
+        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
+            <div style="font-size:22px; margin-bottom:6px;">🚢</div>
+            <div style="font-size:22px; font-weight:700; color:#8b5cf6; margin-bottom:2px;">{{ wmcda.fcl }}</div>
+            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">FCL Recommended</div>
+            <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px; background:#8b5cf6; width:{{ wmcda.pct_fcl }}%;"></div>
+            </div>
+            <div style="font-size:11px; color:#8b5cf6; font-weight:600;">{{ wmcda.pct_fcl }}%</div>
+            <div style="font-size:11px; color:#64748b; margin-top:6px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_fcl }}</strong></div>
+        </div>
+    </div>
+
+    <!-- Recent advisories table -->
+    {% if wmcda.recent %}
+    <p style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:10px;">Recent Advisories</p>
+    <div style="overflow-x:auto; border:1px solid #1e293b; border-radius:8px;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#0f172a;">
+                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">HAWB</th>
+                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Computed By</th>
+                    <th style="padding:8px 12px; text-align:center; color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Recommended</th>
+                    <th style="padding:8px 12px; text-align:center; color:#3b82f6; font-size:11px; font-weight:600;">Air</th>
+                    <th style="padding:8px 12px; text-align:center; color:#22c55e; font-size:11px; font-weight:600;">LCL</th>
+                    <th style="padding:8px 12px; text-align:center; color:#8b5cf6; font-size:11px; font-weight:600;">FCL</th>
+                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for adv in wmcda.recent %}
+                <tr style="border-top:1px solid #1e293b;"
+                    onmouseover="this.style.background='#0f172a'"
+                    onmouseout="this.style.background=''">
+                    <td style="padding:10px 12px; color:#3b82f6; font-size:12px; font-weight:600;">
+                        {{ adv.shipment.hawb_number }}
+                    </td>
+                    <td style="padding:10px 12px; color:#94a3b8; font-size:12px;">
+                        {{ adv.computed_by.get_full_name|default:adv.computed_by.username }}
+                    </td>
+                    <td style="padding:10px 12px; text-align:center;">
+                        <span style="display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase;
+                            {% if adv.recommended_type == 'air' %}background:#1e3a5f; color:#93c5fd;
+                            {% elif adv.recommended_type == 'lcl' %}background:#052e16; color:#86efac;
+                            {% else %}background:#2d1b69; color:#c4b5fd;{% endif %}">
+                            {% if adv.recommended_type == 'air' %}✈ Air
+                            {% elif adv.recommended_type == 'lcl' %}📦 LCL
+                            {% else %}🚢 FCL{% endif %}
+                        </span>
+                    </td>
+                    <td style="padding:10px 12px; text-align:center; color:#3b82f6; font-size:12px; font-weight:600;">{{ adv.air_score|floatformat:3 }}</td>
+                    <td style="padding:10px 12px; text-align:center; color:#22c55e; font-size:12px; font-weight:600;">{{ adv.lcl_score|floatformat:3 }}</td>
+                    <td style="padding:10px 12px; text-align:center; color:#8b5cf6; font-size:12px; font-weight:600;">{{ adv.fcl_score|floatformat:3 }}</td>
+                    <td style="padding:10px 12px; color:#64748b; font-size:11px;">{{ adv.computed_at|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div style="text-align:center; padding:32px; color:#64748b;">
+        <div style="font-size:32px; margin-bottom:8px;">🚢</div>
+        <p>No shipping advisories computed yet.</p>
+    </div>
+    {% endif %}
+</div>
+
 <!-- ─── Declarant Performance ─────────────────────────────────────────────── -->
 <div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;">
     <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">

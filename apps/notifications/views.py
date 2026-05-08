@@ -6,7 +6,7 @@ from .models import Notification
 
 @login_required
 def notifications_list(request):
-    filter_type = request.GET.get('filter', 'all')
+    filter_type   = request.GET.get('filter', 'all')
     notifications = Notification.objects.filter(recipient=request.user)
 
     if filter_type == 'unread':
@@ -14,7 +14,7 @@ def notifications_list(request):
     elif filter_type == 'read':
         notifications = notifications.filter(is_read=True)
 
-    # Auto-mark all as read on full list view (keep existing behaviour)
+    # Auto-mark all as read when viewing the full list
     if filter_type == 'all':
         Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
 
@@ -26,13 +26,25 @@ def notifications_list(request):
 
 
 @login_required
+def notification_detail(request, notification_id):
+    """Show a single notification and mark it as read."""
+    notif = get_object_or_404(Notification, id=notification_id, recipient=request.user)
+
+    # Mark as read on open
+    if not notif.is_read:
+        notif.is_read = True
+        notif.save()
+
+    return render(request, 'notifications/detail.html', {'notif': notif})
+
+
+@login_required
 def mark_read(request, notification_id):
     notification = get_object_or_404(
         Notification, id=notification_id, recipient=request.user
     )
     notification.is_read = True
     notification.save()
-    # Support AJAX or regular redirect
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({'ok': True})
     return redirect('notifications:list')

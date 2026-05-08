@@ -10,9 +10,9 @@ from apps.notifications.utils import create_notification
 # ─── Auto-generate HAWB ───────────────────────────────────────────────────────
 
 def generate_hawb():
-    year = timezone.now().year
+    year   = timezone.now().year
     prefix = f'R3PCR-{year}-'
-    last = (
+    last   = (
         Shipment.objects
         .filter(hawb_number__startswith=prefix)
         .order_by('hawb_number')
@@ -20,7 +20,7 @@ def generate_hawb():
     )
     if last:
         try:
-            seq = int(last.hawb_number[len(prefix):])
+            seq      = int(last.hawb_number[len(prefix):])
             next_seq = seq + 1
         except (ValueError, IndexError):
             next_seq = 1
@@ -28,37 +28,37 @@ def generate_hawb():
         next_seq = 1
 
     hawb = f'{prefix}{str(next_seq).zfill(6)}'
-    # Race-condition guard
     while Shipment.objects.filter(hawb_number=hawb).exists():
         next_seq += 1
         hawb = f'{prefix}{str(next_seq).zfill(6)}'
     return hawb
 
 
-# ─── Views ────────────────────────────────────────────────────────────────────
+# ─── Dashboard ────────────────────────────────────────────────────────────────
 
 @login_required
 def dashboard(request):
     shipments = Shipment.objects.filter(consignee=request.user)
     context = {
-        'total': shipments.count(),
-        'pending': shipments.filter(status='pending').count(),
-        'in_review': shipments.filter(status='in_review').count(),
-        'approved': shipments.filter(status='approved').count(),
-        'rejected': shipments.filter(status='rejected').count(),
+        'total':            shipments.count(),
+        'pending':          shipments.filter(status='pending').count(),
+        'in_review':        shipments.filter(status='in_review').count(),
+        'approved':         shipments.filter(status='approved').count(),
+        'rejected':         shipments.filter(status='rejected').count(),
         'recent_shipments': shipments[:5],
     }
     return render(request, 'consignee/dashboard.html', context)
 
 
+# ─── Submit Shipment ──────────────────────────────────────────────────────────
+
 @login_required
 def submit_shipment(request):
     if request.method == 'POST':
-        import_type  = request.POST.get('import_type')
-        urgency      = request.POST.get('urgency')
-        description  = request.POST.get('description', '').strip()
+        import_type = request.POST.get('import_type')
+        urgency     = request.POST.get('urgency')
+        description = request.POST.get('description', '').strip()
 
-        # Auto-generate shipment reference
         hawb_number = generate_hawb()
 
         shipment = Shipment.objects.create(
@@ -79,7 +79,6 @@ def submit_shipment(request):
                     file=file,
                 )
 
-        # Notify all active declarants
         declarants = User.objects.filter(role='declarant', is_active=True)
         for declarant in declarants:
             create_notification(
@@ -103,6 +102,8 @@ def submit_shipment(request):
     return render(request, 'consignee/submit.html')
 
 
+# ─── My Submissions ───────────────────────────────────────────────────────────
+
 @login_required
 def my_submissions(request):
     shipments = Shipment.objects.filter(consignee=request.user).order_by('-submitted_at')
@@ -121,8 +122,15 @@ def my_submissions(request):
     if date_to:
         shipments = shipments.filter(submitted_at__date__lte=date_to)
 
+    now            = timezone.now()
+    shipments_list = list(shipments)
+    for s in shipments_list:
+        age_seconds  = (now - s.submitted_at).total_seconds()
+        s.can_cancel     = s.status == 'pending' and age_seconds <= 3600
+        s.cancel_expired = s.status == 'pending' and age_seconds > 3600
+
     return render(request, 'consignee/my_submissions.html', {
-        'shipments':     shipments,
+        'shipments':     shipments_list,
         'status_filter': status_filter,
         'q':             q,
         'date_from':     date_from,
@@ -130,25 +138,53 @@ def my_submissions(request):
     })
 
 
+# ─── Shipment Detail ──────────────────────────────────────────────────────────
+
+@login_required
+def shipment_detail(request, shipment_id):
+    """Consignee-facing detail page: status, advisory results, computation summary."""
+    shipment    = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+    advisory    = getattr(shipment, 'shipping_advisory', None)
+    computation = getattr(shipment, 'computation', None)
+    status_logs = shipment.status_logs.order_by('-changed_at')
+
+    # Rebuild WMCDA explanation from saved advisory data
+    explanation = None
+    if advisory:
+        try:
+            from apps.computation.views import compute_wmcda
+            _, _, _, explanation = compute_wmcda(
+                float(advisory.gross_weight),
+                float(advisory.cargo_volume),
+                float(advisory.declared_value),
+                advisory.urgency_level,
+                float(advisory.distance_km),
+            )
+        except Exception:
+            pass
+
+    context = {
+        'shipment':    shipment,
+        'advisory':    advisory,
+        'computation': computation,
+        'status_logs': status_logs,
+        'explanation': explanation,
+    }
+    return render(request, 'consignee/shipment_detail.html', context)
+
+
+# ─── Cancel Submission ────────────────────────────────────────────────────────
+
 @login_required
 def cancel_submission(request, shipment_id):
-    shipment = get_object_or_404(
-        Shipment, id=shipment_id, consignee=request.user
-    )
+    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
 
     if request.method == 'POST':
-        # Only allow cancel if pending AND submitted < 1 hour ago
         age = timezone.now() - shipment.submitted_at
         if shipment.status != 'pending':
-            messages.error(
-                request,
-                'Cannot cancel — this shipment is already being processed.'
-            )
+            messages.error(request, 'Cannot cancel — this shipment is already being processed.')
         elif age.total_seconds() > 3600:
-            messages.error(
-                request,
-                'Cannot cancel — the 1-hour cancellation window has passed.'
-            )
+            messages.error(request, 'Cannot cancel — the 1-hour cancellation window has passed.')
         else:
             shipment.delete()
             messages.success(request, 'Shipment cancelled and removed.')

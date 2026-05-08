@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+
+{% block title %}Shipment — {{ shipment.hawb_number }}{% endblock %}
+{% block page_title %}Shipment Details{% endblock %}
+
+{% block content %}
+
+<!-- Back + Header -->
+<div style="display:flex; align-items:center; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
+    <a href="{% url 'consignee:my_submissions' %}" class="btn btn-secondary" style="font-size:12px;">
+        ← Back to My Submissions
+    </a>
+    <div>
+        <h2 style="font-size:18px; font-weight:700; color:#f1f5f9; margin:0;">
+            {{ shipment.hawb_number }}
+        </h2>
+        <p style="font-size:13px; color:#64748b; margin:3px 0 0;">
+            Submitted {{ shipment.submitted_at|date:"M d, Y g:i A" }}
+        </p>
+    </div>
+    <div style="margin-left:auto;">
+        {% if shipment.status == 'approved' %}
+            <span class="badge badge-approved" style="font-size:13px; padding:6px 16px;">✓ Approved</span>
+        {% elif shipment.status == 'rejected' %}
+            <span class="badge badge-rejected" style="font-size:13px; padding:6px 16px;">✗ Rejected</span>
+        {% elif shipment.status == 'in_review' %}
+            <span class="badge badge-review" style="font-size:13px; padding:6px 16px;">In Review</span>
+        {% else %}
+            <span class="badge badge-pending" style="font-size:13px; padding:6px 16px;">
+                {{ shipment.get_status_display }}
+            </span>
+        {% endif %}
+    </div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;">
+
+    <!-- ── Left column ─────────────────────────────────────────────────── -->
+    <div style="display:flex; flex-direction:column; gap:20px;">
+
+        <!-- Shipment Info -->
+        <div class="card">
+            <p class="card-title">📦 Shipment Information</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Import Type</p>
+                    <p style="font-size:13px; color:#e2e8f0;">{{ shipment.get_import_type_display }}</p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Urgency</p>
+                    <p style="font-size:13px; color:{% if shipment.urgency == 'urgent' %}#ef4444{% else %}#94a3b8{% endif %}; font-weight:{% if shipment.urgency == 'urgent' %}600{% else %}400{% endif %};">
+                        {% if shipment.urgency == 'urgent' %}⚡ Urgent{% else %}Normal{% endif %}
+                    </p>
+                </div>
+                {% if shipment.description %}
+                <div style="grid-column:1/-1;">
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Description</p>
+                    <p style="font-size:13px; color:#94a3b8;">{{ shipment.description }}</p>
+                </div>
+                {% endif %}
+                {% if shipment.boc_reference %}
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">BOC Reference</p>
+                    <p style="font-size:13px; color:#e2e8f0;">{{ shipment.boc_reference }}</p>
+                </div>
+                {% endif %}
+                {% if shipment.boc_status %}
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">BOC Status</p>
+                    <p style="font-size:13px; color:#e2e8f0;">{{ shipment.boc_status }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Documents -->
+        {% with docs=shipment.documents.all %}
+        {% if docs %}
+        <div class="card">
+            <p class="card-title">📎 Documents</p>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                {% for doc in docs %}
+                <div style="display:flex; align-items:center; justify-content:space-between;
+                            padding:10px 12px; background:#0f172a; border:1px solid #1e293b; border-radius:8px;">
+                    <span style="font-size:13px; color:#94a3b8;">
+                        {% if doc.document_type == 'invoice' %}📄{% elif doc.document_type == 'packing_list' %}📦{% elif doc.document_type == 'airway_bill' %}✈️{% else %}📎{% endif %}
+                        {{ doc.get_document_type_display }}
+                    </span>
+                    <a href="{{ doc.file.url }}" target="_blank"
+                       style="font-size:11px; color:#3b82f6; text-decoration:none;">
+                        View ↗
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Computation Summary -->
+        {% if computation %}
+        <div class="card">
+            <p class="card-title">🧮 Computation Summary</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Declared Value</p>
+                    <p style="font-size:13px; color:#e2e8f0;">USD {{ computation.declared_value|floatformat:2 }}</p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Exchange Rate</p>
+                    <p style="font-size:13px; color:#e2e8f0;">₱ {{ computation.exchange_rate|floatformat:4 }}</p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Total Duties &amp; Taxes</p>
+                    <p style="font-size:14px; font-weight:700; color:#3b82f6;">
+                        ₱ {{ computation.total_duties_and_taxes|floatformat:2|default:"—" }}
+                    </p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Total Landed Cost</p>
+                    <p style="font-size:14px; font-weight:700; color:#22c55e;">
+                        ₱ {{ computation.total_landed_cost|floatformat:2|default:"—" }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- ── Right column ────────────────────────────────────────────────── -->
+    <div style="display:flex; flex-direction:column; gap:20px;">
+
+        <!-- Shipping Advisory -->
+        {% if advisory %}
+        <div class="card">
+            <p class="card-title">🚢 Shipping Advisory</p>
+
+            <!-- Recommendation Banner -->
+            <div style="border-radius:10px; padding:16px 20px; margin-bottom:16px;
+                        display:flex; align-items:center; gap:14px;
+                        {% if advisory.recommended_type == 'air' %}background:#1e3a5f; border:1px solid #3b82f6;
+                        {% elif advisory.recommended_type == 'fcl' %}background:#14532d; border:1px solid #22c55e;
+                        {% else %}background:#2d1b00; border:1px solid #f59e0b;{% endif %}">
+                <span style="font-size:32px;">
+                    {% if advisory.recommended_type == 'air' %}✈️
+                    {% elif advisory.recommended_type == 'fcl' %}🚢
+                    {% else %}📦{% endif %}
+                </span>
+                <div>
+                    <p style="color:#94a3b8; font-size:11px; margin:0 0 3px; text-transform:uppercase; letter-spacing:0.08em;">
+                        Recommended Mode
+                    </p>
+                    <p style="color:#f1f5f9; font-size:20px; font-weight:700; margin:0;">
+                        {% if advisory.recommended_type == 'lcl' %}LCL — Less Container Load
+                        {% elif advisory.recommended_type == 'fcl' %}FCL — Full Container Load
+                        {% else %}Air Freight{% endif %}
+                    </p>
+                    {% if explanation %}
+                    <p style="color:#94a3b8; font-size:12px; margin:6px 0 0;">{{ explanation }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Score cards -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+                <div style="text-align:center; padding:12px; border-radius:8px;
+                            {% if advisory.recommended_type == 'lcl' %}background:#1e3a5f; border:1px solid #3b82f6;
+                            {% else %}background:#0f172a; border:1px solid #1e293b;{% endif %}">
+                    <p style="color:#94a3b8; font-size:11px; margin:0 0 4px;">📦 LCL</p>
+                    <p style="font-size:20px; font-weight:700; margin:0;
+                              color:{% if advisory.recommended_type == 'lcl' %}#3b82f6{% else %}#f1f5f9{% endif %};">
+                        {{ advisory.lcl_score|floatformat:3 }}
+                    </p>
+                    {% if advisory.recommended_type == 'lcl' %}
+                    <p style="font-size:10px; color:#3b82f6; font-weight:600; margin:3px 0 0;">★ BEST</p>
+                    {% endif %}
+                </div>
+                <div style="text-align:center; padding:12px; border-radius:8px;
+                            {% if advisory.recommended_type == 'fcl' %}background:#1e3a5f; border:1px solid #3b82f6;
+                            {% else %}background:#0f172a; border:1px solid #1e293b;{% endif %}">
+                    <p style="color:#94a3b8; font-size:11px; margin:0 0 4px;">🚢 FCL</p>
+                    <p style="font-size:20px; font-weight:700; margin:0;
+                              color:{% if advisory.recommended_type == 'fcl' %}#3b82f6{% else %}#f1f5f9{% endif %};">
+                        {{ advisory.fcl_score|floatformat:3 }}
+                    </p>
+                    {% if advisory.recommended_type == 'fcl' %}
+                    <p style="font-size:10px; color:#3b82f6; font-weight:600; margin:3px 0 0;">★ BEST</p>
+                    {% endif %}
+                </div>
+                <div style="text-align:center; padding:12px; border-radius:8px;
+                            {% if advisory.recommended_type == 'air' %}background:#1e3a5f; border:1px solid #3b82f6;
+                            {% else %}background:#0f172a; border:1px solid #1e293b;{% endif %}">
+                    <p style="color:#94a3b8; font-size:11px; margin:0 0 4px;">✈️ Air</p>
+                    <p style="font-size:20px; font-weight:700; margin:0;
+                              color:{% if advisory.recommended_type == 'air' %}#3b82f6{% else %}#f1f5f9{% endif %};">
+                        {{ advisory.air_score|floatformat:3 }}
+                    </p>
+                    {% if advisory.recommended_type == 'air' %}
+                    <p style="font-size:10px; color:#3b82f6; font-weight:600; margin:3px 0 0;">★ BEST</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div style="font-size:11px; color:#475569; padding-top:10px; border-top:1px solid #1e293b;">
+                Advisory computed {{ advisory.computed_at|date:"M d, Y g:i A" }}
+                {% if advisory.computed_by %}
+                by {{ advisory.computed_by.get_full_name|default:advisory.computed_by.username }}
+                {% endif %}
+            </div>
+        </div>
+
+        {% else %}
+        <div class="card" style="text-align:center; padding:32px 24px; color:#64748b;">
+            <p style="font-size:28px; margin-bottom:10px;">⏳</p>
+            <p style="font-size:14px; font-weight:600; color:#94a3b8; margin-bottom:4px;">Shipping advisory pending</p>
+            <p style="font-size:12px;">A declarant will compute the WMCDA recommendation once your shipment is reviewed.</p>
+        </div>
+        {% endif %}
+
+        <!-- Status History -->
+        <div class="card" style="padding:0; overflow:hidden;">
+            <div style="padding:14px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
+                <p class="card-title" style="margin:0;">🕓 Status History</p>
+            </div>
+            {% if status_logs %}
+            <div style="display:flex; flex-direction:column;">
+                {% for log in status_logs %}
+                <div style="padding:12px 20px; border-bottom:1px solid #1e293b; display:flex; gap:12px; align-items:flex-start;">
+                    <div style="width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0;
+                                background:{% if log.new_status == 'approved' %}#22c55e{% elif log.new_status == 'rejected' %}#ef4444{% elif log.new_status == 'in_review' %}#3b82f6{% else %}#64748b{% endif %};">
+                    </div>
+                    <div style="flex:1;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                            <span style="font-size:13px; font-weight:600; color:#f1f5f9;">
+                                {{ log.new_status|capfirst|cut:"_" }}
+                            </span>
+                            <span style="font-size:11px; color:#64748b;">
+                                {{ log.changed_at|date:"M d, Y g:i A" }}
+                            </span>
+                        </div>
+                        {% if log.changed_by %}
+                        <p style="font-size:11px; color:#475569; margin:2px 0 0;">
+                            by {{ log.changed_by.get_full_name|default:log.changed_by.username }}
+                        </p>
+                        {% endif %}
+                        {% if log.notes %}
+                        <p style="font-size:12px; color:#94a3b8; margin:4px 0 0; font-style:italic;">
+                            "{{ log.notes }}"
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="padding:24px; text-align:center; color:#64748b; font-size:13px;">
+                No status changes recorded yet.
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

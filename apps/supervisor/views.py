@@ -3,10 +3,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField
 from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, StatusLog
-from apps.computation.models import DutyComputation
-from .models import SystemConfig
+from apps.computation.models import DutyComputation, ShippingAdvisory
+from .models import SystemConfig, Announcement
 
 
 def supervisor_required(view_func):
@@ -25,11 +27,10 @@ def supervisor_required(view_func):
 def dashboard(request):
     all_shipments = Shipment.objects.all()
 
-    # ── Filters ──
-    q          = request.GET.get('q', '').strip()
-    status_f   = request.GET.get('status', '').strip()
-    date_from  = request.GET.get('date_from', '').strip()
-    date_to    = request.GET.get('date_to', '').strip()
+    q         = request.GET.get('q', '').strip()
+    status_f  = request.GET.get('status', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to   = request.GET.get('date_to', '').strip()
 
     shipments = all_shipments.order_by('-submitted_at')
     if q:
@@ -60,7 +61,6 @@ def dashboard(request):
         'total_users':      User.objects.count(),
         'total_consignees': User.objects.filter(role='consignee').count(),
         'total_declarants': User.objects.filter(role='declarant').count(),
-        # pass filter state back to template
         'q':         q,
         'status_f':  status_f,
         'date_from': date_from,
@@ -74,8 +74,78 @@ def dashboard(request):
 @login_required
 @supervisor_required
 def user_management(request):
-    users = User.objects.all().order_by('role', 'username')
-    return render(request, 'supervisor/users.html', {'users': users})
+    users   = User.objects.filter(is_pending_approval=False).order_by('role', 'username')
+    pending = User.objects.filter(is_pending_approval=True).order_by('date_joined')
+    return render(request, 'supervisor/users.html', {
+        'users':   users,
+        'pending': pending,
+    })
+
+
+@login_required
+@supervisor_required
+def approve_registration(request, user_id):
+    user = get_object_or_404(User, id=user_id, is_pending_approval=True)
+    if request.method == 'POST':
+        user.is_active           = True
+        user.is_pending_approval = False
+        user.save()
+
+        if user.email:
+            try:
+                send_mail(
+                    subject='R3-PCR — Account Approved',
+                    message=(
+                        f'Hello {user.first_name or user.username},\n\n'
+                        f'Your R3-PCR account has been approved. '
+                        f'You can now log in.\n\nUsername: {user.username}'
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    html_message=f'''
+                        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">
+                            <h2 style="color:#22c55e;">Account Approved!</h2>
+                            <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
+                            <p>Your R3-PCR account has been <strong style="color:#22c55e;">approved</strong>.
+                               You can now log in.</p>
+                            <p><strong>Username:</strong> {user.username}</p>
+                            <p style="color:#94a3b8;font-size:12px;margin-top:20px;">
+                                R3-PCR Pre-Clearance Decision Support System
+                            </p>
+                        </div>
+                    ''',
+                )
+            except Exception as ex:
+                print(f'Approval email error: {ex}')
+
+        messages.success(request, f'Account for {user.username} approved and activated.')
+    return redirect('supervisor:users')
+
+
+@login_required
+@supervisor_required
+def reject_registration(request, user_id):
+    user = get_object_or_404(User, id=user_id, is_pending_approval=True)
+    if request.method == 'POST':
+        username = user.username
+        email    = user.email
+        name     = user.first_name or username
+        if email:
+            try:
+                send_mail(
+                    subject='R3-PCR — Registration Not Approved',
+                    message=(
+                        f'Hello {name},\n\nUnfortunately your R3-PCR registration was not approved. '
+                        f'Please contact the administrator for more information.'
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[email],
+                )
+            except Exception as ex:
+                print(f'Rejection email error: {ex}')
+        user.delete()
+        messages.warning(request, f'Registration for {username} rejected and removed.')
+    return redirect('supervisor:users')
 
 
 @login_required
@@ -131,50 +201,46 @@ def analytics(request):
     # Declarant performance
     declarant_data = []
     for d in declarants:
-        d_ships   = shipments.filter(declarant=d)
-        total_d   = d_ships.count()
-        approved  = d_ships.filter(status='approved').count()
-        rejected  = d_ships.filter(status='rejected').count()
-        rate      = round((approved / total_d * 100), 1) if total_d > 0 else 0
+        d_ships  = shipments.filter(declarant=d)
+        total_d  = d_ships.count()
+        approved = d_ships.filter(status='approved').count()
+        rejected = d_ships.filter(status='rejected').count()
+        rate     = round((approved / total_d * 100), 1) if total_d > 0 else 0
 
-        # Average processing time (days) for approved
-        approved_with_time = d_ships.filter(
-            status='approved', processed_at__isnull=False
-        )
+        approved_with_time = d_ships.filter(status='approved', processed_at__isnull=False)
         avg_days = None
         if approved_with_time.exists():
             deltas = [
                 (s.processed_at - s.submitted_at).days
-                for s in approved_with_time
-                if s.processed_at
+                for s in approved_with_time if s.processed_at
             ]
             if deltas:
                 avg_days = round(sum(deltas) / len(deltas), 1)
 
         declarant_data.append({
-            'name':         d.get_full_name() or d.username,
-            'total':        total_d,
-            'approved':     approved,
-            'rejected':     rejected,
+            'name':          d.get_full_name() or d.username,
+            'total':         total_d,
+            'approved':      approved,
+            'rejected':      rejected,
             'approval_rate': rate,
-            'avg_days':     avg_days,
+            'avg_days':      avg_days,
         })
 
-    # Status breakdown with percentages for CSS bars
+    # Status breakdown
     status_counts = {
-        'pending':    shipments.filter(status='pending').count(),
-        'in_review':  shipments.filter(status='in_review').count(),
+        'pending':     shipments.filter(status='pending').count(),
+        'in_review':   shipments.filter(status='in_review').count(),
         'for_payment': shipments.filter(status='for_payment').count(),
-        'submitted':  shipments.filter(status='submitted').count(),
-        'approved':   shipments.filter(status='approved').count(),
-        'rejected':   shipments.filter(status='rejected').count(),
+        'submitted':   shipments.filter(status='submitted').count(),
+        'approved':    shipments.filter(status='approved').count(),
+        'rejected':    shipments.filter(status='rejected').count(),
     }
     status_pcts = {
         k: round(v / total * 100, 1) if total > 0 else 0
         for k, v in status_counts.items()
     }
 
-    # Top 5 most-used HS codes
+    # Top 5 HS codes
     top_hs = (
         DutyComputation.objects
         .filter(hs_code__isnull=False)
@@ -183,85 +249,158 @@ def analytics(request):
         .order_by('-count')[:5]
     )
 
+    # ── WMCDA Analytics ──
+    advisories = ShippingAdvisory.objects.all()
+    total_adv  = advisories.count()
+
+    wmcda_air = advisories.filter(recommended_type='air').count()
+    wmcda_lcl = advisories.filter(recommended_type='lcl').count()
+    wmcda_fcl = advisories.filter(recommended_type='fcl').count()
+
+    avg_air = avg_lcl = avg_fcl = None
+    if total_adv > 0:
+        avgs = advisories.aggregate(
+            avg_air=Avg('air_score'),
+            avg_lcl=Avg('lcl_score'),
+            avg_fcl=Avg('fcl_score'),
+        )
+        avg_air = round(float(avgs['avg_air'] or 0), 3)
+        avg_lcl = round(float(avgs['avg_lcl'] or 0), 3)
+        avg_fcl = round(float(avgs['avg_fcl'] or 0), 3)
+
+    recent_advisories = (
+        advisories
+        .select_related('shipment', 'computed_by')
+        .order_by('-computed_at')[:8]
+    )
+
+    wmcda = {
+        'total':    total_adv,
+        'air':      wmcda_air,
+        'lcl':      wmcda_lcl,
+        'fcl':      wmcda_fcl,
+        'avg_air':  avg_air,
+        'avg_lcl':  avg_lcl,
+        'avg_fcl':  avg_fcl,
+        'pct_air':  round(wmcda_air / total_adv * 100) if total_adv > 0 else 0,
+        'pct_lcl':  round(wmcda_lcl / total_adv * 100) if total_adv > 0 else 0,
+        'pct_fcl':  round(wmcda_fcl / total_adv * 100) if total_adv > 0 else 0,
+        'recent':   recent_advisories,
+    }
+
     context = {
-        'status_data':    status_counts,
-        'status_pcts':    status_pcts,
-        'declarant_data': declarant_data,
+        'status_data':     status_counts,
+        'status_pcts':     status_pcts,
+        'declarant_data':  declarant_data,
         'total_shipments': total,
-        'top_hs':         list(top_hs),
+        'top_hs':          list(top_hs),
+        'wmcda':           wmcda,
     }
     return render(request, 'supervisor/analytics.html', context)
 
 
-# ─── System Configuration ─────────────────────────────────────────────────────
+# ─── Memos & Announcements ────────────────────────────────────────────────────
+
+@login_required
+@supervisor_required
+def list_memos(request):
+    memos = Announcement.objects.all()
+    return render(request, 'supervisor/memos.html', {'memos': memos})
+
+
+@login_required
+@supervisor_required
+def create_memo(request):
+    if request.method == 'POST':
+        title    = request.POST.get('title', '').strip()
+        content  = request.POST.get('content', '').strip()
+        category = request.POST.get('category', 'general')
+        if not title or not content:
+            messages.error(request, 'Title and content are required.')
+        else:
+            Announcement.objects.create(
+                title=title, content=content,
+                category=category, created_by=request.user,
+            )
+            messages.success(request, f'Announcement "{title}" published.')
+    return redirect('supervisor:memos')
+
+
+@login_required
+@supervisor_required
+def delete_memo(request, memo_id):
+    if request.method == 'POST':
+        memo = get_object_or_404(Announcement, id=memo_id)
+        title = memo.title
+        memo.delete()
+        messages.success(request, f'Announcement "{title}" deleted.')
+    return redirect('supervisor:memos')
+
+
+@login_required
+@supervisor_required
+def toggle_memo(request, memo_id):
+    if request.method == 'POST':
+        memo = get_object_or_404(Announcement, id=memo_id)
+        memo.is_active = not memo.is_active
+        memo.save()
+        state = 'published' if memo.is_active else 'archived'
+        messages.success(request, f'"{memo.title}" {state}.')
+    return redirect('supervisor:memos')
+
+
+# ─── System Configuration ────────────────────────────────────────────────────
+
+def _get_config():
+    """Return a SimpleNamespace with all SystemConfig values as floats/strings."""
+    from types import SimpleNamespace
+    defaults = {
+        'exchange_rate':  '59.1480',
+        'vat_rate':       '12.00',
+        'wmcda_w_cost':   '35',
+        'wmcda_w_time':   '30',
+        'wmcda_w_weight': '20',
+        'wmcda_w_risk':   '15',
+    }
+    rows = {sc.key: sc.value for sc in SystemConfig.objects.all()}
+    merged = {k: rows.get(k, v) for k, v in defaults.items()}
+    return SimpleNamespace(**merged)
+
 
 @login_required
 @supervisor_required
 def system_config(request):
-    if request.method == 'POST':
-        try:
-            fields_to_save = {
-                'exchange_rate': ('Exchange Rate (USD→PHP)',  None),
-                'vat_rate':      ('VAT Rate (%)',              None),
-                'wmcda_w_cost':  ('WMCDA Weight — Cost',       None),
-                'wmcda_w_time':  ('WMCDA Weight — Time',       None),
-                'wmcda_w_weight':('WMCDA Weight — Weight/Vol', None),
-                'wmcda_w_risk':  ('WMCDA Weight — Risk',       None),
-            }
-            for key, (label, _) in fields_to_save.items():
-                val = request.POST.get(key, '').strip()
-                if val:
-                    float(val)  # validate numeric
-                    SystemConfig.set(key, val, label, request.user)
+    config   = _get_config()
+    hs_codes = HSCode.objects.filter(is_active=True).order_by('code')
 
-            # Validate WMCDA weights sum = 100
-            try:
-                wsum = sum(
-                    float(request.POST.get(k, '0') or '0')
-                    for k in ('wmcda_w_cost', 'wmcda_w_time', 'wmcda_w_weight', 'wmcda_w_risk')
+    if request.method == 'POST':
+        # ── Save exchange rate + VAT ───────────────────────────────────────
+        for key in ('exchange_rate', 'vat_rate',
+                    'wmcda_w_cost', 'wmcda_w_time', 'wmcda_w_weight', 'wmcda_w_risk'):
+            val = request.POST.get(key, '').strip()
+            if val:
+                SystemConfig.objects.update_or_create(
+                    key=key,
+                    defaults={'value': val, 'updated_by': request.user},
                 )
-                if abs(wsum - 100) > 0.5:
-                    messages.warning(
-                        request,
-                        f'WMCDA weights sum to {wsum:.1f}% — they should total 100%.'
-                    )
-            except ValueError:
+
+        # ── Save HS code duty rates ────────────────────────────────────────
+        hs_ids   = request.POST.getlist('hs_id[]')
+        hs_rates = request.POST.getlist('hs_rate[]')
+        for hs_id, rate in zip(hs_ids, hs_rates):
+            try:
+                hs = HSCode.objects.get(id=int(hs_id))
+                hs.duty_rate = float(rate)
+                hs.save(update_fields=['duty_rate'])
+            except (HSCode.DoesNotExist, ValueError):
                 pass
 
-            # HS code duty rate updates
-            hs_ids   = request.POST.getlist('hs_id[]')
-            hs_rates = request.POST.getlist('hs_rate[]')
-            updated_hs = 0
-            for hs_id, rate in zip(hs_ids, hs_rates):
-                if hs_id and rate:
-                    try:
-                        hs = HSCode.objects.get(id=hs_id)
-                        hs.duty_rate = rate
-                        hs.save()
-                        updated_hs += 1
-                    except (HSCode.DoesNotExist, ValueError):
-                        pass
-
-            messages.success(
-                request,
-                f'Configuration saved. {updated_hs} HS code rate(s) updated.'
-            )
-        except ValueError as e:
-            messages.error(request, f'Invalid value: {e}')
-
+        messages.success(request, 'Configuration saved.')
         return redirect('supervisor:config')
 
-    config = {
-        'exchange_rate':  SystemConfig.get('exchange_rate',   '59.1480'),
-        'vat_rate':       SystemConfig.get('vat_rate',        '12'),
-        'wmcda_w_cost':   SystemConfig.get('wmcda_w_cost',    '35'),
-        'wmcda_w_time':   SystemConfig.get('wmcda_w_time',    '30'),
-        'wmcda_w_weight': SystemConfig.get('wmcda_w_weight',  '20'),
-        'wmcda_w_risk':   SystemConfig.get('wmcda_w_risk',    '15'),
-    }
-    hs_codes = HSCode.objects.filter(is_active=True).order_by('code')
     return render(request, 'supervisor/config.html', {
-        'config': config, 'hs_codes': hs_codes,
+        'config':   config,
+        'hs_codes': hs_codes,
     })
 
 
@@ -275,11 +414,11 @@ def reset_shipment(request, shipment_id):
         old_status = shipment.status
         hawb       = shipment.hawb_number
 
-        shipment.status         = 'pending'
-        shipment.declarant      = None
-        shipment.boc_reference  = None
-        shipment.boc_status     = None
-        shipment.processed_at   = None
+        shipment.status        = 'pending'
+        shipment.declarant     = None
+        shipment.boc_reference = None
+        shipment.boc_status    = None
+        shipment.processed_at  = None
         shipment.save()
 
         DutyComputation.objects.filter(shipment=shipment).delete()

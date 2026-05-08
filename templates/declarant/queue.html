@@ -5,7 +5,76 @@
 
 {% block content %}
 
-<!-- Filters -->
+<!-- ─── Preview Modal ─────────────────────────────────────────────────────── -->
+<div id="preview-modal"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.78);
+            z-index:9000; align-items:center; justify-content:center;">
+    <div style="background:#1e293b; border:1px solid #334155; border-radius:12px;
+                padding:28px 28px 20px; width:540px; max-width:92vw;
+                max-height:88vh; overflow-y:auto; position:relative;">
+
+        <button onclick="closePreview()"
+                style="position:absolute; top:14px; right:16px; background:none;
+                       border:none; cursor:pointer; color:#64748b; font-size:20px;
+                       line-height:1;">✕</button>
+
+        <h3 id="pm-hawb" style="color:#f1f5f9; font-size:18px; margin:0 0 2px;"></h3>
+        <p id="pm-submitted" style="color:#64748b; font-size:12px; margin:0 0 20px;"></p>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px 24px; margin-bottom:18px;">
+            <div>
+                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Consignee</p>
+                <p id="pm-consignee" style="color:#f1f5f9; font-size:13px; margin:0;"></p>
+            </div>
+            <div>
+                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Import Type</p>
+                <p id="pm-type" style="color:#f1f5f9; font-size:13px; margin:0;"></p>
+            </div>
+            <div>
+                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Urgency</p>
+                <p id="pm-urgency" style="font-size:13px; margin:0;"></p>
+            </div>
+            <div>
+                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Due Date</p>
+                <p id="pm-due" style="font-size:13px; margin:0; font-weight:600;"></p>
+            </div>
+            <div>
+                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Declared Value (EXW)</p>
+                <p id="pm-value" style="color:#f1f5f9; font-size:13px; margin:0;"></p>
+            </div>
+            <div>
+                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Gross Weight</p>
+                <p id="pm-weight" style="color:#f1f5f9; font-size:13px; margin:0;"></p>
+            </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+            <p style="color:#64748b; font-size:11px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.05em;">Description</p>
+            <p id="pm-desc" style="color:#94a3b8; font-size:13px; margin:0; line-height:1.5;"></p>
+        </div>
+
+        <div style="margin-bottom:20px; padding:12px 14px; background:#0f172a; border-radius:8px;">
+            <p style="color:#64748b; font-size:11px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.05em;">Documents</p>
+            <p id="pm-docs" style="color:#94a3b8; font-size:13px; margin:0;"></p>
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end;
+                    padding-top:16px; border-top:1px solid #334155;">
+            <button onclick="closePreview()" class="btn btn-secondary" style="font-size:13px;">
+                Close
+            </button>
+            <form id="pm-claim-form" method="POST" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="process">
+                <button type="submit" class="btn btn-primary" style="font-size:13px;">
+                    Claim &amp; Process →
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Filters ───────────────────────────────────────────────────────────── -->
 <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:flex-end;">
     <!-- Live search (client-side) -->
     <div style="flex:1; min-width:200px;">
@@ -24,20 +93,22 @@
             <select name="urgency" class="form-input" style="padding:7px 12px; font-size:13px;"
                     onchange="this.form.submit()">
                 <option value="">All Urgency</option>
-                <option value="urgent" {% if request.GET.urgency == 'urgent' %}selected{% endif %}>⚡ Urgent</option>
-                <option value="normal" {% if request.GET.urgency == 'normal' %}selected{% endif %}>Normal</option>
+                <option value="urgent" {% if urgency_filter == 'urgent' %}selected{% endif %}>⚡ Urgent</option>
+                <option value="normal" {% if urgency_filter == 'normal' %}selected{% endif %}>Normal</option>
             </select>
         </div>
-        <div style="min-width:150px;">
-            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Section</label>
-            <select name="status" class="form-input" style="padding:7px 12px; font-size:13px;"
+        <div style="min-width:170px;">
+            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Due Within</label>
+            <select name="due" class="form-input" style="padding:7px 12px; font-size:13px;"
                     onchange="this.form.submit()">
-                <option value="">All</option>
-                <option value="pending"   {% if request.GET.status == 'pending'   %}selected{% endif %}>Pending</option>
-                <option value="in_review" {% if request.GET.status == 'in_review' %}selected{% endif %}>In Review</option>
+                <option value="">All Due Dates</option>
+                <option value="-1" {% if due_filter == '-1' %}selected{% endif %}>🔴 Overdue</option>
+                <option value="0"  {% if due_filter == '0'  %}selected{% endif %}>🟠 Due Today</option>
+                <option value="2"  {% if due_filter == '2'  %}selected{% endif %}>Due in 2 days</option>
+                <option value="5"  {% if due_filter == '5'  %}selected{% endif %}>Due in 5 days</option>
             </select>
         </div>
-        {% if request.GET.urgency or request.GET.status %}
+        {% if urgency_filter or due_filter %}
         <a href="{% url 'declarant:queue' %}"
            class="btn btn-secondary" style="font-size:12px; padding:8px 14px; align-self:flex-end;">
             ✕ Clear
@@ -48,8 +119,10 @@
 
 <!-- ─── Pending Queue ─────────────────────────────────────────────────────── -->
 <div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;">
-    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
+    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
+                display:flex; align-items:center; justify-content:space-between;">
         <p class="card-title" style="margin:0;">📋 Pending Queue</p>
+        <span id="pending-count" style="color:#64748b; font-size:12px;"></span>
     </div>
 
     {% if pending %}
@@ -62,13 +135,14 @@
                 <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Type</th>
                 <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Urgency</th>
                 <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Docs</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Submitted</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Due Date</th>
                 <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Action</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="pending-tbody">
             {% for s in pending %}
             <tr style="border-top:1px solid #1e293b;"
+                data-duedays="{{ s.due_days_left }}"
                 onmouseover="this.style.background='#1e293b'"
                 onmouseout="this.style.background=''">
                 <!-- Expand toggle -->
@@ -111,18 +185,47 @@
                     {% endfor %}
                     {% endwith %}
                 </td>
-                <td style="padding:12px 16px; color:#64748b; font-size:12px;">
-                    {{ s.submitted_at|timesince }} ago
+                <!-- Due date with color coding -->
+                <td style="padding:12px 16px; font-size:12px;">
+                    <span style="color:
+                        {% if s.due_color == 'red' %}#ef4444
+                        {% elif s.due_color == 'orange' %}#f59e0b
+                        {% else %}#22c55e{% endif %};
+                        font-weight:600;">
+                        ● {{ s.due_date|date:"M d, Y" }}
+                    </span>
+                    {% if s.due_days_left < 0 %}
+                    <br><span style="color:#ef4444; font-size:11px;">Overdue {{ s.due_days_left|stringformat:"d"|cut:"-" }} day{{ s.due_days_left|stringformat:"d"|cut:"-"|add:"0"|pluralize }}</span>
+                    {% elif s.due_days_left == 0 %}
+                    <br><span style="color:#f59e0b; font-size:11px;">Due today</span>
+                    {% elif s.due_days_left == 1 %}
+                    <br><span style="color:#f59e0b; font-size:11px;">Due tomorrow</span>
+                    {% else %}
+                    <br><span style="color:#64748b; font-size:11px;">{{ s.due_days_left }} days left</span>
+                    {% endif %}
                 </td>
+                <!-- Action: Preview button -->
                 <td style="padding:12px 16px; text-align:center;">
-                    <form method="POST" action="{% url 'declarant:claim' s.id %}">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-primary"
-                                style="font-size:11px; padding:6px 14px;"
-                                onclick="return confirm('Claim shipment {{ s.hawb_number }}?')">
-                            Claim
-                        </button>
-                    </form>
+                    <button type="button"
+                            class="btn btn-secondary"
+                            style="font-size:11px; padding:6px 14px;"
+                            onclick="showPreview(this)"
+                            data-hawb="{{ s.hawb_number }}"
+                            data-submitted="{{ s.submitted_at|date:'M d, Y H:i' }}"
+                            data-consignee="{{ s.consignee.get_full_name|default:s.consignee.username }}"
+                            data-importtype="{{ s.get_import_type_display }}"
+                            data-urgency="{{ s.urgency }}"
+                            data-urgencylabel="{{ s.get_urgency_display }}"
+                            data-due="{{ s.due_date|date:'M d, Y' }}"
+                            data-duecolor="{{ s.due_color }}"
+                            data-duelabel="{% if s.due_days_left < 0 %}Overdue{% elif s.due_days_left == 0 %}Due today{% elif s.due_days_left == 1 %}Due tomorrow{% else %}{{ s.due_days_left }} days left{% endif %}"
+                            data-value="{{ s.declared_value|default:'' }}"
+                            data-weight="{{ s.gross_weight|default:'' }}"
+                            data-desc="{{ s.description|default:'No description provided.' }}"
+                            data-docs="{{ s.documents.count }}"
+                            data-claimurl="{% url 'declarant:claim' s.id %}">
+                        Preview
+                    </button>
                 </td>
             </tr>
             <!-- Expandable description row -->
@@ -141,7 +244,12 @@
     </table>
     {% else %}
     <div style="padding:32px; text-align:center; color:#64748b;">
-        <p>No pending shipments in the queue.</p>
+        <p>No pending shipments match the current filters.</p>
+        {% if urgency_filter or due_filter %}
+        <a href="{% url 'declarant:queue' %}" class="btn btn-secondary" style="font-size:12px; margin-top:8px;">
+            Clear Filters
+        </a>
+        {% endif %}
     </div>
     {% endif %}
 </div>
@@ -241,30 +349,100 @@
 
 {% block extra_js %}
 <script>
+// ─── Expand/collapse description rows ────────────────────────────────────────
 function toggleRow(id) {
-    const row = document.getElementById(id);
+    var row = document.getElementById(id);
     if (!row) return;
-    const isHidden = row.style.display === 'none' || row.style.display === '';
-    row.style.display = isHidden ? 'table-row' : 'none';
-    const btn = row.previousElementSibling.querySelector('button');
-    if (btn) btn.textContent = isHidden ? '▼' : '▶';
+    var hidden = row.style.display === 'none' || row.style.display === '';
+    row.style.display = hidden ? 'table-row' : 'none';
+    var btn = row.previousElementSibling.querySelector('button');
+    if (btn) btn.textContent = hidden ? '▼' : '▶';
 }
 
+// ─── Live search ─────────────────────────────────────────────────────────────
 function filterQueue() {
-    const q = document.getElementById('queue-search').value.toLowerCase();
-    // Filter all data rows (not expand rows, not header rows)
-    document.querySelectorAll('tbody tr').forEach(function(row) {
-        // Skip expand-detail rows (they have an id like pd-X or rv-X)
+    var q = document.getElementById('queue-search').value.toLowerCase();
+    var visible = 0;
+    document.querySelectorAll('#pending-tbody tr').forEach(function(row) {
         if (row.id && (row.id.startsWith('pd-') || row.id.startsWith('rv-'))) return;
-        const text = row.innerText.toLowerCase();
-        const show = !q || text.includes(q);
+        var show = !q || row.innerText.toLowerCase().includes(q);
         row.style.display = show ? '' : 'none';
-        // Also hide the associated expand row if main row is hidden
-        const nextRow = row.nextElementSibling;
-        if (nextRow && nextRow.id && (nextRow.id.startsWith('pd-') || nextRow.id.startsWith('rv-'))) {
-            if (!show) nextRow.style.display = 'none';
+        if (show) visible++;
+        var next = row.nextElementSibling;
+        if (next && next.id && next.id.startsWith('pd-') && !show) {
+            next.style.display = 'none';
         }
     });
+    updatePendingCount(visible);
 }
+
+function updatePendingCount(n) {
+    var el = document.getElementById('pending-count');
+    if (!el) return;
+    var total = document.querySelectorAll('#pending-tbody tr:not([id])').length;
+    el.textContent = n !== undefined && n !== total
+        ? n + ' of ' + total + ' shown'
+        : total + ' shipment' + (total !== 1 ? 's' : '');
+}
+
+// ─── Preview Modal ────────────────────────────────────────────────────────────
+function showPreview(btn) {
+    var modal = document.getElementById('preview-modal');
+
+    document.getElementById('pm-hawb').textContent       = btn.dataset.hawb;
+    document.getElementById('pm-submitted').textContent  = 'Submitted ' + btn.dataset.submitted;
+    document.getElementById('pm-consignee').textContent  = btn.dataset.consignee;
+    document.getElementById('pm-type').textContent       = btn.dataset.importtype;
+
+    var urgEl = document.getElementById('pm-urgency');
+    if (btn.dataset.urgency === 'urgent') {
+        urgEl.textContent = '⚡ Urgent';
+        urgEl.style.color = '#ef4444';
+    } else {
+        urgEl.textContent = 'Normal';
+        urgEl.style.color = '#64748b';
+    }
+
+    var dueEl = document.getElementById('pm-due');
+    var dueColor = btn.dataset.duecolor === 'red'    ? '#ef4444'
+                 : btn.dataset.duecolor === 'orange' ? '#f59e0b'
+                 : '#22c55e';
+    dueEl.textContent = btn.dataset.due + ' — ' + btn.dataset.duelabel;
+    dueEl.style.color = dueColor;
+
+    var valEl = document.getElementById('pm-value');
+    valEl.textContent = btn.dataset.value ? 'USD ' + parseFloat(btn.dataset.value).toLocaleString() : '—';
+
+    var wtEl = document.getElementById('pm-weight');
+    wtEl.textContent = btn.dataset.weight ? btn.dataset.weight + ' kg' : '—';
+
+    document.getElementById('pm-desc').textContent = btn.dataset.desc;
+
+    var docsCount = parseInt(btn.dataset.docs) || 0;
+    document.getElementById('pm-docs').textContent =
+        docsCount > 0
+            ? docsCount + ' document' + (docsCount !== 1 ? 's' : '') + ' attached'
+            : 'No documents uploaded yet.';
+
+    document.getElementById('pm-claim-form').action = btn.dataset.claimurl;
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closePreview() {
+    document.getElementById('preview-modal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// Close modal on backdrop click
+document.getElementById('preview-modal').addEventListener('click', function(e) {
+    if (e.target === this) closePreview();
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    updatePendingCount();
+});
 </script>
 {% endblock %}

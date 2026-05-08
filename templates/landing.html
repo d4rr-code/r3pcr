@@ -15,11 +15,12 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            padding: 32px 16px;
         }
         .hero {
             text-align: center;
             max-width: 680px;
-            padding: 48px 24px;
+            width: 100%;
         }
         .logo {
             font-size: 56px;
@@ -57,6 +58,16 @@
         .feature-icon { font-size: 28px; margin-bottom: 8px; }
         .feature-title { font-size: 13px; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
         .feature-desc { font-size: 11px; color: #94a3b8; }
+
+        /* ── CTA row ── */
+        .cta-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 48px;
+            flex-wrap: wrap;
+        }
         .btn-login {
             display: inline-block;
             background: #3b82f6;
@@ -70,10 +81,180 @@
             transition: background 0.2s;
         }
         .btn-login:hover { background: #2563eb; }
+        .btn-track-cta {
+            display: inline-block;
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #334155;
+            text-decoration: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .btn-track-cta:hover { border-color: #64748b; color: #e2e8f0; }
+
+        /* ── Track shipment section ── */
+        .track-section {
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto 48px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 28px 32px;
+            text-align: left;
+        }
+        .track-section h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .track-section .track-note {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+        .track-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .track-form-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 6px;
+        }
+        .track-form-group input {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: #f1f5f9;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .track-form-group input:focus { border-color: #3b82f6; }
+        .btn-search {
+            width: 100%;
+            background: #3b82f6;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 11px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-search:hover { background: #2563eb; }
+
+        /* ── Error alert ── */
+        .track-error {
+            background: #450a0a;
+            border: 1px solid #7f1d1d;
+            color: #fca5a5;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 13px;
+            margin-top: 14px;
+        }
+
+        /* ── Result card ── */
+        .track-result {
+            margin-top: 20px;
+            background: #0f172a;
+            border: 1px solid #1e3a5f;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .track-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .track-hawb {
+            font-size: 18px;
+            font-weight: 700;
+            color: #3b82f6;
+            letter-spacing: 0.5px;
+        }
+        .track-status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+        .status-pending   { background: #1e3a5f; color: #93c5fd; }
+        .status-in_review { background: #2d1b69; color: #c4b5fd; }
+        .status-approved  { background: #052e16; color: #86efac; }
+        .status-rejected  { background: #450a0a; color: #fca5a5; }
+        .status-other     { background: #1e293b; color: #94a3b8; }
+
+        .track-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px 24px;
+        }
+        .track-field label {
+            font-size: 10px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            display: block;
+            margin-bottom: 3px;
+        }
+        .track-field span {
+            font-size: 13px;
+            color: #e2e8f0;
+        }
+        .track-boc {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid #1e293b;
+        }
+        .track-boc label {
+            font-size: 10px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            display: block;
+            margin-bottom: 3px;
+        }
+        .track-boc span { font-size: 13px; color: #e2e8f0; }
+        .track-disclaimer {
+            font-size: 11px;
+            color: #475569;
+            margin-top: 14px;
+            border-top: 1px solid #1e293b;
+            padding-top: 10px;
+        }
+
         .footer {
-            margin-top: 48px;
             font-size: 12px;
             color: #475569;
+            text-align: center;
         }
     </style>
 </head>
@@ -101,7 +282,88 @@
             </div>
         </div>
 
-        <a href="/accounts/login/" class="btn-login">Login to System</a>
+        <div class="cta-row">
+            <a href="/accounts/login/" class="btn-login">Login to System</a>
+            <a href="/track/" class="btn-track-cta">📦 Track a Shipment</a>
+        </div>
+
+        <!-- ── Track Shipment Section ── -->
+        {% if track_mode or track_result or track_error %}
+        <div class="track-section">
+            <h2>📦 Track Your Shipment</h2>
+            <p class="track-note">Enter your Shipment ID and registered email to check status. No login required.</p>
+
+            <form method="post" action="/track/">
+                {% csrf_token %}
+                <div class="track-form-grid">
+                    <div class="track-form-group">
+                        <label for="hawb_number">Shipment ID (HAWB)</label>
+                        <input type="text" id="hawb_number" name="hawb_number"
+                               placeholder="R3PCR-2025-000001"
+                               value="{{ request.POST.hawb_number }}"
+                               autocomplete="off">
+                    </div>
+                    <div class="track-form-group">
+                        <label for="consignee_email">Registered Email</label>
+                        <input type="email" id="consignee_email" name="consignee_email"
+                               placeholder="you@email.com"
+                               value="{{ request.POST.consignee_email }}"
+                               autocomplete="off">
+                    </div>
+                </div>
+                <button type="submit" class="btn-search">🔍 Track Shipment</button>
+            </form>
+
+            {% if track_error %}
+            <div class="track-error">⚠ {{ track_error }}</div>
+            {% endif %}
+
+            {% if track_result %}
+            <div class="track-result">
+                <div class="track-result-header">
+                    <div class="track-hawb">{{ track_result.hawb_number }}</div>
+                    <span class="track-status-badge status-{{ track_result.status_code }}">
+                        {{ track_result.status }}
+                    </span>
+                </div>
+
+                <div class="track-grid">
+                    <div class="track-field">
+                        <label>Import Type</label>
+                        <span>{{ track_result.import_type }}</span>
+                    </div>
+                    <div class="track-field">
+                        <label>Urgency</label>
+                        <span>{{ track_result.urgency }}</span>
+                    </div>
+                    <div class="track-field">
+                        <label>Submitted</label>
+                        <span>{{ track_result.submitted_at|date:"M d, Y g:i A" }}</span>
+                    </div>
+                    <div class="track-field">
+                        <label>Last Updated</label>
+                        <span>{{ track_result.last_updated|date:"M d, Y g:i A" }}</span>
+                    </div>
+                </div>
+
+                {% if track_result.boc_reference %}
+                <div class="track-boc">
+                    <label>BOC Reference</label>
+                    <span>{{ track_result.boc_reference }}</span>
+                    {% if track_result.boc_status %}
+                    &nbsp;&nbsp;<span style="color:#64748b;">·</span>&nbsp;&nbsp;
+                    <span>{{ track_result.boc_status }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <div class="track-disclaimer">
+                    🔒 For security, only public status information is shown. Login to view full details.
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
 
         <div class="footer">
             <p>Authorized personnel only &nbsp;·&nbsp; R3-PCR v1.0</p>

@@ -1,7 +1,11 @@
 from pathlib import Path
 from dotenv import load_dotenv
 import os
-import pytesseract
+try:
+    import pytesseract
+    _PYTESSERACT_AVAILABLE = True
+except ImportError:
+    _PYTESSERACT_AVAILABLE = False
 
 load_dotenv()
 
@@ -58,6 +62,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.notifications.context_processors.unread_notification_count',
             ],
         },
     },
@@ -124,7 +129,8 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 
 # Tesseract OCR
-pytesseract.pytesseract.tesseract_cmd = os.getenv(
-    'TESSERACT_PATH',
-    r'C:\Users\Francis\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
-)
+if _PYTESSERACT_AVAILABLE:
+    pytesseract.pytesseract.tesseract_cmd = os.getenv(
+        'TESSERACT_PATH',
+        r'C:\Users\Francis\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
+    )

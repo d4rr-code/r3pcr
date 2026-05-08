@@ -5,6 +5,77 @@
 
 {% block content %}
 
+<!-- ─── Pending Registrations ─────────────────────────────────────────────── -->
+{% if pending %}
+<div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;
+                          border-color:#d97706;">
+    <div style="padding:14px 20px; background:#422006; border-bottom:1px solid #d97706;
+                display:flex; align-items:center; justify-content:space-between;">
+        <p class="card-title" style="margin:0; color:#fbbf24;">
+            Pending Registrations
+            <span style="background:#d97706; color:#fff; font-size:11px;
+                         font-weight:700; padding:2px 8px; border-radius:10px;
+                         margin-left:8px;">{{ pending|length }}</span>
+        </p>
+        <span style="color:#92400e; font-size:12px;">Review and approve or reject</span>
+    </div>
+    <table style="width:100%; border-collapse:collapse;">
+        <thead>
+            <tr style="background:#1c1208;">
+                <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Name</th>
+                <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Username</th>
+                <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Email</th>
+                <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Company</th>
+                <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Registered</th>
+                <th style="padding:10px 16px; text-align:center; color:#92400e; font-size:12px;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in pending %}
+            <tr style="border-top:1px solid #422006;"
+                onmouseover="this.style.background='#1c1208'"
+                onmouseout="this.style.background=''">
+                <td style="padding:12px 16px; color:#fbbf24; font-size:13px; font-weight:600;">
+                    {{ u.get_full_name|default:u.username }}
+                </td>
+                <td style="padding:12px 16px; color:#f59e0b; font-size:13px;">{{ u.username }}</td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:12px;">{{ u.email }}</td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:12px;">
+                    {{ u.company_name|default:"—" }}
+                </td>
+                <td style="padding:12px 16px; color:#64748b; font-size:12px;">
+                    {{ u.date_joined|timesince }} ago
+                </td>
+                <td style="padding:12px 16px; text-align:center;">
+                    <div style="display:flex; gap:8px; justify-content:center;">
+                        <form method="POST"
+                              action="{% url 'supervisor:approve_registration' u.id %}"
+                              onsubmit="return confirm('Approve {{ u.username }}? This will activate their account.');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success"
+                                    style="font-size:11px; padding:5px 12px;">
+                                Approve
+                            </button>
+                        </form>
+                        <form method="POST"
+                              action="{% url 'supervisor:reject_registration' u.id %}"
+                              onsubmit="return confirm('Reject and DELETE {{ u.username }}? This cannot be undone.');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger"
+                                    style="font-size:11px; padding:5px 12px;">
+                                Reject
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- ─── Active Users ───────────────────────────────────────────────────────── -->
 <!-- Controls -->
 <div style="display:flex; gap:10px; align-items:flex-end; margin-bottom:20px; flex-wrap:wrap;">
     <!-- Search -->
@@ -58,7 +129,7 @@
                 <th>Email</th>
                 <th>Role</th>
                 <th>Status</th>
-                <th>Action</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -66,7 +137,18 @@
             <tr data-name="{{ u.get_full_name|lower }} {{ u.username|lower }}"
                 data-email="{{ u.email|lower }}"
                 data-role="{{ u.role|lower }}"
-                data-status="{% if u.is_active %}active{% else %}inactive{% endif %}">
+                data-status="{% if u.is_active %}active{% else %}inactive{% endif %}"
+                data-fullname="{{ u.get_full_name|default:u.username }}"
+                data-username="{{ u.username }}"
+                data-displayemail="{{ u.email }}"
+                data-company="{{ u.company_name|default:'—' }}"
+                data-phone="{{ u.phone_number|default:'—' }}"
+                data-roledisplay="{{ u.get_role_display }}"
+                data-joined="{{ u.date_joined|date:'M d, Y' }}"
+                data-isactive="{% if u.is_active %}1{% else %}0{% endif %}"
+                data-toggleurl="{% url 'supervisor:toggle_user' u.id %}"
+                data-togglelabel="{% if u.is_active %}Deactivate{% else %}Activate{% endif %}"
+                data-isself="{% if u == request.user %}1{% else %}0{% endif %}">
                 <td>{{ u.get_full_name|default:u.username }}</td>
                 <td>{{ u.username }}</td>
                 <td>{{ u.email }}</td>
@@ -81,21 +163,82 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% if u != request.user %}
-                    <a href="{% url 'supervisor:toggle_user' u.id %}"
-                       class="btn {% if u.is_active %}btn-danger{% else %}btn-success{% endif %}"
-                       style="font-size:12px; padding:5px 12px;"
-                       onclick="return confirm('{% if u.is_active %}Deactivate{% else %}Activate{% endif %} {{ u.username }}?')">
-                        {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
-                    </a>
-                    {% else %}
-                    <span style="color:#94a3b8; font-size:12px;">You</span>
-                    {% endif %}
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <button type="button"
+                                onclick="openUserDetail(this.closest('tr'))"
+                                class="btn"
+                                style="font-size:11px; padding:5px 12px; background:#1e293b; color:#94a3b8; border:1px solid #334155;">
+                            Details
+                        </button>
+                        {% if u != request.user %}
+                        <a href="{% url 'supervisor:toggle_user' u.id %}"
+                           class="btn {% if u.is_active %}btn-danger{% else %}btn-success{% endif %}"
+                           style="font-size:12px; padding:5px 12px;"
+                           onclick="return confirm('{% if u.is_active %}Deactivate{% else %}Activate{% endif %} {{ u.username }}?')">
+                            {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
+                        </a>
+                        {% else %}
+                        <span style="color:#94a3b8; font-size:12px;">You</span>
+                        {% endif %}
+                    </div>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+</div>
+
+<!-- ─── User Detail Modal ───────────────────────────────────────────────────── -->
+<div id="user-modal-overlay"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
+            z-index:1000; align-items:center; justify-content:center;"
+     onclick="if(event.target===this) closeUserDetail()">
+    <div style="background:#1e293b; border:1px solid #334155; border-radius:14px;
+                width:100%; max-width:480px; margin:16px; overflow:hidden;">
+        <!-- Header -->
+        <div style="padding:18px 24px; background:#0f172a; border-bottom:1px solid #334155;
+                    display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <p style="font-size:16px; font-weight:700; color:#f1f5f9; margin:0;" id="modal-name">—</p>
+                <p style="font-size:12px; color:#64748b; margin:4px 0 0;" id="modal-username">—</p>
+            </div>
+            <button onclick="closeUserDetail()"
+                    style="background:none; border:none; color:#64748b; font-size:20px;
+                           cursor:pointer; padding:4px 8px;">&times;</button>
+        </div>
+        <!-- Body -->
+        <div style="padding:24px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Email</p>
+                    <p style="font-size:13px; color:#e2e8f0;" id="modal-email">—</p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Phone</p>
+                    <p style="font-size:13px; color:#e2e8f0;" id="modal-phone">—</p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Company</p>
+                    <p style="font-size:13px; color:#e2e8f0;" id="modal-company">—</p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Role</p>
+                    <p style="font-size:13px;" id="modal-role">—</p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Status</p>
+                    <p id="modal-status">—</p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Date Joined</p>
+                    <p style="font-size:13px; color:#e2e8f0;" id="modal-joined">—</p>
+                </div>
+            </div>
+        </div>
+        <!-- Footer actions -->
+        <div id="modal-actions" style="padding:16px 24px; border-top:1px solid #334155; display:flex; justify-content:flex-end; gap:10px;">
+        </div>
+    </div>
 </div>
 
 {% endblock %}
@@ -126,5 +269,55 @@ function filterUsers() {
 
     document.getElementById('user-count').textContent = visible + ' user(s)';
 }
+
+function openUserDetail(row) {
+    const d = row.dataset;
+    document.getElementById('modal-name').textContent    = d.fullname;
+    document.getElementById('modal-username').textContent = '@' + d.username;
+    document.getElementById('modal-email').textContent   = d.displayemail;
+    document.getElementById('modal-phone').textContent   = d.phone;
+    document.getElementById('modal-company').textContent = d.company;
+    document.getElementById('modal-role').innerHTML      = '<span class="badge badge-review">' + d.roledisplay + '</span>';
+    document.getElementById('modal-joined').textContent  = d.joined;
+
+    const isActive = d.isactive === '1';
+    document.getElementById('modal-status').innerHTML = isActive
+        ? '<span class="badge badge-approved">Active</span>'
+        : '<span class="badge badge-rejected">Inactive</span>';
+
+    const actionsDiv = document.getElementById('modal-actions');
+    actionsDiv.innerHTML = '';
+
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn';
+    closeBtn.style.cssText = 'background:#1e293b; color:#94a3b8; border:1px solid #334155;';
+    closeBtn.textContent = 'Close';
+    closeBtn.onclick = closeUserDetail;
+    actionsDiv.appendChild(closeBtn);
+
+    // Toggle button (skip for self)
+    if (d.isself !== '1') {
+        const toggleBtn = document.createElement('a');
+        toggleBtn.href = d.toggleurl;
+        toggleBtn.className = 'btn ' + (isActive ? 'btn-danger' : 'btn-success');
+        toggleBtn.textContent = d.togglelabel;
+        toggleBtn.onclick = function() {
+            return confirm((isActive ? 'Deactivate ' : 'Activate ') + d.username + '?');
+        };
+        actionsDiv.appendChild(toggleBtn);
+    }
+
+    document.getElementById('user-modal-overlay').style.display = 'flex';
+}
+
+function closeUserDetail() {
+    document.getElementById('user-modal-overlay').style.display = 'none';
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeUserDetail();
+});
 </script>
 {% endblock %}

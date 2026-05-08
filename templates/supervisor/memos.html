@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block title %}Memos & Announcements{% endblock %}
+{% block page_title %}Memos &amp; Announcements{% endblock %}
+
+{% block content %}
+
+<!-- ─── Create Memo Form ───────────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:24px;">
+    <p class="card-title">📢 Post New Announcement</p>
+
+    <form method="post" action="{% url 'supervisor:create_memo' %}">
+        {% csrf_token %}
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:14px;">
+            <div style="grid-column:1/-1;">
+                <label class="form-label">Title</label>
+                <input type="text" name="title" class="form-input"
+                       placeholder="e.g. BOC Holiday Advisory — May 2025"
+                       maxlength="200" required>
+            </div>
+            <div>
+                <label class="form-label">Category</label>
+                <select name="category" class="form-input">
+                    <option value="general">🟢 General</option>
+                    <option value="boc">🔵 BOC Update</option>
+                    <option value="customs">🟡 Customs Reminder</option>
+                    <option value="shipment">🟣 Shipment Notice</option>
+                </select>
+            </div>
+            <div style="display:flex; align-items:flex-end;">
+                <label style="display:flex; align-items:center; gap:10px; color:#94a3b8; font-size:13px; cursor:pointer;">
+                    <input type="checkbox" name="is_active" value="1" checked
+                           style="width:16px; height:16px; accent-color:#3b82f6;">
+                    Publish immediately (visible to all users)
+                </label>
+            </div>
+            <div style="grid-column:1/-1;">
+                <label class="form-label">Content</label>
+                <textarea name="content" class="form-input" rows="4"
+                          placeholder="Announcement body — supports plain text." required
+                          style="resize:vertical;"></textarea>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">📤 Post Announcement</button>
+    </form>
+</div>
+
+<!-- ─── Announcements List ────────────────────────────────────────────────── -->
+{% if memos %}
+<div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:14px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
+                display:flex; align-items:center; justify-content:space-between;">
+        <p class="card-title" style="margin:0;">📋 All Announcements
+            <span style="color:#64748b; font-weight:400; font-size:13px;">— {{ memos|length }} total</span>
+        </p>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:0;">
+        {% for memo in memos %}
+        <div style="padding:18px 20px; border-bottom:1px solid #1e293b;
+                    {% if not memo.is_active %}opacity:0.5;{% endif %}
+                    transition:background 0.15s;"
+             onmouseover="this.style.background='#0f172a'"
+             onmouseout="this.style.background=''">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+                <!-- Left: badge + title + meta -->
+                <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap;">
+                        <!-- Category badge -->
+                        <span style="display:inline-block; padding:3px 10px; border-radius:999px;
+                                     font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px;
+                                     background:{% if memo.category == 'boc' %}#1e3a5f{% elif memo.category == 'customs' %}#2d1b00{% elif memo.category == 'shipment' %}#2d1b69{% else %}#052e16{% endif %};
+                                     color:{% if memo.category == 'boc' %}#93c5fd{% elif memo.category == 'customs' %}#fcd34d{% elif memo.category == 'shipment' %}#c4b5fd{% else %}#86efac{% endif %};">
+                            {% if memo.category == 'boc' %}🔵 BOC Update
+                            {% elif memo.category == 'customs' %}🟡 Customs Reminder
+                            {% elif memo.category == 'shipment' %}🟣 Shipment Notice
+                            {% else %}🟢 General{% endif %}
+                        </span>
+                        <!-- Active/Draft badge -->
+                        {% if memo.is_active %}
+                            <span class="badge badge-approved" style="font-size:10px;">Published</span>
+                        {% else %}
+                            <span class="badge badge-rejected" style="font-size:10px;">Hidden</span>
+                        {% endif %}
+                        <!-- Date -->
+                        <span style="font-size:11px; color:#64748b;">{{ memo.created_at|date:"M d, Y g:i A" }}</span>
+                    </div>
+                    <p style="font-size:14px; font-weight:600; color:#f1f5f9; margin-bottom:6px;">
+                        {{ memo.title }}
+                    </p>
+                    <p style="font-size:13px; color:#94a3b8; white-space:pre-wrap; line-height:1.55;">{{ memo.content }}</p>
+                    {% if memo.created_by %}
+                    <p style="font-size:11px; color:#475569; margin-top:8px;">
+                        Posted by {{ memo.created_by.get_full_name|default:memo.created_by.username }}
+                    </p>
+                    {% endif %}
+                </div>
+                <!-- Right: actions -->
+                <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end; flex-shrink:0;">
+                    <!-- Toggle publish -->
+                    <form method="post" action="{% url 'supervisor:toggle_memo' memo.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn"
+                                style="font-size:11px; padding:5px 14px;
+                                       {% if memo.is_active %}background:#2d1b00; color:#fcd34d; border:1px solid #78350f;
+                                       {% else %}background:#052e16; color:#86efac; border:1px solid #166534;{% endif %}">
+                            {% if memo.is_active %}🙈 Hide{% else %}👁 Show{% endif %}
+                        </button>
+                    </form>
+                    <!-- Delete -->
+                    <form method="post" action="{% url 'supervisor:delete_memo' memo.id %}"
+                          onsubmit="return confirm('Delete this announcement? This cannot be undone.')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger"
+                                style="font-size:11px; padding:5px 14px;">
+                            🗑 Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% else %}
+<div class="card" style="text-align:center; padding:48px 24px; color:#64748b;">
+    <div style="font-size:40px; margin-bottom:12px;">📭</div>
+    <p style="font-size:15px; font-weight:600; color:#94a3b8; margin-bottom:6px;">No announcements yet</p>
+    <p style="font-size:13px;">Post your first announcement using the form above.</p>
+</div>
+{% endif %}
+
+{% endblock %}

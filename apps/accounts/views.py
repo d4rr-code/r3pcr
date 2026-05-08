@@ -20,6 +20,13 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
+            # ── OTP bypass: log in directly if otp_enabled is False ──
+            if not user.otp_enabled:
+                login(request, user)
+                messages.success(request, f'Welcome, {user.first_name or user.username}!')
+                return redirect_by_role(user)
+
+            # ── Normal OTP flow ──
             otp_code = OTP.generate_code()
             OTP.objects.create(user=user, code=otp_code)
             request.session['pre_auth_user_id'] = user.id
@@ -83,6 +90,100 @@ def verify_otp_view(request):
     return render(request, 'accounts/verify_otp.html')
 
 
+# ─── Self-Registration (Consignee) ────────────────────────────────────────────
+
+def register_view(request):
+    if request.user.is_authenticated:
+        return redirect_by_role(request.user)
+
+    if request.method == 'POST':
+        first_name   = request.POST.get('first_name', '').strip()
+        last_name    = request.POST.get('last_name', '').strip()
+        email        = request.POST.get('email', '').strip()
+        username     = request.POST.get('username', '').strip()
+        password     = request.POST.get('password', '')
+        password2    = request.POST.get('password2', '')
+        company_name = request.POST.get('company_name', '').strip()
+        phone_number = request.POST.get('phone_number', '').strip()
+
+        # ── Validation ──
+        errors = []
+        if not all([first_name, last_name, email, username, password]):
+            errors.append('All required fields must be filled in.')
+        if password != password2:
+            errors.append('Passwords do not match.')
+        if len(password) < 8:
+            errors.append('Password must be at least 8 characters.')
+        if User.objects.filter(username=username).exists():
+            errors.append('Username already taken.')
+        if User.objects.filter(email=email).exists():
+            errors.append('Email already registered.')
+
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+            return render(request, 'accounts/register.html', {
+                'form_data': request.POST,
+            })
+
+        # ── Create inactive user pending supervisor approval ──
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            role='consignee',
+            company_name=company_name,
+            phone_number=phone_number,
+            is_active=False,
+            is_pending_approval=True,
+        )
+
+        # ── Notify all supervisors ──
+        supervisors = User.objects.filter(role='supervisor', is_active=True)
+        for sup in supervisors:
+            try:
+                send_mail(
+                    subject='R3-PCR — New Registration Pending Approval',
+                    message=(
+                        f'{first_name} {last_name} ({username}) has registered '
+                        f'and is awaiting your approval.\n\n'
+                        f'Email: {email}\nCompany: {company_name or "—"}'
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[sup.email],
+                    html_message=f'''
+                        <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
+                            <h2 style="color:#3b82f6;">R3-PCR — New Registration</h2>
+                            <p>A new consignee has registered and needs approval:</p>
+                            <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                                <tr><td style="color:#94a3b8;padding:4px 0;">Name</td>
+                                    <td style="font-weight:600;">{first_name} {last_name}</td></tr>
+                                <tr><td style="color:#94a3b8;padding:4px 0;">Username</td>
+                                    <td>{username}</td></tr>
+                                <tr><td style="color:#94a3b8;padding:4px 0;">Email</td>
+                                    <td>{email}</td></tr>
+                                <tr><td style="color:#94a3b8;padding:4px 0;">Company</td>
+                                    <td>{company_name or "—"}</td></tr>
+                            </table>
+                            <p>Log in to the supervisor panel to approve or reject.</p>
+                        </div>
+                    ''',
+                )
+            except Exception as ex:
+                print(f'Supervisor notification error: {ex}')
+
+        messages.success(
+            request,
+            'Registration submitted! Your account is pending supervisor approval. '
+            'You will receive an email once approved.'
+        )
+        return redirect('accounts:login')
+
+    return render(request, 'accounts/register.html')
+
+
 # ─── Logout ───────────────────────────────────────────────────────────────────
 
 def logout_view(request):
@@ -97,13 +198,14 @@ def logout_view(request):
 def account_settings(request):
     if request.method == 'POST':
         action = request.POST.get('action')
-        user = request.user
+        user   = request.user
 
         if action == 'profile':
-            user.first_name = request.POST.get('first_name', '').strip()
-            user.last_name = request.POST.get('last_name', '').strip()
-            email = request.POST.get('email', '').strip()
-            phone = request.POST.get('phone_number', '').strip()
+            user.first_name  = request.POST.get('first_name', '').strip()
+            user.last_name   = request.POST.get('last_name', '').strip()
+            email            = request.POST.get('email', '').strip()
+            phone            = request.POST.get('phone_number', '').strip()
+            company          = request.POST.get('company_name', '').strip()
 
             if email and email != user.email:
                 if User.objects.filter(email=email).exclude(pk=user.pk).exists():
@@ -112,12 +214,13 @@ def account_settings(request):
                 user.email = email
 
             user.phone_number = phone
+            user.company_name = company
             user.save()
             messages.success(request, 'Profile updated.')
 
         elif action == 'password':
-            old_password = request.POST.get('old_password', '')
-            new_password = request.POST.get('new_password', '')
+            old_password     = request.POST.get('old_password', '')
+            new_password     = request.POST.get('new_password', '')
             confirm_password = request.POST.get('confirm_password', '')
 
             if not user.check_password(old_password):

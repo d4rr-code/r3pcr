@@ -4,6 +4,28 @@
 {% block page_title %}My Dashboard{% endblock %}
 
 {% block content %}
+
+<!-- ─── Announcements Banner ───────────────────────────────────────────────── -->
+{% if recent_announcements %}
+<div style="margin-bottom:20px; display:flex; flex-direction:column; gap:10px;">
+    {% for ann in recent_announcements %}
+    <div style="border-radius:10px; padding:14px 18px; display:flex; align-items:flex-start; gap:12px;
+                border-left:4px solid
+                {% if ann.category == 'boc' %}#3b82f6{% elif ann.category == 'customs' %}#f59e0b{% elif ann.category == 'shipment' %}#8b5cf6{% else %}#22c55e{% endif %};
+                background:#1e293b; border-right:1px solid #334155; border-top:1px solid #334155; border-bottom:1px solid #334155;">
+        <span style="font-size:18px; flex-shrink:0; margin-top:1px;">
+            {% if ann.category == 'boc' %}🔵{% elif ann.category == 'customs' %}🟡{% elif ann.category == 'shipment' %}🟣{% else %}🟢{% endif %}
+        </span>
+        <div style="flex:1; min-width:0;">
+            <p style="font-size:13px; font-weight:600; color:#f1f5f9; margin:0 0 3px;">{{ ann.title }}</p>
+            <p style="font-size:12px; color:#94a3b8; margin:0; white-space:pre-wrap;">{{ ann.content }}</p>
+            <p style="font-size:11px; color:#475569; margin:5px 0 0;">{{ ann.created_at|date:"M d, Y" }}</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 <div class="kpi-grid">
     <div class="kpi-card blue">
         <p class="kpi-label">Total Submissions</p>
@@ -28,16 +50,45 @@
 </div>
 
 <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
         <p class="card-title" style="margin:0;">Recent Submissions</p>
-        <a href="{% url 'consignee:submit' %}" class="btn btn-primary">
-            + New Submission
-        </a>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <!-- Date quick-filter buttons -->
+            <div style="display:flex; gap:6px;">
+                <button class="date-filter-btn active" data-filter="all"
+                        style="padding:6px 12px; border-radius:6px; border:1px solid #334155;
+                               background:#334155; color:#f1f5f9; font-size:12px; cursor:pointer;">
+                    All
+                </button>
+                <button class="date-filter-btn" data-filter="today"
+                        style="padding:6px 12px; border-radius:6px; border:1px solid #334155;
+                               background:transparent; color:#94a3b8; font-size:12px; cursor:pointer;">
+                    Today
+                </button>
+                <button class="date-filter-btn" data-filter="7"
+                        style="padding:6px 12px; border-radius:6px; border:1px solid #334155;
+                               background:transparent; color:#94a3b8; font-size:12px; cursor:pointer;">
+                    Last 7 Days
+                </button>
+                <button class="date-filter-btn" data-filter="30"
+                        style="padding:6px 12px; border-radius:6px; border:1px solid #334155;
+                               background:transparent; color:#94a3b8; font-size:12px; cursor:pointer;">
+                    Last 30 Days
+                </button>
+            </div>
+            <a href="{% url 'consignee:submit' %}" class="btn btn-primary">
+                + New Submission
+            </a>
+        </div>
     </div>
+
+    <p id="dash-count" style="color:#64748b; font-size:12px; margin-bottom:10px;">
+        Showing all submissions
+    </p>
 
     {% if recent_shipments %}
     <div class="table-container">
-        <table>
+        <table id="dash-table">
             <thead>
                 <tr>
                     <th>HAWB Number</th>
@@ -49,7 +100,7 @@
             </thead>
             <tbody>
                 {% for shipment in recent_shipments %}
-                <tr>
+                <tr data-date="{{ shipment.submitted_at|date:'Y-m-d' }}">
                     <td>{{ shipment.hawb_number }}</td>
                     <td>{{ shipment.get_import_type_display }}</td>
                     <td>{{ shipment.get_urgency_display }}</td>
@@ -65,12 +116,68 @@
         </table>
     </div>
     {% else %}
-    <p style="color: #94a3b8; font-size: 14px;">
-        No submissions yet. 
+    <p style="color:#94a3b8; font-size:14px;">
+        No submissions yet.
         <a href="{% url 'consignee:submit' %}" style="color:#3b82f6;">
             Submit your first shipment
         </a>
     </p>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var buttons = document.querySelectorAll('.date-filter-btn');
+    var rows    = document.querySelectorAll('#dash-table tbody tr');
+    var countEl = document.getElementById('dash-count');
+
+    function applyFilter(filter) {
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        var visible = 0;
+
+        rows.forEach(function (row) {
+            var dateStr  = row.getAttribute('data-date');   // YYYY-MM-DD
+            var rowDate  = new Date(dateStr);
+            var show     = true;
+
+            if (filter === 'today') {
+                show = rowDate >= today;
+            } else if (filter === '7') {
+                var cutoff = new Date(today);
+                cutoff.setDate(cutoff.getDate() - 7);
+                show = rowDate >= cutoff;
+            } else if (filter === '30') {
+                var cutoff = new Date(today);
+                cutoff.setDate(cutoff.getDate() - 30);
+                show = rowDate >= cutoff;
+            }
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+
+        var label = filter === 'all'   ? 'Showing all submissions' :
+                    filter === 'today' ? 'Today' :
+                    filter === '7'     ? 'Last 7 days' : 'Last 30 days';
+        countEl.textContent = label + ' — ' + visible + ' record(s)';
+    }
+
+    buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            buttons.forEach(function (b) {
+                b.style.background = 'transparent';
+                b.style.color = '#94a3b8';
+            });
+            btn.style.background = '#334155';
+            btn.style.color = '#f1f5f9';
+            applyFilter(btn.getAttribute('data-filter'));
+        });
+    });
+
+    // Show initial count
+    applyFilter('all');
+})();
+</script>
 {% endblock %}

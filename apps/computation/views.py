@@ -43,8 +43,8 @@ def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate, duty
         total_exw = Decimal('0')
 
     computed_items = []
-    total_dv_php = Decimal('0')
-    total_cud = Decimal('0')
+    total_dv_php   = Decimal('0')
+    total_cud      = Decimal('0')
 
     for i, item in enumerate(items_data):
         exw = Decimal(str(item['exw_usd']))
@@ -55,23 +55,23 @@ def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate, duty
             item_freight = item_insurance = Decimal('0')
 
         other_charges = exw * Decimal('0.03')
-        dv_usd = exw + item_freight + item_insurance + other_charges
-        dv_php = dv_usd * exchange_rate
-        cud    = dv_php * (duty_rate / Decimal('100'))
+        dv_usd        = exw + item_freight + item_insurance + other_charges
+        dv_php        = dv_usd * exchange_rate
+        cud           = dv_php * (duty_rate / Decimal('100'))
         total_dv_php += dv_php
         total_cud    += cud
 
         computed_items.append({
-            'no': i + 1,
+            'no':             i + 1,
             'description':    item.get('description', ''),
-            'quantity':        item.get('quantity', ''),
-            'exw':             float(round(exw, 2)),
-            'item_freight':    float(round(item_freight, 2)),
-            'item_insurance':  float(round(item_insurance, 2)),
-            'other_charges':   float(round(other_charges, 2)),
-            'dv_usd':          float(round(dv_usd, 2)),
-            'dv_php':          float(round(dv_php, 2)),
-            'cud':             float(round(cud, 2)),
+            'quantity':       item.get('quantity', ''),
+            'exw':            float(round(exw, 2)),
+            'item_freight':   float(round(item_freight, 2)),
+            'item_insurance': float(round(item_insurance, 2)),
+            'other_charges':  float(round(other_charges, 2)),
+            'dv_usd':         float(round(dv_usd, 2)),
+            'dv_php':         float(round(dv_php, 2)),
+            'cud':            float(round(cud, 2)),
         })
 
     taxable_value  = round(total_dv_php, 2)
@@ -84,13 +84,13 @@ def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate, duty
     total_landed_cost = round(taxable_value + customs_duties + vat + brokerage_fee + cds + ipf, 2)
 
     summary = {
-        'taxable_value': taxable_value,
-        'customs_duties': customs_duties,
-        'vat_base': vat_base,
-        'vat': vat,
-        'brokerage_fee': brokerage_fee,
-        'cds': cds,
-        'ipf': ipf,
+        'taxable_value':    taxable_value,
+        'customs_duties':   customs_duties,
+        'vat_base':         vat_base,
+        'vat':              vat,
+        'brokerage_fee':    brokerage_fee,
+        'cds':              cds,
+        'ipf':              ipf,
         'total_landed_cost': total_landed_cost,
     }
     return computed_items, summary
@@ -120,19 +120,19 @@ def ocr_extract(request, shipment_id, doc_id):
 
 @login_required
 def compute_shipment(request, shipment_id):
-    shipment  = get_object_or_404(Shipment, id=shipment_id)
-    hs_codes  = HSCode.objects.filter(is_active=True)
-    existing  = DutyComputation.objects.filter(shipment=shipment).first()
-    result    = None
-    items     = None
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    hs_codes = HSCode.objects.filter(is_active=True)
+    existing = DutyComputation.objects.filter(shipment=shipment).first()
+    result   = None
+    items    = None
 
     if request.method == 'POST':
         try:
-            total_freight    = Decimal(request.POST.get('total_freight', '0') or '0')
-            total_insurance  = Decimal(request.POST.get('total_insurance', '0') or '0')
-            exchange_rate    = Decimal(request.POST.get('exchange_rate', '0') or '0')
-            duty_rate        = Decimal(request.POST.get('duty_rate', '0') or '0')
-            hs_code_id       = request.POST.get('hs_code')
+            total_freight   = Decimal(request.POST.get('total_freight',   '0') or '0')
+            total_insurance = Decimal(request.POST.get('total_insurance', '0') or '0')
+            exchange_rate   = Decimal(request.POST.get('exchange_rate',   '0') or '0')
+            duty_rate       = Decimal(request.POST.get('duty_rate',       '0') or '0')
+            hs_code_id      = request.POST.get('hs_code')
 
             descriptions = request.POST.getlist('description[]')
             exw_values   = request.POST.getlist('exw_value[]')
@@ -164,21 +164,21 @@ def compute_shipment(request, shipment_id):
             DutyComputation.objects.update_or_create(
                 shipment=shipment,
                 defaults={
-                    'hs_code': hs_code,
-                    'total_freight': total_freight,
-                    'total_insurance': total_insurance,
-                    'exchange_rate': exchange_rate,
-                    'duty_rate': duty_rate,
-                    'declared_value': total_exw,
-                    'items_json': json.dumps(items),
-                    'dutiable_value': summary['taxable_value'],
-                    'customs_duty': summary['customs_duties'],
-                    'vat_base': summary['vat_base'],
-                    'vat_amount': summary['vat'],
-                    'brokerage_fee': summary['brokerage_fee'],
-                    'ipf': summary['ipf'],
+                    'hs_code':          hs_code,
+                    'total_freight':    total_freight,
+                    'total_insurance':  total_insurance,
+                    'exchange_rate':    exchange_rate,
+                    'duty_rate':        duty_rate,
+                    'declared_value':   total_exw,
+                    'items_json':       json.dumps(items),
+                    'dutiable_value':   summary['taxable_value'],
+                    'customs_duty':     summary['customs_duties'],
+                    'vat_base':         summary['vat_base'],
+                    'vat_amount':       summary['vat'],
+                    'brokerage_fee':    summary['brokerage_fee'],
+                    'ipf':              summary['ipf'],
                     'total_landed_cost': summary['total_landed_cost'],
-                    'computed_by': request.user,
+                    'computed_by':      request.user,
                 }
             )
 
@@ -247,7 +247,6 @@ def download_computation(request, shipment_id):
     ws = wb.active
     ws.title = 'ECDT Summary'
 
-    # ── Styles ──
     header_fill  = PatternFill('solid', fgColor='1E3A5F')
     summary_fill = PatternFill('solid', fgColor='0F172A')
     total_fill   = PatternFill('solid', fgColor='172554')
@@ -260,7 +259,6 @@ def download_computation(request, shipment_id):
     center       = Alignment(horizontal='center', vertical='center', wrap_text=True)
     right_align  = Alignment(horizontal='right', vertical='center')
 
-    # ── Title ──
     ws.merge_cells('A1:L1')
     ws['A1'] = 'R3-PCR — ECDT Pre-Clearance Computation Summary'
     ws['A1'].font = title_font
@@ -276,7 +274,6 @@ def download_computation(request, shipment_id):
     ws['A2'].font = Font(color='94A3B8', size=9)
     ws['A2'].alignment = center
 
-    # ── Column headers ──
     headers = [
         '#', 'Description', 'EXW (USD)', 'Freight\n(USD)',
         'Insurance\n(USD)', 'O/C (USD)', 'D/V (USD)', 'D/V (PHP)',
@@ -294,56 +291,45 @@ def download_computation(request, shipment_id):
 
     ws.row_dimensions[4].height = 30
 
-    # ── Item rows ──
     for i, item in enumerate(items, 1):
-        row = 4 + i
+        row  = 4 + i
         data = [
-            item.get('no', i),
-            item.get('description', ''),
-            item.get('exw', 0),
-            item.get('item_freight', 0),
-            item.get('item_insurance', 0),
-            item.get('other_charges', 0),
-            item.get('dv_usd', 0),
-            item.get('dv_php', 0),
-            hs_code_display,
-            duty_rate_pct,
-            item.get('cud', 0),
-            item.get('quantity', ''),
+            item.get('no', i), item.get('description', ''),
+            item.get('exw', 0),          item.get('item_freight', 0),
+            item.get('item_insurance', 0), item.get('other_charges', 0),
+            item.get('dv_usd', 0),       item.get('dv_php', 0),
+            hs_code_display,             duty_rate_pct,
+            item.get('cud', 0),          item.get('quantity', ''),
         ]
         for col, val in enumerate(data, 1):
             cell = ws.cell(row=row, column=col, value=val)
             cell.border    = border
             cell.alignment = right_align if col > 2 else Alignment(vertical='center')
-            if col in (3, 4, 5, 6, 7):
-                cell.number_format = '#,##0.00'
-            elif col in (8, 11):
-                cell.number_format = '₱#,##0.00'
-            elif col == 10:
-                cell.number_format = '0.00"%"'
+            if col in (3, 4, 5, 6, 7): cell.number_format = '#,##0.00'
+            elif col in (8, 11):        cell.number_format = '₱#,##0.00'
+            elif col == 10:             cell.number_format = '0.00"%"'
 
-    # ── Summary ──
     summary_row = 4 + len(items) + 2
     summaries = [
-        ('Taxable Value (Sum of D/V PHP)',          computation.dutiable_value,     False),
-        ('Customs Duties (Total CUD)',              computation.customs_duty,        False),
-        ('VAT Base (Taxable Value + CUD)',          computation.vat_base,           False),
-        ('VAT (12%)',                               computation.vat_amount,          False),
-        ('Brokerage Fee',                           computation.brokerage_fee,       False),
-        ('Customs Documentary Stamp (CDS)',         130,                             False),
-        ('Import Processing Fee (IPF)',             computation.ipf,                 False),
-        ('TOTAL LANDED COST',                       computation.total_landed_cost,   True),
+        ('Taxable Value (Sum of D/V PHP)',      computation.dutiable_value,    False),
+        ('Customs Duties (Total CUD)',          computation.customs_duty,      False),
+        ('VAT Base (Taxable Value + CUD)',      computation.vat_base,          False),
+        ('VAT (12%)',                           computation.vat_amount,        False),
+        ('Brokerage Fee',                       computation.brokerage_fee,     False),
+        ('Customs Documentary Stamp (CDS)',     130,                           False),
+        ('Import Processing Fee (IPF)',         computation.ipf,               False),
+        ('TOTAL LANDED COST',                   computation.total_landed_cost, True),
     ]
 
     ws.cell(row=summary_row - 1, column=8, value='SUMMARY').font = bold_white
 
     for r_offset, (label, value, is_total) in enumerate(summaries):
-        row = summary_row + r_offset
+        row        = summary_row + r_offset
         label_cell = ws.cell(row=row, column=8, value=label)
         value_cell = ws.cell(row=row, column=12, value=float(value) if value else 0)
         label_cell.border = value_cell.border = border
         value_cell.number_format = '₱#,##0.00'
-        value_cell.alignment = right_align
+        value_cell.alignment     = right_align
         if is_total:
             label_cell.font = value_cell.font = blue_font
             label_cell.fill = value_cell.fill = total_fill
@@ -353,13 +339,11 @@ def download_computation(request, shipment_id):
             value_cell.font  = Font(color='F1F5F9', size=10)
             value_cell.fill  = summary_fill
 
-    # ── Column widths ──
     from openpyxl.utils import get_column_letter
     col_widths = [5, 35, 12, 12, 12, 12, 12, 14, 12, 8, 14, 10]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
-    # ── Footer note ──
     note_row = summary_row + len(summaries) + 2
     ws.merge_cells(f'A{note_row}:L{note_row}')
     ws[f'A{note_row}'] = (
@@ -382,7 +366,7 @@ def download_computation(request, shipment_id):
 
 @login_required
 def hs_code_search(request):
-    query = request.GET.get('q', '')
+    query   = request.GET.get('q', '')
     results = []
     if query:
         results = HSCode.objects.filter(description__icontains=query, is_active=True)[:10]
@@ -394,34 +378,28 @@ def hs_code_search(request):
 # ─── Graduated WMCDA ─────────────────────────────────────────────────────────
 
 def _lerp(x, x0, x1, y0, y1):
-    """Linear interpolation, clamped."""
     if x <= x0: return y0
     if x >= x1: return y1
     return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
 
 
 def compute_wmcda(weight, volume, value, urgency, distance):
-    # ── Cost scores (graduated on shipment value) ──
     lcl_cost = _lerp(value, 0, 30000, 0.90, 0.30)
     fcl_cost = _lerp(value, 0, 30000, 0.30, 0.92)
     air_cost = max(0.20, _lerp(value, 0, 50000, 0.48, 0.32))
 
-    # ── Time scores ──
     lcl_time = 0.35 if urgency == 'urgent' else 0.72
     fcl_time = 0.48 if urgency == 'urgent' else 0.78
     air_time = 0.96 if urgency == 'urgent' else 0.62
 
-    # ── Weight/Volume scores (graduated on weight) ──
     lcl_weight = _lerp(weight, 0, 2000, 0.92, 0.28)
     fcl_weight = _lerp(weight, 0, 2000, 0.18, 0.95)
     air_weight = max(0.10, _lerp(weight, 0, 300, 0.95, 0.15))
 
-    # ── Risk scores ──
     lcl_risk = _lerp(value, 0, 20000, 0.82, 0.40)
-    fcl_risk = 0.70   # consistent containerized security
-    air_risk = _lerp(value, 0, 20000, 0.62, 0.92)  # best tracking for high-value
+    fcl_risk = 0.70
+    air_risk = _lerp(value, 0, 20000, 0.62, 0.92)
 
-    # ── Read weights from SystemConfig (or use defaults) ──
     try:
         w_cost   = float(SystemConfig.get('wmcda_w_cost',   '35')) / 100
         w_time   = float(SystemConfig.get('wmcda_w_time',   '30')) / 100
@@ -431,7 +409,7 @@ def compute_wmcda(weight, volume, value, urgency, distance):
         w_cost, w_time, w_weight, w_risk = 0.35, 0.30, 0.20, 0.15
 
     def tws(c, t, wt, r):
-        return round(c*w_cost + t*w_time + wt*w_weight + r*w_risk, 4)
+        return round(c * w_cost + t * w_time + wt * w_weight + r * w_risk, 4)
 
     scores = {
         'lcl': tws(lcl_cost, lcl_time, lcl_weight, lcl_risk),
@@ -440,7 +418,6 @@ def compute_wmcda(weight, volume, value, urgency, distance):
     }
     recommended = max(scores, key=scores.get)
 
-    # ── Per-criterion breakdown ──
     breakdown = {
         'lcl': {'cost': round(lcl_cost, 3), 'time': round(lcl_time, 3),
                 'weight': round(lcl_weight, 3), 'risk': round(lcl_risk, 3)},
@@ -450,7 +427,6 @@ def compute_wmcda(weight, volume, value, urgency, distance):
                 'weight': round(air_weight, 3), 'risk': round(air_risk, 3)},
     }
 
-    # ── Explanation ──
     weight_label  = f'{weight:.0f}kg'
     value_label   = f'${value:,.0f}'
     urgency_label = 'urgent' if urgency == 'urgent' else 'normal'
@@ -466,15 +442,17 @@ def compute_wmcda(weight, volume, value, urgency, distance):
             f'{"justify the container cost." if value > 10000 or weight > 500 else "may underutilize a full container."}'
         ),
         'air': (
-            f'{"⚡ Air Freight recommended — urgency requires fastest transit." if urgency == "urgent" else ""}'
-            f'{"Air Freight offers best security and tracking for high-value goods at $" + f"{value:,.0f}." if value > 10000 and urgency != "urgent" else ""}'
-            f'{"Air Freight scoring is competitive for this shipment profile." if urgency != "urgent" and value <= 10000 else ""}'
+            f'{"⚡ Air Freight recommended — urgency requires fastest transit. " if urgency == "urgent" else ""}'
+            f'{"Air Freight offers best security and tracking for high-value goods at " + value_label + "." if value > 10000 and urgency != "urgent" else ""}'
+            f'{"Air Freight is competitive for this shipment profile." if urgency != "urgent" and value <= 10000 else ""}'
         ),
     }
     explanation = explanations.get(recommended, '')
 
     return scores, recommended, breakdown, explanation
 
+
+# ─── Shipping Advisory (auto-populated) ──────────────────────────────────────
 
 @login_required
 def shipping_advisory(request, shipment_id):
@@ -483,13 +461,58 @@ def shipping_advisory(request, shipment_id):
     result = breakdown = explanation = None
     scores = None
 
+    # ── Auto-populate from shipment + computation data ──
+    computation = getattr(shipment, 'computation', None)
+
+    if existing:
+        auto_weight   = float(existing.gross_weight)
+        auto_volume   = float(existing.cargo_volume)
+        auto_value    = float(existing.declared_value)
+        auto_urgency  = existing.urgency_level
+        auto_distance = float(existing.distance_km)
+    else:
+        # Pull weight from shipment model field
+        auto_weight = float(shipment.gross_weight) if shipment.gross_weight else 0.0
+        # Pull declared value from computation (USD) or shipment
+        if computation and computation.declared_value:
+            auto_value = float(computation.declared_value)
+        elif shipment.declared_value:
+            auto_value = float(shipment.declared_value)
+        else:
+            auto_value = 0.0
+        auto_volume   = 0.0
+        auto_urgency  = shipment.urgency
+        auto_distance = 2600.0  # Default: Incheon, Korea → Manila, Philippines
+
+    # Determine which fields were auto-populated vs missing
+    missing_fields = []
+    if not auto_weight:
+        missing_fields.append('Gross Weight (kg)')
+    if not auto_value:
+        missing_fields.append('Declared Value (USD)')
+
+    auto_data = {
+        'gross_weight':   auto_weight,
+        'cargo_volume':   auto_volume,
+        'declared_value': auto_value,
+        'urgency_level':  auto_urgency,
+        'distance_km':    auto_distance,
+    }
+    auto_sources = {
+        'gross_weight':   'shipment' if (not existing and shipment.gross_weight) else ('advisory' if existing else 'manual'),
+        'declared_value': 'computation' if (not existing and computation and computation.declared_value) else ('advisory' if existing else 'manual'),
+        'urgency_level':  'shipment' if not existing else 'advisory',
+        'distance_km':    'default' if not existing else 'advisory',
+        'cargo_volume':   'advisory' if existing else 'manual',
+    }
+
     if request.method == 'POST':
         try:
             weight   = float(request.POST.get('gross_weight', 0))
             volume   = float(request.POST.get('cargo_volume', 0))
             value    = float(request.POST.get('declared_value', 0))
             urgency  = request.POST.get('urgency_level', 'normal')
-            distance = float(request.POST.get('distance_km', 0))
+            distance = float(request.POST.get('distance_km', 2600))
 
             scores, recommended, breakdown, explanation = compute_wmcda(
                 weight, volume, value, urgency, distance
@@ -498,26 +521,50 @@ def shipping_advisory(request, shipment_id):
             ShippingAdvisory.objects.update_or_create(
                 shipment=shipment,
                 defaults={
-                    'gross_weight': weight, 'cargo_volume': volume,
-                    'declared_value': value, 'urgency_level': urgency,
-                    'distance_km': distance,
-                    'lcl_score': scores['lcl'], 'fcl_score': scores['fcl'],
-                    'air_score': scores['air'],
+                    'gross_weight':     weight,
+                    'cargo_volume':     volume,
+                    'declared_value':   value,
+                    'urgency_level':    urgency,
+                    'distance_km':      distance,
+                    'lcl_score':        scores['lcl'],
+                    'fcl_score':        scores['fcl'],
+                    'air_score':        scores['air'],
                     'recommended_type': recommended,
-                    'computed_by': request.user,
+                    'computed_by':      request.user,
                 }
             )
             result = recommended
             messages.success(request, f'Recommendation: {recommended.upper()}')
+
+            # Notify consignee of the advisory result
+            try:
+                from apps.notifications.utils import create_notification
+                label_map = {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL'}
+                create_notification(
+                    recipient=shipment.consignee,
+                    shipment=shipment,
+                    notification_type='status_update',
+                    title=f'Shipping Advisory Ready — {shipment.hawb_number}',
+                    message=(
+                        f'WMCDA Recommendation: {label_map.get(recommended, recommended.upper())}. '
+                        f'{explanation[:120] if explanation else ""}'
+                    ),
+                )
+            except Exception:
+                pass
+
         except Exception as e:
             messages.error(request, f'Error: {e}')
 
     context = {
-        'shipment': shipment,
-        'existing': existing,
-        'result':      result,
-        'scores':      scores,
-        'breakdown':   breakdown,
-        'explanation': explanation,
+        'shipment':      shipment,
+        'existing':      existing,
+        'result':        result,
+        'scores':        scores,
+        'breakdown':     breakdown,
+        'explanation':   explanation,
+        'auto_data':     auto_data,
+        'auto_sources':  auto_sources,
+        'missing_fields': missing_fields,
     }
     return render(request, 'computation/advisory.html', context)
