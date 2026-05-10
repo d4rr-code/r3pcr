@@ -1,0 +1,29 @@
+# Normalize line endings for cross-platform consistency
+* text=auto
+
+# Python files — always LF
+*.py text eol=lf
+
+# HTML/CSS/JS — always LF
+*.html text eol=lf
+*.css  text eol=lf
+*.js   text eol=lf
+
+# Config files — always LF
+*.json text eol=lf
+*.yml  text eol=lf
+*.toml text eol=lf
+*.md   text eol=lf
+
+# Windows scripts — always CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# Binary files — no conversion
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.xlsx binary

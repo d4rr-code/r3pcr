@@ -126,6 +126,62 @@
         </div>
         {% endif %}
 
+        <!-- Payment Receipt -->
+        {% if shipment.status == 'for_payment' or shipment.payment_receipt %}
+        <div class="card" style="border-color:{% if shipment.payment_receipt %}#22c55e40{% else %}#f59e0b40{% endif %};">
+            <p class="card-title">💳 Payment Receipt</p>
+
+            {% if shipment.payment_receipt %}
+            <!-- Already uploaded -->
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 14px;
+                        background:#052e16; border:1px solid #166534; border-radius:8px; margin-bottom:12px;">
+                <span style="font-size:20px;">✅</span>
+                <div>
+                    <p style="color:#22c55e; font-size:13px; font-weight:600; margin:0;">Receipt Uploaded</p>
+                    <p style="color:#64748b; font-size:11px; margin:3px 0 0;">
+                        {{ shipment.payment_receipt_uploaded_at|date:"M d, Y g:i A" }}
+                    </p>
+                </div>
+                <a href="{{ shipment.payment_receipt.url }}" target="_blank"
+                   class="btn btn-secondary" style="font-size:11px; padding:5px 12px; margin-left:auto;">
+                    View Receipt ↗
+                </a>
+            </div>
+            {% if shipment.status == 'for_payment' %}
+            <p style="color:#64748b; font-size:12px; margin-bottom:10px;">Upload a replacement if needed:</p>
+            {% endif %}
+            {% else %}
+            <div style="background:#2d1b00; border:1px solid #78350f; border-radius:8px;
+                        padding:12px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:18px;">⚠️</span>
+                <p style="color:#fcd34d; font-size:13px; margin:0;">
+                    Your shipment is marked <strong>For Payment</strong>. Please upload your payment receipt below.
+                </p>
+            </div>
+            {% endif %}
+
+            {% if shipment.status == 'for_payment' %}
+            <form method="POST" enctype="multipart/form-data"
+                  action="{% url 'consignee:upload_receipt' shipment.id %}">
+                {% csrf_token %}
+                <div style="display:flex; gap:10px; align-items:flex-end;">
+                    <div style="flex:1;">
+                        <label class="form-label">Select Receipt File</label>
+                        <input type="file" name="payment_receipt" class="form-input"
+                               accept=".pdf,.jpg,.jpeg,.png" required>
+                        <p style="color:#64748b; font-size:11px; margin-top:4px;">
+                            PDF, JPG, or PNG accepted
+                        </p>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="flex-shrink:0;">
+                        Upload Receipt
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+        {% endif %}
+
     </div>
 
     <!-- ── Right column ────────────────────────────────────────────────── -->

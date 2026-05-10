@@ -120,17 +120,31 @@ def ocr_extract(request, shipment_id, doc_id):
 
 @login_required
 def compute_shipment(request, shipment_id):
-    shipment = get_object_or_404(Shipment, id=shipment_id)
-    hs_codes = HSCode.objects.filter(is_active=True)
-    existing = DutyComputation.objects.filter(shipment=shipment).first()
-    result   = None
-    items    = None
+    shipment    = get_object_or_404(Shipment, id=shipment_id)
+    hs_codes    = HSCode.objects.filter(is_active=True)
+    existing    = DutyComputation.objects.filter(shipment=shipment).first()
+    advisory_ex = getattr(shipment, 'shipping_advisory', None)
+    documents   = shipment.documents.all()
+
+    result      = None
+    items       = None
+    wmcda_scores      = None
+    wmcda_recommended = None
+    wmcda_breakdown   = None
+    wmcda_explanation = None
+    wmcda_history     = None
+
+    # ── Pull default exchange rate from SystemConfig ──
+    try:
+        default_rate = SystemConfig.objects.get(key='exchange_rate').value
+    except SystemConfig.DoesNotExist:
+        default_rate = '59.1480'
 
     if request.method == 'POST':
         try:
             total_freight   = Decimal(request.POST.get('total_freight',   '0') or '0')
             total_insurance = Decimal(request.POST.get('total_insurance', '0') or '0')
-            exchange_rate   = Decimal(request.POST.get('exchange_rate',   '0') or '0')
+            exchange_rate   = Decimal(request.POST.get('exchange_rate',   default_rate) or default_rate)
             duty_rate       = Decimal(request.POST.get('duty_rate',       '0') or '0')
             hs_code_id      = request.POST.get('hs_code')
 
@@ -164,24 +178,77 @@ def compute_shipment(request, shipment_id):
             DutyComputation.objects.update_or_create(
                 shipment=shipment,
                 defaults={
-                    'hs_code':          hs_code,
-                    'total_freight':    total_freight,
-                    'total_insurance':  total_insurance,
-                    'exchange_rate':    exchange_rate,
-                    'duty_rate':        duty_rate,
-                    'declared_value':   total_exw,
-                    'items_json':       json.dumps(items),
-                    'dutiable_value':   summary['taxable_value'],
-                    'customs_duty':     summary['customs_duties'],
-                    'vat_base':         summary['vat_base'],
-                    'vat_amount':       summary['vat'],
-                    'brokerage_fee':    summary['brokerage_fee'],
-                    'ipf':              summary['ipf'],
+                    'hs_code':           hs_code,
+                    'total_freight':     total_freight,
+                    'total_insurance':   total_insurance,
+                    'exchange_rate':     exchange_rate,
+                    'duty_rate':         duty_rate,
+                    'declared_value':    total_exw,
+                    'items_json':        json.dumps(items),
+                    'dutiable_value':    summary['taxable_value'],
+                    'customs_duty':      summary['customs_duties'],
+                    'vat_base':          summary['vat_base'],
+                    'vat_amount':        summary['vat'],
+                    'brokerage_fee':     summary['brokerage_fee'],
+                    'ipf':               summary['ipf'],
                     'total_landed_cost': summary['total_landed_cost'],
-                    'computed_by':      request.user,
+                    'computed_by':       request.user,
                 }
             )
 
+            # ── Auto-run WMCDA alongside ECDT ──────────────────────────────────
+            try:
+                wmcda_weight   = float(shipment.gross_weight or 0)
+                wmcda_volume   = float(request.POST.get('cargo_volume', 0) or 0)
+                wmcda_value    = float(total_exw)
+                wmcda_urgency  = shipment.urgency or 'normal'
+                wmcda_distance = float(request.POST.get('distance_km', 2600) or 2600)
+
+                wmcda_scores, wmcda_recommended, wmcda_breakdown, wmcda_explanation = compute_wmcda(
+                    wmcda_weight, wmcda_volume, wmcda_value, wmcda_urgency, wmcda_distance
+                )
+
+                ShippingAdvisory.objects.update_or_create(
+                    shipment=shipment,
+                    defaults={
+                        'gross_weight':     wmcda_weight,
+                        'cargo_volume':     wmcda_volume,
+                        'declared_value':   wmcda_value,
+                        'urgency_level':    wmcda_urgency,
+                        'distance_km':      wmcda_distance,
+                        'lcl_score':        wmcda_scores['lcl'],
+                        'fcl_score':        wmcda_scores['fcl'],
+                        'air_score':        wmcda_scores['air'],
+                        'recommended_type': wmcda_recommended,
+                        'computed_by':      request.user,
+                    }
+                )
+
+                # ── Historical recommendation ──────────────────────────────────
+                if shipment.shipment_type:
+                    past = (
+                        ShippingAdvisory.objects
+                        .filter(shipment__shipment_type=shipment.shipment_type,
+                                recommended_type__isnull=False)
+                        .exclude(shipment=shipment)
+                        .values_list('recommended_type', flat=True)
+                    )
+                    if past:
+                        from collections import Counter
+                        counts   = Counter(past)
+                        top_mode = counts.most_common(1)[0]
+                        pct      = round(top_mode[1] / len(past) * 100)
+                        wmcda_history = {
+                            'total':       len(past),
+                            'top_mode':    top_mode[0],
+                            'top_pct':     pct,
+                            'mode_label':  {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL'}.get(top_mode[0], top_mode[0].upper()),
+                            'ship_type':   shipment.get_shipment_type_display(),
+                        }
+            except Exception as wmcda_err:
+                print(f'WMCDA auto-compute error: {wmcda_err}')
+
+            # ── Notify consignee ───────────────────────────────────────────────
             try:
                 from apps.notifications.utils import create_notification
                 create_notification(
@@ -193,7 +260,7 @@ def compute_shipment(request, shipment_id):
             except Exception:
                 pass
 
-            messages.success(request, 'Computation saved!')
+            messages.success(request, 'Computation & shipping analysis saved!')
 
         except ValueError:
             pass
@@ -202,28 +269,104 @@ def compute_shipment(request, shipment_id):
             items = result = None
 
     else:
+        # ── GET: pre-load saved data ───────────────────────────────────────────
         if existing:
             items = existing.get_items()
-        elif request.GET.get('ocr') == '1':
+
+        if advisory_ex:
+            wmcda_scores = {
+                'lcl': float(advisory_ex.lcl_score or 0),
+                'fcl': float(advisory_ex.fcl_score or 0),
+                'air': float(advisory_ex.air_score or 0),
+            }
+            wmcda_recommended = advisory_ex.recommended_type
+            try:
+                _, _, wmcda_breakdown, wmcda_explanation = compute_wmcda(
+                    float(advisory_ex.gross_weight),
+                    float(advisory_ex.cargo_volume),
+                    float(advisory_ex.declared_value),
+                    advisory_ex.urgency_level,
+                    float(advisory_ex.distance_km),
+                )
+            except Exception:
+                pass
+
+        # OCR pre-fill
+        if not items and request.GET.get('ocr') == '1':
             ocr = request.session.get('ocr_fields', {})
             if ocr:
                 def _val(k):
                     v = ocr.get(k, {})
                     return v.get('value', '') if isinstance(v, dict) else v
                 items = [{
-                    'no': 1,
-                    'description': _val('description'),
+                    'no': 1, 'description': _val('description'),
                     'exw': _val('declared_value'),
                     'quantity': _val('total_quantity') or '1',
                     'dv_php': None, 'cud': None,
+                    'item_freight': None, 'item_insurance': None,
+                    'other_charges': None, 'dv_usd': None,
                 }]
 
+        # Historical on load
+        if shipment.shipment_type:
+            past = (
+                ShippingAdvisory.objects
+                .filter(shipment__shipment_type=shipment.shipment_type,
+                        recommended_type__isnull=False)
+                .exclude(shipment=shipment)
+                .values_list('recommended_type', flat=True)
+            )
+            if past:
+                from collections import Counter
+                counts   = Counter(past)
+                top_mode = counts.most_common(1)[0]
+                pct      = round(top_mode[1] / len(past) * 100)
+                wmcda_history = {
+                    'total':       len(past),
+                    'top_mode':    top_mode[0],
+                    'top_pct':     pct,
+                    'mode_label':  {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL'}.get(top_mode[0], top_mode[0].upper()),
+                    'ship_type':   shipment.get_shipment_type_display(),
+                }
+
+    ocr_fields = request.session.get('ocr_fields', {}) if request.session.get('ocr_shipment_id') == shipment_id else {}
+
+    # ── Declared mode focused breakdown ──────────────────────────────────────────
+    declared_score     = None
+    declared_breakdown = None
+    declared_rating    = None
+    if wmcda_scores and shipment.shipment_type:
+        declared_score = wmcda_scores.get(shipment.shipment_type)
+        if wmcda_breakdown:
+            declared_breakdown = wmcda_breakdown.get(shipment.shipment_type)
+        if declared_score is not None:
+            if declared_score >= 0.80:
+                declared_rating = 'Excellent'
+            elif declared_score >= 0.65:
+                declared_rating = 'Good'
+            elif declared_score >= 0.50:
+                declared_rating = 'Fair'
+            else:
+                declared_rating = 'Poor'
+
     context = {
-        'shipment': shipment,
-        'hs_codes': hs_codes,
-        'existing': existing,
-        'result':   result,
-        'items':    items,
+        'shipment':           shipment,
+        'hs_codes':           hs_codes,
+        'existing':           existing,
+        'advisory_existing':  advisory_ex,
+        'result':             result,
+        'items':              items,
+        'documents':          documents,
+        'ocr_fields':         ocr_fields,
+        'default_rate':       default_rate,
+        'wmcda_scores':       wmcda_scores,
+        'wmcda_recommended':  wmcda_recommended,
+        'wmcda_breakdown':    wmcda_breakdown,
+        'wmcda_explanation':  wmcda_explanation,
+        'wmcda_history':      wmcda_history,
+        'declared_score':     declared_score,
+        'declared_breakdown': declared_breakdown,
+        'declared_rating':    declared_rating,
     }
     return render(request, 'computation/compute.html', context)
 

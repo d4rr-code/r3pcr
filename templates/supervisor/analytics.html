@@ -57,51 +57,109 @@
     </div>
 </div>
 
-<!-- ─── WMCDA Advisory Analytics ───────────────────────────────────────────── -->
+<!-- ─── WMCDA Shipping Mode Scoreboard ────────────────────────────────────── -->
 <div class="card" style="margin-bottom:24px;">
-    <p class="card-title">🚢 WMCDA Shipping Advisory Analytics
+    <p class="card-title">🚢 WMCDA Shipping Mode Scoreboard
         <span style="color:#64748b; font-weight:400; font-size:13px;">
             — {{ wmcda.total }} advisor{{ wmcda.total|pluralize:"y,ies" }} computed
         </span>
     </p>
 
     {% if wmcda.total > 0 %}
-    <!-- Score summary row -->
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px;">
-        <!-- Air -->
-        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
-            <div style="font-size:22px; margin-bottom:6px;">✈️</div>
-            <div style="font-size:22px; font-weight:700; color:#3b82f6; margin-bottom:2px;">{{ wmcda.air }}</div>
-            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">Air Recommended</div>
+
+    <!-- Overall recommendation summary -->
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px;">
+        <div style="background:#0f172a; border:2px solid {% if wmcda.air >= wmcda.lcl and wmcda.air >= wmcda.fcl %}#3b82f6{% else %}#1e293b{% endif %};
+                    border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; margin-bottom:4px;">✈️</div>
+            <div style="font-size:20px; font-weight:800; color:#3b82f6;">{{ wmcda.air }}</div>
+            <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Recommended</div>
             <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
                 <div style="height:100%; border-radius:4px; background:#3b82f6; width:{{ wmcda.pct_air }}%;"></div>
             </div>
-            <div style="font-size:11px; color:#3b82f6; font-weight:600;">{{ wmcda.pct_air }}%</div>
-            <div style="font-size:11px; color:#64748b; margin-top:6px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_air }}</strong></div>
+            <div style="font-size:12px; color:#3b82f6; font-weight:700;">Air Freight &nbsp;{{ wmcda.pct_air }}%</div>
+            <div style="font-size:11px; color:#64748b; margin-top:4px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_air }}</strong></div>
         </div>
-        <!-- LCL -->
-        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
-            <div style="font-size:22px; margin-bottom:6px;">📦</div>
-            <div style="font-size:22px; font-weight:700; color:#22c55e; margin-bottom:2px;">{{ wmcda.lcl }}</div>
-            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">LCL Recommended</div>
+        <div style="background:#0f172a; border:2px solid {% if wmcda.lcl > wmcda.air and wmcda.lcl >= wmcda.fcl %}#22c55e{% else %}#1e293b{% endif %};
+                    border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; margin-bottom:4px;">🚢</div>
+            <div style="font-size:20px; font-weight:800; color:#22c55e;">{{ wmcda.lcl }}</div>
+            <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Recommended</div>
             <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
                 <div style="height:100%; border-radius:4px; background:#22c55e; width:{{ wmcda.pct_lcl }}%;"></div>
             </div>
-            <div style="font-size:11px; color:#22c55e; font-weight:600;">{{ wmcda.pct_lcl }}%</div>
-            <div style="font-size:11px; color:#64748b; margin-top:6px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_lcl }}</strong></div>
+            <div style="font-size:12px; color:#22c55e; font-weight:700;">LCL &nbsp;{{ wmcda.pct_lcl }}%</div>
+            <div style="font-size:11px; color:#64748b; margin-top:4px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_lcl }}</strong></div>
         </div>
-        <!-- FCL -->
-        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
-            <div style="font-size:22px; margin-bottom:6px;">🚢</div>
-            <div style="font-size:22px; font-weight:700; color:#8b5cf6; margin-bottom:2px;">{{ wmcda.fcl }}</div>
-            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">FCL Recommended</div>
+        <div style="background:#0f172a; border:2px solid {% if wmcda.fcl > wmcda.air and wmcda.fcl > wmcda.lcl %}#8b5cf6{% else %}#1e293b{% endif %};
+                    border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; margin-bottom:4px;">📦</div>
+            <div style="font-size:20px; font-weight:800; color:#8b5cf6;">{{ wmcda.fcl }}</div>
+            <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Recommended</div>
             <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
                 <div style="height:100%; border-radius:4px; background:#8b5cf6; width:{{ wmcda.pct_fcl }}%;"></div>
             </div>
-            <div style="font-size:11px; color:#8b5cf6; font-weight:600;">{{ wmcda.pct_fcl }}%</div>
-            <div style="font-size:11px; color:#64748b; margin-top:6px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_fcl }}</strong></div>
+            <div style="font-size:12px; color:#8b5cf6; font-weight:700;">FCL &nbsp;{{ wmcda.pct_fcl }}%</div>
+            <div style="font-size:11px; color:#64748b; margin-top:4px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_fcl }}</strong></div>
         </div>
     </div>
+
+    <!-- Per shipment-type scoreboard -->
+    {% if wmcda.mode_scoreboard %}
+    <p style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase;
+              letter-spacing:0.8px; margin-bottom:10px;">Scoreboard by Declared Shipping Mode</p>
+    <div style="overflow-x:auto; border:1px solid #1e293b; border-radius:8px; margin-bottom:20px;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#0f172a;">
+                    <th style="padding:9px 14px; text-align:left; color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Declared Mode</th>
+                    <th style="padding:9px 14px; text-align:center; color:#64748b; font-size:11px;">Shipments</th>
+                    <th style="padding:9px 14px; text-align:center; color:#3b82f6; font-size:11px; font-weight:700;">✈ Air Score</th>
+                    <th style="padding:9px 14px; text-align:center; color:#22c55e; font-size:11px; font-weight:700;">🚢 LCL Score</th>
+                    <th style="padding:9px 14px; text-align:center; color:#8b5cf6; font-size:11px; font-weight:700;">📦 FCL Score</th>
+                    <th style="padding:9px 14px; text-align:center; color:#64748b; font-size:11px;">System Recommends</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in wmcda.mode_scoreboard %}
+                <tr style="border-top:1px solid #1e293b;"
+                    onmouseover="this.style.background='#0f172a'"
+                    onmouseout="this.style.background=''">
+                    <td style="padding:10px 14px;">
+                        <span style="font-size:18px;">{{ row.emoji }}</span>
+                        <strong style="color:#f1f5f9; font-size:13px; margin-left:8px;">{{ row.label }}</strong>
+                    </td>
+                    <td style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:13px;">
+                        {{ row.count }}
+                    </td>
+                    <td style="padding:10px 14px; text-align:center; color:#3b82f6; font-size:13px; font-weight:700;">
+                        {% if row.count %}{{ row.avg_air }}{% else %}<span style="color:#475569;">—</span>{% endif %}
+                    </td>
+                    <td style="padding:10px 14px; text-align:center; color:#22c55e; font-size:13px; font-weight:700;">
+                        {% if row.count %}{{ row.avg_lcl }}{% else %}<span style="color:#475569;">—</span>{% endif %}
+                    </td>
+                    <td style="padding:10px 14px; text-align:center; color:#8b5cf6; font-size:13px; font-weight:700;">
+                        {% if row.count %}{{ row.avg_fcl }}{% else %}<span style="color:#475569;">—</span>{% endif %}
+                    </td>
+                    <td style="padding:10px 14px; text-align:center;">
+                        {% if row.top_rec %}
+                        <span style="display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700;
+                            {% if row.top_rec == 'air' %}background:#1e3a5f; color:#93c5fd;
+                            {% elif row.top_rec == 'lcl' %}background:#052e16; color:#86efac;
+                            {% else %}background:#2d1b69; color:#c4b5fd;{% endif %}">
+                            {% if row.top_rec == 'air' %}✈ Air{% elif row.top_rec == 'lcl' %}🚢 LCL{% else %}📦 FCL{% endif %}
+                            {{ row.top_rec_pct }}%
+                        </span>
+                        {% else %}
+                        <span style="color:#475569; font-size:12px;">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 
     <!-- Recent advisories table -->
     {% if wmcda.recent %}
@@ -111,12 +169,13 @@
             <thead>
                 <tr style="background:#0f172a;">
                     <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">HAWB</th>
-                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Computed By</th>
-                    <th style="padding:8px 12px; text-align:center; color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Recommended</th>
+                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600;">Declared Mode</th>
+                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600;">Computed By</th>
+                    <th style="padding:8px 12px; text-align:center; color:#64748b; font-size:11px; font-weight:600;">Recommended</th>
                     <th style="padding:8px 12px; text-align:center; color:#3b82f6; font-size:11px; font-weight:600;">Air</th>
                     <th style="padding:8px 12px; text-align:center; color:#22c55e; font-size:11px; font-weight:600;">LCL</th>
                     <th style="padding:8px 12px; text-align:center; color:#8b5cf6; font-size:11px; font-weight:600;">FCL</th>
-                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Date</th>
+                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600;">Date</th>
                 </tr>
             </thead>
             <tbody>
@@ -124,26 +183,33 @@
                 <tr style="border-top:1px solid #1e293b;"
                     onmouseover="this.style.background='#0f172a'"
                     onmouseout="this.style.background=''">
-                    <td style="padding:10px 12px; color:#3b82f6; font-size:12px; font-weight:600;">
+                    <td style="padding:9px 12px; color:#3b82f6; font-size:12px; font-weight:600;">
                         {{ adv.shipment.hawb_number }}
                     </td>
-                    <td style="padding:10px 12px; color:#94a3b8; font-size:12px;">
+                    <td style="padding:9px 12px; font-size:12px; color:#94a3b8;">
+                        {% if adv.shipment.shipment_type %}
+                            {% if adv.shipment.shipment_type == 'air' %}✈️ Air
+                            {% elif adv.shipment.shipment_type == 'lcl' %}🚢 LCL
+                            {% else %}📦 FCL{% endif %}
+                        {% else %}<span style="color:#475569;">—</span>{% endif %}
+                    </td>
+                    <td style="padding:9px 12px; color:#94a3b8; font-size:12px;">
                         {{ adv.computed_by.get_full_name|default:adv.computed_by.username }}
                     </td>
-                    <td style="padding:10px 12px; text-align:center;">
-                        <span style="display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase;
+                    <td style="padding:9px 12px; text-align:center;">
+                        <span style="display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700;
                             {% if adv.recommended_type == 'air' %}background:#1e3a5f; color:#93c5fd;
                             {% elif adv.recommended_type == 'lcl' %}background:#052e16; color:#86efac;
                             {% else %}background:#2d1b69; color:#c4b5fd;{% endif %}">
                             {% if adv.recommended_type == 'air' %}✈ Air
-                            {% elif adv.recommended_type == 'lcl' %}📦 LCL
-                            {% else %}🚢 FCL{% endif %}
+                            {% elif adv.recommended_type == 'lcl' %}🚢 LCL
+                            {% else %}📦 FCL{% endif %}
                         </span>
                     </td>
-                    <td style="padding:10px 12px; text-align:center; color:#3b82f6; font-size:12px; font-weight:600;">{{ adv.air_score|floatformat:3 }}</td>
-                    <td style="padding:10px 12px; text-align:center; color:#22c55e; font-size:12px; font-weight:600;">{{ adv.lcl_score|floatformat:3 }}</td>
-                    <td style="padding:10px 12px; text-align:center; color:#8b5cf6; font-size:12px; font-weight:600;">{{ adv.fcl_score|floatformat:3 }}</td>
-                    <td style="padding:10px 12px; color:#64748b; font-size:11px;">{{ adv.computed_at|date:"M d, Y" }}</td>
+                    <td style="padding:9px 12px; text-align:center; color:#3b82f6; font-size:12px; font-weight:600;">{{ adv.air_score|floatformat:3 }}</td>
+                    <td style="padding:9px 12px; text-align:center; color:#22c55e; font-size:12px; font-weight:600;">{{ adv.lcl_score|floatformat:3 }}</td>
+                    <td style="padding:9px 12px; text-align:center; color:#8b5cf6; font-size:12px; font-weight:600;">{{ adv.fcl_score|floatformat:3 }}</td>
+                    <td style="padding:9px 12px; color:#64748b; font-size:11px;">{{ adv.computed_at|date:"M d, Y" }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -169,12 +235,15 @@
         <table style="width:100%; border-collapse:collapse;">
             <thead>
                 <tr style="background:#0f172a;">
-                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Declarant</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Total</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Approved</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Rejected</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Approval Rate</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Avg. Days</th>
+                    <th style="padding:10px 14px; text-align:left; color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Declarant</th>
+                    <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;" title="Shipments assigned to this declarant">Claimed</th>
+                    <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;" title="Moved past Pending status">Processed</th>
+                    <th style="padding:10px 14px; text-align:center; color:#3b82f6; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;" title="Currently In Review">In Review</th>
+                    <th style="padding:10px 14px; text-align:center; color:#22c55e; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Approved</th>
+                    <th style="padding:10px 14px; text-align:center; color:#ef4444; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Rejected</th>
+                    <th style="padding:10px 14px; text-align:center; color:#f59e0b; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;" title="ECDT computations run">Computed</th>
+                    <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Approval Rate</th>
+                    <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Avg. Days</th>
                 </tr>
             </thead>
             <tbody>
@@ -182,38 +251,44 @@
                 <tr style="border-top:1px solid #1e293b;"
                     onmouseover="this.style.background='#1e293b'"
                     onmouseout="this.style.background=''">
-                    <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:500;">
-                        {{ d.name }}
+                    <td style="padding:12px 14px;">
+                        <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">{{ d.name }}</p>
+                        <p style="color:#475569; font-size:11px; margin:2px 0 0;">@{{ d.username }}</p>
                     </td>
-                    <td style="padding:12px 16px; text-align:center; color:#94a3b8; font-size:13px;">
-                        {{ d.total }}
+                    <td style="padding:12px 14px; text-align:center; color:#f1f5f9; font-size:13px; font-weight:600;">
+                        {{ d.claimed }}
                     </td>
-                    <td style="padding:12px 16px; text-align:center; color:#22c55e; font-size:13px; font-weight:600;">
+                    <td style="padding:12px 14px; text-align:center; color:#94a3b8; font-size:13px;">
+                        {{ d.processed }}
+                    </td>
+                    <td style="padding:12px 14px; text-align:center; color:#3b82f6; font-size:13px; font-weight:600;">
+                        {{ d.in_review }}
+                    </td>
+                    <td style="padding:12px 14px; text-align:center; color:#22c55e; font-size:13px; font-weight:600;">
                         {{ d.approved }}
                     </td>
-                    <td style="padding:12px 16px; text-align:center; color:#ef4444; font-size:13px; font-weight:600;">
+                    <td style="padding:12px 14px; text-align:center; color:#ef4444; font-size:13px; font-weight:600;">
                         {{ d.rejected }}
                     </td>
-                    <td style="padding:12px 16px; text-align:center;">
+                    <td style="padding:12px 14px; text-align:center; color:#f59e0b; font-size:13px; font-weight:600;">
+                        {{ d.computed }}
+                    </td>
+                    <td style="padding:12px 14px; text-align:center;">
                         <div style="display:flex; align-items:center; gap:8px; justify-content:center;">
-                            <div style="width:80px; background:#1e293b; border-radius:4px; height:6px; overflow:hidden;">
-                                <div style="height:100%; border-radius:4px;
-                                    width:{{ d.approval_rate }}%;
+                            <div style="width:60px; background:#1e293b; border-radius:4px; height:6px; overflow:hidden;">
+                                <div style="height:100%; border-radius:4px; width:{{ d.approval_rate }}%;
                                     background:{% if d.approval_rate >= 75 %}#22c55e{% elif d.approval_rate >= 50 %}#f59e0b{% else %}#ef4444{% endif %};">
                                 </div>
                             </div>
                             <span style="color:{% if d.approval_rate >= 75 %}#22c55e{% elif d.approval_rate >= 50 %}#f59e0b{% else %}#ef4444{% endif %};
-                                         font-size:13px; font-weight:600; min-width:40px;">
+                                         font-size:12px; font-weight:700; min-width:38px;">
                                 {{ d.approval_rate }}%
                             </span>
                         </div>
                     </td>
-                    <td style="padding:12px 16px; text-align:center; color:#94a3b8; font-size:13px;">
-                        {% if d.avg_days != None %}
-                            {{ d.avg_days }} day{{ d.avg_days|pluralize }}
-                        {% else %}
-                            <span style="color:#475569;">—</span>
-                        {% endif %}
+                    <td style="padding:12px 14px; text-align:center; color:#94a3b8; font-size:13px;">
+                        {% if d.avg_days != None %}{{ d.avg_days }}d
+                        {% else %}<span style="color:#475569;">—</span>{% endif %}
                     </td>
                 </tr>
                 {% endfor %}

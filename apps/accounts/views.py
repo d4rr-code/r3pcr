@@ -218,6 +218,24 @@ def account_settings(request):
             user.save()
             messages.success(request, 'Profile updated.')
 
+        elif action == 'username':
+            new_username = request.POST.get('new_username', '').strip()
+            import re
+            if not new_username:
+                messages.error(request, 'Username cannot be empty.')
+            elif len(new_username) < 3:
+                messages.error(request, 'Username must be at least 3 characters.')
+            elif not re.match(r'^[a-zA-Z0-9_.]+$', new_username):
+                messages.error(request, 'Username can only contain letters, numbers, underscores, and dots.')
+            elif new_username == user.username:
+                messages.error(request, 'That is already your current username.')
+            elif User.objects.filter(username=new_username).exclude(pk=user.pk).exists():
+                messages.error(request, 'Username already taken. Please choose another.')
+            else:
+                user.username = new_username
+                user.save()
+                messages.success(request, f'Username changed to "{new_username}" successfully.')
+
         elif action == 'password':
             old_password     = request.POST.get('old_password', '')
             new_password     = request.POST.get('new_password', '')

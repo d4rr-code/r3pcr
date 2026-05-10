@@ -55,9 +55,10 @@ def dashboard(request):
 @login_required
 def submit_shipment(request):
     if request.method == 'POST':
-        import_type = request.POST.get('import_type')
-        urgency     = request.POST.get('urgency')
-        description = request.POST.get('description', '').strip()
+        import_type   = request.POST.get('import_type')
+        urgency       = request.POST.get('urgency')
+        shipment_type = request.POST.get('shipment_type', '').strip()
+        description   = request.POST.get('description', '').strip()
 
         hawb_number = generate_hawb()
 
@@ -66,6 +67,7 @@ def submit_shipment(request):
             consignee=request.user,
             import_type=import_type,
             urgency=urgency,
+            shipment_type=shipment_type or None,
             description=description,
             status='pending',
         )
@@ -78,6 +80,14 @@ def submit_shipment(request):
                     document_type=doc_type,
                     file=file,
                 )
+
+        # Other supporting documents (multiple)
+        for file in request.FILES.getlist('other_docs'):
+            ShipmentDocument.objects.create(
+                shipment=shipment,
+                document_type='other',
+                file=file,
+            )
 
         declarants = User.objects.filter(role='declarant', is_active=True)
         for declarant in declarants:
@@ -171,6 +181,37 @@ def shipment_detail(request, shipment_id):
         'explanation': explanation,
     }
     return render(request, 'consignee/shipment_detail.html', context)
+
+
+# ─── Upload Payment Receipt ──────────────────────────────────────────────────
+
+@login_required
+def upload_receipt(request, shipment_id):
+    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+
+    if request.method == 'POST':
+        file = request.FILES.get('payment_receipt')
+        if not file:
+            messages.error(request, 'Please select a file to upload.')
+        elif shipment.status != 'for_payment':
+            messages.error(request, 'Payment receipt can only be uploaded when shipment is marked For Payment.')
+        else:
+            shipment.payment_receipt = file
+            shipment.payment_receipt_uploaded_at = timezone.now()
+            shipment.save()
+
+            # Notify declarant
+            if shipment.declarant:
+                create_notification(
+                    recipient=shipment.declarant,
+                    shipment=shipment,
+                    notification_type='status_update',
+                    title=f'Payment Receipt Uploaded — {shipment.hawb_number}',
+                    message=f'{request.user.get_full_name() or request.user.username} uploaded a payment receipt.',
+                )
+            messages.success(request, 'Payment receipt uploaded successfully.')
+
+    return redirect('consignee:shipment_detail', shipment_id=shipment_id)
 
 
 # ─── Cancel Submission ────────────────────────────────────────────────────────

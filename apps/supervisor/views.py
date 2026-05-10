@@ -201,11 +201,14 @@ def analytics(request):
     # Declarant performance
     declarant_data = []
     for d in declarants:
-        d_ships  = shipments.filter(declarant=d)
-        total_d  = d_ships.count()
-        approved = d_ships.filter(status='approved').count()
-        rejected = d_ships.filter(status='rejected').count()
-        rate     = round((approved / total_d * 100), 1) if total_d > 0 else 0
+        d_ships   = shipments.filter(declarant=d)
+        claimed   = d_ships.count()                                # assigned to them
+        processed = d_ships.exclude(status__in=['pending','draft']).count()
+        approved  = d_ships.filter(status='approved').count()
+        rejected  = d_ships.filter(status='rejected').count()
+        in_review = d_ships.filter(status='in_review').count()
+        computed  = DutyComputation.objects.filter(shipment__declarant=d).count()
+        rate      = round((approved / claimed * 100), 1) if claimed > 0 else 0
 
         approved_with_time = d_ships.filter(status='approved', processed_at__isnull=False)
         avg_days = None
@@ -219,9 +222,13 @@ def analytics(request):
 
         declarant_data.append({
             'name':          d.get_full_name() or d.username,
-            'total':         total_d,
+            'username':      d.username,
+            'claimed':       claimed,
+            'processed':     processed,
+            'in_review':     in_review,
             'approved':      approved,
             'rejected':      rejected,
+            'computed':      computed,
             'approval_rate': rate,
             'avg_days':      avg_days,
         })
@@ -274,18 +281,47 @@ def analytics(request):
         .order_by('-computed_at')[:8]
     )
 
+    # Scoreboard per shipment type (consignee-declared mode)
+    mode_scoreboard = []
+    for mode, label, emoji in [('air','Air Freight','✈️'),('lcl','LCL','🚢'),('fcl','FCL','📦')]:
+        mode_advs = advisories.filter(shipment__shipment_type=mode)
+        count     = mode_advs.count()
+        if count:
+            avgs = mode_advs.aggregate(
+                avg_air=Avg('air_score'),
+                avg_lcl=Avg('lcl_score'),
+                avg_fcl=Avg('fcl_score'),
+            )
+            rec_counts = mode_advs.values('recommended_type').annotate(n=Count('id')).order_by('-n')
+            top_rec    = rec_counts[0] if rec_counts else None
+            mode_scoreboard.append({
+                'mode':    mode, 'label': label, 'emoji': emoji, 'count': count,
+                'avg_air': round(float(avgs['avg_air'] or 0), 3),
+                'avg_lcl': round(float(avgs['avg_lcl'] or 0), 3),
+                'avg_fcl': round(float(avgs['avg_fcl'] or 0), 3),
+                'top_rec': top_rec['recommended_type'] if top_rec else None,
+                'top_rec_pct': round(top_rec['n'] / count * 100) if top_rec else 0,
+            })
+        else:
+            mode_scoreboard.append({
+                'mode': mode, 'label': label, 'emoji': emoji, 'count': 0,
+                'avg_air': 0, 'avg_lcl': 0, 'avg_fcl': 0,
+                'top_rec': None, 'top_rec_pct': 0,
+            })
+
     wmcda = {
-        'total':    total_adv,
-        'air':      wmcda_air,
-        'lcl':      wmcda_lcl,
-        'fcl':      wmcda_fcl,
-        'avg_air':  avg_air,
-        'avg_lcl':  avg_lcl,
-        'avg_fcl':  avg_fcl,
-        'pct_air':  round(wmcda_air / total_adv * 100) if total_adv > 0 else 0,
-        'pct_lcl':  round(wmcda_lcl / total_adv * 100) if total_adv > 0 else 0,
-        'pct_fcl':  round(wmcda_fcl / total_adv * 100) if total_adv > 0 else 0,
-        'recent':   recent_advisories,
+        'total':          total_adv,
+        'air':            wmcda_air,
+        'lcl':            wmcda_lcl,
+        'fcl':            wmcda_fcl,
+        'avg_air':        avg_air,
+        'avg_lcl':        avg_lcl,
+        'avg_fcl':        avg_fcl,
+        'pct_air':        round(wmcda_air / total_adv * 100) if total_adv > 0 else 0,
+        'pct_lcl':        round(wmcda_lcl / total_adv * 100) if total_adv > 0 else 0,
+        'pct_fcl':        round(wmcda_fcl / total_adv * 100) if total_adv > 0 else 0,
+        'recent':         recent_advisories,
+        'mode_scoreboard': mode_scoreboard,
     }
 
     context = {

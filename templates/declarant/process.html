@@ -33,14 +33,14 @@
     background: #fff;
 }
 .doc-viewer-placeholder {
-    height: 500px;
+    height: 140px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #475569;
     font-size: 14px;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
 }
 .ocr-field {
     display: flex;
@@ -121,10 +121,6 @@
             ⬇ Download Excel
         </a>
         {% endif %}
-        <a href="{% url 'computation:advisory' shipment.id %}"
-           class="btn btn-secondary" style="font-size:12px;">
-            🚢 Shipping Advisory
-        </a>
         <a href="{% url 'declarant:queue' %}" class="btn btn-secondary" style="font-size:12px;">
             ← Back to Queue
         </a>
@@ -233,43 +229,57 @@
             </div>
             <a href="{% url 'computation:compute' shipment.id %}?ocr=1"
                class="btn btn-primary" style="font-size:12px; margin-top:12px;">
-                Use in Computation →
+                Open Computation Tool with OCR data →
             </a>
         </div>
         {% endif %}
 
-        <!-- Computation Link -->
+        <!-- Computation + Advisory Card -->
         <div class="card" style="margin-top:16px;">
-            <p class="card-title">🧮 Duty Computation</p>
+            <p class="card-title">🧮 Duty Computation &amp; Shipping Analysis</p>
             {% if shipment.computation %}
-            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                <div>
-                    <p style="color:#22c55e; font-size:13px; margin:0;">✓ Computation saved</p>
-                    <p style="color:#94a3b8; font-size:12px; margin:4px 0 0;">
-                        Total Landed Cost:
-                        <strong style="color:#f1f5f9;">
-                            ₱{{ shipment.computation.total_landed_cost|floatformat:2 }}
-                        </strong>
-                    </p>
+            <div style="margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; padding:8px 10px;
+                            background:#0f172a; border-radius:6px; margin-bottom:6px;">
+                    <span style="color:#94a3b8; font-size:12px;">Total Landed Cost</span>
+                    <span style="color:#3b82f6; font-weight:700; font-size:14px;">
+                        ₱{{ shipment.computation.total_landed_cost|floatformat:2 }}
+                    </span>
                 </div>
-                <div style="display:flex; gap:8px;">
-                    <a href="{% url 'computation:download' shipment.id %}"
-                       class="btn btn-secondary" style="font-size:12px;">
-                        ⬇ Excel
-                    </a>
-                    <a href="{% url 'computation:compute' shipment.id %}"
-                       class="btn btn-primary" style="font-size:12px;">
-                        Edit
-                    </a>
+                {% with adv=shipment.shipping_advisory %}
+                {% if adv %}
+                <div style="display:flex; justify-content:space-between; padding:8px 10px;
+                            background:#0f172a; border-radius:6px;">
+                    <span style="color:#94a3b8; font-size:12px;">WMCDA Recommendation</span>
+                    <span style="color:#22c55e; font-weight:700; font-size:13px;">
+                        {% if adv.recommended_type == 'air' %}✈️ Air Freight
+                        {% elif adv.recommended_type == 'lcl' %}🚢 LCL
+                        {% elif adv.recommended_type == 'fcl' %}📦 FCL
+                        {% else %}{{ adv.recommended_type|upper }}{% endif %}
+                        <span style="color:#475569; font-weight:400; font-size:11px; margin-left:6px;">
+                            (scores: Air {{ adv.air_score|floatformat:3 }} /
+                            LCL {{ adv.lcl_score|floatformat:3 }} /
+                            FCL {{ adv.fcl_score|floatformat:3 }})
+                        </span>
+                    </span>
                 </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+            <div style="display:flex; gap:8px;">
+                <a href="{% url 'computation:download' shipment.id %}"
+                   class="btn btn-secondary" style="font-size:12px;">⬇ Excel</a>
+                <a href="{% url 'computation:compute' shipment.id %}"
+                   class="btn btn-primary" style="font-size:12px;">Edit / Recompute</a>
             </div>
             {% else %}
             <p style="color:#64748b; font-size:13px; margin-bottom:12px;">
-                No computation yet. Run OCR on an invoice first, then compute duties.
+                No computation yet. Open the Computation Tool to enter line items
+                (OCR-assisted) and run ECDT + Shipping Analysis together.
             </p>
             <a href="{% url 'computation:compute' shipment.id %}"
-               class="btn btn-primary" style="font-size:12px;">
-                Run Computation →
+               class="btn btn-primary" style="font-size:13px;">
+                🧮 Open Computation Tool →
             </a>
             {% endif %}
         </div>
@@ -391,40 +401,30 @@
 // ─── Document viewer ─────────────────────────────────────────────────────────
 function loadDoc(url, label) {
     var area = document.getElementById('viewer-area');
-    document.getElementById('viewer-label').textContent = '— ' + label;
+    var lbl  = document.getElementById('viewer-label');
+    var ext  = url.split('?')[0].toLowerCase();
+    var isPdf = ext.endsWith('.pdf');
+    var isImg = /\.(jpe?g|png|gif|webp)$/.test(ext);
 
-    var ext    = url.split('?')[0].toLowerCase();
-    var isPdf  = ext.endsWith('.pdf');
-    var isImg  = /\.(jpe?g|png|gif|webp)$/.test(ext);
+    lbl.innerHTML = '— ' + label +
+        ' <a href="' + url + '" target="_blank" ' +
+        'style="color:#3b82f6; font-size:11px; text-decoration:none; margin-left:8px; ' +
+        'padding:2px 8px; border:1px solid #334155; border-radius:4px;">Open in new tab ↗</a>';
 
     if (isPdf) {
         area.innerHTML =
-            '<embed src="' + url + '" type="application/pdf" ' +
-            'style="width:100%; height:calc(100vh - 220px); min-height:500px; display:block;">' +
-            '<div style="display:none;" id="pdf-fallback" style="padding:24px; text-align:center;">' +
-            '<p style="color:#94a3b8; font-size:13px; margin:0 0 10px;">Cannot display PDF inline.</p>' +
-            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:12px;">Open in new tab ↗</a>' +
-            '</div>';
-        setTimeout(function() {
-            var embed = area.querySelector('embed');
-            var fb    = document.getElementById('pdf-fallback');
-            if (embed && fb && embed.offsetHeight < 10) fb.style.display = 'block';
-        }, 1500);
+            '<iframe src="' + url + '" ' +
+            'style="width:100%; height:calc(100vh - 220px); min-height:500px; border:none; display:block;" ' +
+            'allow="fullscreen"></iframe>';
     } else if (isImg) {
         area.innerHTML =
-            '<img src="' + url + '" ' +
-            'style="width:100%; max-height:calc(100vh - 220px); object-fit:contain; display:block;" ' +
-            'onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'block\'">' +
-            '<div style="display:none; padding:24px; text-align:center;">' +
-            '<p style="color:#94a3b8; font-size:13px; margin:0 0 10px;">Cannot display image.</p>' +
-            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:12px;">Open in new tab ↗</a>' +
-            '</div>';
+            '<div style="background:#1e293b; min-height:300px; display:flex; align-items:center; justify-content:center;">' +
+            '<img src="' + url + '" style="max-width:100%; max-height:calc(100vh - 220px); object-fit:contain; display:block;"></div>';
     } else {
         area.innerHTML =
             '<div style="padding:48px; text-align:center;">' +
-            '<p style="color:#94a3b8; font-size:14px; margin:0 0 16px;">Preview not available.</p>' +
-            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:13px;">Open / Download ↗</a>' +
-            '</div>';
+            '<p style="color:#94a3b8; font-size:14px; margin:0 0 16px;">Preview not available for this file type.</p>' +
+            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:13px;">Open / Download ↗</a></div>';
     }
 }
 
