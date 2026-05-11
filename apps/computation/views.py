@@ -105,10 +105,14 @@ def ocr_extract(request, shipment_id, doc_id):
     try:
         fields, _ = process_document(doc.file.path, doc.document_type)
         if fields:
+            # Separate multi-item list from flat field dict
+            line_items = fields.pop('__items__', [])
             request.session['ocr_fields']      = fields
+            request.session['ocr_items']       = line_items
             request.session['ocr_shipment_id'] = shipment_id
             found = sum(1 for v in fields.values() if isinstance(v, dict) and v.get('value'))
-            messages.success(request, f'OCR complete — {found} fields extracted. Review below.')
+            item_msg = f', {len(line_items)} line items detected' if line_items else ''
+            messages.success(request, f'OCR complete — {found} fields extracted{item_msg}. Review below.')
         else:
             messages.warning(request, 'OCR ran but found no structured fields. Fill in manually.')
     except Exception as e:
@@ -330,6 +334,7 @@ def compute_shipment(request, shipment_id):
                 }
 
     ocr_fields = request.session.get('ocr_fields', {}) if request.session.get('ocr_shipment_id') == shipment_id else {}
+    ocr_items  = request.session.get('ocr_items',  []) if request.session.get('ocr_shipment_id') == shipment_id else []
 
     # ── Declared mode focused breakdown ──────────────────────────────────────────
     declared_score     = None
@@ -358,6 +363,7 @@ def compute_shipment(request, shipment_id):
         'items':              items,
         'documents':          documents,
         'ocr_fields':         ocr_fields,
+        'ocr_items':          ocr_items,
         'default_rate':       default_rate,
         'wmcda_scores':       wmcda_scores,
         'wmcda_recommended':  wmcda_recommended,

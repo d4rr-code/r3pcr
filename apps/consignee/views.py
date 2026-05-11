@@ -95,10 +95,10 @@ def submit_shipment(request):
                 recipient=declarant,
                 shipment=shipment,
                 notification_type='submission',
-                title=f'New Shipment — {hawb_number}',
+                title=f'New Shipment Ready to Claim — {hawb_number}',
                 message=(
-                    f'{request.user.get_full_name() or request.user.username} '
-                    f'submitted {hawb_number} for pre-clearance.'
+                    f'A new shipment ({hawb_number}) is in the pending queue and '
+                    f'available for any declarant to claim and process.'
                 ),
             )
 
@@ -158,27 +158,51 @@ def shipment_detail(request, shipment_id):
     computation = getattr(shipment, 'computation', None)
     status_logs = shipment.status_logs.order_by('-changed_at')
 
-    # Rebuild WMCDA explanation from saved advisory data
-    explanation = None
+    # Rebuild full WMCDA data from saved advisory
+    explanation       = None
+    wmcda_scores      = None
+    wmcda_breakdown   = None
+    declared_score    = None
+    declared_breakdown = None
+    declared_rating   = None
+
     if advisory:
         try:
             from apps.computation.views import compute_wmcda
-            _, _, _, explanation = compute_wmcda(
+            wmcda_scores, _, wmcda_breakdown, explanation = compute_wmcda(
                 float(advisory.gross_weight),
                 float(advisory.cargo_volume),
                 float(advisory.declared_value),
                 advisory.urgency_level,
                 float(advisory.distance_km),
             )
+            if wmcda_scores and shipment.shipment_type:
+                declared_score = wmcda_scores.get(shipment.shipment_type)
+                if wmcda_breakdown:
+                    declared_breakdown = wmcda_breakdown.get(shipment.shipment_type)
+                if declared_score is not None:
+                    if declared_score >= 0.80:
+                        declared_rating = 'Excellent'
+                    elif declared_score >= 0.65:
+                        declared_rating = 'Good'
+                    elif declared_score >= 0.50:
+                        declared_rating = 'Fair'
+                    else:
+                        declared_rating = 'Poor'
         except Exception:
             pass
 
     context = {
-        'shipment':    shipment,
-        'advisory':    advisory,
-        'computation': computation,
-        'status_logs': status_logs,
-        'explanation': explanation,
+        'shipment':          shipment,
+        'advisory':          advisory,
+        'computation':       computation,
+        'status_logs':       status_logs,
+        'explanation':       explanation,
+        'wmcda_scores':      wmcda_scores,
+        'wmcda_breakdown':   wmcda_breakdown,
+        'declared_score':    declared_score,
+        'declared_breakdown': declared_breakdown,
+        'declared_rating':   declared_rating,
     }
     return render(request, 'consignee/shipment_detail.html', context)
 

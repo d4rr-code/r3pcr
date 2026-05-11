@@ -133,7 +133,7 @@
     <div>
         <div class="doc-viewer">
             <div class="doc-viewer-header">
-                <span style="color:#94a3b8; font-size:13px;">📄 Document Viewer</span>
+                <span style="color:#94a3b8; font-size:13px;">Document Viewer</span>
                 <span id="viewer-label" style="color:#64748b; font-size:12px; margin-left:4px;"></span>
             </div>
             <div id="viewer-area">
@@ -146,7 +146,7 @@
 
         <!-- Documents List -->
         <div class="card" style="margin-top:16px;">
-            <p class="card-title">📎 Attached Documents</p>
+            <p class="card-title">Attached Documents</p>
             {% if documents %}
             <div style="display:flex; flex-direction:column; gap:10px;">
                 {% for doc in documents %}
@@ -171,8 +171,7 @@
                                 class="btn btn-secondary" style="font-size:11px; padding:5px 10px;">
                             View
                         </button>
-                        <!-- OCR button — uses fetch + timer overlay instead of full navigation -->
-                        {% if doc.document_type in 'invoice,airway_bill' %}
+                        <!-- OCR button — uses fetch + timer overlay -->
                         <button type="button"
                                 class="btn btn-primary"
                                 style="font-size:11px; padding:5px 10px;"
@@ -180,13 +179,6 @@
                                 onclick="startOCR('{% url 'computation:ocr_extract' shipment.id doc.id %}', '{{ doc.get_document_type_display }}')">
                             OCR
                         </button>
-                        {% else %}
-                        <a href="{% url 'computation:ocr_extract' shipment.id doc.id %}"
-                           class="btn btn-primary" style="font-size:11px; padding:5px 10px;"
-                           title="Extract data via OCR">
-                            OCR
-                        </a>
-                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -199,7 +191,7 @@
         <!-- OCR Extracted Fields -->
         {% if ocr_fields %}
         <div class="card" style="margin-top:16px;">
-            <p class="card-title">🔍 OCR Extracted Fields
+            <p class="card-title">OCR Extracted Fields
                 <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:6px;">
                     — <span style="color:#22c55e;">●</span> high ≥85%
                     <span style="color:#f59e0b; margin-left:4px;">●</span> medium ≥70%
@@ -236,7 +228,7 @@
 
         <!-- Computation + Advisory Card -->
         <div class="card" style="margin-top:16px;">
-            <p class="card-title">🧮 Duty Computation &amp; Shipping Analysis</p>
+            <p class="card-title">Duty Computation &amp; Shipping Analysis</p>
             {% if shipment.computation %}
             <div style="margin-bottom:12px;">
                 <div style="display:flex; justify-content:space-between; padding:8px 10px;
@@ -279,7 +271,7 @@
             </p>
             <a href="{% url 'computation:compute' shipment.id %}"
                class="btn btn-primary" style="font-size:13px;">
-                🧮 Open Computation Tool →
+                Open Computation Tool →
             </a>
             {% endif %}
         </div>
@@ -290,7 +282,7 @@
 
         <!-- Current Status -->
         <div class="card" style="margin-bottom:16px;">
-            <p class="card-title">📊 Current Status</p>
+            <p class="card-title">Current Status</p>
             <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
                 {% if shipment.status == 'approved' %}
                     <span class="badge badge-success" style="font-size:14px;">✓ Approved</span>
@@ -331,22 +323,65 @@
 
         <!-- Payment Confirmation -->
         {% if shipment.status == 'for_payment' %}
-        <div class="card" style="margin-bottom:16px; border:1px solid #f59e0b20;">
-            <p class="card-title">💳 Payment Confirmation</p>
+        <div class="card" style="margin-bottom:16px; border:1px solid #f59e0b44;">
+            <p class="card-title">Payment Confirmation</p>
+
+            {% if shipment.payment_receipt %}
+            <!-- Receipt has been uploaded — show it + submit to BOC -->
+            <div style="background:#052e16; border:1px solid #166534; border-radius:8px;
+                        padding:10px 14px; margin-bottom:14px;">
+                <p style="color:#86efac; font-size:12px; font-weight:600; margin:0 0 4px;">
+                    Payment receipt uploaded by consignee
+                </p>
+                <p style="color:#64748b; font-size:11px; margin:0;">
+                    {{ shipment.payment_receipt_uploaded_at|date:"M d, Y H:i" }}
+                </p>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-bottom:14px;">
+                <button type="button"
+                        onclick="loadDoc('{{ shipment.payment_receipt.url }}', 'Payment Receipt')"
+                        class="btn btn-secondary" style="font-size:12px; flex:1; text-align:center;">
+                    View Receipt
+                </button>
+                <a href="{{ shipment.payment_receipt.url }}" target="_blank"
+                   class="btn btn-secondary" style="font-size:12px; flex-shrink:0;">
+                    ↗
+                </a>
+            </div>
+
+            <!-- Inline BOC Submit form -->
+            <form method="POST" action="{% url 'declarant:update_status' shipment.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="new_status" value="submitted">
+                <div class="form-group">
+                    <label class="form-label" style="font-size:12px;">BOC Reference No. (optional)</label>
+                    <input type="text" name="notes"
+                           class="form-input" style="font-size:13px;"
+                           placeholder="e.g. BOC-2026-00123">
+                </div>
+                <button type="submit" class="btn btn-success" style="width:100%;">
+                    Confirm Receipt &amp; Submit to BOC
+                </button>
+            </form>
+
+            {% else %}
+            <!-- Receipt not yet uploaded -->
             <p style="color:#94a3b8; font-size:12px; margin-bottom:12px;">
-                Confirm payment received before submitting to BOC.
+                Waiting for consignee to upload payment receipt. You will be notified once uploaded.
             </p>
             <a href="{% url 'declarant:payment' shipment.id %}"
                class="btn btn-warning" style="width:100%; text-align:center;">
-                Confirm Payment →
+                Payment Details →
             </a>
+            {% endif %}
         </div>
         {% endif %}
 
         <!-- BOC Tracking -->
         {% if shipment.status == 'submitted' or shipment.status == 'approved' or shipment.status == 'rejected' %}
         <div class="card" style="margin-bottom:16px;">
-            <p class="card-title">🏛️ BOC Tracking</p>
+            <p class="card-title">BOC Tracking</p>
             {% if shipment.boc_reference %}
             <p style="color:#94a3b8; font-size:12px; margin-bottom:8px;">
                 BOC Ref: <strong style="color:#f1f5f9;">{{ shipment.boc_reference }}</strong>
@@ -364,7 +399,7 @@
 
         <!-- Status Log -->
         <div class="card">
-            <p class="card-title">📜 Status History</p>
+            <p class="card-title">Status History</p>
             {% if status_logs %}
             <div style="display:flex; flex-direction:column; gap:10px;">
                 {% for log in status_logs %}

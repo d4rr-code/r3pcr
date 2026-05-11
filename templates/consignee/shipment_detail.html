@@ -40,7 +40,7 @@
 
         <!-- Shipment Info -->
         <div class="card">
-            <p class="card-title">📦 Shipment Information</p>
+            <p class="card-title">Shipment Information</p>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div>
                     <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Import Type</p>
@@ -77,7 +77,7 @@
         {% with docs=shipment.documents.all %}
         {% if docs %}
         <div class="card">
-            <p class="card-title">📎 Documents</p>
+            <p class="card-title">Documents</p>
             <div style="display:flex; flex-direction:column; gap:8px;">
                 {% for doc in docs %}
                 <div style="display:flex; align-items:center; justify-content:space-between;
@@ -100,7 +100,7 @@
         <!-- Computation Summary -->
         {% if computation %}
         <div class="card">
-            <p class="card-title">🧮 Computation Summary</p>
+            <p class="card-title">Computation Summary</p>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div>
                     <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Declared Value</p>
@@ -129,7 +129,7 @@
         <!-- Payment Receipt -->
         {% if shipment.status == 'for_payment' or shipment.payment_receipt %}
         <div class="card" style="border-color:{% if shipment.payment_receipt %}#22c55e40{% else %}#f59e0b40{% endif %};">
-            <p class="card-title">💳 Payment Receipt</p>
+            <p class="card-title">Payment Receipt</p>
 
             {% if shipment.payment_receipt %}
             <!-- Already uploaded -->
@@ -190,73 +190,146 @@
         <!-- Shipping Advisory -->
         {% if advisory %}
         <div class="card">
-            <p class="card-title">🚢 Shipping Advisory</p>
+            <p class="card-title">Shipping Advisory</p>
 
-            <!-- Recommendation Banner -->
-            <div style="border-radius:10px; padding:16px 20px; margin-bottom:16px;
-                        display:flex; align-items:center; gap:14px;
-                        {% if advisory.recommended_type == 'air' %}background:#1e3a5f; border:1px solid #3b82f6;
-                        {% elif advisory.recommended_type == 'fcl' %}background:#14532d; border:1px solid #22c55e;
-                        {% else %}background:#2d1b00; border:1px solid #f59e0b;{% endif %}">
-                <span style="font-size:32px;">
-                    {% if advisory.recommended_type == 'air' %}✈️
-                    {% elif advisory.recommended_type == 'fcl' %}🚢
-                    {% else %}📦{% endif %}
-                </span>
-                <div>
-                    <p style="color:#94a3b8; font-size:11px; margin:0 0 3px; text-transform:uppercase; letter-spacing:0.08em;">
-                        Recommended Mode
+            <!-- ── PRIMARY: Declared Mode Score & Breakdown ────────────── -->
+            {% if shipment.shipment_type and declared_score is not None %}
+            <div style="background:#0f172a; border-radius:10px; padding:14px; margin-bottom:12px;
+                        border:2px solid
+                        {% if declared_rating == 'Excellent' %}#22c55e
+                        {% elif declared_rating == 'Good' %}#3b82f6
+                        {% elif declared_rating == 'Fair' %}#f59e0b
+                        {% else %}#ef4444{% endif %};">
+
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                    <div style="flex:1;">
+                        <p style="color:#94a3b8; font-size:10px; margin:0; text-transform:uppercase; letter-spacing:0.5px;">Your Declared Shipping Mode</p>
+                        <p style="color:#f1f5f9; font-size:15px; font-weight:700; margin:2px 0 0;">
+                            {{ shipment.get_shipment_type_display }}
+                        </p>
+                    </div>
+                    <div style="text-align:right;">
+                        <p style="font-size:22px; font-weight:800; margin:0;
+                            color:{% if declared_rating == 'Excellent' %}#22c55e
+                                  {% elif declared_rating == 'Good' %}#3b82f6
+                                  {% elif declared_rating == 'Fair' %}#f59e0b
+                                  {% else %}#ef4444{% endif %};">
+                            {{ declared_score|floatformat:3 }}
+                        </p>
+                        <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;
+                            color:{% if declared_rating == 'Excellent' %}#22c55e{% elif declared_rating == 'Good' %}#93c5fd{% elif declared_rating == 'Fair' %}#fbbf24{% else %}#fca5a5{% endif %};
+                            background:{% if declared_rating == 'Excellent' %}#052e16{% elif declared_rating == 'Good' %}#172554{% elif declared_rating == 'Fair' %}#422006{% else %}#450a0a{% endif %};
+                            border:1px solid {% if declared_rating == 'Excellent' %}#166534{% elif declared_rating == 'Good' %}#1d4ed8{% elif declared_rating == 'Fair' %}#78350f{% else %}#991b1b{% endif %};">
+                            {{ declared_rating|upper }}
+                        </span>
+                    </div>
+                </div>
+
+                {% if declared_breakdown %}
+                <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+                    <div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                            <span style="color:#94a3b8; font-size:11px;">Cost Efficiency</span>
+                            <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.cost|floatformat:2 }}</span>
+                        </div>
+                        <div style="background:#1e293b; border-radius:999px; height:5px;">
+                            <div style="height:5px; border-radius:999px; background:#3b82f6;
+                                 width:{% widthratio declared_breakdown.cost 1 100 %}%;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                            <span style="color:#94a3b8; font-size:11px;">Transit Time</span>
+                            <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.time|floatformat:2 }}</span>
+                        </div>
+                        <div style="background:#1e293b; border-radius:999px; height:5px;">
+                            <div style="height:5px; border-radius:999px; background:#8b5cf6;
+                                 width:{% widthratio declared_breakdown.time 1 100 %}%;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                            <span style="color:#94a3b8; font-size:11px;">Weight Suitability</span>
+                            <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.weight|floatformat:2 }}</span>
+                        </div>
+                        <div style="background:#1e293b; border-radius:999px; height:5px;">
+                            <div style="height:5px; border-radius:999px; background:#f59e0b;
+                                 width:{% widthratio declared_breakdown.weight 1 100 %}%;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                            <span style="color:#94a3b8; font-size:11px;">Risk Factor</span>
+                            <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.risk|floatformat:2 }}</span>
+                        </div>
+                        <div style="background:#1e293b; border-radius:999px; height:5px;">
+                            <div style="height:5px; border-radius:999px; background:#22c55e;
+                                 width:{% widthratio declared_breakdown.risk 1 100 %}%;"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Verdict -->
+                {% if advisory.recommended_type == shipment.shipment_type %}
+                <div style="background:#052e16; border:1px solid #166534; border-radius:6px;
+                            padding:8px 12px; display:flex; align-items:center; gap:8px;">
+                    <span style="color:#22c55e; font-size:14px;">✓</span>
+                    <p style="color:#86efac; font-size:12px; font-weight:600; margin:0;">
+                        Good choice — your shipping mode matches the WMCDA recommendation.
                     </p>
-                    <p style="color:#f1f5f9; font-size:20px; font-weight:700; margin:0;">
-                        {% if advisory.recommended_type == 'lcl' %}LCL — Less Container Load
-                        {% elif advisory.recommended_type == 'fcl' %}FCL — Full Container Load
-                        {% else %}Air Freight{% endif %}
+                </div>
+                {% else %}
+                <div style="background:#2d1b00; border:1px solid #78350f; border-radius:6px;
+                            padding:8px 12px; display:flex; align-items:center; gap:8px;">
+                    <span style="color:#fcd34d; font-size:14px;">!</span>
+                    <p style="color:#fde68a; font-size:12px; margin:0;">
+                        Not the optimal mode for this shipment profile. The analysis recommends
+                        <strong>{% if advisory.recommended_type == 'air' %}Air Freight{% elif advisory.recommended_type == 'lcl' %}LCL{% else %}FCL{% endif %}</strong>
+                        for this cargo type.
                     </p>
-                    {% if explanation %}
-                    <p style="color:#94a3b8; font-size:12px; margin:6px 0 0;">{{ explanation }}</p>
-                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- ── Compact 3-mode strip ────────────────────────────────── -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px;">
+                <div style="background:#0f172a; border-radius:8px; padding:10px; text-align:center;
+                            border:1px solid {% if advisory.recommended_type == 'lcl' %}#22c55e{% elif shipment.shipment_type == 'lcl' %}#3b82f6{% else %}#1e293b{% endif %};">
+                    <p style="color:#94a3b8; font-size:10px; margin:0 0 3px;">LCL</p>
+                    <p style="font-size:16px; font-weight:700; margin:0;
+                        color:{% if advisory.recommended_type == 'lcl' %}#22c55e{% elif shipment.shipment_type == 'lcl' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                        {{ advisory.lcl_score|floatformat:3 }}</p>
+                    {% if advisory.recommended_type == 'lcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+                    {% elif shipment.shipment_type == 'lcl' %}<p style="color:#3b82f6; font-size:9px; margin:2px 0 0;">declared</p>{% endif %}
+                </div>
+                <div style="background:#0f172a; border-radius:8px; padding:10px; text-align:center;
+                            border:1px solid {% if advisory.recommended_type == 'fcl' %}#22c55e{% elif shipment.shipment_type == 'fcl' %}#3b82f6{% else %}#1e293b{% endif %};">
+                    <p style="color:#94a3b8; font-size:10px; margin:0 0 3px;">FCL</p>
+                    <p style="font-size:16px; font-weight:700; margin:0;
+                        color:{% if advisory.recommended_type == 'fcl' %}#22c55e{% elif shipment.shipment_type == 'fcl' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                        {{ advisory.fcl_score|floatformat:3 }}</p>
+                    {% if advisory.recommended_type == 'fcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+                    {% elif shipment.shipment_type == 'fcl' %}<p style="color:#3b82f6; font-size:9px; margin:2px 0 0;">declared</p>{% endif %}
+                </div>
+                <div style="background:#0f172a; border-radius:8px; padding:10px; text-align:center;
+                            border:1px solid {% if advisory.recommended_type == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#1e293b{% endif %};">
+                    <p style="color:#94a3b8; font-size:10px; margin:0 0 3px;">Air</p>
+                    <p style="font-size:16px; font-weight:700; margin:0;
+                        color:{% if advisory.recommended_type == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                        {{ advisory.air_score|floatformat:3 }}</p>
+                    {% if advisory.recommended_type == 'air' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+                    {% elif shipment.shipment_type == 'air' %}<p style="color:#3b82f6; font-size:9px; margin:2px 0 0;">declared</p>{% endif %}
                 </div>
             </div>
 
-            <!-- Score cards -->
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
-                <div style="text-align:center; padding:12px; border-radius:8px;
-                            {% if advisory.recommended_type == 'lcl' %}background:#1e3a5f; border:1px solid #3b82f6;
-                            {% else %}background:#0f172a; border:1px solid #1e293b;{% endif %}">
-                    <p style="color:#94a3b8; font-size:11px; margin:0 0 4px;">📦 LCL</p>
-                    <p style="font-size:20px; font-weight:700; margin:0;
-                              color:{% if advisory.recommended_type == 'lcl' %}#3b82f6{% else %}#f1f5f9{% endif %};">
-                        {{ advisory.lcl_score|floatformat:3 }}
-                    </p>
-                    {% if advisory.recommended_type == 'lcl' %}
-                    <p style="font-size:10px; color:#3b82f6; font-weight:600; margin:3px 0 0;">★ BEST</p>
-                    {% endif %}
-                </div>
-                <div style="text-align:center; padding:12px; border-radius:8px;
-                            {% if advisory.recommended_type == 'fcl' %}background:#1e3a5f; border:1px solid #3b82f6;
-                            {% else %}background:#0f172a; border:1px solid #1e293b;{% endif %}">
-                    <p style="color:#94a3b8; font-size:11px; margin:0 0 4px;">🚢 FCL</p>
-                    <p style="font-size:20px; font-weight:700; margin:0;
-                              color:{% if advisory.recommended_type == 'fcl' %}#3b82f6{% else %}#f1f5f9{% endif %};">
-                        {{ advisory.fcl_score|floatformat:3 }}
-                    </p>
-                    {% if advisory.recommended_type == 'fcl' %}
-                    <p style="font-size:10px; color:#3b82f6; font-weight:600; margin:3px 0 0;">★ BEST</p>
-                    {% endif %}
-                </div>
-                <div style="text-align:center; padding:12px; border-radius:8px;
-                            {% if advisory.recommended_type == 'air' %}background:#1e3a5f; border:1px solid #3b82f6;
-                            {% else %}background:#0f172a; border:1px solid #1e293b;{% endif %}">
-                    <p style="color:#94a3b8; font-size:11px; margin:0 0 4px;">✈️ Air</p>
-                    <p style="font-size:20px; font-weight:700; margin:0;
-                              color:{% if advisory.recommended_type == 'air' %}#3b82f6{% else %}#f1f5f9{% endif %};">
-                        {{ advisory.air_score|floatformat:3 }}
-                    </p>
-                    {% if advisory.recommended_type == 'air' %}
-                    <p style="font-size:10px; color:#3b82f6; font-weight:600; margin:3px 0 0;">★ BEST</p>
-                    {% endif %}
-                </div>
-            </div>
+            {% if explanation %}
+            <p style="color:#94a3b8; font-size:12px; margin:0 0 10px; padding:10px 12px;
+                      background:#0f172a; border-radius:6px; border-left:3px solid #3b82f6;">
+                {{ explanation }}
+            </p>
+            {% endif %}
 
             <div style="font-size:11px; color:#475569; padding-top:10px; border-top:1px solid #1e293b;">
                 Advisory computed {{ advisory.computed_at|date:"M d, Y g:i A" }}
@@ -268,7 +341,6 @@
 
         {% else %}
         <div class="card" style="text-align:center; padding:32px 24px; color:#64748b;">
-            <p style="font-size:28px; margin-bottom:10px;">⏳</p>
             <p style="font-size:14px; font-weight:600; color:#94a3b8; margin-bottom:4px;">Shipping advisory pending</p>
             <p style="font-size:12px;">A declarant will compute the WMCDA recommendation once your shipment is reviewed.</p>
         </div>
@@ -277,7 +349,7 @@
         <!-- Status History -->
         <div class="card" style="padding:0; overflow:hidden;">
             <div style="padding:14px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
-                <p class="card-title" style="margin:0;">🕓 Status History</p>
+                <p class="card-title" style="margin:0;">Status History</p>
             </div>
             {% if status_logs %}
             <div style="display:flex; flex-direction:column;">

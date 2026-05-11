@@ -121,7 +121,7 @@
 <div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;">
     <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
                 display:flex; align-items:center; justify-content:space-between;">
-        <p class="card-title" style="margin:0;">📋 Pending Queue</p>
+        <p class="card-title" style="margin:0;">Pending Queue</p>
         <span id="pending-count" style="color:#64748b; font-size:12px;"></span>
     </div>
 
@@ -256,8 +256,14 @@
 
 <!-- ─── In Review (My Shipments) ─────────────────────────────────────────── -->
 <div class="card" style="padding:0; overflow:hidden;">
-    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
-        <p class="card-title" style="margin:0;">🔍 My In-Review Shipments</p>
+    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
+                display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <p class="card-title" style="margin:0;">My In-Review Shipments</p>
+        <input type="text" id="review-search"
+               class="form-input"
+               style="width:260px; padding:6px 12px; font-size:13px;"
+               placeholder="Search ref no. or consignee..."
+               oninput="filterReview()">
     </div>
 
     {% if in_review %}
@@ -274,7 +280,7 @@
                 <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Action</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="review-tbody">
             {% for s in in_review %}
             <tr style="border-top:1px solid #1e293b;"
                 onmouseover="this.style.background='#1e293b'"
@@ -439,6 +445,20 @@ function closePreview() {
 document.getElementById('preview-modal').addEventListener('click', function(e) {
     if (e.target === this) closePreview();
 });
+
+// ─── In-Review search ────────────────────────────────────────────────────────
+function filterReview() {
+    var q = document.getElementById('review-search').value.toLowerCase();
+    document.querySelectorAll('#review-tbody tr').forEach(function(row) {
+        if (row.id && row.id.startsWith('rv-')) return;  // skip expand rows
+        var show = !q || row.innerText.toLowerCase().includes(q);
+        row.style.display = show ? '' : 'none';
+        var next = row.nextElementSibling;
+        if (next && next.id && next.id.startsWith('rv-') && !show) {
+            next.style.display = 'none';
+        }
+    });
+}
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {

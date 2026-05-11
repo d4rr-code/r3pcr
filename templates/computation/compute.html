@@ -246,7 +246,7 @@
 <div id="col-left">
     <div class="doc-viewer">
         <div class="doc-viewer-header">
-            <span style="color:#94a3b8; font-size:13px;">📄 Document Viewer</span>
+            <span style="color:#94a3b8; font-size:13px;">Document Viewer</span>
             <span id="viewer-label" style="color:#64748b; font-size:11px; margin-left:4px;"></span>
         </div>
         <div class="doc-viewer-area" id="viewer-area">
@@ -259,7 +259,7 @@
 
     <!-- Documents List -->
     <div class="card" style="margin-top:16px;">
-        <p class="card-title">📎 Attached Documents</p>
+        <p class="card-title">Attached Documents</p>
         {% if documents %}
         <div style="display:flex; flex-direction:column; gap:8px;">
             {% for doc in documents %}
@@ -300,7 +300,7 @@
     {% if ocr_fields %}
     <div class="card" style="margin-top:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <p class="card-title" style="margin:0;">🔍 OCR Extracted Fields</p>
+            <p class="card-title" style="margin:0;">OCR Extracted Fields</p>
             <button type="button" onclick="fillFromOCR()"
                     class="btn btn-primary" style="font-size:11px; padding:5px 12px;">
                 ↓ Fill Table
@@ -340,7 +340,7 @@
 
 <!-- ── Parameters ─────────────────────────────────────────────────── -->
 <div class="card" style="margin-bottom:14px;">
-    <p class="card-title" style="margin-bottom:10px;">⚙️ Parameters</p>
+    <p class="card-title" style="margin-bottom:10px;">Parameters</p>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
         <div>
             <label class="form-label" style="font-size:11px;">HS Code</label>
@@ -392,7 +392,7 @@
 <div class="card" style="margin-bottom:14px; padding:0; overflow:hidden;">
     <div style="padding:10px 14px; background:#0f172a; border-bottom:1px solid #1e293b;
                 display:flex; justify-content:space-between; align-items:center;">
-        <p class="card-title" style="margin:0; font-size:13px;">📊 ECDT Line Items</p>
+        <p class="card-title" style="margin:0; font-size:13px;">ECDT Line Items</p>
         <button type="button" class="btn btn-secondary" onclick="addRow()"
                 style="font-size:11px; padding:4px 10px;">+ Row</button>
     </div>
@@ -496,7 +496,7 @@
 <!-- ── Submit Button ─────────────────────────────────────────────── -->
 <div style="display:flex; gap:10px; margin-bottom:14px;">
     <button type="submit" class="btn btn-primary" style="flex:1;">
-        🧮 Compute & Analyze
+        Compute &amp; Analyze
     </button>
 </div>
 
@@ -505,7 +505,7 @@
 <!-- ── ECDT Summary ───────────────────────────────────────────────── -->
 {% if result or existing %}
 <div class="card" style="margin-bottom:14px;">
-    <p class="card-title">📋 ECDT Summary</p>
+    <p class="card-title">ECDT Summary</p>
     {% with c=existing %}
     <div style="display:flex; flex-direction:column; gap:6px;">
 
@@ -569,7 +569,7 @@
 <!-- ── WMCDA Shipping Analysis ────────────────────────────────────── -->
 {% if wmcda_scores %}
 <div class="card" style="margin-bottom:14px;">
-    <p class="card-title">🚢 Shipping Mode Analysis</p>
+    <p class="card-title">Shipping Mode Analysis</p>
 
     <!-- ── PRIMARY: Declared Mode Score & Breakdown ────────────────── -->
     {% if shipment.shipment_type and declared_score is not None %}
@@ -804,16 +804,60 @@ var ocrData = {
     {% endif %}
 };
 
+// Multi-item list extracted by OCR (from invoice/packing list line items)
+var ocrItems = [
+    {% if ocr_items %}
+    {% for item in ocr_items %}
+    {
+        description: '{{ item.description|escapejs }}',
+        quantity:    '{{ item.quantity|default:"" }}',
+        total_value: {{ item.total_value|default:0 }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+    {% endif %}
+];
+
+function _makeRow(n, desc, exw, qty) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+        '<td style="color:#64748b;font-size:11px;">' + n + '</td>' +
+        '<td><input class="ecdt-input" type="text" name="description[]" ' +
+             'value="' + desc.replace(/"/g,'&quot;') + '" placeholder="Item..." style="width:120px;"></td>' +
+        '<td><input class="ecdt-input exw-input" type="number" name="exw_value[]" ' +
+             'step="0.01" value="' + (exw || '') + '" placeholder="0.00" oninput="recalcAll()"></td>' +
+        '<td><input class="ecdt-input" type="number" name="quantity[]" ' +
+             'step="1" value="' + (qty || '') + '" placeholder="0"></td>' +
+        '<td class="calc" data-field="freight">—</td>' +
+        '<td class="calc" data-field="ins">—</td>' +
+        '<td class="calc" data-field="oc">—</td>' +
+        '<td class="calc" data-field="dvusd">—</td>' +
+        '<td class="calc" data-field="dvphp" style="color:#3b82f6;">—</td>' +
+        '<td class="calc" data-field="cud" style="color:#f59e0b;">—</td>' +
+        '<td><button type="button" onclick="removeRow(this)" ' +
+             'style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 4px;">✕</button></td>';
+    return tr;
+}
+
 function fillFromOCR() {
     var tbody = document.getElementById('ecdt-body');
-    var firstRow = tbody.rows[0];
-    if (!firstRow) return;
-    if (ocrData.description)
-        firstRow.querySelector('[name="description[]"]').value = ocrData.description;
-    if (ocrData.declared_value)
-        firstRow.querySelector('[name="exw_value[]"]').value = ocrData.declared_value;
-    if (ocrData.total_quantity)
-        firstRow.querySelector('[name="quantity[]"]').value = ocrData.total_quantity;
+
+    if (ocrItems && ocrItems.length >= 2) {
+        // Multi-item fill — clear table and create one row per item
+        tbody.innerHTML = '';
+        ocrItems.forEach(function(item, idx) {
+            tbody.appendChild(_makeRow(idx + 1, item.description, item.total_value, item.quantity));
+        });
+    } else {
+        // Single-total fallback — fill first row
+        var firstRow = tbody.rows[0];
+        if (!firstRow) return;
+        if (ocrData.description)
+            firstRow.querySelector('[name="description[]"]').value = ocrData.description;
+        if (ocrData.declared_value)
+            firstRow.querySelector('[name="exw_value[]"]').value = ocrData.declared_value;
+        if (ocrData.total_quantity)
+            firstRow.querySelector('[name="quantity[]"]').value = ocrData.total_quantity;
+    }
     recalcAll();
 }
 
