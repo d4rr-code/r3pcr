@@ -1,125 +1,178 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>R3-PCR | Login</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #0f172a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .login-card {
-            background: #1e293b;
-            padding: 40px;
-            border-radius: 12px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
-        }
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .logo h1 { color: #3b82f6; font-size: 28px; font-weight: 700; }
-        .logo p  { color: #94a3b8; font-size: 13px; margin-top: 4px; }
-        .form-group { margin-bottom: 20px; }
-        label {
-            display: block;
-            color: #94a3b8;
-            font-size: 13px;
-            margin-bottom: 6px;
-        }
-        input {
-            width: 100%;
-            padding: 10px 14px;
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            color: #f1f5f9;
-            font-size: 14px;
-            outline: none;
-        }
-        input:focus { border-color: #3b82f6; }
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        button:hover { background: #2563eb; }
-        .messages { margin-bottom: 16px; }
-        .message {
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: 13px;
-            margin-bottom: 8px;
-        }
-        .message.error   { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; }
-        .message.success { background: #052e16; color: #86efac; border: 1px solid #166534; }
-        .register-link {
-            text-align: center;
-            margin-top: 20px;
-            color: #64748b;
-            font-size: 13px;
-        }
-        .register-link a { color: #3b82f6; text-decoration: none; }
-        .register-link a:hover { text-decoration: underline; }
-        .divider {
-            border: none;
-            border-top: 1px solid #334155;
-            margin: 20px 0 16px;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet"
+    href="{% static 'accounts/css/loginpage.css' %}">
 </head>
 <body>
-    <div class="login-card">
-        <div class="logo">
-            <h1>R3-PCR</h1>
-            <p>Pre-Clearance Decision Support System</p>
+    <!-- NAVBAR -->
+    <header class="navbar">
+        <div class="nav-left">
+            <a href="{% url 'landing' %}" class="logo-link">
+                <img src="{% static 'accounts/img/Thumbnail for R3-PCR.png' %}" alt="Logo">
+            </a>
         </div>
+        <div class="nav-right">
+            <div class="language-dropdown">
 
-        {% if messages %}
-        <div class="messages">
-            {% for message in messages %}
-            <div class="message {{ message.tags }}">
-                {{ message }}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+    <div class="selected-language" id="selectedLanguage">
 
-        <form method="POST">
-            {% csrf_token %}
-            <div class="form-group">
-                <label>Username</label>
-                <input type="text" name="username"
-                       placeholder="Enter your username" required autofocus>
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password"
-                       placeholder="Enter your password" required>
-            </div>
-            <button type="submit">Login</button>
-        </form>
+        <i class="fa-solid fa-globe"></i>
 
-        <hr class="divider">
+        <span id="currentLanguage">
+            EN
+        </span>
 
-        <div class="register-link">
-            New consignee? <a href="{% url 'accounts:register' %}">Create an account</a>
-        </div>
     </div>
+
+    <div class="language-menu" id="languageMenu">
+
+        <div class="language-option"
+        data-lang="en">
+
+            English
+
+        </div>
+
+        <div class="language-option"
+        data-lang="fil">
+
+            Filipino
+
+        </div>
+
+    </div>
+
+</div>
+            <a href="#">ABOUT</a>
+            <a href="#">CONTACT US</a>
+            <a href="{% url 'accounts:register' %}" class="register-btn"> REGISTER </a>
+            <a href="#" class="login-btn-nav">LOG IN</a>
+        </div>
+    </header>
+
+    <!-- MAIN -->
+    <main class="login-section">
+        <div class="dark-overlay"></div>
+        <div class="login-container">
+            <h1 id="welcomeText"> Welcome Back!</h1>
+            <p class="subtitle" id="subtitleText">
+                You're one step away from better shipment visibility.
+            </p>
+
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="message {{ message.tags }}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- FORM -->
+            <form method="POST">
+                {% csrf_token %}
+                <!-- USERNAME -->
+                <div class="form-group">
+                    <label id="usernameLabel"> USERNAME </label>
+                    <input
+                    type="text"
+                    name="username"
+                    id="usernameInput"
+                    placeholder="Enter your username"
+                    required>
+                </div>
+
+                <!-- PASSWORD -->
+                <div class="form-group">
+                    <label id="passwordLabel"> PASSWORD </label>
+                    <div class="password-wrapper">
+                        <input
+                        type="password"
+                        name="password"
+                        id="password"
+                        placeholder="Enter your password"
+                        required>
+                        <button type="button" class="toggle-password" id="togglePassword">
+                            <i class="fa-regular fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- REMEMBER -->
+                <div class="remember-row">
+                    <div class="remember-me">
+                        <input type="checkbox">
+                        <span id="rememberText">Remember Me</span>
+                    </div>
+                </div>
+
+                <!-- LOGIN BUTTON -->
+                <button type="submit" class="login-button" id="loginBtn"> LOG IN </button>
+            </form>
+
+            <!-- HELP -->
+            <div class="help-text" id="helpText"> Need help with your <a href="#">username</a> or <a href="#">password</a>?</div><hr>
+
+            <!-- REGISTER -->
+            <div class="register-text" id="registerText"> Don’t have account yet?
+                <a href="{% url 'accounts:register' %}"> Register Now </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="footer-content">
+            <!-- SOCIAL -->
+            <div class="footer-social">
+                <h4 id="followText"> FOLLOW US </h4>
+                <div class="social-icons">
+                    <img src="{% static 'accounts/img/Facebook.png' %}">
+                    <img src="{% static 'accounts/img/insta.png' %}">
+                    <img src="{% static 'accounts/img/linkedin.png' %}">
+                </div>
+            </div>
+
+            <!-- CENTER -->
+            <div class="footer-center">
+                <img src="{% static 'accounts/img/Thumbnail for R3-PCR.png' %}">
+                <div class="footer-links">
+                    <a href="#">TERMS & PRIVACY</a>
+                    <a href="#">FEATURES</a>
+                    <a href="#">ABOUT</a>
+                    <a href="#">RTRIPLEJ</a>
+                </div>
+                <p>
+                    © 2026 R3-PCR — RTripleJ Customs Brokerage.
+                    All Rights Reserved.
+                </p>
+            </div>
+
+            <!-- CONTACT -->
+            <div class="footer-contact">
+                <h4 id="contactText"> CONTACT US </h4>
+                <div class="contact-icons">
+                    <img src="{% static 'accounts/img/email icon.png' %}">
+                    <img src="{% static 'accounts/img/Location.png' %}">
+                    <img src="{% static 'accounts/img/Contact.png' %}">
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JS -->
+    <script src="{% static 'accounts/js/loginpage.js' %}"></script>
+
 </body>
 </html>
