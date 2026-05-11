@@ -19,7 +19,7 @@ def extract_text_from_file(file_path):
             images = convert_from_path(
                 file_path,
                 dpi=300,
-                poppler_path=r'C:\Users\Francis\Downloads\poppler\poppler-25.12.0\Library\bin'
+                poppler_path=r'C:\Users\Mary Ann\Downloads\poppler-24.02.0\Library\bin'
             )
             text = ''
             for image in images:
