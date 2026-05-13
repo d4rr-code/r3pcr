@@ -65,24 +65,65 @@
         </span>
     </p>
 
+    <!-- WMCDA Explanation -->
+    <div style="background:#0f172a; border:1px solid #1e293b; border-left:3px solid #3b82f6;
+                border-radius:8px; padding:14px 16px; margin-bottom:20px;">
+        <p style="color:#94a3b8; font-size:12px; font-weight:600; margin:0 0 8px;
+                  text-transform:uppercase; letter-spacing:0.6px;">How WMCDA Works</p>
+        <p style="color:#64748b; font-size:12px; margin:0 0 10px; line-height:1.6;">
+            The <strong style="color:#94a3b8;">Weighted Multi-Criteria Decision Analysis</strong> scores each
+            shipping mode across four criteria and recommends the option with the highest combined score.
+            A score of <strong style="color:#94a3b8;">1.000</strong> is a perfect match; closer to 0 means
+            less suitable.
+        </p>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
+            <div style="background:#1e293b; border-radius:6px; padding:10px; text-align:center;">
+                <div style="font-size:16px; margin-bottom:4px;">💰</div>
+                <div style="color:#f1f5f9; font-size:13px; font-weight:700;">35%</div>
+                <div style="color:#64748b; font-size:11px; margin-top:2px;">Cost</div>
+                <div style="color:#475569; font-size:10px; margin-top:2px;">Freight cost vs. cargo value</div>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:10px; text-align:center;">
+                <div style="font-size:16px; margin-bottom:4px;">⏱️</div>
+                <div style="color:#f1f5f9; font-size:13px; font-weight:700;">30%</div>
+                <div style="color:#64748b; font-size:11px; margin-top:2px;">Transit Time</div>
+                <div style="color:#475569; font-size:10px; margin-top:2px;">Speed vs. urgency level</div>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:10px; text-align:center;">
+                <div style="font-size:16px; margin-bottom:4px;">⚖️</div>
+                <div style="color:#f1f5f9; font-size:13px; font-weight:700;">20%</div>
+                <div style="color:#64748b; font-size:11px; margin-top:2px;">Weight / Volume</div>
+                <div style="color:#475569; font-size:10px; margin-top:2px;">Cargo density fit</div>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:10px; text-align:center;">
+                <div style="font-size:16px; margin-bottom:4px;">🛡️</div>
+                <div style="color:#f1f5f9; font-size:13px; font-weight:700;">15%</div>
+                <div style="color:#64748b; font-size:11px; margin-top:2px;">Risk</div>
+                <div style="color:#475569; font-size:10px; margin-top:2px;">Handling & distance risk</div>
+            </div>
+        </div>
+    </div>
+
     {% if wmcda.total > 0 %}
 
-    <!-- Overall recommendation summary -->
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px;">
-        <div style="background:#0f172a; border:2px solid {% if wmcda.air >= wmcda.lcl and wmcda.air >= wmcda.fcl %}#3b82f6{% else %}#1e293b{% endif %};
+    <!-- Overall recommendation summary — 4 modes -->
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
+        {% with is_top_air=wmcda.air|add:0 %}
+        <div style="background:#0f172a; border:2px solid {% if wmcda.air >= wmcda.lcl and wmcda.air >= wmcda.fcl and wmcda.air >= wmcda.land %}#3b82f6{% else %}#1e293b{% endif %};
                     border-radius:10px; padding:14px; text-align:center;">
-            <div style="font-size:22px; margin-bottom:4px;">✈️</div>
+            <div style="font-size:20px; margin-bottom:4px;">✈️</div>
             <div style="font-size:20px; font-weight:800; color:#3b82f6;">{{ wmcda.air }}</div>
             <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Recommended</div>
             <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
                 <div style="height:100%; border-radius:4px; background:#3b82f6; width:{{ wmcda.pct_air }}%;"></div>
             </div>
-            <div style="font-size:12px; color:#3b82f6; font-weight:700;">Air Freight &nbsp;{{ wmcda.pct_air }}%</div>
+            <div style="font-size:12px; color:#3b82f6; font-weight:700;">Air &nbsp;{{ wmcda.pct_air }}%</div>
             <div style="font-size:11px; color:#64748b; margin-top:4px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_air }}</strong></div>
         </div>
-        <div style="background:#0f172a; border:2px solid {% if wmcda.lcl > wmcda.air and wmcda.lcl >= wmcda.fcl %}#22c55e{% else %}#1e293b{% endif %};
+        {% endwith %}
+        <div style="background:#0f172a; border:2px solid {% if wmcda.lcl > wmcda.air and wmcda.lcl >= wmcda.fcl and wmcda.lcl >= wmcda.land %}#22c55e{% else %}#1e293b{% endif %};
                     border-radius:10px; padding:14px; text-align:center;">
-            <div style="font-size:22px; margin-bottom:4px;">🚢</div>
+            <div style="font-size:20px; margin-bottom:4px;">🚢</div>
             <div style="font-size:20px; font-weight:800; color:#22c55e;">{{ wmcda.lcl }}</div>
             <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Recommended</div>
             <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
@@ -91,9 +132,9 @@
             <div style="font-size:12px; color:#22c55e; font-weight:700;">LCL &nbsp;{{ wmcda.pct_lcl }}%</div>
             <div style="font-size:11px; color:#64748b; margin-top:4px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_lcl }}</strong></div>
         </div>
-        <div style="background:#0f172a; border:2px solid {% if wmcda.fcl > wmcda.air and wmcda.fcl > wmcda.lcl %}#8b5cf6{% else %}#1e293b{% endif %};
+        <div style="background:#0f172a; border:2px solid {% if wmcda.fcl > wmcda.air and wmcda.fcl > wmcda.lcl and wmcda.fcl >= wmcda.land %}#8b5cf6{% else %}#1e293b{% endif %};
                     border-radius:10px; padding:14px; text-align:center;">
-            <div style="font-size:22px; margin-bottom:4px;">📦</div>
+            <div style="font-size:20px; margin-bottom:4px;">📦</div>
             <div style="font-size:20px; font-weight:800; color:#8b5cf6;">{{ wmcda.fcl }}</div>
             <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Recommended</div>
             <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
@@ -101,6 +142,17 @@
             </div>
             <div style="font-size:12px; color:#8b5cf6; font-weight:700;">FCL &nbsp;{{ wmcda.pct_fcl }}%</div>
             <div style="font-size:11px; color:#64748b; margin-top:4px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_fcl }}</strong></div>
+        </div>
+        <div style="background:#0f172a; border:2px solid {% if wmcda.land > wmcda.air and wmcda.land > wmcda.lcl and wmcda.land > wmcda.fcl %}#f59e0b{% else %}#1e293b{% endif %};
+                    border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:20px; margin-bottom:4px;">🚛</div>
+            <div style="font-size:20px; font-weight:800; color:#f59e0b;">{{ wmcda.land }}</div>
+            <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Recommended</div>
+            <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px; background:#f59e0b; width:{{ wmcda.pct_land }}%;"></div>
+            </div>
+            <div style="font-size:12px; color:#f59e0b; font-weight:700;">Land &nbsp;{{ wmcda.pct_land }}%</div>
+            <div style="font-size:11px; color:#64748b; margin-top:4px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_land }}</strong></div>
         </div>
     </div>
 
@@ -117,6 +169,7 @@
                     <th style="padding:9px 14px; text-align:center; color:#3b82f6; font-size:11px; font-weight:700;">✈ Air Score</th>
                     <th style="padding:9px 14px; text-align:center; color:#22c55e; font-size:11px; font-weight:700;">🚢 LCL Score</th>
                     <th style="padding:9px 14px; text-align:center; color:#8b5cf6; font-size:11px; font-weight:700;">📦 FCL Score</th>
+                    <th style="padding:9px 14px; text-align:center; color:#f59e0b; font-size:11px; font-weight:700;">🚛 Land Score</th>
                     <th style="padding:9px 14px; text-align:center; color:#64748b; font-size:11px;">System Recommends</th>
                 </tr>
             </thead>
@@ -141,13 +194,17 @@
                     <td style="padding:10px 14px; text-align:center; color:#8b5cf6; font-size:13px; font-weight:700;">
                         {% if row.count %}{{ row.avg_fcl }}{% else %}<span style="color:#475569;">—</span>{% endif %}
                     </td>
+                    <td style="padding:10px 14px; text-align:center; color:#f59e0b; font-size:13px; font-weight:700;">
+                        {% if row.count %}{{ row.avg_land }}{% else %}<span style="color:#475569;">—</span>{% endif %}
+                    </td>
                     <td style="padding:10px 14px; text-align:center;">
                         {% if row.top_rec %}
                         <span style="display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700;
                             {% if row.top_rec == 'air' %}background:#1e3a5f; color:#93c5fd;
                             {% elif row.top_rec == 'lcl' %}background:#052e16; color:#86efac;
+                            {% elif row.top_rec == 'land' %}background:#451a03; color:#fcd34d;
                             {% else %}background:#2d1b69; color:#c4b5fd;{% endif %}">
-                            {% if row.top_rec == 'air' %}✈ Air{% elif row.top_rec == 'lcl' %}🚢 LCL{% else %}📦 FCL{% endif %}
+                            {% if row.top_rec == 'air' %}✈ Air{% elif row.top_rec == 'lcl' %}🚢 LCL{% elif row.top_rec == 'land' %}🚛 Land{% else %}📦 FCL{% endif %}
                             {{ row.top_rec_pct }}%
                         </span>
                         {% else %}
@@ -175,6 +232,7 @@
                     <th style="padding:8px 12px; text-align:center; color:#3b82f6; font-size:11px; font-weight:600;">Air</th>
                     <th style="padding:8px 12px; text-align:center; color:#22c55e; font-size:11px; font-weight:600;">LCL</th>
                     <th style="padding:8px 12px; text-align:center; color:#8b5cf6; font-size:11px; font-weight:600;">FCL</th>
+                    <th style="padding:8px 12px; text-align:center; color:#f59e0b; font-size:11px; font-weight:600;">Land</th>
                     <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600;">Date</th>
                 </tr>
             </thead>
@@ -200,15 +258,20 @@
                         <span style="display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700;
                             {% if adv.recommended_type == 'air' %}background:#1e3a5f; color:#93c5fd;
                             {% elif adv.recommended_type == 'lcl' %}background:#052e16; color:#86efac;
+                            {% elif adv.recommended_type == 'land' %}background:#451a03; color:#fcd34d;
                             {% else %}background:#2d1b69; color:#c4b5fd;{% endif %}">
                             {% if adv.recommended_type == 'air' %}✈ Air
                             {% elif adv.recommended_type == 'lcl' %}🚢 LCL
+                            {% elif adv.recommended_type == 'land' %}🚛 Land
                             {% else %}📦 FCL{% endif %}
                         </span>
                     </td>
                     <td style="padding:9px 12px; text-align:center; color:#3b82f6; font-size:12px; font-weight:600;">{{ adv.air_score|floatformat:3 }}</td>
                     <td style="padding:9px 12px; text-align:center; color:#22c55e; font-size:12px; font-weight:600;">{{ adv.lcl_score|floatformat:3 }}</td>
                     <td style="padding:9px 12px; text-align:center; color:#8b5cf6; font-size:12px; font-weight:600;">{{ adv.fcl_score|floatformat:3 }}</td>
+                    <td style="padding:9px 12px; text-align:center; color:#f59e0b; font-size:12px; font-weight:600;">
+                        {% if adv.land_score %}{{ adv.land_score|floatformat:3 }}{% else %}<span style="color:#475569;">—</span>{% endif %}
+                    </td>
                     <td style="padding:9px 12px; color:#64748b; font-size:11px;">{{ adv.computed_at|date:"M d, Y" }}</td>
                 </tr>
                 {% endfor %}
@@ -221,6 +284,106 @@
     <div style="text-align:center; padding:32px; color:#64748b;">
         <div style="font-size:32px; margin-bottom:8px;">🚢</div>
         <p>No shipping advisories computed yet.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ─── Processing Time Analytics ────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:24px;">
+    <p class="card-title">⏱️ Processing Time
+        <span style="color:#64748b; font-weight:400; font-size:13px;">
+            — submission to approval (live)
+        </span>
+    </p>
+
+    {% if processing_stats.count > 0 %}
+
+    <!-- Key metrics row -->
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px;">
+        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
+            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Average</div>
+            <div style="font-size:28px; font-weight:800;
+                color:{% if processing_stats.avg <= 3 %}#22c55e{% elif processing_stats.avg <= 7 %}#f59e0b{% else %}#ef4444{% endif %};">
+                {{ processing_stats.avg }}
+            </div>
+            <div style="font-size:12px; color:#64748b; margin-top:2px;">days</div>
+            <div style="margin-top:8px; background:#1e293b; border-radius:4px; height:4px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px; width:{% if processing_stats.avg <= 3 %}33%{% elif processing_stats.avg <= 7 %}66%{% else %}100%{% endif %};
+                    background:{% if processing_stats.avg <= 3 %}#22c55e{% elif processing_stats.avg <= 7 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
+            </div>
+        </div>
+        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
+            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Fastest</div>
+            <div style="font-size:28px; font-weight:800; color:#22c55e;">{{ processing_stats.min }}</div>
+            <div style="font-size:12px; color:#64748b; margin-top:2px;">day{{ processing_stats.min|pluralize }}</div>
+        </div>
+        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
+            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Slowest</div>
+            <div style="font-size:28px; font-weight:800; color:#ef4444;">{{ processing_stats.max }}</div>
+            <div style="font-size:12px; color:#64748b; margin-top:2px;">day{{ processing_stats.max|pluralize }}</div>
+        </div>
+    </div>
+
+    <!-- Distribution buckets -->
+    <p style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase;
+              letter-spacing:0.8px; margin-bottom:10px;">Distribution — {{ processing_stats.count }} approved shipment{{ processing_stats.count|pluralize }}</p>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+        {% with total=processing_stats.count %}
+        <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:#22c55e; font-size:12px;">⚡ Same-day / Next-day (0–1 days)</span>
+                <span style="color:#f1f5f9; font-size:12px; font-weight:600;">{{ processing_buckets.fast }}
+                    <span style="color:#64748b; font-weight:400;">shipment{{ processing_buckets.fast|pluralize }}</span>
+                </span>
+            </div>
+            <div style="background:#1e293b; border-radius:4px; height:8px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px; background:#22c55e;
+                    width:{% widthratio processing_buckets.fast total 100 %}%;"></div>
+            </div>
+        </div>
+        <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:#3b82f6; font-size:12px;">✅ On time (2–3 days)</span>
+                <span style="color:#f1f5f9; font-size:12px; font-weight:600;">{{ processing_buckets.normal }}
+                    <span style="color:#64748b; font-weight:400;">shipment{{ processing_buckets.normal|pluralize }}</span>
+                </span>
+            </div>
+            <div style="background:#1e293b; border-radius:4px; height:8px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px; background:#3b82f6;
+                    width:{% widthratio processing_buckets.normal total 100 %}%;"></div>
+            </div>
+        </div>
+        <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:#f59e0b; font-size:12px;">⚠️ Slow (4–7 days)</span>
+                <span style="color:#f1f5f9; font-size:12px; font-weight:600;">{{ processing_buckets.slow }}
+                    <span style="color:#64748b; font-weight:400;">shipment{{ processing_buckets.slow|pluralize }}</span>
+                </span>
+            </div>
+            <div style="background:#1e293b; border-radius:4px; height:8px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px; background:#f59e0b;
+                    width:{% widthratio processing_buckets.slow total 100 %}%;"></div>
+            </div>
+        </div>
+        <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:#ef4444; font-size:12px;">🔴 Overdue (8+ days)</span>
+                <span style="color:#f1f5f9; font-size:12px; font-weight:600;">{{ processing_buckets.very_slow }}
+                    <span style="color:#64748b; font-weight:400;">shipment{{ processing_buckets.very_slow|pluralize }}</span>
+                </span>
+            </div>
+            <div style="background:#1e293b; border-radius:4px; height:8px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px; background:#ef4444;
+                    width:{% widthratio processing_buckets.very_slow total 100 %}%;"></div>
+            </div>
+        </div>
+        {% endwith %}
+    </div>
+
+    {% else %}
+    <div style="text-align:center; padding:32px; color:#64748b;">
+        <div style="font-size:32px; margin-bottom:8px;">⏳</div>
+        <p>No approved shipments yet — processing time will appear once shipments are approved.</p>
     </div>
     {% endif %}
 </div>

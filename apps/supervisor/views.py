@@ -260,20 +260,23 @@ def analytics(request):
     advisories = ShippingAdvisory.objects.all()
     total_adv  = advisories.count()
 
-    wmcda_air = advisories.filter(recommended_type='air').count()
-    wmcda_lcl = advisories.filter(recommended_type='lcl').count()
-    wmcda_fcl = advisories.filter(recommended_type='fcl').count()
+    wmcda_air  = advisories.filter(recommended_type='air').count()
+    wmcda_lcl  = advisories.filter(recommended_type='lcl').count()
+    wmcda_fcl  = advisories.filter(recommended_type='fcl').count()
+    wmcda_land = advisories.filter(recommended_type='land').count()
 
-    avg_air = avg_lcl = avg_fcl = None
+    avg_air = avg_lcl = avg_fcl = avg_land = None
     if total_adv > 0:
         avgs = advisories.aggregate(
             avg_air=Avg('air_score'),
             avg_lcl=Avg('lcl_score'),
             avg_fcl=Avg('fcl_score'),
+            avg_land=Avg('land_score'),
         )
-        avg_air = round(float(avgs['avg_air'] or 0), 3)
-        avg_lcl = round(float(avgs['avg_lcl'] or 0), 3)
-        avg_fcl = round(float(avgs['avg_fcl'] or 0), 3)
+        avg_air  = round(float(avgs['avg_air']  or 0), 3)
+        avg_lcl  = round(float(avgs['avg_lcl']  or 0), 3)
+        avg_fcl  = round(float(avgs['avg_fcl']  or 0), 3)
+        avg_land = round(float(avgs['avg_land'] or 0), 3)
 
     recent_advisories = (
         advisories
@@ -283,54 +286,97 @@ def analytics(request):
 
     # Scoreboard per shipment type (consignee-declared mode)
     mode_scoreboard = []
-    for mode, label, emoji in [('air','Air Freight','✈️'),('lcl','LCL','🚢'),('fcl','FCL','📦')]:
+    for mode, label, emoji in [
+        ('air',  'Air Freight', '✈️'),
+        ('lcl',  'LCL',        '🚢'),
+        ('fcl',  'FCL',        '📦'),
+        ('land', 'Land Freight','🚛'),
+    ]:
         mode_advs = advisories.filter(shipment__shipment_type=mode)
         count     = mode_advs.count()
         if count:
-            avgs = mode_advs.aggregate(
+            m_avgs = mode_advs.aggregate(
                 avg_air=Avg('air_score'),
                 avg_lcl=Avg('lcl_score'),
                 avg_fcl=Avg('fcl_score'),
+                avg_land=Avg('land_score'),
             )
             rec_counts = mode_advs.values('recommended_type').annotate(n=Count('id')).order_by('-n')
             top_rec    = rec_counts[0] if rec_counts else None
             mode_scoreboard.append({
                 'mode':    mode, 'label': label, 'emoji': emoji, 'count': count,
-                'avg_air': round(float(avgs['avg_air'] or 0), 3),
-                'avg_lcl': round(float(avgs['avg_lcl'] or 0), 3),
-                'avg_fcl': round(float(avgs['avg_fcl'] or 0), 3),
-                'top_rec': top_rec['recommended_type'] if top_rec else None,
+                'avg_air':  round(float(m_avgs['avg_air']  or 0), 3),
+                'avg_lcl':  round(float(m_avgs['avg_lcl']  or 0), 3),
+                'avg_fcl':  round(float(m_avgs['avg_fcl']  or 0), 3),
+                'avg_land': round(float(m_avgs['avg_land'] or 0), 3),
+                'top_rec':     top_rec['recommended_type'] if top_rec else None,
                 'top_rec_pct': round(top_rec['n'] / count * 100) if top_rec else 0,
             })
         else:
             mode_scoreboard.append({
                 'mode': mode, 'label': label, 'emoji': emoji, 'count': 0,
-                'avg_air': 0, 'avg_lcl': 0, 'avg_fcl': 0,
+                'avg_air': 0, 'avg_lcl': 0, 'avg_fcl': 0, 'avg_land': 0,
                 'top_rec': None, 'top_rec_pct': 0,
             })
 
     wmcda = {
-        'total':          total_adv,
-        'air':            wmcda_air,
-        'lcl':            wmcda_lcl,
-        'fcl':            wmcda_fcl,
-        'avg_air':        avg_air,
-        'avg_lcl':        avg_lcl,
-        'avg_fcl':        avg_fcl,
-        'pct_air':        round(wmcda_air / total_adv * 100) if total_adv > 0 else 0,
-        'pct_lcl':        round(wmcda_lcl / total_adv * 100) if total_adv > 0 else 0,
-        'pct_fcl':        round(wmcda_fcl / total_adv * 100) if total_adv > 0 else 0,
-        'recent':         recent_advisories,
+        'total':           total_adv,
+        'air':             wmcda_air,
+        'lcl':             wmcda_lcl,
+        'fcl':             wmcda_fcl,
+        'land':            wmcda_land,
+        'avg_air':         avg_air,
+        'avg_lcl':         avg_lcl,
+        'avg_fcl':         avg_fcl,
+        'avg_land':        avg_land,
+        'pct_air':         round(wmcda_air  / total_adv * 100) if total_adv > 0 else 0,
+        'pct_lcl':         round(wmcda_lcl  / total_adv * 100) if total_adv > 0 else 0,
+        'pct_fcl':         round(wmcda_fcl  / total_adv * 100) if total_adv > 0 else 0,
+        'pct_land':        round(wmcda_land / total_adv * 100) if total_adv > 0 else 0,
+        'recent':          recent_advisories,
         'mode_scoreboard': mode_scoreboard,
     }
 
+    # ── Processing Time Analytics ──
+    approved_ships = shipments.filter(status='approved', processed_at__isnull=False)
+    processing_stats = {'avg': None, 'min': None, 'max': None, 'count': 0}
+    if approved_ships.exists():
+        deltas = [
+            (s.processed_at - s.submitted_at).days
+            for s in approved_ships if s.processed_at and s.submitted_at
+        ]
+        if deltas:
+            processing_stats = {
+                'avg':   round(sum(deltas) / len(deltas), 1),
+                'min':   min(deltas),
+                'max':   max(deltas),
+                'count': len(deltas),
+            }
+
+    # Days-bucket distribution  (0-1 / 2-3 / 4-7 / 8+)
+    buckets = {'fast': 0, 'normal': 0, 'slow': 0, 'very_slow': 0}
+    if approved_ships.exists():
+        for s in approved_ships:
+            if s.processed_at and s.submitted_at:
+                d = (s.processed_at - s.submitted_at).days
+                if d <= 1:
+                    buckets['fast'] += 1
+                elif d <= 3:
+                    buckets['normal'] += 1
+                elif d <= 7:
+                    buckets['slow'] += 1
+                else:
+                    buckets['very_slow'] += 1
+
     context = {
-        'status_data':     status_counts,
-        'status_pcts':     status_pcts,
-        'declarant_data':  declarant_data,
-        'total_shipments': total,
-        'top_hs':          list(top_hs),
-        'wmcda':           wmcda,
+        'status_data':       status_counts,
+        'status_pcts':       status_pcts,
+        'declarant_data':    declarant_data,
+        'total_shipments':   total,
+        'top_hs':            list(top_hs),
+        'wmcda':             wmcda,
+        'processing_stats':  processing_stats,
+        'processing_buckets': buckets,
     }
     return render(request, 'supervisor/analytics.html', context)
 

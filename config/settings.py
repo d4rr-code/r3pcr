@@ -139,8 +139,10 @@ ANYMAIL = {
 }
 
 # Tesseract OCR
+# Windows dev: set TESSERACT_PATH in .env to the full exe path
+# Railway / Linux: tesseract is on PATH after apt-get install tesseract-ocr
 if _PYTESSERACT_AVAILABLE:
     pytesseract.pytesseract.tesseract_cmd = os.getenv(
         'TESSERACT_PATH',
-        r'C:\Users\Francis\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
+        'tesseract'   # works on Linux/Railway; override with TESSERACT_PATH in .env on Windows
     )
