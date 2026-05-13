@@ -100,10 +100,12 @@
         <!-- Computation Summary -->
         {% if computation %}
         <div class="card">
-            <p class="card-title">Computation Summary</p>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <p class="card-title">Duty Computation</p>
+
+            <!-- Global inputs row -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
                 <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Declared Value</p>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Declared Value (EXW)</p>
                     <p style="font-size:13px; color:#e2e8f0;">USD {{ computation.declared_value|floatformat:2 }}</p>
                 </div>
                 <div>
@@ -111,18 +113,96 @@
                     <p style="font-size:13px; color:#e2e8f0;">₱ {{ computation.exchange_rate|floatformat:4 }}</p>
                 </div>
                 <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Total Duties &amp; Taxes</p>
-                    <p style="font-size:14px; font-weight:700; color:#3b82f6;">
-                        ₱ {{ computation.total_duties_and_taxes|floatformat:2|default:"—" }}
-                    </p>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Total Freight</p>
+                    <p style="font-size:13px; color:#e2e8f0;">USD {{ computation.total_freight|floatformat:2 }}</p>
                 </div>
                 <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Total Landed Cost</p>
-                    <p style="font-size:14px; font-weight:700; color:#22c55e;">
-                        ₱ {{ computation.total_landed_cost|floatformat:2|default:"—" }}
-                    </p>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Total Insurance</p>
+                    <p style="font-size:13px; color:#e2e8f0;">USD {{ computation.total_insurance|floatformat:2 }}</p>
                 </div>
             </div>
+
+            <!-- Per-item breakdown table -->
+            {% with items=computation.get_items %}
+            {% if items %}
+            <div style="overflow-x:auto; margin-bottom:14px;">
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr style="background:#0f172a; border-bottom:1px solid #334155;">
+                            <th style="text-align:left; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Description</th>
+                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Qty</th>
+                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">EXW (USD)</th>
+                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">HS Code</th>
+                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Duty %</th>
+                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">D/V (₱)</th>
+                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">CUD (₱)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr style="border-bottom:1px solid #1e293b;">
+                            <td style="padding:8px 10px; color:#e2e8f0;">{{ item.description|default:"—" }}</td>
+                            <td style="padding:8px 10px; color:#94a3b8; text-align:right;">{{ item.quantity|default:"—" }}</td>
+                            <td style="padding:8px 10px; color:#94a3b8; text-align:right;">{{ item.exw_usd|floatformat:2|default:"—" }}</td>
+                            <td style="padding:8px 10px; color:#94a3b8; text-align:right; white-space:nowrap;">{{ item.hs_code|default:"—" }}</td>
+                            <td style="padding:8px 10px; color:#94a3b8; text-align:right;">{{ item.duty_rate|floatformat:2|default:"—" }}%</td>
+                            <td style="padding:8px 10px; color:#94a3b8; text-align:right;">{{ item.dv_php|floatformat:2|default:"—" }}</td>
+                            <td style="padding:8px 10px; color:#f1f5f9; text-align:right; font-weight:600;">{{ item.cud|floatformat:2|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <!-- Summary totals -->
+            <div style="background:#0f172a; border-radius:8px; padding:12px 14px; display:flex; flex-direction:column; gap:7px;">
+                {% if computation.customs_duty %}
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#94a3b8; font-size:12px;">Customs Duty (CUD)</span>
+                    <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.customs_duty|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                {% if computation.vat_amount %}
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#94a3b8; font-size:12px;">VAT (12%)</span>
+                    <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.vat_amount|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                {% if computation.brokerage_fee %}
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#94a3b8; font-size:12px;">Brokerage Fee</span>
+                    <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.brokerage_fee|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                {% if computation.ipf %}
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#94a3b8; font-size:12px;">Import Processing Fee (IPF)</span>
+                    <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.ipf|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                {% if computation.total_duties_and_taxes %}
+                <div style="display:flex; justify-content:space-between; align-items:center; padding-top:7px; border-top:1px solid #334155;">
+                    <span style="color:#93c5fd; font-size:13px; font-weight:700;">Total Duties &amp; Taxes</span>
+                    <span style="color:#3b82f6; font-size:15px; font-weight:800;">₱ {{ computation.total_duties_and_taxes|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                {% if computation.total_landed_cost %}
+                <div style="display:flex; justify-content:space-between; align-items:center; {% if not computation.total_duties_and_taxes %}padding-top:7px; border-top:1px solid #334155;{% endif %}">
+                    <span style="color:#86efac; font-size:13px; font-weight:700;">Total Landed Cost</span>
+                    <span style="color:#22c55e; font-size:15px; font-weight:800;">₱ {{ computation.total_landed_cost|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                {% if not computation.total_landed_cost and not computation.total_duties_and_taxes %}
+                <p style="color:#475569; font-size:12px; margin:0; text-align:center;">Computation not yet finalized.</p>
+                {% endif %}
+            </div>
+
+            <p style="color:#475569; font-size:11px; margin:10px 0 0;">
+                Computed {{ computation.computed_at|date:"M d, Y g:i A" }}
+                {% if computation.computed_by %}by {{ computation.computed_by.get_full_name|default:computation.computed_by.username }}{% endif %}
+            </p>
         </div>
         {% endif %}
 
@@ -285,7 +365,7 @@
                     <span style="color:#fcd34d; font-size:14px;">!</span>
                     <p style="color:#fde68a; font-size:12px; margin:0;">
                         Not the optimal mode for this shipment profile. The analysis recommends
-                        <strong>{% if advisory.recommended_type == 'air' %}Air Freight{% elif advisory.recommended_type == 'lcl' %}LCL{% else %}FCL{% endif %}</strong>
+                        <strong>{% if advisory.recommended_type == 'air' %}Air Freight ✈️{% elif advisory.recommended_type == 'lcl' %}LCL 🚢{% elif advisory.recommended_type == 'fcl' %}FCL 🚢{% elif advisory.recommended_type == 'land' %}Land Freight 🚛{% else %}{{ advisory.recommended_type }}{% endif %}</strong>
                         for this cargo type.
                     </p>
                 </div>
@@ -293,8 +373,8 @@
             </div>
             {% endif %}
 
-            <!-- ── Compact 3-mode strip ────────────────────────────────── -->
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px;">
+            <!-- ── Compact 4-mode strip ────────────────────────────────── -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; margin-bottom:12px;">
                 <div style="background:#0f172a; border-radius:8px; padding:10px; text-align:center;
                             border:1px solid {% if advisory.recommended_type == 'lcl' %}#22c55e{% elif shipment.shipment_type == 'lcl' %}#3b82f6{% else %}#1e293b{% endif %};">
                     <p style="color:#94a3b8; font-size:10px; margin:0 0 3px;">LCL</p>
@@ -321,6 +401,15 @@
                         {{ advisory.air_score|floatformat:3 }}</p>
                     {% if advisory.recommended_type == 'air' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
                     {% elif shipment.shipment_type == 'air' %}<p style="color:#3b82f6; font-size:9px; margin:2px 0 0;">declared</p>{% endif %}
+                </div>
+                <div style="background:#0f172a; border-radius:8px; padding:10px; text-align:center;
+                            border:1px solid {% if advisory.recommended_type == 'land' %}#22c55e{% elif shipment.shipment_type == 'land' %}#3b82f6{% else %}#1e293b{% endif %};">
+                    <p style="color:#94a3b8; font-size:10px; margin:0 0 3px;">Land</p>
+                    <p style="font-size:16px; font-weight:700; margin:0;
+                        color:{% if advisory.recommended_type == 'land' %}#22c55e{% elif shipment.shipment_type == 'land' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                        {{ advisory.land_score|floatformat:3 }}</p>
+                    {% if advisory.recommended_type == 'land' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+                    {% elif shipment.shipment_type == 'land' %}<p style="color:#3b82f6; font-size:9px; margin:2px 0 0;">declared</p>{% endif %}
                 </div>
             </div>
 

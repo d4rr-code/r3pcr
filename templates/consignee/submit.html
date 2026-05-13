@@ -46,7 +46,7 @@
                         — What mode is this shipment arriving by?
                     </span>
                 </label>
-                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px;">
                     <label style="cursor:pointer;">
                         <input type="radio" name="shipment_type" value="air" required
                                style="display:none;" onchange="highlightMode(this)">
@@ -78,6 +78,17 @@
                             <div style="font-size:28px; margin-bottom:6px;">📦</div>
                             <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">FCL</p>
                             <p style="color:#64748b; font-size:11px; margin:4px 0 0;">Full container</p>
+                        </div>
+                    </label>
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="shipment_type" value="land"
+                               style="display:none;" onchange="highlightMode(this)">
+                        <div class="mode-card" data-mode="land"
+                             style="border:2px solid #334155; border-radius:10px; padding:16px 12px;
+                                    text-align:center; transition:all 0.15s; background:#0f172a;">
+                            <div style="font-size:28px; margin-bottom:6px;">🚛</div>
+                            <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">Land Freight</p>
+                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">Road transport</p>
                         </div>
                     </label>
                 </div>
