@@ -53,6 +53,14 @@ class DutyComputation(models.Model):
     def __str__(self):
         return f"Computation for {self.shipment.hawb_number}"
 
+    @property
+    def total_duties_and_taxes(self):
+        """CUD + VAT — the portion paid to Bureau of Customs."""
+        cud = self.customs_duty or 0
+        vat = self.vat_amount or 0
+        total = cud + vat
+        return total if total else None
+
     def get_items(self):
         import json
         if self.items_json:
@@ -65,6 +73,7 @@ class ShippingAdvisory(models.Model):
         ('lcl', 'LCL - Less Container Load'),
         ('fcl', 'FCL - Full Container Load'),
         ('air', 'Air Freight'),
+        ('land', 'Land Freight'),
     ]
 
     shipment = models.OneToOneField(
@@ -76,9 +85,10 @@ class ShippingAdvisory(models.Model):
     urgency_level = models.CharField(max_length=10)
     distance_km = models.DecimalField(max_digits=10, decimal_places=2)
 
-    lcl_score = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
-    fcl_score = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
-    air_score = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
+    lcl_score  = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
+    fcl_score  = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
+    air_score  = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
+    land_score = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
 
     recommended_type = models.CharField(
         max_length=10, choices=SHIPPING_TYPE_CHOICES, null=True, blank=True

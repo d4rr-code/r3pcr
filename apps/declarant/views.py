@@ -159,11 +159,15 @@ def process_shipment(request, shipment_id):
     if request.session.get('ocr_shipment_id') == shipment_id:
         ocr_fields = request.session.get('ocr_fields')
 
+    # OCR toast survives fetch→reload cycle (Django messages don't)
+    ocr_toast = request.session.pop('ocr_toast', None)
+
     context = {
         'shipment':    shipment,
         'documents':   documents,
         'status_logs': status_logs,
         'ocr_fields':  ocr_fields,
+        'ocr_toast':   ocr_toast,
     }
     return render(request, 'declarant/process.html', context)
 

@@ -16,10 +16,12 @@ def extract_text_from_file(file_path):
     ext = os.path.splitext(file_path)[1].lower()
     try:
         if ext == '.pdf':
+            # POPPLER_PATH env var: set on Windows dev, leave unset on Linux/Railway
+            poppler_path = os.getenv('POPPLER_PATH') or None
             images = convert_from_path(
                 file_path,
                 dpi=300,
-                poppler_path=r'C:\Users\Francis\Downloads\poppler\poppler-25.12.0\Library\bin'
+                poppler_path=poppler_path,
             )
             text = ''
             for image in images:
@@ -83,7 +85,9 @@ def _extract_line_items(text):
         if len(desc_part) < 3:
             continue
 
-        amount_str = m.lastgroup and m.group(m.lastindex)
+        amount_str = m.group(m.lastindex) if m.lastindex else None
+        if not amount_str:
+            continue
         try:
             amount = float(amount_str.replace(',', ''))
         except (ValueError, TypeError):

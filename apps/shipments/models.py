@@ -17,6 +17,7 @@ class Shipment(models.Model):
         ('lcl', 'LCL - Less Container Load'),
         ('fcl', 'FCL - Full Container Load'),
         ('air', 'Air Freight'),
+        ('land', 'Land Freight'),
     ]
 
     URGENCY_CHOICES = [
