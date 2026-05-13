@@ -17,6 +17,8 @@ DEBUG = os.getenv('DEBUG') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',')
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -120,7 +122,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.User'
 
 # Email (Gmail SMTP)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST          = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT          = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS       = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
