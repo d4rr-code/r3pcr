@@ -198,6 +198,75 @@
     animation: spin 0.75s linear infinite;
     margin-bottom: 8px;
 }
+/* ── HS Code Picker ──────────────────────────────────────────────────────── */
+.hs-picker { position: relative; }
+.hs-search-input {
+    width: 130px;
+    font-size: 11px;
+    padding: 4px 6px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    color: #f1f5f9;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+.hs-search-input:focus { outline: none; border-color: #3b82f6; }
+.hs-search-input.hs-selected { border-color: #22c55e; color: #86efac; }
+.hs-results {
+    display: none;
+    position: fixed;
+    z-index: 9500;
+    min-width: 320px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #1e293b;
+    border: 1px solid #3b82f6;
+    border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+}
+.hs-results.open { display: block; }
+.hs-result-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #0f172a;
+    transition: background 0.1s;
+}
+.hs-result-item:last-child { border-bottom: none; }
+.hs-result-item:hover, .hs-result-item.active { background: #334155; }
+.hs-code-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #3b82f6;
+    white-space: nowrap;
+    min-width: 80px;
+}
+.hs-desc-text {
+    font-size: 10px;
+    color: #94a3b8;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.hs-rate-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: #f59e0b;
+    white-space: nowrap;
+    background: #422006;
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+.hs-no-results {
+    padding: 10px;
+    color: #475569;
+    font-size: 11px;
+    text-align: center;
+}
 </style>
 {% endblock %}
 
@@ -343,25 +412,6 @@
     <p class="card-title" style="margin-bottom:10px;">Parameters</p>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
         <div>
-            <label class="form-label" style="font-size:11px;">HS Code</label>
-            <select name="hs_code" class="form-input" style="padding:6px 8px; font-size:12px;"
-                    onchange="updateDutyRate(this)">
-                <option value="">— Select —</option>
-                {% for hs in hs_codes %}
-                <option value="{{ hs.id }}" data-rate="{{ hs.duty_rate }}"
-                    {% if existing and existing.hs_code and existing.hs_code.id == hs.id %}selected{% endif %}>
-                    {{ hs.code }} ({{ hs.duty_rate }}%)
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label class="form-label" style="font-size:11px;">Duty Rate (%)</label>
-            <input type="number" name="duty_rate" id="duty_rate" class="form-input"
-                   style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="e.g. 5"
-                   value="{{ existing.duty_rate|default:'' }}" required>
-        </div>
-        <div>
             <label class="form-label" style="font-size:11px;">Exchange Rate (USD→PHP)</label>
             <input type="number" name="exchange_rate" id="exchange_rate" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="0.000001"
@@ -401,15 +451,17 @@
         <table class="ecdt-table" id="ecdt-table">
             <colgroup>
                 <col style="width:28px">  <!-- # -->
-                <col style="width:130px"> <!-- Description -->
-                <col style="width:72px">  <!-- EXW -->
-                <col style="width:52px">  <!-- Qty -->
-                <col style="width:62px">  <!-- Freight -->
-                <col style="width:62px">  <!-- Insurance -->
-                <col style="width:52px">  <!-- O/C -->
-                <col style="width:68px">  <!-- D/V USD -->
-                <col style="width:72px">  <!-- D/V PHP -->
-                <col style="width:72px">  <!-- CUD -->
+                <col style="width:120px"> <!-- Description -->
+                <col style="width:70px">  <!-- EXW -->
+                <col style="width:46px">  <!-- Qty -->
+                <col style="width:130px"> <!-- HS Code -->
+                <col style="width:48px">  <!-- Rate% -->
+                <col style="width:58px">  <!-- Freight -->
+                <col style="width:58px">  <!-- Insurance -->
+                <col style="width:50px">  <!-- O/C -->
+                <col style="width:64px">  <!-- D/V USD -->
+                <col style="width:68px">  <!-- D/V PHP -->
+                <col style="width:68px">  <!-- CUD -->
                 <col style="width:28px">  <!-- del -->
             </colgroup>
             <thead>
@@ -418,6 +470,8 @@
                     <th style="text-align:left;">Description</th>
                     <th>EXW $</th>
                     <th>Qty</th>
+                    <th style="text-align:left;">HS Code</th>
+                    <th>Rate%</th>
                     <th>Freight $</th>
                     <th>Ins. $</th>
                     <th>O/C $</th>
@@ -434,7 +488,7 @@
                     <td style="color:#64748b; font-size:11px;">{{ item.no }}</td>
                     <td>
                         <input class="ecdt-input" type="text" name="description[]"
-                               value="{{ item.description }}" placeholder="Item..." style="width:120px;">
+                               value="{{ item.description }}" placeholder="Item..." style="width:110px;">
                     </td>
                     <td>
                         <input class="ecdt-input exw-input" type="number" name="exw_value[]"
@@ -444,6 +498,19 @@
                     <td>
                         <input class="ecdt-input" type="number" name="quantity[]"
                                step="1" value="{{ item.quantity }}" placeholder="0">
+                    </td>
+                    <td>
+                        <div class="hs-picker" data-selected-id="{{ item.hs_code_id|default:'' }}">
+                            <input type="text" class="hs-search-input" placeholder="Search code or item..." autocomplete="off">
+                            <input type="hidden" name="hs_code_id[]" value="{{ item.hs_code_id|default:'' }}">
+                            <div class="hs-results"></div>
+                        </div>
+                    </td>
+                    <td>
+                        <input class="ecdt-input rate-input" type="number" name="item_duty_rate[]"
+                               step="0.01" placeholder="0"
+                               value="{{ item.duty_rate|default:'' }}"
+                               oninput="recalcAll()" style="width:44px;">
                     </td>
                     <td class="calc" data-field="freight">{% if item.item_freight %}{{ item.item_freight|floatformat:2 }}{% endif %}</td>
                     <td class="calc" data-field="ins">{% if item.item_insurance %}{{ item.item_insurance|floatformat:2 }}{% endif %}</td>
@@ -458,9 +525,17 @@
                 {% else %}
                 <tr>
                     <td style="color:#64748b; font-size:11px;">1</td>
-                    <td><input class="ecdt-input" type="text" name="description[]" placeholder="Item..." style="width:120px;"></td>
+                    <td><input class="ecdt-input" type="text" name="description[]" placeholder="Item..." style="width:110px;"></td>
                     <td><input class="ecdt-input exw-input" type="number" name="exw_value[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
                     <td><input class="ecdt-input" type="number" name="quantity[]" step="1" placeholder="0"></td>
+                    <td>
+                        <div class="hs-picker">
+                            <input type="text" class="hs-search-input" placeholder="Search code or item..." autocomplete="off">
+                            <input type="hidden" name="hs_code_id[]" value="">
+                            <div class="hs-results"></div>
+                        </div>
+                    </td>
+                    <td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" step="0.01" placeholder="0" oninput="recalcAll()" style="width:44px;"></td>
                     <td class="calc" data-field="freight">—</td>
                     <td class="calc" data-field="ins">—</td>
                     <td class="calc" data-field="oc">—</td>
@@ -676,7 +751,7 @@
             <span style="color:#fcd34d; font-size:16px;">⚠</span>
             <p style="color:#fde68a; font-size:12px; font-weight:600; margin:0;">
                 Not the optimal mode for this shipment. Consider
-                <strong>{% if wmcda_recommended == 'air' %}Air Freight ✈️{% elif wmcda_recommended == 'lcl' %}LCL 🚢{% else %}FCL 📦{% endif %}</strong>
+                <strong>{% if wmcda_recommended == 'air' %}Air Freight ✈️{% elif wmcda_recommended == 'lcl' %}LCL 🚢{% elif wmcda_recommended == 'land' %}Land Freight 🚛{% else %}FCL 📦{% endif %}</strong>
                 for future shipments.
             </p>
         </div>
@@ -684,8 +759,8 @@
     </div>
     {% endif %}
 
-    <!-- ── COMPACT: All 3 mode scores strip ────────────────────────── -->
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px;">
+    <!-- ── COMPACT: All 4 mode scores strip ────────────────────────── -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; margin-bottom:10px;">
         {% with sa=wmcda_scores.air %}
         <div style="background:#0f172a; border-radius:8px; padding:8px 10px; text-align:center;
                     border:1px solid {% if wmcda_recommended == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#1e293b{% endif %};">
@@ -731,6 +806,21 @@
             {% endif %}
         </div>
         {% endwith %}
+        {% with sland=wmcda_scores.land %}
+        <div style="background:#0f172a; border-radius:8px; padding:8px 10px; text-align:center;
+                    border:1px solid {% if wmcda_recommended == 'land' %}#22c55e{% elif shipment.shipment_type == 'land' %}#3b82f6{% else %}#1e293b{% endif %};">
+            <p style="margin:0; font-size:14px;">🚛</p>
+            <p style="color:#94a3b8; font-size:10px; margin:2px 0;">Land</p>
+            <p style="margin:0; font-size:13px; font-weight:700;
+                color:{% if wmcda_recommended == 'land' %}#22c55e{% elif shipment.shipment_type == 'land' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                {{ sland|floatformat:3 }}</p>
+            {% if wmcda_recommended == 'land' %}
+            <p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+            {% elif shipment.shipment_type == 'land' %}
+            <p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>
+            {% endif %}
+        </div>
+        {% endwith %}
     </div>
 
     <!-- ── RECOMMENDATION: Only shown when declared ≠ recommended ─── -->
@@ -743,12 +833,16 @@
         </p>
         <div style="display:flex; align-items:center; gap:10px;">
             <span style="font-size:22px;">
-                {% if wmcda_recommended == 'air' %}✈️{% elif wmcda_recommended == 'lcl' %}🚢{% else %}📦{% endif %}
+                {% if wmcda_recommended == 'air' %}✈️
+                {% elif wmcda_recommended == 'lcl' %}🚢
+                {% elif wmcda_recommended == 'land' %}🚛
+                {% else %}📦{% endif %}
             </span>
             <div style="flex:1;">
                 <p style="color:#f1f5f9; font-size:14px; font-weight:700; margin:0;">
                     {% if wmcda_recommended == 'air' %}Air Freight
                     {% elif wmcda_recommended == 'lcl' %}LCL (Less than Container Load)
+                    {% elif wmcda_recommended == 'land' %}Land Freight
                     {% else %}FCL (Full Container Load){% endif %}
                 </p>
                 {% if wmcda_explanation %}
@@ -758,6 +852,7 @@
             <span style="font-size:16px; font-weight:800; color:#22c55e;">
                 {% if wmcda_recommended == 'air' %}{{ wmcda_scores.air|floatformat:3 }}
                 {% elif wmcda_recommended == 'lcl' %}{{ wmcda_scores.lcl|floatformat:3 }}
+                {% elif wmcda_recommended == 'land' %}{{ wmcda_scores.land|floatformat:3 }}
                 {% else %}{{ wmcda_scores.fcl|floatformat:3 }}{% endif %}
             </span>
         </div>
@@ -804,6 +899,11 @@ var ocrData = {
     {% endif %}
 };
 
+// HS Codes list — includes description for searchable picker
+var hsCodesData = [
+    {% for hs in hs_codes %}{id: {{ hs.id }}, code: '{{ hs.code|escapejs }}', rate: {{ hs.duty_rate }}, desc: '{{ hs.description|truncatechars:60|escapejs }}'}{% if not forloop.last %},{% endif %}{% endfor %}
+];
+
 // Multi-item list extracted by OCR (from invoice/packing list line items)
 var ocrItems = [
     {% if ocr_items %}
@@ -817,16 +917,147 @@ var ocrItems = [
     {% endif %}
 ];
 
+// ── HS Code Searchable Picker ─────────────────────────────────────────────────
+
+function _filterHsCodes(query) {
+    if (!query) return hsCodesData.slice(0, 40); // show first 40 when empty
+    var q = query.toLowerCase();
+    return hsCodesData.filter(function(hs) {
+        return hs.code.toLowerCase().includes(q) || hs.desc.toLowerCase().includes(q);
+    }).slice(0, 50);
+}
+
+function _positionHsResults(picker) {
+    var input   = picker.querySelector('.hs-search-input');
+    var results = picker.querySelector('.hs-results');
+    var rect    = input.getBoundingClientRect();
+    results.style.top   = (rect.bottom + 2) + 'px';
+    results.style.left  = rect.left + 'px';
+    results.style.width = Math.max(rect.width, 320) + 'px';
+}
+
+function _renderHsResults(picker, query) {
+    var results = picker.querySelector('.hs-results');
+    var matches = _filterHsCodes(query);
+    if (matches.length === 0) {
+        results.innerHTML = '<div class="hs-no-results">No HS codes found for "' + query + '"</div>';
+    } else {
+        results.innerHTML = matches.map(function(hs) {
+            return '<div class="hs-result-item" data-id="' + hs.id + '" data-rate="' + hs.rate + '" data-code="' + hs.code + '">' +
+                   '<span class="hs-code-badge">' + hs.code + '</span>' +
+                   '<span class="hs-desc-text">' + hs.desc + '</span>' +
+                   '<span class="hs-rate-badge">' + hs.rate + '%</span>' +
+                   '</div>';
+        }).join('');
+        // Attach click handlers
+        results.querySelectorAll('.hs-result-item').forEach(function(item) {
+            item.addEventListener('mousedown', function(e) {
+                e.preventDefault(); // prevent blur before click
+                _selectHsItem(picker, item.dataset.id, item.dataset.code, parseFloat(item.dataset.rate));
+            });
+        });
+    }
+    _positionHsResults(picker);
+    results.classList.add('open');
+}
+
+function _selectHsItem(picker, id, code, rate) {
+    var searchInput = picker.querySelector('.hs-search-input');
+    var hiddenInput = picker.querySelector('input[name="hs_code_id[]"]');
+    searchInput.value = code;
+    searchInput.classList.add('hs-selected');
+    hiddenInput.value = id;
+    picker.querySelector('.hs-results').classList.remove('open');
+
+    // Update rate-input in same row
+    var tr = picker.closest('tr');
+    if (tr) {
+        var rateInput = tr.querySelector('.rate-input');
+        if (rateInput) { rateInput.value = rate; }
+    }
+    recalcAll();
+}
+
+function initHsPicker(picker) {
+    var searchInput = picker.querySelector('.hs-search-input');
+    var hiddenInput = picker.querySelector('input[name="hs_code_id[]"]');
+
+    // Pre-fill from data-selected-id on page load
+    var preId = picker.dataset.selectedId;
+    if (preId) {
+        var preHs = hsCodesData.find(function(h) { return String(h.id) === String(preId); });
+        if (preHs) {
+            searchInput.value = preHs.code;
+            searchInput.classList.add('hs-selected');
+        }
+    }
+
+    searchInput.addEventListener('focus', function() {
+        _renderHsResults(picker, this.value);
+    });
+
+    searchInput.addEventListener('input', function() {
+        searchInput.classList.remove('hs-selected');
+        hiddenInput.value = '';
+        _renderHsResults(picker, this.value);
+    });
+
+    searchInput.addEventListener('blur', function() {
+        setTimeout(function() {
+            picker.querySelector('.hs-results').classList.remove('open');
+            // If no selection made, restore previous or clear
+            if (!hiddenInput.value) {
+                searchInput.value = '';
+                searchInput.classList.remove('hs-selected');
+            } else {
+                var hs = hsCodesData.find(function(h) { return String(h.id) === String(hiddenInput.value); });
+                if (hs) searchInput.value = hs.code;
+            }
+        }, 150);
+    });
+
+    // Reposition dropdown on scroll or resize (table can scroll horizontally)
+    window.addEventListener('scroll', function() { _positionHsResults(picker); }, true);
+    window.addEventListener('resize', function() { _positionHsResults(picker); });
+
+    // Close on outside click
+    document.addEventListener('click', function(e) {
+        if (!picker.contains(e.target)) {
+            picker.querySelector('.hs-results').classList.remove('open');
+        }
+    });
+}
+
+function initAllHsPickers() {
+    document.querySelectorAll('.hs-picker').forEach(function(picker) {
+        initHsPicker(picker);
+    });
+}
+
+function _createHsPicker() {
+    var div = document.createElement('div');
+    div.className = 'hs-picker';
+    div.innerHTML =
+        '<input type="text" class="hs-search-input" placeholder="Search code or item..." autocomplete="off">' +
+        '<input type="hidden" name="hs_code_id[]" value="">' +
+        '<div class="hs-results"></div>';
+    initHsPicker(div);
+    return div;
+}
+
 function _makeRow(n, desc, exw, qty) {
     var tr = document.createElement('tr');
     tr.innerHTML =
         '<td style="color:#64748b;font-size:11px;">' + n + '</td>' +
         '<td><input class="ecdt-input" type="text" name="description[]" ' +
-             'value="' + desc.replace(/"/g,'&quot;') + '" placeholder="Item..." style="width:120px;"></td>' +
+             'value="' + desc.replace(/"/g,'&quot;') + '" placeholder="Item..." style="width:110px;"></td>' +
         '<td><input class="ecdt-input exw-input" type="number" name="exw_value[]" ' +
              'step="0.01" value="' + (exw || '') + '" placeholder="0.00" oninput="recalcAll()"></td>' +
         '<td><input class="ecdt-input" type="number" name="quantity[]" ' +
              'step="1" value="' + (qty || '') + '" placeholder="0"></td>' +
+        '<td class="hs-picker-td"></td>' +
+        '<td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" ' +
+             'step="0.01" placeholder="0" oninput="recalcAll()" style="width:44px;"></td>' +
         '<td class="calc" data-field="freight">—</td>' +
         '<td class="calc" data-field="ins">—</td>' +
         '<td class="calc" data-field="oc">—</td>' +
@@ -835,6 +1066,8 @@ function _makeRow(n, desc, exw, qty) {
         '<td class="calc" data-field="cud" style="color:#f59e0b;">—</td>' +
         '<td><button type="button" onclick="removeRow(this)" ' +
              'style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 4px;">✕</button></td>';
+    // Append picker element (can't inline HTML with event listeners cleanly)
+    tr.querySelector('.hs-picker-td').appendChild(_createHsPicker());
     return tr;
 }
 
@@ -863,11 +1096,10 @@ function fillFromOCR() {
 
 // ── Live recalculation ────────────────────────────────────────────────────────
 function recalcAll() {
-    var rows       = document.querySelectorAll('#ecdt-body tr');
-    var freight    = parseFloat(document.getElementById('total_freight').value)    || 0;
-    var insurance  = parseFloat(document.getElementById('total_insurance').value)  || 0;
-    var rate       = parseFloat(document.getElementById('exchange_rate').value)    || 0;
-    var dutyRate   = parseFloat(document.getElementById('duty_rate').value)        || 0;
+    var rows      = document.querySelectorAll('#ecdt-body tr');
+    var freight   = parseFloat(document.getElementById('total_freight').value)   || 0;
+    var insurance = parseFloat(document.getElementById('total_insurance').value) || 0;
+    var exchRate  = parseFloat(document.getElementById('exchange_rate').value)   || 0;
 
     // Sum total EXW
     var totalExw = 0;
@@ -879,14 +1111,16 @@ function recalcAll() {
     var totalDvPhp = 0, totalCud = 0;
 
     rows.forEach(function(row) {
-        var inp = row.querySelector('.exw-input');
-        var exw = parseFloat(inp ? inp.value : 0) || 0;
+        var inp      = row.querySelector('.exw-input');
+        var rateInp  = row.querySelector('.rate-input');
+        var exw      = parseFloat(inp     ? inp.value     : 0) || 0;
+        var dutyRate = parseFloat(rateInp ? rateInp.value : 0) || 0;
 
         var itemFreight   = totalExw > 0 ? (exw / totalExw) * freight   : 0;
         var itemInsurance = totalExw > 0 ? (exw / totalExw) * insurance : 0;
         var oc            = exw * 0.03;
         var dvUsd         = exw + itemFreight + itemInsurance + oc;
-        var dvPhp         = dvUsd * rate;
+        var dvPhp         = dvUsd * exchRate;
         var cud           = dvPhp * (dutyRate / 100);
 
         totalDvPhp += dvPhp;
@@ -913,21 +1147,7 @@ function recalcAll() {
 function addRow() {
     var tbody = document.getElementById('ecdt-body');
     var n     = tbody.rows.length + 1;
-    var tr    = document.createElement('tr');
-    tr.innerHTML =
-        '<td style="color:#64748b;font-size:11px;">' + n + '</td>' +
-        '<td><input class="ecdt-input" type="text" name="description[]" placeholder="Item..." style="width:120px;"></td>' +
-        '<td><input class="ecdt-input exw-input" type="number" name="exw_value[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>' +
-        '<td><input class="ecdt-input" type="number" name="quantity[]" step="1" placeholder="0"></td>' +
-        '<td class="calc" data-field="freight">—</td>' +
-        '<td class="calc" data-field="ins">—</td>' +
-        '<td class="calc" data-field="oc">—</td>' +
-        '<td class="calc" data-field="dvusd">—</td>' +
-        '<td class="calc" data-field="dvphp" style="color:#3b82f6;">—</td>' +
-        '<td class="calc" data-field="cud" style="color:#f59e0b;">—</td>' +
-        '<td><button type="button" onclick="removeRow(this)" ' +
-             'style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 4px;">✕</button></td>';
-    tbody.appendChild(tr);
+    tbody.appendChild(_makeRow(n, '', '', ''));
 }
 
 function removeRow(btn) {
@@ -942,19 +1162,19 @@ function renumber() {
     });
 }
 
-// ── HS code auto-fill ─────────────────────────────────────────────────────────
-function updateDutyRate(sel) {
-    var rate = sel.options[sel.selectedIndex].dataset.rate;
-    if (rate) {
-        document.getElementById('duty_rate').value = rate;
-        recalcAll();
-    }
-}
+// ── HS code auto-fill — handled per-row via onHsChange() ─────────────────────
 
 // ── Document viewer ───────────────────────────────────────────────────────────
 function loadDoc(url, label) {
     var area    = document.getElementById('viewer-area');
     var lbl     = document.getElementById('viewer-label');
+
+    // Make relative URLs absolute using the current origin (host + port)
+    // Avoids Chrome resolving /media/... to port 80 instead of :8000
+    if (url.startsWith('/')) {
+        url = window.location.origin + url;
+    }
+
     var ext     = url.split('?')[0].toLowerCase();
     var isPdf   = ext.endsWith('.pdf');
     var isImg   = /\.(jpe?g|png|gif|webp)$/.test(ext);
@@ -967,12 +1187,18 @@ function loadDoc(url, label) {
         'Open in new tab ↗</a>';
 
     if (isPdf) {
-        // iframe is more compatible than embed across modern browsers
         area.innerHTML =
-            '<iframe src="' + url + '" ' +
-            'style="width:100%;height:100%;border:none;display:block;" ' +
-            'allow="fullscreen">' +
-            '</iframe>';
+            '<div style="height:100%;display:flex;flex-direction:column;align-items:center;' +
+            'justify-content:center;gap:16px;background:#0f172a;padding:32px;text-align:center;">' +
+            '<div style="font-size:52px;">📄</div>' +
+            '<p style="color:#f1f5f9;font-size:15px;font-weight:600;margin:0;">' + label + '</p>' +
+            '<p style="color:#64748b;font-size:12px;margin:0;">PDF preview is not available in local development.<br>' +
+            'Click the button below to open the document.</p>' +
+            '<a href="' + url + '" target="_blank" ' +
+            'style="display:inline-flex;align-items:center;gap:8px;background:#3b82f6;color:#fff;' +
+            'font-size:13px;font-weight:600;padding:10px 24px;border-radius:8px;text-decoration:none;' +
+            'border:none;cursor:pointer;">Open PDF ↗</a>' +
+            '</div>';
     } else if (isImg) {
         area.innerHTML =
             '<div style="background:#1e293b;height:100%;display:flex;align-items:center;justify-content:center;">' +
@@ -1015,12 +1241,12 @@ function startOCR(url, docLabel) {
         });
 }
 
-// ── Also recalc when exchange rate or duty rate changes ───────────────────────
+// ── Also recalc when exchange rate changes ────────────────────────────────────
 document.getElementById('exchange_rate').addEventListener('input', recalcAll);
-document.getElementById('duty_rate').addEventListener('input', recalcAll);
 
 // Initial calc
 recalcAll();
+initAllHsPickers();
 
 // ── Drag-to-resize divider ────────────────────────────────────────────────────
 (function () {
