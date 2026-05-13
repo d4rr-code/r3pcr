@@ -7,4 +7,5 @@ pdf2image>=1.16
 gunicorn>=21.2
 whitenoise>=6.6
 dj-database-url>=2.1
+openpyxl>=3.1
 django-anymail[resend]>=10.0
