@@ -106,9 +106,16 @@ def queue_manager(request):
         status='in_review', declarant=request.user
     ).select_related('consignee')
 
+    # History: shipments I processed that are past the in-review stage
+    history = Shipment.objects.filter(
+        declarant=request.user,
+        status__in=['for_payment', 'submitted', 'approved', 'rejected'],
+    ).select_related('consignee').order_by('-updated_at')
+
     context = {
         'pending':        pending,
         'in_review':      in_review,
+        'history':        history,
         'urgency_filter': urgency_filter,
         'due_filter':     due_filter,
     }
