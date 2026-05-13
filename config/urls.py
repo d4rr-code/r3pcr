@@ -70,5 +70,5 @@ urlpatterns = [
     path('notifications/', include('apps.notifications.urls', namespace='notifications')),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve media files in all environments (Railway uses ephemeral storage — acceptable for demo)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
