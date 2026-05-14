@@ -160,6 +160,101 @@ body {
     color: white;
 }
 
+/* ─── Sidebar collapse toggle button ─────────────────────────────────────── */
+#sidebar-toggle {
+    position: absolute;
+    top: 50%;
+    right: -20px;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 56px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    font-size: 14px;
+    z-index: 200;
+    transition: background 0.2s, color 0.2s, width 0.2s;
+    line-height: 1;
+    box-shadow: 3px 0 8px rgba(0,0,0,0.3);
+}
+#sidebar-toggle:hover {
+    background: #3b82f6;
+    color: #fff;
+    width: 26px;
+    border-color: #3b82f6;
+    box-shadow: 4px 0 12px rgba(59,130,246,0.4);
+}
+#sidebar-toggle svg {
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+}
+
+/* ─── Collapsed sidebar state ────────────────────────────────────────────── */
+.sidebar {
+    transition: width 0.25s ease;
+    overflow: visible; /* allow toggle button to stick out */
+}
+.main-content {
+    transition: margin-left 0.25s ease;
+}
+
+.nav-text {
+    transition: opacity 0.2s, width 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.notif-badge {
+    transition: opacity 0.2s;
+}
+
+body.sidebar-collapsed .sidebar {
+    width: 56px;
+}
+body.sidebar-collapsed .main-content {
+    margin-left: 56px;
+}
+body.sidebar-collapsed .sidebar-logo {
+    padding: 16px 0;
+    text-align: center;
+}
+body.sidebar-collapsed .sidebar-logo .logo-text {
+    display: none;
+}
+body.sidebar-collapsed .sidebar-logo .logo-icon {
+    display: block;
+}
+body.sidebar-collapsed .nav-item {
+    justify-content: center;
+    padding: 10px 0;
+}
+body.sidebar-collapsed .nav-text {
+    display: none;
+}
+body.sidebar-collapsed .notif-badge {
+    display: none;
+}
+body.sidebar-collapsed .sidebar-footer {
+    padding: 12px 0;
+    text-align: center;
+}
+body.sidebar-collapsed .user-info {
+    display: none;
+}
+body.sidebar-collapsed .logout-btn {
+    padding: 8px 0;
+    font-size: 16px;
+    letter-spacing: 0;
+}
+body.sidebar-collapsed .logout-btn .logout-text {
+    display: none;
+}
+
 /* ─── Main Content ────────────────────────────────────────────────────────── */
 .main-content {
     margin-left: 260px;

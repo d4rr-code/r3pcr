@@ -61,7 +61,7 @@ DESCRIPTIONS = [
     'Chemical reagents and laboratory supplies',
 ]
 
-IMPORT_TYPES = ['permanent', 'repair', 'sample']
+IMPORT_TYPES = ['commercial', 'personal', 'balik_bayan', 'courier', 'sample', 'diplomatic']
 SHIP_TYPES   = ['lcl', 'fcl', 'air']
 URGENCIES    = ['normal', 'urgent']
 

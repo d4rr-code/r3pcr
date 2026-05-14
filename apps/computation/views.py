@@ -1,4 +1,6 @@
 import json
+import os
+import tempfile
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -37,7 +39,7 @@ def get_ipf(taxable_value):
 
 # ─── Per-Item ECDT Formula ────────────────────────────────────────────────────
 
-def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate, duty_rate):
+def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate):
     total_exw = sum(Decimal(str(item['exw_usd'])) for item in items_data)
     if total_exw <= 0:
         total_exw = Decimal('0')
@@ -47,7 +49,8 @@ def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate, duty
     total_cud      = Decimal('0')
 
     for i, item in enumerate(items_data):
-        exw = Decimal(str(item['exw_usd']))
+        exw        = Decimal(str(item['exw_usd']))
+        duty_rate  = Decimal(str(item.get('duty_rate', 0) or 0))
         if total_exw > 0:
             item_freight   = (exw / total_exw) * total_freight
             item_insurance = (exw / total_exw) * total_insurance
@@ -65,6 +68,8 @@ def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate, duty
             'no':             i + 1,
             'description':    item.get('description', ''),
             'quantity':       item.get('quantity', ''),
+            'hs_code_id':     item.get('hs_code_id', ''),
+            'duty_rate':      float(duty_rate),
             'exw':            float(round(exw, 2)),
             'item_freight':   float(round(item_freight, 2)),
             'item_insurance': float(round(item_insurance, 2)),
@@ -103,16 +108,38 @@ def ocr_extract(request, shipment_id, doc_id):
     shipment = get_object_or_404(Shipment, id=shipment_id)
     doc      = get_object_or_404(ShipmentDocument, id=doc_id, shipment=shipment)
     try:
-        fields, _ = process_document(doc.file.path, doc.document_type)
-        if fields:
-            request.session['ocr_fields']      = fields
-            request.session['ocr_shipment_id'] = shipment_id
-            found = sum(1 for v in fields.values() if isinstance(v, dict) and v.get('value'))
-            messages.success(request, f'OCR complete — {found} fields extracted. Review below.')
-        else:
-            messages.warning(request, 'OCR ran but found no structured fields. Fill in manually.')
+        # Download file to a temp path (works for both local and S3/Supabase storage)
+        ext = os.path.splitext(doc.file.name)[1] or '.pdf'
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            doc.file.open('rb')
+            tmp.write(doc.file.read())
+            doc.file.close()
+            tmp_path = tmp.name
+        try:
+            print(f'[OCR] Starting: {doc.file.name} | type={doc.document_type}')
+            fields, raw_text = process_document(tmp_path, doc.document_type)
+            print(f'[OCR] Raw text length: {len(raw_text) if raw_text else 0} chars')
+            print(f'[OCR] Fields returned: {list(fields.keys()) if fields else None}')
+
+            if fields:
+                line_items = fields.pop('__items__', [])
+                request.session['ocr_fields']      = fields
+                request.session['ocr_items']       = line_items
+                request.session['ocr_shipment_id'] = shipment_id
+                found    = sum(1 for v in fields.values() if isinstance(v, dict) and v.get('value'))
+                item_msg = f', {len(line_items)} line items detected' if line_items else ''
+                request.session['ocr_toast'] = ('success', f'OCR complete — {found} fields extracted{item_msg}.')
+                print(f'[OCR] Success: {found} fields, {len(line_items)} items')
+            else:
+                request.session['ocr_toast'] = ('warning', 'OCR ran but found no structured fields. Fill in manually.')
+                print(f'[OCR] No fields extracted. Raw text snippet: {repr(raw_text[:200]) if raw_text else "EMPTY"}')
+        finally:
+            os.unlink(tmp_path)
     except Exception as e:
-        messages.error(request, f'OCR failed: {e}')
+        import traceback
+        print(f'[OCR] Exception: {e}')
+        traceback.print_exc()
+        request.session['ocr_toast'] = ('error', f'OCR failed: {e}')
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
@@ -120,27 +147,52 @@ def ocr_extract(request, shipment_id, doc_id):
 
 @login_required
 def compute_shipment(request, shipment_id):
-    shipment = get_object_or_404(Shipment, id=shipment_id)
-    hs_codes = HSCode.objects.filter(is_active=True)
-    existing = DutyComputation.objects.filter(shipment=shipment).first()
-    result   = None
-    items    = None
+    shipment    = get_object_or_404(Shipment, id=shipment_id)
+    hs_codes    = HSCode.objects.filter(is_active=True)
+    existing    = DutyComputation.objects.filter(shipment=shipment).first()
+    advisory_ex = getattr(shipment, 'shipping_advisory', None)
+    documents   = shipment.documents.all()
+
+    result      = None
+    items       = None
+    wmcda_scores      = None
+    wmcda_recommended = None
+    wmcda_breakdown   = None
+    wmcda_explanation = None
+    wmcda_history     = None
+
+    # ── Pull default exchange rate from SystemConfig ──
+    try:
+        default_rate = SystemConfig.objects.get(key='exchange_rate').value
+    except SystemConfig.DoesNotExist:
+        default_rate = '59.1480'
 
     if request.method == 'POST':
         try:
             total_freight   = Decimal(request.POST.get('total_freight',   '0') or '0')
             total_insurance = Decimal(request.POST.get('total_insurance', '0') or '0')
-            exchange_rate   = Decimal(request.POST.get('exchange_rate',   '0') or '0')
-            duty_rate       = Decimal(request.POST.get('duty_rate',       '0') or '0')
-            hs_code_id      = request.POST.get('hs_code')
+            exchange_rate   = Decimal(request.POST.get('exchange_rate',   default_rate) or default_rate)
 
-            descriptions = request.POST.getlist('description[]')
-            exw_values   = request.POST.getlist('exw_value[]')
-            quantities   = request.POST.getlist('quantity[]')
+            descriptions  = request.POST.getlist('description[]')
+            exw_values    = request.POST.getlist('exw_value[]')
+            quantities    = request.POST.getlist('quantity[]')
+            hs_code_ids   = request.POST.getlist('hs_code_id[]')
+            duty_rates    = request.POST.getlist('item_duty_rate[]')
+
+            # Pad lists to same length as descriptions
+            n = len(descriptions)
+            hs_code_ids = (hs_code_ids + [''] * n)[:n]
+            duty_rates  = (duty_rates  + ['0'] * n)[:n]
 
             items_data = [
-                {'description': d.strip(), 'exw_usd': e, 'quantity': q}
-                for d, e, q in zip(descriptions, exw_values, quantities)
+                {
+                    'description': d.strip(),
+                    'exw_usd':     e,
+                    'quantity':    q,
+                    'hs_code_id':  h,
+                    'duty_rate':   dr or '0',
+                }
+                for d, e, q, h, dr in zip(descriptions, exw_values, quantities, hs_code_ids, duty_rates)
                 if e and float(e) > 0
             ]
             if not items_data:
@@ -148,14 +200,17 @@ def compute_shipment(request, shipment_id):
                 raise ValueError('no items')
 
             items, summary = compute_ecdt(
-                items_data, total_freight, total_insurance, exchange_rate, duty_rate
+                items_data, total_freight, total_insurance, exchange_rate
             )
             result = summary
 
+            # Use first item's HS code + duty rate for model-level fields
+            first_hs_id   = next((it['hs_code_id'] for it in items_data if it.get('hs_code_id')), None)
+            first_dr      = Decimal(str(items_data[0].get('duty_rate', 0) or 0)) if items_data else Decimal('0')
             hs_code = None
-            if hs_code_id:
+            if first_hs_id:
                 try:
-                    hs_code = HSCode.objects.get(id=hs_code_id)
+                    hs_code = HSCode.objects.get(id=first_hs_id)
                 except HSCode.DoesNotExist:
                     pass
 
@@ -164,24 +219,78 @@ def compute_shipment(request, shipment_id):
             DutyComputation.objects.update_or_create(
                 shipment=shipment,
                 defaults={
-                    'hs_code':          hs_code,
-                    'total_freight':    total_freight,
-                    'total_insurance':  total_insurance,
-                    'exchange_rate':    exchange_rate,
-                    'duty_rate':        duty_rate,
-                    'declared_value':   total_exw,
-                    'items_json':       json.dumps(items),
-                    'dutiable_value':   summary['taxable_value'],
-                    'customs_duty':     summary['customs_duties'],
-                    'vat_base':         summary['vat_base'],
-                    'vat_amount':       summary['vat'],
-                    'brokerage_fee':    summary['brokerage_fee'],
-                    'ipf':              summary['ipf'],
+                    'hs_code':           hs_code,
+                    'total_freight':     total_freight,
+                    'total_insurance':   total_insurance,
+                    'exchange_rate':     exchange_rate,
+                    'duty_rate':         first_dr,
+                    'declared_value':    total_exw,
+                    'items_json':        json.dumps(items),
+                    'dutiable_value':    summary['taxable_value'],
+                    'customs_duty':      summary['customs_duties'],
+                    'vat_base':          summary['vat_base'],
+                    'vat_amount':        summary['vat'],
+                    'brokerage_fee':     summary['brokerage_fee'],
+                    'ipf':               summary['ipf'],
                     'total_landed_cost': summary['total_landed_cost'],
-                    'computed_by':      request.user,
+                    'computed_by':       request.user,
                 }
             )
 
+            # ── Auto-run WMCDA alongside ECDT ──────────────────────────────────
+            try:
+                wmcda_weight   = float(shipment.gross_weight or 0)
+                wmcda_volume   = float(request.POST.get('cargo_volume', 0) or 0)
+                wmcda_value    = float(total_exw)
+                wmcda_urgency  = shipment.urgency or 'normal'
+                wmcda_distance = float(request.POST.get('distance_km', 2600) or 2600)
+
+                wmcda_scores, wmcda_recommended, wmcda_breakdown, wmcda_explanation = compute_wmcda(
+                    wmcda_weight, wmcda_volume, wmcda_value, wmcda_urgency, wmcda_distance
+                )
+
+                ShippingAdvisory.objects.update_or_create(
+                    shipment=shipment,
+                    defaults={
+                        'gross_weight':     wmcda_weight,
+                        'cargo_volume':     wmcda_volume,
+                        'declared_value':   wmcda_value,
+                        'urgency_level':    wmcda_urgency,
+                        'distance_km':      wmcda_distance,
+                        'lcl_score':        wmcda_scores['lcl'],
+                        'fcl_score':        wmcda_scores['fcl'],
+                        'air_score':        wmcda_scores['air'],
+                        'land_score':       wmcda_scores['land'],
+                        'recommended_type': wmcda_recommended,
+                        'computed_by':      request.user,
+                    }
+                )
+
+                # ── Historical recommendation ──────────────────────────────────
+                if shipment.shipment_type:
+                    past = (
+                        ShippingAdvisory.objects
+                        .filter(shipment__shipment_type=shipment.shipment_type,
+                                recommended_type__isnull=False)
+                        .exclude(shipment=shipment)
+                        .values_list('recommended_type', flat=True)
+                    )
+                    if past:
+                        from collections import Counter
+                        counts   = Counter(past)
+                        top_mode = counts.most_common(1)[0]
+                        pct      = round(top_mode[1] / len(past) * 100)
+                        wmcda_history = {
+                            'total':       len(past),
+                            'top_mode':    top_mode[0],
+                            'top_pct':     pct,
+                            'mode_label':  {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL', 'land': 'Land Freight'}.get(top_mode[0], top_mode[0].upper()),
+                            'ship_type':   shipment.get_shipment_type_display(),
+                        }
+            except Exception as wmcda_err:
+                print(f'WMCDA auto-compute error: {wmcda_err}')
+
+            # ── Notify consignee ───────────────────────────────────────────────
             try:
                 from apps.notifications.utils import create_notification
                 create_notification(
@@ -193,7 +302,7 @@ def compute_shipment(request, shipment_id):
             except Exception:
                 pass
 
-            messages.success(request, 'Computation saved!')
+            messages.success(request, 'Computation & shipping analysis saved!')
 
         except ValueError:
             pass
@@ -202,28 +311,107 @@ def compute_shipment(request, shipment_id):
             items = result = None
 
     else:
+        # ── GET: pre-load saved data ───────────────────────────────────────────
         if existing:
             items = existing.get_items()
-        elif request.GET.get('ocr') == '1':
+
+        if advisory_ex:
+            wmcda_scores = {
+                'lcl':  float(advisory_ex.lcl_score  or 0),
+                'fcl':  float(advisory_ex.fcl_score  or 0),
+                'air':  float(advisory_ex.air_score  or 0),
+                'land': float(advisory_ex.land_score or 0),
+            }
+            wmcda_recommended = advisory_ex.recommended_type
+            try:
+                _, _, wmcda_breakdown, wmcda_explanation = compute_wmcda(
+                    float(advisory_ex.gross_weight),
+                    float(advisory_ex.cargo_volume),
+                    float(advisory_ex.declared_value),
+                    advisory_ex.urgency_level,
+                    float(advisory_ex.distance_km),
+                )
+            except Exception:
+                pass
+
+        # OCR pre-fill
+        if not items and request.GET.get('ocr') == '1':
             ocr = request.session.get('ocr_fields', {})
             if ocr:
                 def _val(k):
                     v = ocr.get(k, {})
                     return v.get('value', '') if isinstance(v, dict) else v
                 items = [{
-                    'no': 1,
-                    'description': _val('description'),
+                    'no': 1, 'description': _val('description'),
                     'exw': _val('declared_value'),
                     'quantity': _val('total_quantity') or '1',
                     'dv_php': None, 'cud': None,
+                    'item_freight': None, 'item_insurance': None,
+                    'other_charges': None, 'dv_usd': None,
                 }]
 
+        # Historical on load
+        if shipment.shipment_type:
+            past = (
+                ShippingAdvisory.objects
+                .filter(shipment__shipment_type=shipment.shipment_type,
+                        recommended_type__isnull=False)
+                .exclude(shipment=shipment)
+                .values_list('recommended_type', flat=True)
+            )
+            if past:
+                from collections import Counter
+                counts   = Counter(past)
+                top_mode = counts.most_common(1)[0]
+                pct      = round(top_mode[1] / len(past) * 100)
+                wmcda_history = {
+                    'total':       len(past),
+                    'top_mode':    top_mode[0],
+                    'top_pct':     pct,
+                    'mode_label':  {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL', 'land': 'Land Freight'}.get(top_mode[0], top_mode[0].upper()),
+                    'ship_type':   shipment.get_shipment_type_display(),
+                }
+
+    ocr_fields = request.session.get('ocr_fields', {}) if request.session.get('ocr_shipment_id') == shipment_id else {}
+    ocr_items  = request.session.get('ocr_items',  []) if request.session.get('ocr_shipment_id') == shipment_id else []
+
+    # ── Declared mode focused breakdown ──────────────────────────────────────────
+    declared_score     = None
+    declared_breakdown = None
+    declared_rating    = None
+    if wmcda_scores and shipment.shipment_type:
+        declared_score = wmcda_scores.get(shipment.shipment_type)
+        if wmcda_breakdown:
+            declared_breakdown = wmcda_breakdown.get(shipment.shipment_type)
+        if declared_score is not None:
+            if declared_score >= 0.80:
+                declared_rating = 'Excellent'
+            elif declared_score >= 0.65:
+                declared_rating = 'Good'
+            elif declared_score >= 0.50:
+                declared_rating = 'Fair'
+            else:
+                declared_rating = 'Poor'
+
     context = {
-        'shipment': shipment,
-        'hs_codes': hs_codes,
-        'existing': existing,
-        'result':   result,
-        'items':    items,
+        'shipment':           shipment,
+        'hs_codes':           hs_codes,
+        'existing':           existing,
+        'advisory_existing':  advisory_ex,
+        'result':             result,
+        'items':              items,
+        'documents':          documents,
+        'ocr_fields':         ocr_fields,
+        'ocr_items':          ocr_items,
+        'default_rate':       default_rate,
+        'wmcda_scores':       wmcda_scores,
+        'wmcda_recommended':  wmcda_recommended,
+        'wmcda_breakdown':    wmcda_breakdown,
+        'wmcda_explanation':  wmcda_explanation,
+        'wmcda_history':      wmcda_history,
+        'declared_score':     declared_score,
+        'declared_breakdown': declared_breakdown,
+        'declared_rating':    declared_rating,
     }
     return render(request, 'computation/compute.html', context)
 
@@ -384,21 +572,25 @@ def _lerp(x, x0, x1, y0, y1):
 
 
 def compute_wmcda(weight, volume, value, urgency, distance):
-    lcl_cost = _lerp(value, 0, 30000, 0.90, 0.30)
-    fcl_cost = _lerp(value, 0, 30000, 0.30, 0.92)
-    air_cost = max(0.20, _lerp(value, 0, 50000, 0.48, 0.32))
+    lcl_cost  = _lerp(value, 0, 30000, 0.90, 0.30)
+    fcl_cost  = _lerp(value, 0, 30000, 0.30, 0.92)
+    air_cost  = max(0.20, _lerp(value, 0, 50000, 0.48, 0.32))
+    land_cost = max(0.20, _lerp(distance, 0, 2000, 0.90, 0.28))   # cheap nearby, drops over distance
 
-    lcl_time = 0.35 if urgency == 'urgent' else 0.72
-    fcl_time = 0.48 if urgency == 'urgent' else 0.78
-    air_time = 0.96 if urgency == 'urgent' else 0.62
+    lcl_time  = 0.35 if urgency == 'urgent' else 0.72
+    fcl_time  = 0.48 if urgency == 'urgent' else 0.78
+    air_time  = 0.96 if urgency == 'urgent' else 0.62
+    land_time = 0.60 if urgency == 'urgent' else max(0.30, _lerp(distance, 0, 2000, 0.88, 0.35))
 
-    lcl_weight = _lerp(weight, 0, 2000, 0.92, 0.28)
-    fcl_weight = _lerp(weight, 0, 2000, 0.18, 0.95)
-    air_weight = max(0.10, _lerp(weight, 0, 300, 0.95, 0.15))
+    lcl_weight  = _lerp(weight, 0, 2000, 0.92, 0.28)
+    fcl_weight  = _lerp(weight, 0, 2000, 0.18, 0.95)
+    air_weight  = max(0.10, _lerp(weight, 0, 300, 0.95, 0.15))
+    land_weight = _lerp(weight, 0, 2000, 0.70, 0.90)               # trucks handle moderate-heavy well
 
-    lcl_risk = _lerp(value, 0, 20000, 0.82, 0.40)
-    fcl_risk = 0.70
-    air_risk = _lerp(value, 0, 20000, 0.62, 0.92)
+    lcl_risk  = _lerp(value, 0, 20000, 0.82, 0.40)
+    fcl_risk  = 0.70
+    air_risk  = _lerp(value, 0, 20000, 0.62, 0.92)
+    land_risk = max(0.40, _lerp(distance, 0, 2000, 0.72, 0.45))    # road risk grows with distance
 
     try:
         w_cost   = float(SystemConfig.get('wmcda_w_cost',   '35')) / 100
@@ -412,24 +604,27 @@ def compute_wmcda(weight, volume, value, urgency, distance):
         return round(c * w_cost + t * w_time + wt * w_weight + r * w_risk, 4)
 
     scores = {
-        'lcl': tws(lcl_cost, lcl_time, lcl_weight, lcl_risk),
-        'fcl': tws(fcl_cost, fcl_time, fcl_weight, fcl_risk),
-        'air': tws(air_cost, air_time, air_weight, air_risk),
+        'lcl':  tws(lcl_cost,  lcl_time,  lcl_weight,  lcl_risk),
+        'fcl':  tws(fcl_cost,  fcl_time,  fcl_weight,  fcl_risk),
+        'air':  tws(air_cost,  air_time,  air_weight,  air_risk),
+        'land': tws(land_cost, land_time, land_weight, land_risk),
     }
     recommended = max(scores, key=scores.get)
 
     breakdown = {
-        'lcl': {'cost': round(lcl_cost, 3), 'time': round(lcl_time, 3),
-                'weight': round(lcl_weight, 3), 'risk': round(lcl_risk, 3)},
-        'fcl': {'cost': round(fcl_cost, 3), 'time': round(fcl_time, 3),
-                'weight': round(fcl_weight, 3), 'risk': round(fcl_risk, 3)},
-        'air': {'cost': round(air_cost, 3), 'time': round(air_time, 3),
-                'weight': round(air_weight, 3), 'risk': round(air_risk, 3)},
+        'lcl':  {'cost': round(lcl_cost,  3), 'time': round(lcl_time,  3),
+                 'weight': round(lcl_weight,  3), 'risk': round(lcl_risk,  3)},
+        'fcl':  {'cost': round(fcl_cost,  3), 'time': round(fcl_time,  3),
+                 'weight': round(fcl_weight,  3), 'risk': round(fcl_risk,  3)},
+        'air':  {'cost': round(air_cost,  3), 'time': round(air_time,  3),
+                 'weight': round(air_weight,  3), 'risk': round(air_risk,  3)},
+        'land': {'cost': round(land_cost, 3), 'time': round(land_time, 3),
+                 'weight': round(land_weight, 3), 'risk': round(land_risk, 3)},
     }
 
     weight_label  = f'{weight:.0f}kg'
     value_label   = f'${value:,.0f}'
-    urgency_label = 'urgent' if urgency == 'urgent' else 'normal'
+    dist_label    = f'{distance:.0f}km'
 
     explanations = {
         'lcl': (
@@ -445,6 +640,11 @@ def compute_wmcda(weight, volume, value, urgency, distance):
             f'{"⚡ Air Freight recommended — urgency requires fastest transit. " if urgency == "urgent" else ""}'
             f'{"Air Freight offers best security and tracking for high-value goods at " + value_label + "." if value > 10000 and urgency != "urgent" else ""}'
             f'{"Air Freight is competitive for this shipment profile." if urgency != "urgent" and value <= 10000 else ""}'
+        ),
+        'land': (
+            f'{"🚛 Land Freight is the fastest option for this nearby route (" + dist_label + ")." if distance <= 500 else "Land Freight is cost-effective for this route (" + dist_label + ")."} '
+            f'Cargo weight of {weight_label} is well-suited for road transport. '
+            f'{"Urgency is manageable for short-haul land routes." if urgency == "urgent" else "Suitable for normal-urgency delivery schedules."}'
         ),
     }
     explanation = explanations.get(recommended, '')
@@ -539,7 +739,7 @@ def shipping_advisory(request, shipment_id):
             # Notify consignee of the advisory result
             try:
                 from apps.notifications.utils import create_notification
-                label_map = {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL'}
+                label_map = {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL', 'land': 'Land Freight'}
                 create_notification(
                     recipient=shipment.consignee,
                     shipment=shipment,

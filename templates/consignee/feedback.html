@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Feedback — {{ shipment.hawb_number }}{% endblock %}
+{% block page_title %}Submit Feedback{% endblock %}
+
+{% block content %}
+<div style="max-width:560px; margin:0 auto;">
+
+    <a href="{% url 'consignee:shipment_detail' shipment_id=shipment.id %}"
+       style="font-size:13px; color:#64748b; text-decoration:none; display:inline-flex; align-items:center; gap:6px; margin-bottom:24px;">
+        ← Back to Shipment
+    </a>
+
+    <div class="card">
+        <p class="card-title">Rate Your Experience</p>
+        <p style="font-size:13px; color:#64748b; margin-bottom:20px;">
+            Shipment <strong style="color:#93c5fd;">{{ shipment.hawb_number }}</strong> —
+            your feedback helps us improve our service.
+        </p>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div style="padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px;
+                        background:{% if message.tags == 'error' %}#450a0a{% else %}#052e16{% endif %};
+                        color:{% if message.tags == 'error' %}#fca5a5{% else %}#86efac{% endif %};
+                        border:1px solid {% if message.tags == 'error' %}#991b1b{% else %}#166534{% endif %};">
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <!-- Star Rating -->
+            <div style="margin-bottom:24px;">
+                <label style="display:block; font-size:12px; font-weight:600; color:#94a3b8;
+                              text-transform:uppercase; letter-spacing:0.8px; margin-bottom:12px;">
+                    Rating <span style="color:#ef4444;">*</span>
+                </label>
+                <div style="display:flex; gap:8px;" id="star-row">
+                    {% for i in "12345" %}
+                    <label style="cursor:pointer; font-size:32px; color:#334155; transition:color .15s;"
+                           class="star-label" data-val="{{ i }}">
+                        ★
+                        <input type="radio" name="rating" value="{{ i }}"
+                               style="display:none;" required>
+                    </label>
+                    {% endfor %}
+                </div>
+                <p style="font-size:11px; color:#475569; margin-top:6px;" id="rating-label">Click to rate</p>
+            </div>
+
+            <!-- Comment -->
+            <div style="margin-bottom:24px;">
+                <label style="display:block; font-size:12px; font-weight:600; color:#94a3b8;
+                              text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;">
+                    Comment <span style="color:#ef4444;">*</span>
+                </label>
+                <textarea name="comment" rows="5" maxlength="500" required
+                          placeholder="Tell us about your experience with R3-PCR and the customs brokerage service..."
+                          style="width:100%; background:#0f172a; border:1px solid #334155; border-radius:8px;
+                                 color:#f1f5f9; font-size:14px; padding:12px 14px; outline:none;
+                                 resize:vertical; font-family:inherit; line-height:1.5;"
+                          onfocus="this.style.borderColor='#3b82f6'"
+                          onblur="this.style.borderColor='#334155'"></textarea>
+                <p style="font-size:11px; color:#475569; margin-top:4px;">Max 500 characters</p>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%; padding:12px; font-size:15px;">
+                Submit Feedback
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+const labels = document.querySelectorAll('.star-label');
+const ratingLabel = document.getElementById('rating-label');
+const msgs = ['','Poor','Fair','Good','Very Good','Excellent'];
+
+labels.forEach((lbl, idx) => {
+    lbl.addEventListener('click', () => {
+        const val = idx + 1;
+        lbl.querySelector('input').checked = true;
+        labels.forEach((l, i) => {
+            l.style.color = i < val ? '#f59e0b' : '#334155';
+        });
+        ratingLabel.textContent = msgs[val] + ' (' + val + '/5)';
+        ratingLabel.style.color = '#f59e0b';
+    });
+    lbl.addEventListener('mouseover', () => {
+        labels.forEach((l, i) => {
+            l.style.color = i <= idx ? '#fbbf24' : '#334155';
+        });
+    });
+    lbl.addEventListener('mouseout', () => {
+        const checked = document.querySelector('input[name="rating"]:checked');
+        const val = checked ? parseInt(checked.value) : 0;
+        labels.forEach((l, i) => {
+            l.style.color = i < val ? '#f59e0b' : '#334155';
+        });
+    });
+});
+</script>
+{% endblock %}

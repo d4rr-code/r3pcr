@@ -1,388 +1,1302 @@
 {% extends 'base.html' %}
 
-{% block title %}EDT Computation{% endblock %}
-{% block page_title %}Pre-Clearance Computation — {{ shipment.hawb_number }}{% endblock %}
+{% block title %}ECDT Computation — {{ shipment.hawb_number }}{% endblock %}
+{% block page_title %}Duty Computation & Shipping Analysis{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.compute-layout {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0;
+    min-width: 0;
+}
+#col-left {
+    flex: 0 0 auto;
+    width: 55%;
+    min-width: 280px;
+    max-width: calc(100% - 320px);
+    min-width: 280px;
+}
+#col-right {
+    flex: 1 1 0;
+    min-width: 300px;
+    padding-left: 0;
+}
+/* ── Drag Divider ────────────────────────────────────────────────────────── */
+#col-divider {
+    flex: 0 0 10px;
+    width: 10px;
+    cursor: col-resize;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    position: relative;
+    user-select: none;
+    z-index: 10;
+}
+#col-divider::before {
+    content: '';
+    display: block;
+    width: 3px;
+    background: #334155;
+    border-radius: 2px;
+    transition: background 0.15s, width 0.15s;
+    margin: 0 auto;
+    min-height: 100px;
+}
+#col-divider:hover::before,
+#col-divider.dragging::before {
+    background: #3b82f6;
+    width: 4px;
+}
+#col-divider .drag-handle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #334155;
+    border-radius: 4px;
+    padding: 6px 3px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    pointer-events: none;
+    transition: background 0.15s;
+}
+#col-divider:hover .drag-handle,
+#col-divider.dragging .drag-handle {
+    background: #3b82f6;
+}
+#col-divider .drag-handle span {
+    display: block;
+    width: 2px;
+    height: 12px;
+    background: #64748b;
+    border-radius: 1px;
+}
+#col-divider:hover .drag-handle span,
+#col-divider.dragging .drag-handle span {
+    background: #fff;
+}
+/* ── Doc Viewer ──────────────────────────────────────────────────────────── */
+.doc-viewer {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.doc-viewer-header {
+    padding: 10px 14px;
+    background: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #334155;
+    flex-wrap: wrap;
+}
+.doc-viewer-area {
+    height: 520px;
+    overflow: auto;
+    background: #fff;
+}
+.doc-viewer-placeholder {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    font-size: 13px;
+    flex-direction: column;
+    gap: 10px;
+}
+/* ── ECDT Table ──────────────────────────────────────────────────────────── */
+.ecdt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    table-layout: fixed;
+}
+.ecdt-table th {
+    padding: 8px 6px;
+    background: #0f172a;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: right;
+    border-bottom: 2px solid #334155;
+    white-space: nowrap;
+}
+.ecdt-table th:first-child,
+.ecdt-table th:nth-child(2) { text-align: left; }
+.ecdt-table td {
+    padding: 6px;
+    border-bottom: 1px solid #1e293b;
+    color: #f1f5f9;
+    vertical-align: middle;
+}
+.ecdt-table td.calc {
+    color: #94a3b8;
+    text-align: right;
+    font-size: 11px;
+}
+.ecdt-table tr:hover td { background: #0d1929; }
+.ecdt-input {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    color: #f1f5f9;
+    padding: 4px 6px;
+    font-size: 12px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.ecdt-input:focus { outline: none; border-color: #3b82f6; }
+/* ── WMCDA Score Cards ───────────────────────────────────────────────────── */
+.mode-score-card {
+    border: 2px solid #334155;
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    transition: border-color 0.2s;
+}
+.mode-score-card.recommended { border-color: #22c55e; background: #052e16; }
+.mode-score-card.consignee-pick { border-color: #3b82f6; }
+.score-bar-track {
+    background: #1e293b;
+    border-radius: 999px;
+    height: 6px;
+    margin-top: 6px;
+}
+.score-bar-fill {
+    height: 6px;
+    border-radius: 999px;
+    transition: width 0.4s ease;
+}
+/* ── OCR overlay ─────────────────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+#ocr-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.82);
+    z-index: 9999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.ocr-ring {
+    width: 50px; height: 50px;
+    border: 4px solid #1e293b;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    margin-bottom: 8px;
+}
+/* ── HS Code Picker ──────────────────────────────────────────────────────── */
+.hs-picker { position: relative; }
+.hs-search-input {
+    width: 130px;
+    font-size: 11px;
+    padding: 4px 6px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    color: #f1f5f9;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+.hs-search-input:focus { outline: none; border-color: #3b82f6; }
+.hs-search-input.hs-selected { border-color: #22c55e; color: #86efac; }
+.hs-results {
+    display: none;
+    position: fixed;
+    z-index: 9500;
+    min-width: 320px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #1e293b;
+    border: 1px solid #3b82f6;
+    border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+}
+.hs-results.open { display: block; }
+.hs-result-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #0f172a;
+    transition: background 0.1s;
+}
+.hs-result-item:last-child { border-bottom: none; }
+.hs-result-item:hover, .hs-result-item.active { background: #334155; }
+.hs-code-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #3b82f6;
+    white-space: nowrap;
+    min-width: 80px;
+}
+.hs-desc-text {
+    font-size: 10px;
+    color: #94a3b8;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.hs-rate-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: #f59e0b;
+    white-space: nowrap;
+    background: #422006;
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+.hs-no-results {
+    padding: 10px;
+    color: #475569;
+    font-size: 11px;
+    text-align: center;
+}
+</style>
+{% endblock %}
 
 {% block content %}
 
-<!-- Shipment Info Bar -->
-<div class="card" style="margin-bottom:16px; padding:12px 20px;">
-    <div style="display:flex; gap:32px; flex-wrap:wrap;">
-        <div>
-            <span style="color:#94a3b8; font-size:12px;">Consignee</span>
-            <p style="color:#f1f5f9; font-size:14px; font-weight:600;">
-                {{ shipment.consignee.get_full_name|default:shipment.consignee.username }}
-            </p>
-        </div>
-        <div>
-            <span style="color:#94a3b8; font-size:12px;">HAWB Number</span>
-            <p style="color:#f1f5f9; font-size:14px; font-weight:600;">
-                {{ shipment.hawb_number }}
-            </p>
-        </div>
-        <div>
-            <span style="color:#94a3b8; font-size:12px;">Import Type</span>
-            <p style="color:#f1f5f9; font-size:14px; font-weight:600;">
-                {{ shipment.get_import_type_display }}
-            </p>
-        </div>
-        <div>
-            <span style="color:#94a3b8; font-size:12px;">Status</span>
-            <p>
-                <span class="badge badge-{{ shipment.status }}">
-                    {{ shipment.get_status_display }}
-                </span>
-            </p>
-        </div>
+<!-- OCR Overlay -->
+<div id="ocr-overlay">
+    <div class="ocr-ring"></div>
+    <p id="ocr-label" style="color:#f1f5f9; font-size:14px; font-weight:500; margin:0;"></p>
+    <p style="color:#64748b; font-size:12px; margin:0;">
+        Elapsed: <span id="ocr-elapsed" style="color:#94a3b8; font-weight:600;">0:00</span>
+    </p>
+    <p style="color:#475569; font-size:11px; margin-top:4px;">10–30 seconds depending on document size.</p>
+</div>
+
+<!-- ─── Header ────────────────────────────────────────────────────────────── -->
+<div style="display:flex; align-items:center; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+    <div>
+        <h2 style="color:#f1f5f9; font-size:18px; margin:0;">{{ shipment.hawb_number }}</h2>
+        <p style="color:#64748b; font-size:12px; margin:3px 0 0;">
+            {{ shipment.consignee.get_full_name|default:shipment.consignee.username }} ·
+            {{ shipment.get_import_type_display }}
+            {% if shipment.shipment_type %}
+            · <span style="color:#3b82f6;">{{ shipment.get_shipment_type_display }}</span>
+            {% endif %}
+            {% if shipment.urgency == 'urgent' %}
+            · <span style="color:#ef4444;">⚡ Urgent</span>
+            {% endif %}
+        </p>
+    </div>
+    <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+        {% if existing %}
+        <a href="{% url 'computation:download' shipment.id %}"
+           class="btn btn-secondary" style="font-size:12px;">⬇ Excel</a>
+        {% endif %}
+        <a href="{% url 'declarant:process' shipment.id %}"
+           class="btn btn-secondary" style="font-size:12px;">← Back</a>
     </div>
 </div>
 
-{% if messages %}
-    {% for message in messages %}
-    <div class="message {{ message.tags }}" style="margin-bottom:16px;">
-        {{ message }}
-    </div>
-    {% endfor %}
-{% endif %}
+<div class="compute-layout">
 
-<form method="POST">
+<!-- ══════════════════════════════════════════════════════════════════════════
+     LEFT — Document Viewer
+════════════════════════════════════════════════════════════════════════════ -->
+<div id="col-left">
+    <div class="doc-viewer">
+        <div class="doc-viewer-header">
+            <span style="color:#94a3b8; font-size:13px;">Document Viewer</span>
+            <span id="viewer-label" style="color:#64748b; font-size:11px; margin-left:4px;"></span>
+        </div>
+        <div class="doc-viewer-area" id="viewer-area">
+            <div class="doc-viewer-placeholder">
+                <span style="font-size:36px;">📂</span>
+                <span>Click <strong>View</strong> on a document to load it here</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documents List -->
+    <div class="card" style="margin-top:16px;">
+        <p class="card-title">Attached Documents</p>
+        {% if documents %}
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            {% for doc in documents %}
+            <div style="display:flex; align-items:center; gap:8px; padding:9px 12px;
+                        background:#0f172a; border-radius:6px; border:1px solid #1e293b;">
+                <span style="font-size:16px;">
+                    {% if doc.document_type == 'invoice' %}📄
+                    {% elif doc.document_type == 'packing_list' %}📦
+                    {% elif doc.document_type == 'airway_bill' %}✈️
+                    {% else %}📎{% endif %}
+                </span>
+                <div style="flex:1; min-width:0;">
+                    <p style="color:#f1f5f9; font-size:12px; margin:0; font-weight:500;">
+                        {{ doc.get_document_type_display }}
+                    </p>
+                    <p style="color:#64748b; font-size:10px; margin:1px 0 0;">
+                        {{ doc.uploaded_at|date:"M d, Y" }}
+                    </p>
+                </div>
+                <button onclick="loadDoc('{{ doc.file.url }}','{{ doc.get_document_type_display }}')"
+                        class="btn btn-secondary" style="font-size:10px; padding:4px 9px;">View</button>
+                {% if doc.document_type in 'invoice,airway_bill,packing_list' %}
+                <button type="button" class="btn btn-primary"
+                        style="font-size:10px; padding:4px 9px;"
+                        onclick="startOCR('{% url 'computation:ocr_extract' shipment.id doc.id %}','{{ doc.get_document_type_display }}')">
+                    OCR
+                </button>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#64748b; font-size:13px;">No documents attached.</p>
+        {% endif %}
+    </div>
+
+    <!-- OCR Extracted Fields -->
+    {% if ocr_fields %}
+    <div class="card" style="margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <p class="card-title" style="margin:0;">OCR Extracted Fields</p>
+            <button type="button" onclick="fillFromOCR()"
+                    class="btn btn-primary" style="font-size:11px; padding:5px 12px;">
+                ↓ Fill Table
+            </button>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 12px;">
+            {% for key, field in ocr_fields.items %}
+            {% if field.value %}
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; margin-bottom:4px;">
+                <span style="width:8px; height:8px; border-radius:50%; flex-shrink:0;
+                    background:{% if field.confidence >= 0.85 %}#22c55e{% elif field.confidence >= 0.70 %}#f59e0b{% else %}#ef4444{% endif %};"></span>
+                <span style="color:#64748b;">{{ key|title|cut:"_" }}:</span>
+                <span style="color:#f1f5f9; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ field.value }}</span>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     DIVIDER — Drag to resize
+════════════════════════════════════════════════════════════════════════════ -->
+<div id="col-divider">
+    <div class="drag-handle">
+        <span></span><span></span><span></span>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     RIGHT — Computation Panel
+════════════════════════════════════════════════════════════════════════════ -->
+<div id="col-right">
+<form method="POST" id="compute-form">
 {% csrf_token %}
 
-<!-- Global Inputs -->
-<div class="card" style="margin-bottom:16px;">
-    <p class="card-title">⚙️ Shipment Parameters</p>
-    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:16px;">
-
-        <div class="form-group">
-            <label class="form-label">HS Code</label>
-            <select name="hs_code" class="form-input" id="hs_code_select"
-                onchange="updateDutyRate(this)">
-                <option value="">-- Select HS Code --</option>
-                {% for hs in hs_codes %}
-                <option value="{{ hs.id }}"
-                    data-rate="{{ hs.duty_rate }}"
-                    {% if existing and existing.hs_code.id == hs.id %}selected{% endif %}>
-                    {{ hs.code }} — {{ hs.description|truncatechars:30 }}
-                    ({{ hs.duty_rate }}%)
-                </option>
-                {% endfor %}
-            </select>
+<!-- ── Parameters ─────────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:14px;">
+    <p class="card-title" style="margin-bottom:10px;">Parameters</p>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div>
+            <label class="form-label" style="font-size:11px;">Exchange Rate (USD→PHP)</label>
+            <input type="number" name="exchange_rate" id="exchange_rate" class="form-input"
+                   style="padding:6px 8px; font-size:12px;" step="0.000001"
+                   value="{{ existing.exchange_rate|default:default_rate }}" required>
         </div>
-
-        <div class="form-group">
-            <label class="form-label">Duty Rate (%)</label>
-            <input type="number" name="duty_rate" id="duty_rate"
-                class="form-input" step="0.01" placeholder="e.g. 5"
-                value="{{ existing.duty_rate|default:'' }}" required>
+        <div>
+            <label class="form-label" style="font-size:11px;">Total Freight (USD)</label>
+            <input type="number" name="total_freight" id="total_freight" class="form-input"
+                   style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                   value="{{ existing.total_freight|default:'0' }}" oninput="recalcAll()">
         </div>
-
-        <div class="form-group">
-            <label class="form-label">Exchange Rate (USD→PHP)</label>
-            <input type="number" name="exchange_rate"
-                class="form-input" step="0.000001" placeholder="e.g. 59.148"
-                value="{{ existing.exchange_rate|default:'59.148' }}" required>
+        <div>
+            <label class="form-label" style="font-size:11px;">Total Insurance (USD)</label>
+            <input type="number" name="total_insurance" id="total_insurance" class="form-input"
+                   style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                   value="{{ existing.total_insurance|default:'0' }}" oninput="recalcAll()">
         </div>
-
-        <div class="form-group">
-            <label class="form-label">Total Freight (USD)</label>
-            <input type="number" name="total_freight"
-                class="form-input" step="0.01" placeholder="0.00"
-                value="{{ existing.freight_cost|default:'' }}" required>
+        <div>
+            <label class="form-label" style="font-size:11px;">Cargo Volume (CBM)</label>
+            <input type="number" name="cargo_volume" class="form-input"
+                   style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                   value="{{ advisory_existing.cargo_volume|default:'0' }}">
         </div>
-
-        <div class="form-group">
-            <label class="form-label">Total Insurance (USD)</label>
-            <input type="number" name="total_insurance"
-                class="form-input" step="0.01" placeholder="0.00"
-                value="{{ existing.insurance_cost|default:'' }}" required>
-        </div>
-
     </div>
 </div>
 
-<!-- Line Items Table -->
-<div class="card" style="margin-bottom:16px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <p class="card-title" style="margin:0;">📦 Item Line Entries</p>
-        <button type="button" class="btn btn-secondary" onclick="addRow()">
-            + Add Item
-        </button>
+<!-- ── ECDT Line Items Table ──────────────────────────────────────── -->
+<div class="card" style="margin-bottom:14px; padding:0; overflow:hidden;">
+    <div style="padding:10px 14px; background:#0f172a; border-bottom:1px solid #1e293b;
+                display:flex; justify-content:space-between; align-items:center;">
+        <p class="card-title" style="margin:0; font-size:13px;">ECDT Line Items</p>
+        <button type="button" class="btn btn-secondary" onclick="addRow()"
+                style="font-size:11px; padding:4px 10px;">+ Row</button>
     </div>
 
     <div style="overflow-x:auto;">
-        <table id="items_table" style="width:100%; border-collapse:collapse;">
+        <table class="ecdt-table" id="ecdt-table">
+            <colgroup>
+                <col style="width:28px">  <!-- # -->
+                <col style="width:120px"> <!-- Description -->
+                <col style="width:70px">  <!-- EXW -->
+                <col style="width:46px">  <!-- Qty -->
+                <col style="width:130px"> <!-- HS Code -->
+                <col style="width:48px">  <!-- Rate% -->
+                <col style="width:58px">  <!-- Freight -->
+                <col style="width:58px">  <!-- Insurance -->
+                <col style="width:50px">  <!-- O/C -->
+                <col style="width:64px">  <!-- D/V USD -->
+                <col style="width:68px">  <!-- D/V PHP -->
+                <col style="width:68px">  <!-- CUD -->
+                <col style="width:28px">  <!-- del -->
+            </colgroup>
             <thead>
-                <tr style="background:#0f172a;">
-                    <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px; white-space:nowrap;">#</th>
-                    <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px; white-space:nowrap;">Description</th>
-                    <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px; white-space:nowrap;">EXW/FCA (USD)</th>
-                    <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px; white-space:nowrap;">Qty</th>
-                    <th style="padding:10px 12px; text-align:left; color:#94a3b8; font-size:12px; white-space:nowrap;"></th>
+                <tr>
+                    <th style="text-align:left;">#</th>
+                    <th style="text-align:left;">Description</th>
+                    <th>EXW $</th>
+                    <th>Qty</th>
+                    <th style="text-align:left;">HS Code</th>
+                    <th>Rate%</th>
+                    <th>Freight $</th>
+                    <th>Ins. $</th>
+                    <th>O/C $</th>
+                    <th>D/V $</th>
+                    <th>D/V ₱</th>
+                    <th>CUD ₱</th>
+                    <th></th>
                 </tr>
             </thead>
-            <tbody id="items_body">
+            <tbody id="ecdt-body">
                 {% if items %}
-                    {% for item in items %}
-                    <tr>
-                        <td style="padding:8px 12px; color:#94a3b8; font-size:13px;">{{ item.no }}</td>
-                        <td style="padding:8px 12px;">
-                            <input type="text" name="description[]"
-                                class="form-input" style="min-width:200px;"
-                                value="{{ item.description }}" placeholder="Item description">
-                        </td>
-                        <td style="padding:8px 12px;">
-                            <input type="number" name="exw_value[]"
-                                class="form-input exw-input" step="0.01"
-                                value="{{ item.exw }}" placeholder="0.00">
-                        </td>
-                        <td style="padding:8px 12px;">
-                            <input type="number" name="quantity[]"
-                                class="form-input" style="width:80px;"
-                                value="{{ item.quantity }}" placeholder="0">
-                        </td>
-                        <td style="padding:8px 12px;">
-                            <button type="button" class="btn btn-danger"
-                                onclick="removeRow(this)" style="padding:4px 10px;">
-                                ✕
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
+                {% for item in items %}
+                <tr>
+                    <td style="color:#64748b; font-size:11px;">{{ item.no }}</td>
+                    <td>
+                        <input class="ecdt-input" type="text" name="description[]"
+                               value="{{ item.description }}" placeholder="Item..." style="width:110px;">
+                    </td>
+                    <td>
+                        <input class="ecdt-input exw-input" type="number" name="exw_value[]"
+                               step="0.01" value="{{ item.exw }}" placeholder="0.00"
+                               oninput="recalcAll()">
+                    </td>
+                    <td>
+                        <input class="ecdt-input" type="number" name="quantity[]"
+                               step="1" value="{{ item.quantity }}" placeholder="0">
+                    </td>
+                    <td>
+                        <div class="hs-picker" data-selected-id="{{ item.hs_code_id|default:'' }}">
+                            <input type="text" class="hs-search-input" placeholder="Search code or item..." autocomplete="off">
+                            <input type="hidden" name="hs_code_id[]" value="{{ item.hs_code_id|default:'' }}">
+                            <div class="hs-results"></div>
+                        </div>
+                    </td>
+                    <td>
+                        <input class="ecdt-input rate-input" type="number" name="item_duty_rate[]"
+                               step="0.01" placeholder="0"
+                               value="{{ item.duty_rate|default:'' }}"
+                               oninput="recalcAll()" style="width:44px;">
+                    </td>
+                    <td class="calc" data-field="freight">{% if item.item_freight %}{{ item.item_freight|floatformat:2 }}{% endif %}</td>
+                    <td class="calc" data-field="ins">{% if item.item_insurance %}{{ item.item_insurance|floatformat:2 }}{% endif %}</td>
+                    <td class="calc" data-field="oc">{% if item.other_charges %}{{ item.other_charges|floatformat:2 }}{% endif %}</td>
+                    <td class="calc" data-field="dvusd">{% if item.dv_usd %}{{ item.dv_usd|floatformat:2 }}{% endif %}</td>
+                    <td class="calc" data-field="dvphp" style="color:#3b82f6;">{% if item.dv_php %}{{ item.dv_php|floatformat:2 }}{% endif %}</td>
+                    <td class="calc" data-field="cud" style="color:#f59e0b;">{% if item.cud %}{{ item.cud|floatformat:2 }}{% endif %}</td>
+                    <td><button type="button" onclick="removeRow(this)"
+                                style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px; padding:0 4px;">✕</button></td>
+                </tr>
+                {% endfor %}
                 {% else %}
-                    <tr>
-                        <td style="padding:8px 12px; color:#94a3b8; font-size:13px;">1</td>
-                        <td style="padding:8px 12px;">
-                            <input type="text" name="description[]"
-                                class="form-input" style="min-width:200px;"
-                                placeholder="Item description">
-                        </td>
-                        <td style="padding:8px 12px;">
-                            <input type="number" name="exw_value[]"
-                                class="form-input exw-input" step="0.01"
-                                placeholder="0.00">
-                        </td>
-                        <td style="padding:8px 12px;">
-                            <input type="number" name="quantity[]"
-                                class="form-input" style="width:80px;"
-                                placeholder="0">
-                        </td>
-                        <td style="padding:8px 12px;">
-                            <button type="button" class="btn btn-danger"
-                                onclick="removeRow(this)" style="padding:4px 10px;">
-                                ✕
-                            </button>
-                        </td>
-                    </tr>
+                <tr>
+                    <td style="color:#64748b; font-size:11px;">1</td>
+                    <td><input class="ecdt-input" type="text" name="description[]" placeholder="Item..." style="width:110px;"></td>
+                    <td><input class="ecdt-input exw-input" type="number" name="exw_value[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
+                    <td><input class="ecdt-input" type="number" name="quantity[]" step="1" placeholder="0"></td>
+                    <td>
+                        <div class="hs-picker">
+                            <input type="text" class="hs-search-input" placeholder="Search code or item..." autocomplete="off">
+                            <input type="hidden" name="hs_code_id[]" value="">
+                            <div class="hs-results"></div>
+                        </div>
+                    </td>
+                    <td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" step="0.01" placeholder="0" oninput="recalcAll()" style="width:44px;"></td>
+                    <td class="calc" data-field="freight">—</td>
+                    <td class="calc" data-field="ins">—</td>
+                    <td class="calc" data-field="oc">—</td>
+                    <td class="calc" data-field="dvusd">—</td>
+                    <td class="calc" data-field="dvphp" style="color:#3b82f6;">—</td>
+                    <td class="calc" data-field="cud" style="color:#f59e0b;">—</td>
+                    <td><button type="button" onclick="removeRow(this)"
+                                style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px; padding:0 4px;">✕</button></td>
+                </tr>
                 {% endif %}
             </tbody>
         </table>
     </div>
 
-    <div style="margin-top:12px; padding:8px 12px; background:#0f172a; border-radius:8px; display:flex; justify-content:space-between;">
-        <span style="color:#94a3b8; font-size:13px;">Total EXW Value:</span>
-        <span style="color:#f1f5f9; font-weight:600;" id="total_exw_display">$0.00</span>
+    <!-- Totals footer -->
+    <div style="padding:8px 14px; background:#0f172a; border-top:2px solid #334155;
+                display:grid; grid-template-columns:repeat(3,1fr); gap:8px; font-size:12px;">
+        <div>
+            <span style="color:#64748b;">Total EXW:</span>
+            <strong style="color:#f1f5f9; margin-left:4px;" id="total-exw">$0.00</strong>
+        </div>
+        <div>
+            <span style="color:#64748b;">Total D/V ₱:</span>
+            <strong style="color:#3b82f6; margin-left:4px;" id="total-dvphp">₱0.00</strong>
+        </div>
+        <div>
+            <span style="color:#64748b;">Total CUD ₱:</span>
+            <strong style="color:#f59e0b; margin-left:4px;" id="total-cud">₱0.00</strong>
+        </div>
     </div>
 </div>
 
-<!-- Submit -->
-<div style="display:flex; gap:12px; margin-bottom:24px;">
-    <button type="submit" class="btn btn-primary">
-        🧮 Compute Duties & Taxes
+<!-- ── Submit Button ─────────────────────────────────────────────── -->
+<div style="display:flex; gap:10px; margin-bottom:14px;">
+    <button type="submit" class="btn btn-primary" style="flex:1;">
+        Compute &amp; Analyze
     </button>
-    <a href="{% url 'declarant:process' shipment.id %}" class="btn btn-secondary">
-        ← Back to Shipment
-    </a>
 </div>
 
 </form>
 
-<!-- Results -->
+<!-- ── ECDT Summary ───────────────────────────────────────────────── -->
 {% if result or existing %}
-<div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+<div class="card" style="margin-bottom:14px;">
+    <p class="card-title">ECDT Summary</p>
+    {% with c=existing %}
+    <div style="display:flex; flex-direction:column; gap:6px;">
 
-    <!-- Per Item Results -->
-    {% if items %}
-    <div class="card">
-        <p class="card-title">📋 Per-Item Computation</p>
-        <div style="overflow-x:auto;">
-            <table style="width:100%; font-size:12px;">
-                <thead>
-                    <tr style="background:#0f172a;">
-                        <th style="padding:8px; color:#94a3b8; text-align:left;">#</th>
-                        <th style="padding:8px; color:#94a3b8; text-align:left;">Description</th>
-                        <th style="padding:8px; color:#94a3b8; text-align:right;">D/V (PHP)</th>
-                        <th style="padding:8px; color:#94a3b8; text-align:right;">CUD (PHP)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in items %}
-                    <tr style="border-top:1px solid #334155;">
-                        <td style="padding:8px; color:#94a3b8;">{{ item.no }}</td>
-                        <td style="padding:8px; color:#f1f5f9;">
-                            {{ item.description|truncatechars:30 }}
-                        </td>
-                        <td style="padding:8px; color:#f1f5f9; text-align:right;">
-                            ₱{{ item.dv_php|floatformat:2 }}
-                        </td>
-                        <td style="padding:8px; color:#f1f5f9; text-align:right;">
-                            ₱{{ item.cud|floatformat:2 }}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
+            <span style="color:#94a3b8; font-size:12px;">Taxable Value (D/V PHP)</span>
+            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
+                {% if result %}₱{{ result.taxable_value|floatformat:2 }}
+                {% else %}₱{{ existing.dutiable_value|floatformat:2 }}{% endif %}
+            </span>
         </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
+            <span style="color:#94a3b8; font-size:12px;">Customs Duties (CUD)</span>
+            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
+                {% if result %}₱{{ result.customs_duties|floatformat:2 }}
+                {% else %}₱{{ existing.customs_duty|floatformat:2 }}{% endif %}
+            </span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
+            <span style="color:#94a3b8; font-size:12px;">VAT (12%)</span>
+            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
+                {% if result %}₱{{ result.vat|floatformat:2 }}
+                {% else %}₱{{ existing.vat_amount|floatformat:2 }}{% endif %}
+            </span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
+            <span style="color:#94a3b8; font-size:12px;">Brokerage Fee</span>
+            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
+                {% if result %}₱{{ result.brokerage_fee|floatformat:2 }}
+                {% elif existing.brokerage_fee %}₱{{ existing.brokerage_fee|floatformat:2 }}
+                {% else %}—{% endif %}
+            </span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
+            <span style="color:#94a3b8; font-size:12px;">Customs Doc Stamp</span>
+            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">₱130.00</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
+            <span style="color:#94a3b8; font-size:12px;">Import Processing Fee</span>
+            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
+                {% if result %}₱{{ result.ipf|floatformat:2 }}
+                {% elif existing.ipf %}₱{{ existing.ipf|floatformat:2 }}
+                {% else %}—{% endif %}
+            </span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:14px 12px;
+                    background:#172554; border-radius:8px; border:2px solid #3b82f6; margin-top:4px;">
+            <span style="color:#93c5fd; font-size:14px; font-weight:700;">Total Landed Cost</span>
+            <span style="color:#3b82f6; font-size:18px; font-weight:800;">
+                {% if result %}₱{{ result.total_landed_cost|floatformat:2 }}
+                {% else %}₱{{ existing.total_landed_cost|floatformat:2 }}{% endif %}
+            </span>
+        </div>
+        <p style="color:#475569; font-size:10px; text-align:center; margin-top:4px;">
+            Estimated only. Final assessment based on BOC/Customs findings.
+        </p>
+    </div>
+    {% endwith %}
+</div>
+{% endif %}
+
+<!-- ── WMCDA Shipping Analysis ────────────────────────────────────── -->
+{% if wmcda_scores %}
+<div class="card" style="margin-bottom:14px;">
+    <p class="card-title">Shipping Mode Analysis</p>
+
+    <!-- ── PRIMARY: Declared Mode Score & Breakdown ────────────────── -->
+    {% if shipment.shipment_type and declared_score is not None %}
+    <div style="background:#0f172a; border-radius:10px; padding:14px; margin-bottom:12px;
+                border:2px solid
+                {% if declared_rating == 'Excellent' %}#22c55e
+                {% elif declared_rating == 'Good' %}#3b82f6
+                {% elif declared_rating == 'Fair' %}#f59e0b
+                {% else %}#ef4444{% endif %};">
+
+        <!-- Mode header -->
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <span style="font-size:26px;">
+                {% if shipment.shipment_type == 'air' %}✈️
+                {% elif shipment.shipment_type == 'lcl' %}🚢
+                {% else %}📦{% endif %}
+            </span>
+            <div style="flex:1;">
+                <p style="color:#94a3b8; font-size:10px; margin:0; text-transform:uppercase; letter-spacing:0.5px;">Declared Mode</p>
+                <p style="color:#f1f5f9; font-size:15px; font-weight:700; margin:2px 0 0;">
+                    {{ shipment.get_shipment_type_display }}
+                </p>
+            </div>
+            <!-- Score + Rating badge -->
+            <div style="text-align:right;">
+                <p style="font-size:22px; font-weight:800; margin:0;
+                    color:{% if declared_rating == 'Excellent' %}#22c55e
+                          {% elif declared_rating == 'Good' %}#3b82f6
+                          {% elif declared_rating == 'Fair' %}#f59e0b
+                          {% else %}#ef4444{% endif %};">
+                    {{ declared_score|floatformat:3 }}
+                </p>
+                <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;
+                    color:{% if declared_rating == 'Excellent' %}#22c55e{% elif declared_rating == 'Good' %}#93c5fd{% elif declared_rating == 'Fair' %}#fbbf24{% else %}#fca5a5{% endif %};
+                    background:{% if declared_rating == 'Excellent' %}#052e16{% elif declared_rating == 'Good' %}#172554{% elif declared_rating == 'Fair' %}#422006{% else %}#450a0a{% endif %};
+                    border:1px solid {% if declared_rating == 'Excellent' %}#166534{% elif declared_rating == 'Good' %}#1d4ed8{% elif declared_rating == 'Fair' %}#78350f{% else %}#991b1b{% endif %};">
+                    {{ declared_rating|upper }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Subscore bars -->
+        {% if declared_breakdown %}
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+
+            <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                    <span style="color:#94a3b8; font-size:11px;">💰 Cost Efficiency</span>
+                    <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.cost|floatformat:2 }}</span>
+                </div>
+                <div style="background:#1e293b; border-radius:999px; height:5px;">
+                    <div style="height:5px; border-radius:999px; background:#3b82f6;
+                         width:{% widthratio declared_breakdown.cost 1 100 %}%;"></div>
+                </div>
+            </div>
+
+            <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                    <span style="color:#94a3b8; font-size:11px;">⏱ Transit Time</span>
+                    <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.time|floatformat:2 }}</span>
+                </div>
+                <div style="background:#1e293b; border-radius:999px; height:5px;">
+                    <div style="height:5px; border-radius:999px; background:#8b5cf6;
+                         width:{% widthratio declared_breakdown.time 1 100 %}%;"></div>
+                </div>
+            </div>
+
+            <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                    <span style="color:#94a3b8; font-size:11px;">⚖️ Weight Suitability</span>
+                    <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.weight|floatformat:2 }}</span>
+                </div>
+                <div style="background:#1e293b; border-radius:999px; height:5px;">
+                    <div style="height:5px; border-radius:999px; background:#f59e0b;
+                         width:{% widthratio declared_breakdown.weight 1 100 %}%;"></div>
+                </div>
+            </div>
+
+            <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                    <span style="color:#94a3b8; font-size:11px;">🛡 Risk Factor</span>
+                    <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.risk|floatformat:2 }}</span>
+                </div>
+                <div style="background:#1e293b; border-radius:999px; height:5px;">
+                    <div style="height:5px; border-radius:999px; background:#22c55e;
+                         width:{% widthratio declared_breakdown.risk 1 100 %}%;"></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Verdict -->
+        {% if wmcda_recommended == shipment.shipment_type %}
+        <div style="background:#052e16; border:1px solid #166534; border-radius:6px;
+                    padding:8px 12px; display:flex; align-items:center; gap:8px;">
+            <span style="color:#22c55e; font-size:16px;">✓</span>
+            <p style="color:#86efac; font-size:12px; font-weight:600; margin:0;">
+                Good choice — this is the optimal mode for this shipment's profile.
+            </p>
+        </div>
+        {% else %}
+        <div style="background:#2d1b00; border:1px solid #78350f; border-radius:6px;
+                    padding:8px 12px; display:flex; align-items:center; gap:8px;">
+            <span style="color:#fcd34d; font-size:16px;">⚠</span>
+            <p style="color:#fde68a; font-size:12px; font-weight:600; margin:0;">
+                Not the optimal mode for this shipment. Consider
+                <strong>{% if wmcda_recommended == 'air' %}Air Freight ✈️{% elif wmcda_recommended == 'lcl' %}LCL 🚢{% elif wmcda_recommended == 'land' %}Land Freight 🚛{% else %}FCL 📦{% endif %}</strong>
+                for future shipments.
+            </p>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 
-    <!-- Summary -->
-    <div class="card">
-        <p class="card-title">📊 Summary</p>
-        {% with s=result|default:existing %}
-        <div style="display:flex; flex-direction:column; gap:10px;">
-
-            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
-                <span style="color:#94a3b8; font-size:13px;">Taxable Value</span>
-                <span style="color:#f1f5f9; font-weight:600;">
-                    {% if result %}₱{{ result.taxable_value|floatformat:2 }}
-                    {% else %}₱{{ existing.dutiable_value|floatformat:2 }}{% endif %}
-                </span>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
-                <span style="color:#94a3b8; font-size:13px;">Customs Duties (CUD)</span>
-                <span style="color:#f1f5f9; font-weight:600;">
-                    {% if result %}₱{{ result.customs_duties|floatformat:2 }}
-                    {% else %}₱{{ existing.customs_duty|floatformat:2 }}{% endif %}
-                </span>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
-                <span style="color:#94a3b8; font-size:13px;">VAT (12%)</span>
-                <span style="color:#f1f5f9; font-weight:600;">
-                    {% if result %}₱{{ result.vat|floatformat:2 }}
-                    {% else %}₱{{ existing.vat_amount|floatformat:2 }}{% endif %}
-                </span>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
-                <span style="color:#94a3b8; font-size:13px;">Brokerage Fee</span>
-                <span style="color:#f1f5f9; font-weight:600;">
-                    {% if result %}₱{{ result.brokerage_fee|floatformat:2 }}
-                    {% else %}—{% endif %}
-                </span>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
-                <span style="color:#94a3b8; font-size:13px;">Customs Doc Stamp</span>
-                <span style="color:#f1f5f9; font-weight:600;">₱130.00</span>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; padding:10px; background:#0f172a; border-radius:8px;">
-                <span style="color:#94a3b8; font-size:13px;">Import Processing Fee</span>
-                <span style="color:#f1f5f9; font-weight:600;">
-                    {% if result %}₱{{ result.ipf|floatformat:2 }}
-                    {% else %}—{% endif %}
-                </span>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; padding:16px; background:#172554; border-radius:8px; border:2px solid #3b82f6;">
-                <span style="color:#93c5fd; font-size:15px; font-weight:600;">
-                    Total Landed Cost
-                </span>
-                <span style="color:#3b82f6; font-size:20px; font-weight:700;">
-                    {% if result %}₱{{ result.total_landed_cost|floatformat:2 }}
-                    {% else %}₱{{ existing.total_landed_cost|floatformat:2 }}{% endif %}
-                </span>
-            </div>
-
-            <p style="color:#64748b; font-size:11px; text-align:center;">
-                ESTIMATED COMPUTATION ONLY.<br>
-                FINAL ASSESSMENT WILL BE BASED ON CUSTOMS FINDINGS.
-            </p>
+    <!-- ── COMPACT: All 4 mode scores strip ────────────────────────── -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; margin-bottom:10px;">
+        {% with sa=wmcda_scores.air %}
+        <div style="background:#0f172a; border-radius:8px; padding:8px 10px; text-align:center;
+                    border:1px solid {% if wmcda_recommended == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#1e293b{% endif %};">
+            <p style="margin:0; font-size:14px;">✈️</p>
+            <p style="color:#94a3b8; font-size:10px; margin:2px 0;">Air</p>
+            <p style="margin:0; font-size:13px; font-weight:700;
+                color:{% if wmcda_recommended == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                {{ sa|floatformat:3 }}</p>
+            {% if wmcda_recommended == 'air' %}
+            <p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+            {% elif shipment.shipment_type == 'air' %}
+            <p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>
+            {% endif %}
+        </div>
+        {% endwith %}
+        {% with sl=wmcda_scores.lcl %}
+        <div style="background:#0f172a; border-radius:8px; padding:8px 10px; text-align:center;
+                    border:1px solid {% if wmcda_recommended == 'lcl' %}#22c55e{% elif shipment.shipment_type == 'lcl' %}#3b82f6{% else %}#1e293b{% endif %};">
+            <p style="margin:0; font-size:14px;">🚢</p>
+            <p style="color:#94a3b8; font-size:10px; margin:2px 0;">LCL</p>
+            <p style="margin:0; font-size:13px; font-weight:700;
+                color:{% if wmcda_recommended == 'lcl' %}#22c55e{% elif shipment.shipment_type == 'lcl' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                {{ sl|floatformat:3 }}</p>
+            {% if wmcda_recommended == 'lcl' %}
+            <p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+            {% elif shipment.shipment_type == 'lcl' %}
+            <p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>
+            {% endif %}
+        </div>
+        {% endwith %}
+        {% with sf=wmcda_scores.fcl %}
+        <div style="background:#0f172a; border-radius:8px; padding:8px 10px; text-align:center;
+                    border:1px solid {% if wmcda_recommended == 'fcl' %}#22c55e{% elif shipment.shipment_type == 'fcl' %}#3b82f6{% else %}#1e293b{% endif %};">
+            <p style="margin:0; font-size:14px;">📦</p>
+            <p style="color:#94a3b8; font-size:10px; margin:2px 0;">FCL</p>
+            <p style="margin:0; font-size:13px; font-weight:700;
+                color:{% if wmcda_recommended == 'fcl' %}#22c55e{% elif shipment.shipment_type == 'fcl' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                {{ sf|floatformat:3 }}</p>
+            {% if wmcda_recommended == 'fcl' %}
+            <p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+            {% elif shipment.shipment_type == 'fcl' %}
+            <p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>
+            {% endif %}
+        </div>
+        {% endwith %}
+        {% with sland=wmcda_scores.land %}
+        <div style="background:#0f172a; border-radius:8px; padding:8px 10px; text-align:center;
+                    border:1px solid {% if wmcda_recommended == 'land' %}#22c55e{% elif shipment.shipment_type == 'land' %}#3b82f6{% else %}#1e293b{% endif %};">
+            <p style="margin:0; font-size:14px;">🚛</p>
+            <p style="color:#94a3b8; font-size:10px; margin:2px 0;">Land</p>
+            <p style="margin:0; font-size:13px; font-weight:700;
+                color:{% if wmcda_recommended == 'land' %}#22c55e{% elif shipment.shipment_type == 'land' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                {{ sland|floatformat:3 }}</p>
+            {% if wmcda_recommended == 'land' %}
+            <p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+            {% elif shipment.shipment_type == 'land' %}
+            <p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>
+            {% endif %}
         </div>
         {% endwith %}
     </div>
 
+    <!-- ── RECOMMENDATION: Only shown when declared ≠ recommended ─── -->
+    {% if wmcda_recommended and wmcda_recommended != shipment.shipment_type %}
+    <div style="background:#1a2e1a; border:1px solid #22c55e; border-radius:8px;
+                padding:12px 14px; margin-bottom:10px;">
+        <p style="color:#22c55e; font-size:11px; font-weight:700; margin:0 0 4px;
+                  text-transform:uppercase; letter-spacing:0.5px;">
+            ✦ Recommended for Future Shipments
+        </p>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:22px;">
+                {% if wmcda_recommended == 'air' %}✈️
+                {% elif wmcda_recommended == 'lcl' %}🚢
+                {% elif wmcda_recommended == 'land' %}🚛
+                {% else %}📦{% endif %}
+            </span>
+            <div style="flex:1;">
+                <p style="color:#f1f5f9; font-size:14px; font-weight:700; margin:0;">
+                    {% if wmcda_recommended == 'air' %}Air Freight
+                    {% elif wmcda_recommended == 'lcl' %}LCL (Less than Container Load)
+                    {% elif wmcda_recommended == 'land' %}Land Freight
+                    {% else %}FCL (Full Container Load){% endif %}
+                </p>
+                {% if wmcda_explanation %}
+                <p style="color:#86efac; font-size:11px; margin:3px 0 0;">{{ wmcda_explanation }}</p>
+                {% endif %}
+            </div>
+            <span style="font-size:16px; font-weight:800; color:#22c55e;">
+                {% if wmcda_recommended == 'air' %}{{ wmcda_scores.air|floatformat:3 }}
+                {% elif wmcda_recommended == 'lcl' %}{{ wmcda_scores.lcl|floatformat:3 }}
+                {% elif wmcda_recommended == 'land' %}{{ wmcda_scores.land|floatformat:3 }}
+                {% else %}{{ wmcda_scores.fcl|floatformat:3 }}{% endif %}
+            </span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ── HISTORICAL PATTERN ──────────────────────────────────────── -->
+    {% if wmcda_history %}
+    <div style="background:#1e293b; border:1px solid #334155; border-radius:8px;
+                padding:10px 14px; display:flex; align-items:center; gap:10px;">
+        <span style="font-size:18px;">📈</span>
+        <div>
+            <p style="color:#94a3b8; font-size:11px; margin:0; font-weight:600;
+                      text-transform:uppercase; letter-spacing:0.5px;">
+                Historical Pattern — {{ wmcda_history.ship_type }}
+            </p>
+            <p style="color:#f1f5f9; font-size:12px; margin:3px 0 0;">
+                In <strong style="color:#3b82f6;">{{ wmcda_history.total }}</strong> previous
+                {{ wmcda_history.ship_type }} shipments,
+                <strong style="color:#22c55e;">{{ wmcda_history.mode_label }}</strong>
+                was recommended <strong>{{ wmcda_history.top_pct }}%</strong> of the time.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 {% endif %}
 
+</div><!-- end right col -->
+</div><!-- end compute-layout -->
+
+{% endblock %}
+
 {% block extra_js %}
 <script>
-    // Auto-fill duty rate when HS code is selected
-    function updateDutyRate(select) {
-        const rate = select.options[select.selectedIndex].dataset.rate;
-        if (rate) {
-            document.getElementById('duty_rate').value = rate;
+// ── OCR extracted data (from Django context) ──────────────────────────────────
+var ocrData = {
+    {% if ocr_fields %}
+    declared_value: '{{ ocr_fields.declared_value.value|default:"" }}',
+    description:    '{{ ocr_fields.description.value|default:"" }}',
+    total_quantity: '{{ ocr_fields.total_quantity.value|default:"" }}',
+    gross_weight:   '{{ ocr_fields.gross_weight.value|default:"" }}',
+    {% endif %}
+};
+
+// HS Codes list — includes description for searchable picker
+var hsCodesData = [
+    {% for hs in hs_codes %}{id: {{ hs.id }}, code: '{{ hs.code|escapejs }}', rate: {{ hs.duty_rate }}, desc: '{{ hs.description|truncatechars:60|escapejs }}'}{% if not forloop.last %},{% endif %}{% endfor %}
+];
+
+// Multi-item list extracted by OCR (from invoice/packing list line items)
+var ocrItems = [
+    {% if ocr_items %}
+    {% for item in ocr_items %}
+    {
+        description: '{{ item.description|escapejs }}',
+        quantity:    '{{ item.quantity|default:"" }}',
+        total_value: {{ item.total_value|default:0 }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+    {% endif %}
+];
+
+// ── HS Code Searchable Picker ─────────────────────────────────────────────────
+
+function _filterHsCodes(query) {
+    if (!query) return hsCodesData.slice(0, 40); // show first 40 when empty
+    var q = query.toLowerCase();
+    return hsCodesData.filter(function(hs) {
+        return hs.code.toLowerCase().includes(q) || hs.desc.toLowerCase().includes(q);
+    }).slice(0, 50);
+}
+
+function _positionHsResults(picker) {
+    var input   = picker.querySelector('.hs-search-input');
+    var results = picker.querySelector('.hs-results');
+    var rect    = input.getBoundingClientRect();
+    results.style.top   = (rect.bottom + 2) + 'px';
+    results.style.left  = rect.left + 'px';
+    results.style.width = Math.max(rect.width, 320) + 'px';
+}
+
+function _renderHsResults(picker, query) {
+    var results = picker.querySelector('.hs-results');
+    var matches = _filterHsCodes(query);
+    if (matches.length === 0) {
+        results.innerHTML = '<div class="hs-no-results">No HS codes found for "' + query + '"</div>';
+    } else {
+        results.innerHTML = matches.map(function(hs) {
+            return '<div class="hs-result-item" data-id="' + hs.id + '" data-rate="' + hs.rate + '" data-code="' + hs.code + '">' +
+                   '<span class="hs-code-badge">' + hs.code + '</span>' +
+                   '<span class="hs-desc-text">' + hs.desc + '</span>' +
+                   '<span class="hs-rate-badge">' + hs.rate + '%</span>' +
+                   '</div>';
+        }).join('');
+        // Attach click handlers
+        results.querySelectorAll('.hs-result-item').forEach(function(item) {
+            item.addEventListener('mousedown', function(e) {
+                e.preventDefault(); // prevent blur before click
+                _selectHsItem(picker, item.dataset.id, item.dataset.code, parseFloat(item.dataset.rate));
+            });
+        });
+    }
+    _positionHsResults(picker);
+    results.classList.add('open');
+}
+
+function _selectHsItem(picker, id, code, rate) {
+    var searchInput = picker.querySelector('.hs-search-input');
+    var hiddenInput = picker.querySelector('input[name="hs_code_id[]"]');
+    searchInput.value = code;
+    searchInput.classList.add('hs-selected');
+    hiddenInput.value = id;
+    picker.querySelector('.hs-results').classList.remove('open');
+
+    // Update rate-input in same row
+    var tr = picker.closest('tr');
+    if (tr) {
+        var rateInput = tr.querySelector('.rate-input');
+        if (rateInput) { rateInput.value = rate; }
+    }
+    recalcAll();
+}
+
+function initHsPicker(picker) {
+    var searchInput = picker.querySelector('.hs-search-input');
+    var hiddenInput = picker.querySelector('input[name="hs_code_id[]"]');
+
+    // Pre-fill from data-selected-id on page load
+    var preId = picker.dataset.selectedId;
+    if (preId) {
+        var preHs = hsCodesData.find(function(h) { return String(h.id) === String(preId); });
+        if (preHs) {
+            searchInput.value = preHs.code;
+            searchInput.classList.add('hs-selected');
         }
     }
 
-    // Add new item row
-    function addRow() {
-        const tbody = document.getElementById('items_body');
-        const rowCount = tbody.rows.length + 1;
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td style="padding:8px 12px; color:#94a3b8; font-size:13px;">${rowCount}</td>
-            <td style="padding:8px 12px;">
-                <input type="text" name="description[]"
-                    class="form-input" style="min-width:200px;"
-                    placeholder="Item description">
-            </td>
-            <td style="padding:8px 12px;">
-                <input type="number" name="exw_value[]"
-                    class="form-input exw-input" step="0.01"
-                    placeholder="0.00" oninput="updateTotal()">
-            </td>
-            <td style="padding:8px 12px;">
-                <input type="number" name="quantity[]"
-                    class="form-input" style="width:80px;"
-                    placeholder="0">
-            </td>
-            <td style="padding:8px 12px;">
-                <button type="button" class="btn btn-danger"
-                    onclick="removeRow(this)" style="padding:4px 10px;">
-                    ✕
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    }
-
-    // Remove item row
-    function removeRow(btn) {
-        const row = btn.closest('tr');
-        row.remove();
-        updateRowNumbers();
-        updateTotal();
-    }
-
-    // Update row numbers
-    function updateRowNumbers() {
-        const rows = document.querySelectorAll('#items_body tr');
-        rows.forEach((row, index) => {
-            row.cells[0].textContent = index + 1;
-        });
-    }
-
-    // Update total EXW display
-    function updateTotal() {
-        const inputs = document.querySelectorAll('.exw-input');
-        let total = 0;
-        inputs.forEach(input => {
-            total += parseFloat(input.value) || 0;
-        });
-        document.getElementById('total_exw_display').textContent =
-            '$' + total.toLocaleString('en-US', {minimumFractionDigits: 2});
-    }
-
-    // Attach listeners to existing inputs
-    document.querySelectorAll('.exw-input').forEach(input => {
-        input.addEventListener('input', updateTotal);
+    searchInput.addEventListener('focus', function() {
+        _renderHsResults(picker, this.value);
     });
 
-    updateTotal();
-</script>
-{% endblock %}
+    searchInput.addEventListener('input', function() {
+        searchInput.classList.remove('hs-selected');
+        hiddenInput.value = '';
+        _renderHsResults(picker, this.value);
+    });
 
+    searchInput.addEventListener('blur', function() {
+        setTimeout(function() {
+            picker.querySelector('.hs-results').classList.remove('open');
+            // If no selection made, restore previous or clear
+            if (!hiddenInput.value) {
+                searchInput.value = '';
+                searchInput.classList.remove('hs-selected');
+            } else {
+                var hs = hsCodesData.find(function(h) { return String(h.id) === String(hiddenInput.value); });
+                if (hs) searchInput.value = hs.code;
+            }
+        }, 150);
+    });
+
+    // Reposition dropdown on scroll or resize (table can scroll horizontally)
+    window.addEventListener('scroll', function() { _positionHsResults(picker); }, true);
+    window.addEventListener('resize', function() { _positionHsResults(picker); });
+
+    // Close on outside click
+    document.addEventListener('click', function(e) {
+        if (!picker.contains(e.target)) {
+            picker.querySelector('.hs-results').classList.remove('open');
+        }
+    });
+}
+
+function initAllHsPickers() {
+    document.querySelectorAll('.hs-picker').forEach(function(picker) {
+        initHsPicker(picker);
+    });
+}
+
+function _createHsPicker() {
+    var div = document.createElement('div');
+    div.className = 'hs-picker';
+    div.innerHTML =
+        '<input type="text" class="hs-search-input" placeholder="Search code or item..." autocomplete="off">' +
+        '<input type="hidden" name="hs_code_id[]" value="">' +
+        '<div class="hs-results"></div>';
+    initHsPicker(div);
+    return div;
+}
+
+function _makeRow(n, desc, exw, qty) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+        '<td style="color:#64748b;font-size:11px;">' + n + '</td>' +
+        '<td><input class="ecdt-input" type="text" name="description[]" ' +
+             'value="' + desc.replace(/"/g,'&quot;') + '" placeholder="Item..." style="width:110px;"></td>' +
+        '<td><input class="ecdt-input exw-input" type="number" name="exw_value[]" ' +
+             'step="0.01" value="' + (exw || '') + '" placeholder="0.00" oninput="recalcAll()"></td>' +
+        '<td><input class="ecdt-input" type="number" name="quantity[]" ' +
+             'step="1" value="' + (qty || '') + '" placeholder="0"></td>' +
+        '<td class="hs-picker-td"></td>' +
+        '<td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" ' +
+             'step="0.01" placeholder="0" oninput="recalcAll()" style="width:44px;"></td>' +
+        '<td class="calc" data-field="freight">—</td>' +
+        '<td class="calc" data-field="ins">—</td>' +
+        '<td class="calc" data-field="oc">—</td>' +
+        '<td class="calc" data-field="dvusd">—</td>' +
+        '<td class="calc" data-field="dvphp" style="color:#3b82f6;">—</td>' +
+        '<td class="calc" data-field="cud" style="color:#f59e0b;">—</td>' +
+        '<td><button type="button" onclick="removeRow(this)" ' +
+             'style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 4px;">✕</button></td>';
+    // Append picker element (can't inline HTML with event listeners cleanly)
+    tr.querySelector('.hs-picker-td').appendChild(_createHsPicker());
+    return tr;
+}
+
+function fillFromOCR() {
+    var tbody = document.getElementById('ecdt-body');
+
+    if (ocrItems && ocrItems.length >= 2) {
+        // Multi-item fill — clear table and create one row per item
+        tbody.innerHTML = '';
+        ocrItems.forEach(function(item, idx) {
+            tbody.appendChild(_makeRow(idx + 1, item.description, item.total_value, item.quantity));
+        });
+    } else {
+        // Single-total fallback — fill first row
+        var firstRow = tbody.rows[0];
+        if (!firstRow) return;
+        if (ocrData.description)
+            firstRow.querySelector('[name="description[]"]').value = ocrData.description;
+        if (ocrData.declared_value)
+            firstRow.querySelector('[name="exw_value[]"]').value = ocrData.declared_value;
+        if (ocrData.total_quantity)
+            firstRow.querySelector('[name="quantity[]"]').value = ocrData.total_quantity;
+    }
+    recalcAll();
+}
+
+// ── Live recalculation ────────────────────────────────────────────────────────
+function recalcAll() {
+    var rows      = document.querySelectorAll('#ecdt-body tr');
+    var freight   = parseFloat(document.getElementById('total_freight').value)   || 0;
+    var insurance = parseFloat(document.getElementById('total_insurance').value) || 0;
+    var exchRate  = parseFloat(document.getElementById('exchange_rate').value)   || 0;
+
+    // Sum total EXW
+    var totalExw = 0;
+    rows.forEach(function(row) {
+        var inp = row.querySelector('.exw-input');
+        totalExw += parseFloat(inp ? inp.value : 0) || 0;
+    });
+
+    var totalDvPhp = 0, totalCud = 0;
+
+    rows.forEach(function(row) {
+        var inp      = row.querySelector('.exw-input');
+        var rateInp  = row.querySelector('.rate-input');
+        var exw      = parseFloat(inp     ? inp.value     : 0) || 0;
+        var dutyRate = parseFloat(rateInp ? rateInp.value : 0) || 0;
+
+        var itemFreight   = totalExw > 0 ? (exw / totalExw) * freight   : 0;
+        var itemInsurance = totalExw > 0 ? (exw / totalExw) * insurance : 0;
+        var oc            = exw * 0.03;
+        var dvUsd         = exw + itemFreight + itemInsurance + oc;
+        var dvPhp         = dvUsd * exchRate;
+        var cud           = dvPhp * (dutyRate / 100);
+
+        totalDvPhp += dvPhp;
+        totalCud   += cud;
+
+        function setCell(field, val) {
+            var td = row.querySelector('[data-field="' + field + '"]');
+            if (td) td.textContent = val > 0 ? val.toFixed(2) : '—';
+        }
+        setCell('freight', itemFreight);
+        setCell('ins',     itemInsurance);
+        setCell('oc',      oc);
+        setCell('dvusd',   dvUsd);
+        setCell('dvphp',   dvPhp);
+        setCell('cud',     cud);
+    });
+
+    document.getElementById('total-exw').textContent   = '$' + totalExw.toLocaleString('en-US', {minimumFractionDigits:2});
+    document.getElementById('total-dvphp').textContent = '₱' + totalDvPhp.toLocaleString('en-US', {minimumFractionDigits:2});
+    document.getElementById('total-cud').textContent   = '₱' + totalCud.toLocaleString('en-US', {minimumFractionDigits:2});
+}
+
+// ── Add / Remove rows ─────────────────────────────────────────────────────────
+function addRow() {
+    var tbody = document.getElementById('ecdt-body');
+    var n     = tbody.rows.length + 1;
+    tbody.appendChild(_makeRow(n, '', '', ''));
+}
+
+function removeRow(btn) {
+    btn.closest('tr').remove();
+    renumber();
+    recalcAll();
+}
+
+function renumber() {
+    document.querySelectorAll('#ecdt-body tr').forEach(function(tr, i) {
+        tr.cells[0].textContent = i + 1;
+    });
+}
+
+// ── HS code auto-fill — handled per-row via onHsChange() ─────────────────────
+
+// ── Document viewer ───────────────────────────────────────────────────────────
+function loadDoc(url, label) {
+    var area    = document.getElementById('viewer-area');
+    var lbl     = document.getElementById('viewer-label');
+
+    // Make relative URLs absolute using the current origin (host + port)
+    // Avoids Chrome resolving /media/... to port 80 instead of :8000
+    if (url.startsWith('/')) {
+        url = window.location.origin + url;
+    }
+
+    var ext     = url.split('?')[0].toLowerCase();
+    var isPdf   = ext.endsWith('.pdf');
+    var isImg   = /\.(jpe?g|png|gif|webp)$/.test(ext);
+
+    // Update header
+    lbl.innerHTML = '— ' + label +
+        ' <a href="' + url + '" target="_blank" ' +
+        'style="color:#3b82f6; font-size:11px; text-decoration:none; margin-left:8px; ' +
+        'padding:2px 8px; border:1px solid #334155; border-radius:4px; white-space:nowrap;">' +
+        'Open in new tab ↗</a>';
+
+    if (isPdf) {
+        area.innerHTML =
+            '<div style="height:100%;display:flex;flex-direction:column;">' +
+            '<iframe src="' + url + '" ' +
+            'style="flex:1;width:100%;min-height:500px;border:none;display:block;" ' +
+            'allow="fullscreen"></iframe>' +
+            '<div style="padding:10px;text-align:center;background:#0f172a;border-top:1px solid #1e293b;">' +
+            '<a href="' + url + '" target="_blank" ' +
+            'style="color:#3b82f6;font-size:12px;text-decoration:none;">Can\'t see the PDF? Open in new tab ↗</a>' +
+            '</div>' +
+            '</div>';
+    } else if (isImg) {
+        area.innerHTML =
+            '<div style="background:#1e293b;height:100%;display:flex;align-items:center;justify-content:center;">' +
+            '<img src="' + url + '" ' +
+            'style="max-width:100%;max-height:100%;object-fit:contain;display:block;">' +
+            '</div>';
+    } else {
+        area.innerHTML =
+            '<div style="padding:40px;text-align:center;background:#0f172a;height:100%;' +
+            'display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">' +
+            '<p style="color:#94a3b8;font-size:13px;">Preview not available for this file type.</p>' +
+            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:13px;">' +
+            'Open / Download ↗</a></div>';
+    }
+}
+
+// ── OCR timer ─────────────────────────────────────────────────────────────────
+var _ocrTimer = null;
+function startOCR(url, docLabel) {
+    var overlay = document.getElementById('ocr-overlay');
+    var elapsed = document.getElementById('ocr-elapsed');
+    document.getElementById('ocr-label').textContent = 'Extracting: ' + docLabel + '...';
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    var t0 = Date.now();
+    _ocrTimer = setInterval(function() {
+        var s = Math.floor((Date.now() - t0) / 1000);
+        elapsed.textContent = Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+    }, 250);
+    fetch(url, {credentials:'same-origin'})
+        .then(function() {
+            clearInterval(_ocrTimer);
+            setTimeout(function() { window.location.reload(); }, 400);
+        })
+        .catch(function() {
+            clearInterval(_ocrTimer);
+            overlay.style.display = 'none';
+            document.body.style.overflow = '';
+            alert('OCR request failed. Please try again.');
+        });
+}
+
+// ── Also recalc when exchange rate changes ────────────────────────────────────
+document.getElementById('exchange_rate').addEventListener('input', recalcAll);
+
+// Initial calc
+recalcAll();
+initAllHsPickers();
+
+// ── Drag-to-resize divider ────────────────────────────────────────────────────
+(function () {
+    var divider  = document.getElementById('col-divider');
+    var colLeft  = document.getElementById('col-left');
+    var colRight = document.getElementById('col-right');
+    var layout   = document.querySelector('.compute-layout');
+    var dragging = false;
+    var startX, startLeftW;
+
+    divider.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+        dragging  = true;
+        startX    = e.clientX;
+        startLeftW = colLeft.getBoundingClientRect().width;
+        divider.classList.add('dragging');
+        document.body.style.cursor    = 'col-resize';
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', function (e) {
+        if (!dragging) return;
+        var totalW  = layout.getBoundingClientRect().width;
+        var divW    = divider.getBoundingClientRect().width;
+        var delta   = e.clientX - startX;
+        var newLeft = startLeftW + delta;
+
+        // Clamp: left min 280px, right min 300px
+        var minLeft  = 280;
+        var minRight = 300;
+        newLeft = Math.max(minLeft, Math.min(newLeft, totalW - divW - minRight));
+
+        colLeft.style.width = newLeft + 'px';
+        // colRight expands via flex:1 automatically
+    });
+
+    document.addEventListener('mouseup', function () {
+        if (!dragging) return;
+        dragging = false;
+        divider.classList.remove('dragging');
+        document.body.style.cursor    = '';
+        document.body.style.userSelect = '';
+    });
+
+    // Save/restore width in localStorage
+    var savedW = localStorage.getItem('compute_left_w');
+    if (savedW) colLeft.style.width = savedW + 'px';
+
+    document.addEventListener('mouseup', function () {
+        var w = colLeft.getBoundingClientRect().width;
+        if (w > 100) localStorage.setItem('compute_left_w', Math.round(w));
+    });
+})();
+</script>
 {% endblock %}

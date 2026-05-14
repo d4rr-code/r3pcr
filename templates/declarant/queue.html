@@ -121,7 +121,7 @@
 <div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;">
     <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
                 display:flex; align-items:center; justify-content:space-between;">
-        <p class="card-title" style="margin:0;">📋 Pending Queue</p>
+        <p class="card-title" style="margin:0;">Pending Queue</p>
         <span id="pending-count" style="color:#64748b; font-size:12px;"></span>
     </div>
 
@@ -256,8 +256,14 @@
 
 <!-- ─── In Review (My Shipments) ─────────────────────────────────────────── -->
 <div class="card" style="padding:0; overflow:hidden;">
-    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
-        <p class="card-title" style="margin:0;">🔍 My In-Review Shipments</p>
+    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
+                display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <p class="card-title" style="margin:0;">My In-Review Shipments</p>
+        <input type="text" id="review-search"
+               class="form-input"
+               style="width:260px; padding:6px 12px; font-size:13px;"
+               placeholder="Search ref no. or consignee..."
+               oninput="filterReview()">
     </div>
 
     {% if in_review %}
@@ -274,7 +280,7 @@
                 <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Action</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="review-tbody">
             {% for s in in_review %}
             <tr style="border-top:1px solid #1e293b;"
                 onmouseover="this.style.background='#1e293b'"
@@ -341,6 +347,84 @@
     {% else %}
     <div style="padding:32px; text-align:center; color:#64748b;">
         <p>No shipments currently in review.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ─── History (My Processed Shipments) ─────────────────────────────────── -->
+<div class="card" style="margin-top:24px; padding:0; overflow:hidden;">
+    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
+                display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <p class="card-title" style="margin:0;">📋 My Processed Shipments
+            <span style="color:#64748b; font-weight:400; font-size:13px;">
+                — {{ history.count }} shipment{{ history.count|pluralize }}
+            </span>
+        </p>
+        <input type="text" id="history-search"
+               class="form-input"
+               style="width:260px; padding:6px 12px; font-size:13px;"
+               placeholder="Search ref no. or consignee..."
+               oninput="filterHistory()">
+    </div>
+
+    {% if history %}
+    <table style="width:100%; border-collapse:collapse;">
+        <thead>
+            <tr style="background:#0f172a;">
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Shipment Ref. No.</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Consignee</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Type</th>
+                <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Status</th>
+                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Last Updated</th>
+                <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Action</th>
+            </tr>
+        </thead>
+        <tbody id="history-tbody">
+            {% for s in history %}
+            <tr style="border-top:1px solid #1e293b;"
+                onmouseover="this.style.background='#1e293b'"
+                onmouseout="this.style.background=''">
+                <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:600;">
+                    {{ s.hawb_number }}
+                </td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                    {{ s.consignee.get_full_name|default:s.consignee.username }}
+                </td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:12px;">
+                    {{ s.get_import_type_display|default:"—" }}
+                </td>
+                <td style="padding:12px 16px; text-align:center;">
+                    <span style="display:inline-block; padding:3px 10px; border-radius:999px;
+                                 font-size:11px; font-weight:700;
+                        {% if s.status == 'approved' %}background:#052e16; color:#86efac;
+                        {% elif s.status == 'rejected' %}background:#450a0a; color:#fca5a5;
+                        {% elif s.status == 'submitted' %}background:#2d1b69; color:#c4b5fd;
+                        {% else %}background:#1c1917; color:#fcd34d;{% endif %}">
+                        {% if s.status == 'approved' %}✔ Approved
+                        {% elif s.status == 'rejected' %}✖ Rejected
+                        {% elif s.status == 'submitted' %}📬 Submitted to BOC
+                        {% else %}💳 For Payment{% endif %}
+                    </span>
+                </td>
+                <td style="padding:12px 16px; color:#64748b; font-size:12px;">
+                    {{ s.updated_at|date:"M d, Y" }}
+                    <br><span style="font-size:11px;">{{ s.updated_at|timesince }} ago</span>
+                </td>
+                <td style="padding:12px 16px; text-align:center;">
+                    <a href="{% url 'declarant:process' s.id %}"
+                       class="btn btn-secondary"
+                       style="font-size:11px; padding:6px 14px;">
+                        View →
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="padding:32px; text-align:center; color:#64748b;">
+        <div style="font-size:32px; margin-bottom:8px;">📭</div>
+        <p>No completed shipments yet. Processed shipments will appear here.</p>
     </div>
     {% endif %}
 </div>
@@ -439,6 +523,28 @@ function closePreview() {
 document.getElementById('preview-modal').addEventListener('click', function(e) {
     if (e.target === this) closePreview();
 });
+
+// ─── In-Review search ────────────────────────────────────────────────────────
+function filterReview() {
+    var q = document.getElementById('review-search').value.toLowerCase();
+    document.querySelectorAll('#review-tbody tr').forEach(function(row) {
+        if (row.id && row.id.startsWith('rv-')) return;  // skip expand rows
+        var show = !q || row.innerText.toLowerCase().includes(q);
+        row.style.display = show ? '' : 'none';
+        var next = row.nextElementSibling;
+        if (next && next.id && next.id.startsWith('rv-') && !show) {
+            next.style.display = 'none';
+        }
+    });
+}
+
+// ─── History search ──────────────────────────────────────────────────────────
+function filterHistory() {
+    var q = document.getElementById('history-search').value.toLowerCase();
+    document.querySelectorAll('#history-tbody tr').forEach(function(row) {
+        row.style.display = !q || row.innerText.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {

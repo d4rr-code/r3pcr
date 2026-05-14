@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}Manage Feedbacks{% endblock %}
+{% block page_title %}Consignee Feedbacks{% endblock %}
+
+{% block content %}
+
+{% if messages %}
+    {% for message in messages %}
+    <div style="padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px;
+                background:{% if message.tags == 'error' %}#450a0a{% else %}#052e16{% endif %};
+                color:{% if message.tags == 'error' %}#fca5a5{% else %}#86efac{% endif %};
+                border:1px solid {% if message.tags == 'error' %}#991b1b{% else %}#166534{% endif %};">
+        {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+        <p class="card-title" style="margin:0;">⭐ Consignee Feedbacks</p>
+        <span style="font-size:12px; color:#64748b;">
+            {{ feedbacks.count }} total &nbsp;·&nbsp;
+            {{ feedbacks|length }} pending review
+        </span>
+    </div>
+
+    {% if not feedbacks %}
+    <p style="color:#475569; font-size:14px; text-align:center; padding:32px 0;">
+        No feedbacks submitted yet.
+    </p>
+    {% else %}
+    <div style="display:flex; flex-direction:column; gap:16px;">
+        {% for fb in feedbacks %}
+        <div style="background:#0f172a; border:1px solid {% if fb.is_approved %}#166534{% else %}#334155{% endif %};
+                    border-radius:10px; padding:16px 20px;">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                <div style="flex:1;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap;">
+                        <span style="font-size:18px; color:#f59e0b; letter-spacing:2px;">
+                            {% for i in "12345" %}{% if forloop.counter <= fb.rating %}★{% else %}☆{% endif %}{% endfor %}
+                        </span>
+                        <span style="font-size:13px; font-weight:600; color:#e2e8f0;">
+                            {{ fb.consignee.get_full_name|default:fb.consignee.username }}
+                        </span>
+                        {% if fb.consignee.company_name %}
+                        <span style="font-size:11px; color:#64748b;">· {{ fb.consignee.company_name }}</span>
+                        {% endif %}
+                        {% if fb.shipment %}
+                        <span style="font-size:11px; color:#475569;">· {{ fb.shipment.hawb_number }}</span>
+                        {% endif %}
+                        <span style="font-size:11px; color:#475569;">· {{ fb.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <p style="font-size:13px; color:#94a3b8; margin:0; line-height:1.6;">
+                        "{{ fb.comment }}"
+                    </p>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                    {% if fb.is_approved %}
+                        <span style="font-size:11px; font-weight:600; color:#86efac; background:#052e16;
+                                     border:1px solid #166534; border-radius:999px; padding:3px 10px;">
+                            ✓ Published
+                        </span>
+                        <form method="POST" action="{% url 'supervisor:reject_feedback' fb.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger" style="font-size:12px; padding:5px 12px;"
+                                    onclick="return confirm('Remove this feedback?')">
+                                Remove
+                            </button>
+                        </form>
+                    {% else %}
+                        <span style="font-size:11px; color:#64748b; background:#1e293b;
+                                     border:1px solid #334155; border-radius:999px; padding:3px 10px;">
+                            Pending
+                        </span>
+                        <form method="POST" action="{% url 'supervisor:approve_feedback' fb.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-primary" style="font-size:12px; padding:5px 12px;">
+                                Approve
+                            </button>
+                        </form>
+                        <form method="POST" action="{% url 'supervisor:reject_feedback' fb.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger" style="font-size:12px; padding:5px 12px;"
+                                    onclick="return confirm('Delete this feedback?')">
+                                Delete
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

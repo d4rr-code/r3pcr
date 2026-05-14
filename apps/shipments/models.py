@@ -17,6 +17,7 @@ class Shipment(models.Model):
         ('lcl', 'LCL - Less Container Load'),
         ('fcl', 'FCL - Full Container Load'),
         ('air', 'Air Freight'),
+        ('land', 'Land Freight'),
     ]
 
     URGENCY_CHOICES = [
@@ -25,9 +26,12 @@ class Shipment(models.Model):
     ]
 
     IMPORT_TYPE_CHOICES = [
-        ('permanent', 'Permanent'),
-        ('repair', 'For Repair'),
-        ('sample', 'Sample'),
+        ('commercial',  'Commercial'),
+        ('personal',    'Personal Effects'),
+        ('balik_bayan', 'Balik Bayan'),
+        ('courier',     'Courier'),
+        ('sample',      'Sample / Free of Charge'),
+        ('diplomatic',  'Diplomatic'),
     ]
 
     # Core fields
@@ -47,8 +51,8 @@ class Shipment(models.Model):
     # Shipment details
     import_type = models.CharField(
         max_length=20, 
-        choices=IMPORT_TYPE_CHOICES, 
-        default='permanent'
+        choices=IMPORT_TYPE_CHOICES,
+        default='commercial'
     )
     shipment_type = models.CharField(
         max_length=10, 
@@ -91,6 +95,14 @@ class Shipment(models.Model):
         blank=True, null=True
     )
     
+    # Payment receipt (uploaded by consignee)
+    payment_receipt = models.FileField(
+        upload_to='payment_receipts/',
+        blank=True, null=True,
+        help_text='Payment receipt uploaded by consignee'
+    )
+    payment_receipt_uploaded_at = models.DateTimeField(blank=True, null=True)
+
     # BOC details
     boc_reference = models.CharField(max_length=100, blank=True, null=True)
     boc_status = models.CharField(max_length=50, blank=True, null=True)

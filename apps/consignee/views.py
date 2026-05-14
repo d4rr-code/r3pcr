@@ -5,6 +5,7 @@ from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument
 from apps.accounts.models import User
 from apps.notifications.utils import create_notification
+from .models import Feedback
 
 
 # ─── Auto-generate HAWB ───────────────────────────────────────────────────────
@@ -55,9 +56,10 @@ def dashboard(request):
 @login_required
 def submit_shipment(request):
     if request.method == 'POST':
-        import_type = request.POST.get('import_type')
-        urgency     = request.POST.get('urgency')
-        description = request.POST.get('description', '').strip()
+        import_type   = request.POST.get('import_type')
+        urgency       = request.POST.get('urgency')
+        shipment_type = request.POST.get('shipment_type', '').strip()
+        description   = request.POST.get('description', '').strip()
 
         hawb_number = generate_hawb()
 
@@ -66,6 +68,7 @@ def submit_shipment(request):
             consignee=request.user,
             import_type=import_type,
             urgency=urgency,
+            shipment_type=shipment_type or None,
             description=description,
             status='pending',
         )
@@ -79,16 +82,24 @@ def submit_shipment(request):
                     file=file,
                 )
 
+        # Other supporting documents (multiple)
+        for file in request.FILES.getlist('other_docs'):
+            ShipmentDocument.objects.create(
+                shipment=shipment,
+                document_type='other',
+                file=file,
+            )
+
         declarants = User.objects.filter(role='declarant', is_active=True)
         for declarant in declarants:
             create_notification(
                 recipient=declarant,
                 shipment=shipment,
                 notification_type='submission',
-                title=f'New Shipment — {hawb_number}',
+                title=f'New Shipment Ready to Claim — {hawb_number}',
                 message=(
-                    f'{request.user.get_full_name() or request.user.username} '
-                    f'submitted {hawb_number} for pre-clearance.'
+                    f'A new shipment ({hawb_number}) is in the pending queue and '
+                    f'available for any declarant to claim and process.'
                 ),
             )
 
@@ -148,29 +159,120 @@ def shipment_detail(request, shipment_id):
     computation = getattr(shipment, 'computation', None)
     status_logs = shipment.status_logs.order_by('-changed_at')
 
-    # Rebuild WMCDA explanation from saved advisory data
-    explanation = None
+    # Rebuild full WMCDA data from saved advisory
+    explanation       = None
+    wmcda_scores      = None
+    wmcda_breakdown   = None
+    declared_score    = None
+    declared_breakdown = None
+    declared_rating   = None
+
     if advisory:
         try:
             from apps.computation.views import compute_wmcda
-            _, _, _, explanation = compute_wmcda(
+            wmcda_scores, _, wmcda_breakdown, explanation = compute_wmcda(
                 float(advisory.gross_weight),
                 float(advisory.cargo_volume),
                 float(advisory.declared_value),
                 advisory.urgency_level,
                 float(advisory.distance_km),
             )
+            if wmcda_scores and shipment.shipment_type:
+                declared_score = wmcda_scores.get(shipment.shipment_type)
+                if wmcda_breakdown:
+                    declared_breakdown = wmcda_breakdown.get(shipment.shipment_type)
+                if declared_score is not None:
+                    if declared_score >= 0.80:
+                        declared_rating = 'Excellent'
+                    elif declared_score >= 0.65:
+                        declared_rating = 'Good'
+                    elif declared_score >= 0.50:
+                        declared_rating = 'Fair'
+                    else:
+                        declared_rating = 'Poor'
         except Exception:
             pass
 
     context = {
-        'shipment':    shipment,
-        'advisory':    advisory,
-        'computation': computation,
-        'status_logs': status_logs,
-        'explanation': explanation,
+        'shipment':          shipment,
+        'advisory':          advisory,
+        'computation':       computation,
+        'status_logs':       status_logs,
+        'explanation':       explanation,
+        'wmcda_scores':      wmcda_scores,
+        'wmcda_breakdown':   wmcda_breakdown,
+        'declared_score':    declared_score,
+        'declared_breakdown': declared_breakdown,
+        'declared_rating':   declared_rating,
     }
     return render(request, 'consignee/shipment_detail.html', context)
+
+
+# ─── Upload Payment Receipt ──────────────────────────────────────────────────
+
+@login_required
+def upload_receipt(request, shipment_id):
+    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+
+    if request.method == 'POST':
+        file = request.FILES.get('payment_receipt')
+        if not file:
+            messages.error(request, 'Please select a file to upload.')
+        elif shipment.status != 'for_payment':
+            messages.error(request, 'Payment receipt can only be uploaded when shipment is marked For Payment.')
+        else:
+            shipment.payment_receipt = file
+            shipment.payment_receipt_uploaded_at = timezone.now()
+            shipment.save()
+
+            # Notify declarant
+            if shipment.declarant:
+                create_notification(
+                    recipient=shipment.declarant,
+                    shipment=shipment,
+                    notification_type='status_update',
+                    title=f'Payment Receipt Uploaded — {shipment.hawb_number}',
+                    message=f'{request.user.get_full_name() or request.user.username} uploaded a payment receipt.',
+                )
+            messages.success(request, 'Payment receipt uploaded successfully.')
+
+    return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+
+# ─── Feedback ─────────────────────────────────────────────────────────────────
+
+@login_required
+def submit_feedback(request, shipment_id):
+    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+
+    # Only allow feedback on completed shipments
+    if shipment.status not in ('approved', 'rejected'):
+        messages.error(request, 'Feedback can only be submitted for completed shipments.')
+        return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+    # One feedback per shipment
+    if hasattr(shipment, 'feedback'):
+        messages.info(request, 'You have already submitted feedback for this shipment.')
+        return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+    if request.method == 'POST':
+        rating  = request.POST.get('rating', '').strip()
+        comment = request.POST.get('comment', '').strip()
+
+        if not rating or not comment:
+            messages.error(request, 'Please provide a rating and a comment.')
+            return render(request, 'consignee/feedback.html', {'shipment': shipment})
+
+        Feedback.objects.create(
+            consignee=request.user,
+            shipment=shipment,
+            rating=int(rating),
+            comment=comment,
+        )
+        messages.success(request, 'Thank you for your feedback! It will appear on our site once reviewed.')
+        return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+    return render(request, 'consignee/feedback.html', {'shipment': shipment})
 
 
 # ─── Cancel Submission ────────────────────────────────────────────────────────

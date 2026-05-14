@@ -106,9 +106,16 @@ def queue_manager(request):
         status='in_review', declarant=request.user
     ).select_related('consignee')
 
+    # History: shipments I processed that are past the in-review stage
+    history = Shipment.objects.filter(
+        declarant=request.user,
+        status__in=['for_payment', 'submitted', 'approved', 'rejected'],
+    ).select_related('consignee').order_by('-updated_at')
+
     context = {
         'pending':        pending,
         'in_review':      in_review,
+        'history':        history,
         'urgency_filter': urgency_filter,
         'due_filter':     due_filter,
     }
@@ -159,11 +166,15 @@ def process_shipment(request, shipment_id):
     if request.session.get('ocr_shipment_id') == shipment_id:
         ocr_fields = request.session.get('ocr_fields')
 
+    # OCR toast survives fetch→reload cycle (Django messages don't)
+    ocr_toast = request.session.pop('ocr_toast', None)
+
     context = {
         'shipment':    shipment,
         'documents':   documents,
         'status_logs': status_logs,
         'ocr_fields':  ocr_fields,
+        'ocr_toast':   ocr_toast,
     }
     return render(request, 'declarant/process.html', context)
 

@@ -50,93 +50,99 @@
     <symbol id="icon-announce" viewBox="0 0 20 20" fill="currentColor">
       <path d="M13.92 3.845a19.361 19.361 0 01-6.3 1.98C6.765 5.942 5.89 6 5 6a4 4 0 000 8c.825 0 1.620-.063 2.402-.2a19.362 19.362 0 016.3 1.98A1 1 0 0015 15V5a1 1 0 00-1.08-.155zM3 10a2 2 0 012-2c.484 0 .952.044 1.408.124A17.86 17.86 0 003 10zm2 2a2 2 0 01-2-2 17.86 17.86 0 003.408 1.876A2.001 2.001 0 015 12zM7.397 16.42a19.47 19.47 0 01-1.396-.378 17.907 17.907 0 003 1.376 19.41 19.41 0 01-1.604-1z"/>
     </symbol>
-    <!-- sun: Light mode -->
-    <symbol id="icon-sun" viewBox="0 0 20 20" fill="currentColor">
-      <path d="M10 2a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 2zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 15zm-8-5a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5A.75.75 0 012 10zm13 0a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5A.75.75 0 0115 10zM4.636 4.636a.75.75 0 011.06 0l1.061 1.06a.75.75 0 11-1.06 1.061L4.636 5.697a.75.75 0 010-1.06zm9.668 9.668a.75.75 0 011.061 0l1.06 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM13.364 4.636a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 01-1.061-1.06l1.06-1.061a.75.75 0 011.061 0zM4.636 13.364a.75.75 0 011.061 1.06l-1.06 1.061a.75.75 0 01-1.061-1.06l1.06-1.061zM10 7a3 3 0 100 6 3 3 0 000-6z"/>
-    </symbol>
-    <!-- moon: Dark mode -->
-    <symbol id="icon-moon" viewBox="0 0 20 20" fill="currentColor">
-      <path fill-rule="evenodd" d="M7.455 2.004a.75.75 0 01.26.77 7 7 0 009.958 7.967.75.75 0 011.067.853A8.5 8.5 0 116.647 1.921a.75.75 0 01.808.083z" clip-rule="evenodd"/>
-    </symbol>
   </defs>
 </svg>
 
     <!-- Sidebar -->
     <div class="sidebar">
+
+        <!-- Collapse Toggle Button -->
+        <button id="sidebar-toggle" title="Collapse sidebar" aria-label="Toggle sidebar">
+            <svg id="toggle-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12"
+                 viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                      d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                      clip-rule="evenodd"/>
+            </svg>
+        </button>
+
         <div class="sidebar-logo">
-            <h2>R3-PCR</h2>
-            <p>Pre-Clearance DSS</p>
+            <span class="logo-icon" style="display:none; font-size:20px; font-weight:700; color:#3b82f6;">R3</span>
+            <div class="logo-text">
+                <h2>R3-PCR</h2>
+                <p>Pre-Clearance DSS</p>
+            </div>
         </div>
 
         <nav class="sidebar-nav">
             {% if user.role == 'consignee' %}
                 <a href="/consignee/dashboard/" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-dashboard"/></svg>
-                    Dashboard
+                    <span class="nav-text">Dashboard</span>
                 </a>
                 <a href="/consignee/submit/" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-upload"/></svg>
-                    New Submission
+                    <span class="nav-text">New Submission</span>
                 </a>
                 <a href="/consignee/submissions/" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-clipboard"/></svg>
-                    My Submissions
+                    <span class="nav-text">My Submissions</span>
                 </a>
                 <a href="{% url 'notifications:list' %}" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-bell"/></svg>
-                    Notifications{% if unread_notification_count %} <span class="notif-badge">{{ unread_notification_count }}</span>{% endif %}
+                    <span class="nav-text">Notifications{% if unread_notification_count %} <span class="notif-badge">{{ unread_notification_count }}</span>{% endif %}</span>
                 </a>
                 <a href="{% url 'accounts:settings' %}" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-user"/></svg>
-                    Account Settings
+                    <span class="nav-text">Account Settings</span>
                 </a>
 
             {% elif user.role == 'declarant' %}
                 <a href="/declarant/dashboard/" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-dashboard"/></svg>
-                    Dashboard
+                    <span class="nav-text">Dashboard</span>
                 </a>
                 <a href="/declarant/queue/" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-clipboard"/></svg>
-                    Queue Manager
+                    <span class="nav-text">Queue Manager</span>
                 </a>
                 <a href="{% url 'notifications:list' %}" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-bell"/></svg>
-                    Notifications{% if unread_notification_count %} <span class="notif-badge">{{ unread_notification_count }}</span>{% endif %}
+                    <span class="nav-text">Notifications{% if unread_notification_count %} <span class="notif-badge">{{ unread_notification_count }}</span>{% endif %}</span>
                 </a>
                 <a href="{% url 'accounts:settings' %}" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-user"/></svg>
-                    Account Settings
+                    <span class="nav-text">Account Settings</span>
                 </a>
 
             {% elif user.role == 'supervisor' %}
                 <a href="/supervisor/dashboard/" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-dashboard"/></svg>
-                    Dashboard
+                    <span class="nav-text">Dashboard</span>
                 </a>
                 <a href="/supervisor/analytics/" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-analytics"/></svg>
-                    Analytics
+                    <span class="nav-text">Analytics</span>
                 </a>
                 <a href="/supervisor/users/" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-users"/></svg>
-                    User Management
+                    <span class="nav-text">User Management</span>
                 </a>
                 <a href="{% url 'supervisor:memos' %}" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-announce"/></svg>
-                    Memos &amp; Announcements
+                    <span class="nav-text">Memos &amp; Announcements</span>
                 </a>
                 <a href="{% url 'supervisor:config' %}" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-settings"/></svg>
-                    System Config
+                    <span class="nav-text">System Config</span>
                 </a>
                 <a href="{% url 'notifications:list' %}" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-bell"/></svg>
-                    Notifications{% if unread_notification_count %} <span class="notif-badge">{{ unread_notification_count }}</span>{% endif %}
+                    <span class="nav-text">Notifications{% if unread_notification_count %} <span class="notif-badge">{{ unread_notification_count }}</span>{% endif %}</span>
                 </a>
                 <a href="{% url 'accounts:settings' %}" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-user"/></svg>
-                    Account Settings
+                    <span class="nav-text">Account Settings</span>
                 </a>
             {% endif %}
         </nav>
@@ -146,7 +152,7 @@
                 <p class="user-name">{{ user.get_full_name|default:user.username }}</p>
                 <p class="user-role">{{ user.get_role_display }}</p>
             </div>
-            <a href="/accounts/logout/" class="logout-btn">Logout</a>
+            <a href="/accounts/logout/" class="logout-btn"><span class="logout-text">Logout</span><span class="logout-icon" style="display:none;">&#x2192;</span></a>
         </div>
     </div>
 
@@ -157,11 +163,6 @@
         <div class="topbar">
             <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
             <div class="topbar-right">
-                <!-- Dark / Light toggle -->
-                <button class="theme-toggle" id="theme-toggle" title="Toggle theme" type="button">
-                    <svg class="nav-icon icon-sun"  width="18" height="18"><use href="#icon-sun"/></svg>
-                    <svg class="nav-icon icon-moon" width="18" height="18"><use href="#icon-moon"/></svg>
-                </button>
                 <span class="welcome-text">
                     Welcome, {{ user.first_name|default:user.username }}
                 </span>
@@ -187,25 +188,6 @@
 
     </div>
 
-    <!-- Theme toggle script -->
-    <script>
-    (function () {
-        var body   = document.body;
-        var btn    = document.getElementById('theme-toggle');
-        var LIGHT  = 'light-mode';
-
-        // Apply saved preference immediately
-        if (localStorage.getItem('theme') === 'light') {
-            body.classList.add(LIGHT);
-        }
-
-        btn.addEventListener('click', function () {
-            var isLight = body.classList.toggle(LIGHT);
-            localStorage.setItem('theme', isLight ? 'light' : 'dark');
-        });
-    })();
-    </script>
-
     <!-- Auto logout after 30 minutes of inactivity -->
     <script>
         let timeout = setTimeout(function() {
@@ -220,6 +202,51 @@
                 }, 30 * 60 * 1000);
             });
         });
+    </script>
+
+    <!-- Sidebar collapse JS -->
+    <script>
+    (function() {
+        var STORAGE_KEY = 'r3pcr_sidebar_collapsed';
+        var body = document.body;
+        var btn  = document.getElementById('sidebar-toggle');
+
+        function applyState(collapsed) {
+            var icon      = document.getElementById('toggle-icon');
+            var logoIcon  = document.querySelector('.logo-icon');
+            var logoText  = document.querySelector('.logo-text');
+            var logoutTxt = document.querySelector('.logout-text');
+            var logoutIco = document.querySelector('.logout-icon');
+
+            if (collapsed) {
+                body.classList.add('sidebar-collapsed');
+                btn.title = 'Expand sidebar';
+                if (icon) icon.style.transform = 'rotate(180deg)';
+                if (logoIcon) logoIcon.style.display = 'block';
+                if (logoText) logoText.style.display = 'none';
+                if (logoutTxt) logoutTxt.style.display = 'none';
+                if (logoutIco) logoutIco.style.display = 'inline';
+            } else {
+                body.classList.remove('sidebar-collapsed');
+                btn.title = 'Collapse sidebar';
+                if (icon) icon.style.transform = 'rotate(0deg)';
+                if (logoIcon) logoIcon.style.display = 'none';
+                if (logoText) logoText.style.display = 'block';
+                if (logoutTxt) logoutTxt.style.display = 'inline';
+                if (logoutIco) logoutIco.style.display = 'none';
+            }
+        }
+
+        // Restore saved state
+        var saved = localStorage.getItem(STORAGE_KEY);
+        applyState(saved === '1');
+
+        btn.addEventListener('click', function() {
+            var isCollapsed = body.classList.contains('sidebar-collapsed');
+            applyState(!isCollapsed);
+            localStorage.setItem(STORAGE_KEY, isCollapsed ? '0' : '1');
+        });
+    })();
     </script>
 
     {% block extra_js %}{% endblock %}

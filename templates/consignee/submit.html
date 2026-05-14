@@ -5,7 +5,7 @@
 
 {% block content %}
 
-<div class="card" style="max-width:680px;">
+<div class="card" style="max-width:720px;">
     <p class="card-title">📤 Submit New Shipment</p>
 
     <div style="background:#1e3a5f; border:1px solid #3b82f6; border-radius:8px;
@@ -17,33 +17,94 @@
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
 
-        <div class="form-group">
-            <label class="form-label">Import Type *</label>
-            <select name="import_type" class="form-input" required>
-                <option value="">— Select —</option>
-                <option value="commercial">Commercial</option>
-                <option value="personal">Personal</option>
-                <option value="balikbayan">Balikbayan</option>
-                <option value="courier">Courier / Express</option>
-            </select>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div class="form-group">
+                <label class="form-label">Import Type *</label>
+                <select name="import_type" class="form-input" required>
+                    <option value="">— Select —</option>
+                    <option value="commercial">Commercial</option>
+                    <option value="personal">Personal Effects</option>
+                    <option value="balik_bayan">Balik Bayan</option>
+                    <option value="courier">Courier</option>
+                    <option value="sample">Sample / Free of Charge</option>
+                    <option value="diplomatic">Diplomatic</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Urgency *</label>
+                <select name="urgency" class="form-input" required>
+                    <option value="">— Select —</option>
+                    <option value="normal">Normal</option>
+                    <option value="urgent">⚡ Urgent</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-label">Shipping Mode *
+                    <span style="color:#64748b; font-weight:400; font-size:11px; margin-left:4px;">
+                        — What mode is this shipment arriving by?
+                    </span>
+                </label>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px;">
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="shipment_type" value="air" required
+                               style="display:none;" onchange="highlightMode(this)">
+                        <div class="mode-card" data-mode="air"
+                             style="border:2px solid #334155; border-radius:10px; padding:16px 12px;
+                                    text-align:center; transition:all 0.15s; background:#0f172a;">
+                            <div style="font-size:28px; margin-bottom:6px;">✈️</div>
+                            <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">Air Freight</p>
+                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">Fast, smaller cargo</p>
+                        </div>
+                    </label>
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="shipment_type" value="lcl"
+                               style="display:none;" onchange="highlightMode(this)">
+                        <div class="mode-card" data-mode="lcl"
+                             style="border:2px solid #334155; border-radius:10px; padding:16px 12px;
+                                    text-align:center; transition:all 0.15s; background:#0f172a;">
+                            <div style="font-size:28px; margin-bottom:6px;">🚢</div>
+                            <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">LCL</p>
+                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">Shared container</p>
+                        </div>
+                    </label>
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="shipment_type" value="fcl"
+                               style="display:none;" onchange="highlightMode(this)">
+                        <div class="mode-card" data-mode="fcl"
+                             style="border:2px solid #334155; border-radius:10px; padding:16px 12px;
+                                    text-align:center; transition:all 0.15s; background:#0f172a;">
+                            <div style="font-size:28px; margin-bottom:6px;">📦</div>
+                            <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">FCL</p>
+                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">Full container</p>
+                        </div>
+                    </label>
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="shipment_type" value="land"
+                               style="display:none;" onchange="highlightMode(this)">
+                        <div class="mode-card" data-mode="land"
+                             style="border:2px solid #334155; border-radius:10px; padding:16px 12px;
+                                    text-align:center; transition:all 0.15s; background:#0f172a;">
+                            <div style="font-size:28px; margin-bottom:6px;">🚛</div>
+                            <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">Land Freight</p>
+                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">Road transport</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-label">Description of Goods</label>
+                <textarea name="description" class="form-input" rows="3"
+                    placeholder="Brief description of the shipment contents..."></textarea>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label class="form-label">Urgency *</label>
-            <select name="urgency" class="form-input" required>
-                <option value="">— Select —</option>
-                <option value="normal">Normal</option>
-                <option value="urgent">Urgent</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">Description of Goods</label>
-            <textarea name="description" class="form-input" rows="3"
-                placeholder="Brief description of the shipment contents..."></textarea>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:8px;">
+        <!-- Required Documents -->
+        <p style="color:#94a3b8; font-size:12px; font-weight:600; text-transform:uppercase;
+                  letter-spacing:0.8px; margin:20px 0 12px;">Required Documents</p>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
             <div class="form-group">
                 <label class="form-label">📄 Commercial Invoice</label>
                 <input type="file" name="invoice" class="form-input"
@@ -57,18 +118,66 @@
                 <p style="color:#64748b; font-size:11px; margin-top:4px;">PDF or image</p>
             </div>
             <div class="form-group">
-                <label class="form-label">✈️ Airway Bill</label>
+                <label class="form-label">✈️ Airway Bill / BOL</label>
                 <input type="file" name="airway_bill" class="form-input"
                     accept=".pdf,.jpg,.jpeg,.png">
                 <p style="color:#64748b; font-size:11px; margin-top:4px;">PDF or image</p>
             </div>
         </div>
 
-        <div style="display:flex; gap:12px; margin-top:16px;">
+        <!-- Other Supporting Documents -->
+        <div style="border-top:1px solid #1e293b; margin-top:16px; padding-top:16px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <p style="color:#94a3b8; font-size:12px; font-weight:600; text-transform:uppercase;
+                          letter-spacing:0.8px; margin:0;">Other Supporting Documents
+                    <span style="color:#475569; font-weight:400; text-transform:none; letter-spacing:0; font-size:11px; margin-left:6px;">(optional)</span>
+                </p>
+                <button type="button" onclick="addOtherDoc()"
+                        class="btn btn-secondary" style="font-size:11px; padding:5px 12px;">
+                    + Add Document
+                </button>
+            </div>
+            <div id="other-docs-container" style="display:flex; flex-direction:column; gap:10px;">
+                <!-- dynamic rows added by JS -->
+            </div>
+            <p style="color:#475569; font-size:11px; margin-top:8px;">
+                e.g. Certificate of Origin, Import Permit, Authorization Letter
+            </p>
+        </div>
+
+        <div style="display:flex; gap:12px; margin-top:20px;">
             <button type="submit" class="btn btn-primary">Submit Shipment</button>
             <a href="{% url 'consignee:my_submissions' %}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function highlightMode(radio) {
+    document.querySelectorAll('.mode-card').forEach(function(card) {
+        card.style.borderColor = '#334155';
+        card.style.background  = '#0f172a';
+    });
+    var card = radio.closest('label').querySelector('.mode-card');
+    card.style.borderColor = '#3b82f6';
+    card.style.background  = '#1e3a5f';
+}
+
+var _otherDocCount = 0;
+function addOtherDoc() {
+    _otherDocCount++;
+    var container = document.getElementById('other-docs-container');
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex; align-items:center; gap:10px;';
+    row.innerHTML =
+        '<input type="file" name="other_docs" class="form-input" ' +
+        'accept=".pdf,.jpg,.jpeg,.png" style="flex:1;">' +
+        '<button type="button" onclick="this.closest(\'div\').remove()" ' +
+        'class="btn btn-danger" style="padding:6px 12px; flex-shrink:0;">✕</button>';
+    container.appendChild(row);
+}
+</script>
 {% endblock %}

@@ -8,6 +8,7 @@ from django.conf import settings
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
+from apps.consignee.models import Feedback
 from .models import SystemConfig, Announcement
 
 
@@ -201,11 +202,14 @@ def analytics(request):
     # Declarant performance
     declarant_data = []
     for d in declarants:
-        d_ships  = shipments.filter(declarant=d)
-        total_d  = d_ships.count()
-        approved = d_ships.filter(status='approved').count()
-        rejected = d_ships.filter(status='rejected').count()
-        rate     = round((approved / total_d * 100), 1) if total_d > 0 else 0
+        d_ships   = shipments.filter(declarant=d)
+        claimed   = d_ships.count()                                # assigned to them
+        processed = d_ships.exclude(status__in=['pending','draft']).count()
+        approved  = d_ships.filter(status='approved').count()
+        rejected  = d_ships.filter(status='rejected').count()
+        in_review = d_ships.filter(status='in_review').count()
+        computed  = DutyComputation.objects.filter(shipment__declarant=d).count()
+        rate      = round((approved / claimed * 100), 1) if claimed > 0 else 0
 
         approved_with_time = d_ships.filter(status='approved', processed_at__isnull=False)
         avg_days = None
@@ -219,9 +223,13 @@ def analytics(request):
 
         declarant_data.append({
             'name':          d.get_full_name() or d.username,
-            'total':         total_d,
+            'username':      d.username,
+            'claimed':       claimed,
+            'processed':     processed,
+            'in_review':     in_review,
             'approved':      approved,
             'rejected':      rejected,
+            'computed':      computed,
             'approval_rate': rate,
             'avg_days':      avg_days,
         })
@@ -253,20 +261,23 @@ def analytics(request):
     advisories = ShippingAdvisory.objects.all()
     total_adv  = advisories.count()
 
-    wmcda_air = advisories.filter(recommended_type='air').count()
-    wmcda_lcl = advisories.filter(recommended_type='lcl').count()
-    wmcda_fcl = advisories.filter(recommended_type='fcl').count()
+    wmcda_air  = advisories.filter(recommended_type='air').count()
+    wmcda_lcl  = advisories.filter(recommended_type='lcl').count()
+    wmcda_fcl  = advisories.filter(recommended_type='fcl').count()
+    wmcda_land = advisories.filter(recommended_type='land').count()
 
-    avg_air = avg_lcl = avg_fcl = None
+    avg_air = avg_lcl = avg_fcl = avg_land = None
     if total_adv > 0:
         avgs = advisories.aggregate(
             avg_air=Avg('air_score'),
             avg_lcl=Avg('lcl_score'),
             avg_fcl=Avg('fcl_score'),
+            avg_land=Avg('land_score'),
         )
-        avg_air = round(float(avgs['avg_air'] or 0), 3)
-        avg_lcl = round(float(avgs['avg_lcl'] or 0), 3)
-        avg_fcl = round(float(avgs['avg_fcl'] or 0), 3)
+        avg_air  = round(float(avgs['avg_air']  or 0), 3)
+        avg_lcl  = round(float(avgs['avg_lcl']  or 0), 3)
+        avg_fcl  = round(float(avgs['avg_fcl']  or 0), 3)
+        avg_land = round(float(avgs['avg_land'] or 0), 3)
 
     recent_advisories = (
         advisories
@@ -274,27 +285,99 @@ def analytics(request):
         .order_by('-computed_at')[:8]
     )
 
+    # Scoreboard per shipment type (consignee-declared mode)
+    mode_scoreboard = []
+    for mode, label, emoji in [
+        ('air',  'Air Freight', '✈️'),
+        ('lcl',  'LCL',        '🚢'),
+        ('fcl',  'FCL',        '📦'),
+        ('land', 'Land Freight','🚛'),
+    ]:
+        mode_advs = advisories.filter(shipment__shipment_type=mode)
+        count     = mode_advs.count()
+        if count:
+            m_avgs = mode_advs.aggregate(
+                avg_air=Avg('air_score'),
+                avg_lcl=Avg('lcl_score'),
+                avg_fcl=Avg('fcl_score'),
+                avg_land=Avg('land_score'),
+            )
+            rec_counts = mode_advs.values('recommended_type').annotate(n=Count('id')).order_by('-n')
+            top_rec    = rec_counts[0] if rec_counts else None
+            mode_scoreboard.append({
+                'mode':    mode, 'label': label, 'emoji': emoji, 'count': count,
+                'avg_air':  round(float(m_avgs['avg_air']  or 0), 3),
+                'avg_lcl':  round(float(m_avgs['avg_lcl']  or 0), 3),
+                'avg_fcl':  round(float(m_avgs['avg_fcl']  or 0), 3),
+                'avg_land': round(float(m_avgs['avg_land'] or 0), 3),
+                'top_rec':     top_rec['recommended_type'] if top_rec else None,
+                'top_rec_pct': round(top_rec['n'] / count * 100) if top_rec else 0,
+            })
+        else:
+            mode_scoreboard.append({
+                'mode': mode, 'label': label, 'emoji': emoji, 'count': 0,
+                'avg_air': 0, 'avg_lcl': 0, 'avg_fcl': 0, 'avg_land': 0,
+                'top_rec': None, 'top_rec_pct': 0,
+            })
+
     wmcda = {
-        'total':    total_adv,
-        'air':      wmcda_air,
-        'lcl':      wmcda_lcl,
-        'fcl':      wmcda_fcl,
-        'avg_air':  avg_air,
-        'avg_lcl':  avg_lcl,
-        'avg_fcl':  avg_fcl,
-        'pct_air':  round(wmcda_air / total_adv * 100) if total_adv > 0 else 0,
-        'pct_lcl':  round(wmcda_lcl / total_adv * 100) if total_adv > 0 else 0,
-        'pct_fcl':  round(wmcda_fcl / total_adv * 100) if total_adv > 0 else 0,
-        'recent':   recent_advisories,
+        'total':           total_adv,
+        'air':             wmcda_air,
+        'lcl':             wmcda_lcl,
+        'fcl':             wmcda_fcl,
+        'land':            wmcda_land,
+        'avg_air':         avg_air,
+        'avg_lcl':         avg_lcl,
+        'avg_fcl':         avg_fcl,
+        'avg_land':        avg_land,
+        'pct_air':         round(wmcda_air  / total_adv * 100) if total_adv > 0 else 0,
+        'pct_lcl':         round(wmcda_lcl  / total_adv * 100) if total_adv > 0 else 0,
+        'pct_fcl':         round(wmcda_fcl  / total_adv * 100) if total_adv > 0 else 0,
+        'pct_land':        round(wmcda_land / total_adv * 100) if total_adv > 0 else 0,
+        'recent':          recent_advisories,
+        'mode_scoreboard': mode_scoreboard,
     }
 
+    # ── Processing Time Analytics ──
+    approved_ships = shipments.filter(status='approved', processed_at__isnull=False)
+    processing_stats = {'avg': None, 'min': None, 'max': None, 'count': 0}
+    if approved_ships.exists():
+        deltas = [
+            (s.processed_at - s.submitted_at).days
+            for s in approved_ships if s.processed_at and s.submitted_at
+        ]
+        if deltas:
+            processing_stats = {
+                'avg':   round(sum(deltas) / len(deltas), 1),
+                'min':   min(deltas),
+                'max':   max(deltas),
+                'count': len(deltas),
+            }
+
+    # Days-bucket distribution  (0-1 / 2-3 / 4-7 / 8+)
+    buckets = {'fast': 0, 'normal': 0, 'slow': 0, 'very_slow': 0}
+    if approved_ships.exists():
+        for s in approved_ships:
+            if s.processed_at and s.submitted_at:
+                d = (s.processed_at - s.submitted_at).days
+                if d <= 1:
+                    buckets['fast'] += 1
+                elif d <= 3:
+                    buckets['normal'] += 1
+                elif d <= 7:
+                    buckets['slow'] += 1
+                else:
+                    buckets['very_slow'] += 1
+
     context = {
-        'status_data':     status_counts,
-        'status_pcts':     status_pcts,
-        'declarant_data':  declarant_data,
-        'total_shipments': total,
-        'top_hs':          list(top_hs),
-        'wmcda':           wmcda,
+        'status_data':       status_counts,
+        'status_pcts':       status_pcts,
+        'declarant_data':    declarant_data,
+        'total_shipments':   total,
+        'top_hs':            list(top_hs),
+        'wmcda':             wmcda,
+        'processing_stats':  processing_stats,
+        'processing_buckets': buckets,
     }
     return render(request, 'supervisor/analytics.html', context)
 
@@ -443,3 +526,33 @@ def delete_shipment(request, shipment_id):
         shipment.delete()
         messages.success(request, f'Shipment {hawb} permanently deleted.')
     return redirect('supervisor:dashboard')
+
+
+# ─── Feedback Management ──────────────────────────────────────────────────────
+
+@login_required
+@supervisor_required
+def manage_feedbacks(request):
+    feedbacks = Feedback.objects.select_related('consignee', 'shipment').order_by('-created_at')
+    return render(request, 'supervisor/feedbacks.html', {'feedbacks': feedbacks})
+
+
+@login_required
+@supervisor_required
+def approve_feedback(request, feedback_id):
+    if request.method == 'POST':
+        fb = get_object_or_404(Feedback, id=feedback_id)
+        fb.is_approved = True
+        fb.save()
+        messages.success(request, 'Feedback approved — it will now appear on the landing page.')
+    return redirect('supervisor:feedbacks')
+
+
+@login_required
+@supervisor_required
+def reject_feedback(request, feedback_id):
+    if request.method == 'POST':
+        fb = get_object_or_404(Feedback, id=feedback_id)
+        fb.delete()
+        messages.success(request, 'Feedback removed.')
+    return redirect('supervisor:feedbacks')

@@ -17,8 +17,11 @@ DEBUG = os.getenv('DEBUG') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',')
+
 
 INSTALLED_APPS = [
+    'anymail',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -104,11 +107,42 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# ── Storage backends (Django 6 STORAGES dict) ─────────────────────────────────
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
+# ── Supabase Storage (django-storages S3 backend) ─────────────────────────────
+_SUPABASE_URL   = os.getenv('SUPABASE_URL', '')          # e.g. https://xxxx.supabase.co
+_SUPABASE_KEY   = os.getenv('SUPABASE_SECRET_KEY', '')   # sb_secret_...
+_SUPABASE_BUCKET = os.getenv('SUPABASE_BUCKET', 'r3pcr-media')
+
+if _SUPABASE_URL and _SUPABASE_KEY:
+    STORAGES['default']['BACKEND'] = 'storages.backends.s3boto3.S3Boto3Storage'
+
+    _project_id = _SUPABASE_URL.replace('https://', '').split('.')[0]
+
+    AWS_ACCESS_KEY_ID       = os.getenv('SUPABASE_S3_ACCESS_KEY_ID', '')
+    AWS_SECRET_ACCESS_KEY   = os.getenv('SUPABASE_S3_SECRET_ACCESS_KEY', '')
+    AWS_STORAGE_BUCKET_NAME = _SUPABASE_BUCKET
+    AWS_S3_ENDPOINT_URL     = f'{_SUPABASE_URL}/storage/v1/s3'
+    AWS_S3_REGION_NAME      = 'ap-southeast-1'
+    AWS_DEFAULT_ACL         = 'public-read'
+    AWS_S3_FILE_OVERWRITE   = False
+    AWS_QUERYSTRING_AUTH    = False
+    # Generate public URLs via Supabase's public endpoint (not the S3 endpoint)
+    AWS_S3_CUSTOM_DOMAIN    = f'{_project_id}.supabase.co/storage/v1/object/public/{_SUPABASE_BUCKET}'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 
 # Auth
 LOGIN_URL = '/accounts/login/'
@@ -119,18 +153,27 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'accounts.User'
 
-# Email (Gmail SMTP)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+# Email
+EMAIL_BACKEND  = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
+
+# Gmail SMTP (local dev)
+EMAIL_HOST          = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT          = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS       = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER     = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+
+# Resend (production)
+ANYMAIL = {
+    'RESEND_API_KEY': os.getenv('RESEND_API_KEY', ''),
+}
 
 # Tesseract OCR
+# Windows dev: set TESSERACT_PATH in .env to the full exe path
+# Railway / Linux: tesseract is on PATH after apt-get install tesseract-ocr
 if _PYTESSERACT_AVAILABLE:
     pytesseract.pytesseract.tesseract_cmd = os.getenv(
         'TESSERACT_PATH',
-        r'C:\Users\Francis\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
+        'tesseract'   # works on Linux/Railway; override with TESSERACT_PATH in .env on Windows
     )
