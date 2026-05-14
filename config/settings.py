@@ -113,6 +113,26 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# ── Supabase Storage (django-storages S3 backend) ─────────────────────────────
+_SUPABASE_URL   = os.getenv('SUPABASE_URL', '')          # e.g. https://xxxx.supabase.co
+_SUPABASE_KEY   = os.getenv('SUPABASE_SECRET_KEY', '')   # sb_secret_...
+_SUPABASE_BUCKET = os.getenv('SUPABASE_BUCKET', 'r3pcr-media')
+
+if _SUPABASE_URL and _SUPABASE_KEY:
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+    _project_id = _SUPABASE_URL.replace('https://', '').split('.')[0]
+
+    AWS_ACCESS_KEY_ID     = _project_id          # Supabase project ID as access key
+    AWS_SECRET_ACCESS_KEY = _SUPABASE_KEY
+    AWS_STORAGE_BUCKET_NAME = _SUPABASE_BUCKET
+    AWS_S3_ENDPOINT_URL   = f'{_SUPABASE_URL}/storage/v1/s3'
+    AWS_S3_REGION_NAME    = 'ap-southeast-1'
+    AWS_DEFAULT_ACL       = 'public-read'
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_QUERYSTRING_AUTH  = False                # public URLs, no signed expiry
+    MEDIA_URL = f'{_SUPABASE_URL}/storage/v1/object/public/{_SUPABASE_BUCKET}/'
+
 # Auth
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'

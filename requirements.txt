@@ -9,3 +9,5 @@ whitenoise>=6.6
 dj-database-url>=2.1
 openpyxl>=3.1
 django-anymail[resend]>=10.0
+django-storages>=1.14
+boto3>=1.34
