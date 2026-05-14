@@ -107,11 +107,20 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# ── Storage backends (Django 6 STORAGES dict) ─────────────────────────────────
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 # ── Supabase Storage (django-storages S3 backend) ─────────────────────────────
 _SUPABASE_URL   = os.getenv('SUPABASE_URL', '')          # e.g. https://xxxx.supabase.co
@@ -119,9 +128,7 @@ _SUPABASE_KEY   = os.getenv('SUPABASE_SECRET_KEY', '')   # sb_secret_...
 _SUPABASE_BUCKET = os.getenv('SUPABASE_BUCKET', 'r3pcr-media')
 
 if _SUPABASE_URL and _SUPABASE_KEY:
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-
-    _project_id = _SUPABASE_URL.replace('https://', '').split('.')[0]
+    STORAGES['default']['BACKEND'] = 'storages.backends.s3boto3.S3Boto3Storage'
 
     AWS_ACCESS_KEY_ID     = os.getenv('SUPABASE_S3_ACCESS_KEY_ID', '')
     AWS_SECRET_ACCESS_KEY = os.getenv('SUPABASE_S3_SECRET_ACCESS_KEY', '')
