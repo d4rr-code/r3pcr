@@ -36,7 +36,7 @@ def login_view(request):
                     subject='R3-PCR Login OTP',
                     message=f'Your OTP code is: {otp_code}\nExpires in 10 minutes.',
                     from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=['darfrancis33@gmail.com'],
+                    recipient_list=[user.email],
                     html_message=f'''
                         <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;">
                             <h2 style="color:#3b82f6;">R3-PCR System</h2>
