@@ -18,7 +18,7 @@
             Submitted {{ shipment.submitted_at|date:"M d, Y g:i A" }}
         </p>
     </div>
-    <div style="margin-left:auto;">
+    <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
         {% if shipment.status == 'approved' %}
             <span class="badge badge-approved" style="font-size:13px; padding:6px 16px;">✓ Approved</span>
         {% elif shipment.status == 'rejected' %}
@@ -29,6 +29,24 @@
             <span class="badge badge-pending" style="font-size:13px; padding:6px 16px;">
                 {{ shipment.get_status_display }}
             </span>
+        {% endif %}
+
+        {% if shipment.status in 'approved,rejected' %}
+            {% if shipment.feedback %}
+                <span style="font-size:12px; color:#64748b; padding:6px 12px; background:#1e293b;
+                             border:1px solid #334155; border-radius:8px;">
+                    ★ Feedback Submitted
+                </span>
+            {% else %}
+                <a href="{% url 'consignee:feedback' shipment_id=shipment.id %}"
+                   style="font-size:13px; font-weight:600; color:#f1f5f9; text-decoration:none;
+                          padding:6px 16px; background:#1d4ed8; border-radius:8px;
+                          border:1px solid #2563eb; transition:background .2s;"
+                   onmouseover="this.style.background='#1e40af'"
+                   onmouseout="this.style.background='#1d4ed8'">
+                    ⭐ Leave Feedback
+                </a>
+            {% endif %}
         {% endif %}
     </div>
 </div>

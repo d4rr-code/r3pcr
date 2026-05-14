@@ -5,6 +5,7 @@ from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument
 from apps.accounts.models import User
 from apps.notifications.utils import create_notification
+from .models import Feedback
 
 
 # ─── Auto-generate HAWB ───────────────────────────────────────────────────────
@@ -236,6 +237,42 @@ def upload_receipt(request, shipment_id):
             messages.success(request, 'Payment receipt uploaded successfully.')
 
     return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+
+# ─── Feedback ─────────────────────────────────────────────────────────────────
+
+@login_required
+def submit_feedback(request, shipment_id):
+    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+
+    # Only allow feedback on completed shipments
+    if shipment.status not in ('approved', 'rejected'):
+        messages.error(request, 'Feedback can only be submitted for completed shipments.')
+        return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+    # One feedback per shipment
+    if hasattr(shipment, 'feedback'):
+        messages.info(request, 'You have already submitted feedback for this shipment.')
+        return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+    if request.method == 'POST':
+        rating  = request.POST.get('rating', '').strip()
+        comment = request.POST.get('comment', '').strip()
+
+        if not rating or not comment:
+            messages.error(request, 'Please provide a rating and a comment.')
+            return render(request, 'consignee/feedback.html', {'shipment': shipment})
+
+        Feedback.objects.create(
+            consignee=request.user,
+            shipment=shipment,
+            rating=int(rating),
+            comment=comment,
+        )
+        messages.success(request, 'Thank you for your feedback! It will appear on our site once reviewed.')
+        return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+    return render(request, 'consignee/feedback.html', {'shipment': shipment})
 
 
 # ─── Cancel Submission ────────────────────────────────────────────────────────

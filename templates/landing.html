@@ -256,6 +256,37 @@
             color: #475569;
             text-align: center;
         }
+
+        /* ── Testimonials ── */
+        .testimonials {
+            width: 100%;
+            max-width: 680px;
+            margin: 0 auto 48px;
+        }
+        .testimonials h3 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 14px;
+        }
+        .testimonial-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 18px 20px;
+            text-align: left;
+        }
+        .testimonial-stars { color: #f59e0b; font-size: 16px; margin-bottom: 8px; letter-spacing: 2px; }
+        .testimonial-comment { font-size: 13px; color: #94a3b8; line-height: 1.6; margin-bottom: 12px; font-style: italic; }
+        .testimonial-name { font-size: 12px; font-weight: 600; color: #64748b; }
     </style>
 </head>
 <body>
@@ -362,6 +393,26 @@
                 </div>
             </div>
             {% endif %}
+        </div>
+        {% endif %}
+
+        {% if feedbacks %}
+        <div class="testimonials">
+            <h3>⭐ What Our Clients Say</h3>
+            <div class="testimonials-grid">
+                {% for fb in feedbacks %}
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">
+                        {% for i in "12345" %}{% if forloop.counter <= fb.rating %}★{% else %}☆{% endif %}{% endfor %}
+                    </div>
+                    <p class="testimonial-comment">"{{ fb.comment|truncatechars:160 }}"</p>
+                    <p class="testimonial-name">
+                        — {{ fb.consignee.get_full_name|default:fb.consignee.username }}
+                        {% if fb.consignee.company_name %}&nbsp;· {{ fb.consignee.company_name }}{% endif %}
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
         </div>
         {% endif %}
 

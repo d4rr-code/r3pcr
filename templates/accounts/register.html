@@ -1,218 +1,186 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>R3-PCR | Register</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #0f172a;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            padding: 40px 16px;
-        }
-        .register-card {
-            background: #1e293b;
-            padding: 40px;
-            border-radius: 12px;
-            width: 100%;
-            max-width: 520px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
-        }
-        .logo {
-            text-align: center;
-            margin-bottom: 28px;
-        }
-        .logo h1 { color: #3b82f6; font-size: 28px; font-weight: 700; }
-        .logo p  { color: #94a3b8; font-size: 13px; margin-top: 4px; }
-        h2 {
-            color: #f1f5f9;
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #334155;
-        }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-        }
-        .form-group { margin-bottom: 16px; }
-        label {
-            display: block;
-            color: #94a3b8;
-            font-size: 13px;
-            margin-bottom: 6px;
-        }
-        label .req { color: #ef4444; margin-left: 2px; }
-        input {
-            width: 100%;
-            padding: 10px 14px;
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            color: #f1f5f9;
-            font-size: 14px;
-            outline: none;
-        }
-        input:focus { border-color: #3b82f6; }
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 8px;
-        }
-        button:hover { background: #2563eb; }
-        .messages { margin-bottom: 16px; }
-        .message {
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: 13px;
-            margin-bottom: 8px;
-        }
-        .message.error   { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; }
-        .message.success { background: #052e16; color: #86efac; border: 1px solid #166534; }
-        .login-link {
-            text-align: center;
-            margin-top: 20px;
-            color: #64748b;
-            font-size: 13px;
-        }
-        .login-link a { color: #3b82f6; text-decoration: none; }
-        .login-link a:hover { text-decoration: underline; }
-        .section-label {
-            color: #64748b;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: .06em;
-            margin: 20px 0 12px;
-        }
-        .note {
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            padding: 12px 14px;
-            color: #64748b;
-            font-size: 12px;
-            margin-bottom: 20px;
-            line-height: 1.6;
-        }
-        .note strong { color: #94a3b8; }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'accounts/css/registerpage.css' %}">
 </head>
 <body>
+
+<!-- NAVBAR -->
+<header class="navbar">
+    <div class="nav-left">
+        <a href="{% url 'landing' %}" class="logo-link">
+            <img src="{% static 'accounts/img/Thumbnail for R3-PCR.png' %}" alt="Logo">
+        </a>
+    </div>
+    <div class="nav-right">
+        <div class="language-dropdown">
+            <div class="selected-language" id="selectedLanguage">
+                <i class="fa-solid fa-globe"></i>
+                <span id="currentLanguage">EN</span>
+            </div>
+            <div class="language-menu" id="languageMenu">
+                <div class="language-option" data-lang="en">English</div>
+                <div class="language-option" data-lang="fil">Filipino</div>
+            </div>
+        </div>
+        <a href="#">ABOUT</a>
+        <a href="#">CONTACT US</a>
+        <a href="{% url 'accounts:register' %}" class="register-btn">REGISTER</a>
+        <a href="{% url 'accounts:login' %}" class="login-btn-nav">LOG IN</a>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="register-section">
+    <div class="breadcrumb">Registration</div>
+
     <div class="register-card">
-        <div class="logo">
-            <h1>R3-PCR</h1>
-            <p>Pre-Clearance Decision Support System</p>
-        </div>
-
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-            <h2 style="margin:0; border-bottom:none; padding-bottom:0;">Consignee Registration</h2>
-            <span style="background:#1e3a5f; color:#93c5fd; font-size:11px; font-weight:700;
-                         padding:3px 10px; border-radius:999px; text-transform:uppercase;
-                         letter-spacing:0.6px; white-space:nowrap;">Consignee Only</span>
-        </div>
-        <div style="border-bottom:1px solid #334155; margin-bottom:20px;"></div>
-
-        <div class="note">
-            <strong>📦 This registration is for Consignees only.</strong><br>
-            Importers and cargo owners who need to track and manage their shipments should register here.
-            Your account will be reviewed by a supervisor before you can log in.<br><br>
-            <span style="color:#475569;">Declarants and supervisors are added directly by the system administrator.</span>
-        </div>
+        <h1>Create Your Account</h1>
+        <p class="card-note">
+            Accounts are for Consignees only. After submitting, your account will be reviewed by
+            a supervisor before you can log in. It will only take 5–10 minutes for verification.
+        </p>
 
         {% if messages %}
         <div class="messages">
             {% for message in messages %}
-            <div class="message {{ message.tags }}">{{ message }}</div>
+            <div class="message {{ message.tags }}">{{ message|safe }}</div>
             {% endfor %}
         </div>
         {% endif %}
 
-        <form method="POST">
+        <form method="POST" id="registerForm">
             {% csrf_token %}
 
-            <p class="section-label">Personal Information</p>
-
+            <!-- Name row -->
             <div class="form-row">
                 <div class="form-group">
-                    <label>First Name <span class="req">*</span></label>
-                    <input type="text" name="first_name"
+                    <label class="form-label">First Name <span style="color:#ef4444;">*</span></label>
+                    <input type="text" id="first_name" name="first_name" class="form-input"
                            value="{{ form_data.first_name|default:'' }}"
-                           placeholder="Juan" required>
+                           placeholder="Juan" required autocomplete="given-name">
                 </div>
                 <div class="form-group">
-                    <label>Last Name <span class="req">*</span></label>
-                    <input type="text" name="last_name"
+                    <label class="form-label">Last Name <span style="color:#ef4444;">*</span></label>
+                    <input type="text" id="last_name" name="last_name" class="form-input"
                            value="{{ form_data.last_name|default:'' }}"
-                           placeholder="Dela Cruz" required>
+                           placeholder="Dela Cruz" required autocomplete="family-name">
                 </div>
             </div>
 
-            <div class="form-group">
-                <label>Email Address <span class="req">*</span></label>
-                <input type="email" name="email"
-                       value="{{ form_data.email|default:'' }}"
-                       placeholder="juan@company.com" required>
+            <!-- Live username preview -->
+            <div class="username-preview" id="username-preview">
+                <i class="fa-solid fa-user" style="color:#0ea5e9;"></i>
+                Your username will be: <strong id="username-preview-value"></strong>
+                <span style="font-size:11px; color:#7dd3fc; margin-left:4px;">(can be changed later)</span>
             </div>
 
-            <p class="section-label">Company (Optional)</p>
+            <!-- Email -->
+            <div class="form-group">
+                <label class="form-label">Email Address <span style="color:#ef4444;">*</span></label>
+                <input type="email" name="email" class="form-input"
+                       value="{{ form_data.email|default:'' }}"
+                       placeholder="juan@company.com" required autocomplete="email">
+            </div>
 
+            <div class="section-divider">Company (Optional)</div>
+
+            <!-- Company row -->
             <div class="form-row">
                 <div class="form-group">
-                    <label>Company Name</label>
-                    <input type="text" name="company_name"
+                    <label class="form-label">Company Name</label>
+                    <input type="text" name="company_name" class="form-input"
                            value="{{ form_data.company_name|default:'' }}"
                            placeholder="Dela Cruz Trading">
                 </div>
                 <div class="form-group">
-                    <label>Phone Number</label>
-                    <input type="text" name="phone_number"
+                    <label class="form-label">Phone Number</label>
+                    <input type="text" name="phone_number" class="form-input"
                            value="{{ form_data.phone_number|default:'' }}"
                            placeholder="+63 9XX XXX XXXX">
                 </div>
             </div>
 
-            <p class="section-label">Login Credentials</p>
+            <div class="section-divider">Password</div>
 
+            <!-- Password -->
             <div class="form-group">
-                <label>Username <span class="req">*</span></label>
-                <input type="text" name="username"
-                       value="{{ form_data.username|default:'' }}"
-                       placeholder="juandelacruz" required>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Password <span class="req">*</span></label>
-                    <input type="password" name="password"
+                <label class="form-label">Password <span style="color:#ef4444;">*</span></label>
+                <div class="password-wrapper">
+                    <input type="password" id="password" name="password" class="form-input"
                            placeholder="Min. 8 characters" required>
+                    <button type="button" class="toggle-pw">
+                        <i class="fa-regular fa-eye"></i>
+                    </button>
                 </div>
-                <div class="form-group">
-                    <label>Confirm Password <span class="req">*</span></label>
-                    <input type="password" name="password2"
-                           placeholder="Re-enter password" required>
+                <div class="pw-hints">
+                    <div class="hint fail" id="hint-len">  <span class="hint-icon">✗</span> Minimum of 8 characters</div>
+                    <div class="hint fail" id="hint-upper"><span class="hint-icon">✗</span> At least one uppercase letter</div>
+                    <div class="hint fail" id="hint-lower"><span class="hint-icon">✗</span> At least one lowercase letter</div>
+                    <div class="hint fail" id="hint-num">  <span class="hint-icon">✗</span> At least one number</div>
+                    <div class="hint fail" id="hint-spec"> <span class="hint-icon">✗</span> At least one special character</div>
                 </div>
             </div>
 
-            <button type="submit">Submit Registration</button>
+            <!-- Confirm password -->
+            <div class="form-group">
+                <label class="form-label">Confirm Password <span style="color:#ef4444;">*</span></label>
+                <div class="password-wrapper">
+                    <input type="password" id="password2" name="password2" class="form-input"
+                           placeholder="Re-enter password" required>
+                    <button type="button" class="toggle-pw">
+                        <i class="fa-regular fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn">SUBMIT REGISTRATION</button>
         </form>
 
         <div class="login-link">
             Already have an account? <a href="{% url 'accounts:login' %}">Log in here</a>
         </div>
     </div>
+</main>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="footer-content">
+        <div class="footer-social">
+            <h4>FOLLOW US</h4>
+            <div class="social-icons">
+                <img src="{% static 'accounts/img/Facebook.png' %}" alt="Facebook">
+                <img src="{% static 'accounts/img/insta.png' %}" alt="Instagram">
+                <img src="{% static 'accounts/img/linkedin.png' %}" alt="LinkedIn">
+            </div>
+        </div>
+        <div class="footer-center">
+            <img src="{% static 'accounts/img/Thumbnail for R3-PCR.png' %}" alt="Logo">
+            <div class="footer-links">
+                <a href="#">TERMS & PRIVACY</a>
+                <a href="#">FEATURES</a>
+                <a href="#">ABOUT</a>
+                <a href="#">RTRIPLEJ</a>
+            </div>
+            <p>© 2026 R3-PCR — RTripleJ Customs Brokerage. All Rights Reserved.</p>
+        </div>
+        <div class="footer-contact">
+            <h4>CONTACT US</h4>
+            <div class="contact-icons">
+                <img src="{% static 'accounts/img/email icon.png' %}" alt="Email">
+                <img src="{% static 'accounts/img/Location.png' %}" alt="Location">
+                <img src="{% static 'accounts/img/Contact.png' %}" alt="Contact">
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="{% static 'accounts/js/registerpage.js' %}"></script>
 </body>
 </html>

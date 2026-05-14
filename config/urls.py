@@ -15,7 +15,9 @@ def landing(request):
             return redirect('/declarant/dashboard/')
         elif role == 'supervisor':
             return redirect('/supervisor/dashboard/')
-    return render(request, 'landing.html')
+    from apps.consignee.models import Feedback
+    feedbacks = Feedback.objects.filter(is_approved=True).select_related('consignee').order_by('-created_at')[:6]
+    return render(request, 'landing.html', {'feedbacks': feedbacks})
 
 
 def track_shipment(request):

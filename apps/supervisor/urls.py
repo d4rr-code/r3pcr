@@ -18,5 +18,9 @@ urlpatterns = [
     path('memos/',                              views.list_memos,            name='memos'),
     path('memos/create/',                       views.create_memo,           name='create_memo'),
     path('memos/delete/<int:memo_id>/',         views.delete_memo,           name='delete_memo'),
-    path('memos/toggle/<int:memo_id>/',         views.toggle_memo,           name='toggle_memo'),
+    path('memos/toggle/<int:memo_id>/',              views.toggle_memo,       name='toggle_memo'),
+    # Feedbacks
+    path('feedbacks/',                               views.manage_feedbacks,  name='feedbacks'),
+    path('feedbacks/approve/<int:feedback_id>/',     views.approve_feedback,  name='approve_feedback'),
+    path('feedbacks/reject/<int:feedback_id>/',      views.reject_feedback,   name='reject_feedback'),
 ]

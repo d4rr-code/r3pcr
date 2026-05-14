@@ -20,6 +20,12 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
+            # ── Remember Me ──
+            if not request.POST.get('remember_me'):
+                request.session.set_expiry(0)        # expires when browser closes
+            else:
+                request.session.set_expiry(30 * 24 * 3600)  # 30 days
+
             # ── OTP bypass: log in directly if otp_enabled is False ──
             if not user.otp_enabled:
                 login(request, user)
@@ -92,6 +98,20 @@ def verify_otp_view(request):
 
 # ─── Self-Registration (Consignee) ────────────────────────────────────────────
 
+def _generate_username(first_name, last_name):
+    """Auto-generate a unique username: firstname.lastname, firstname.lastname2, ..."""
+    import re
+    base = re.sub(r'[^a-z0-9]', '', f'{first_name}{last_name}'.lower())
+    if not base:
+        base = 'user'
+    username = base
+    counter  = 2
+    while User.objects.filter(username=username).exists():
+        username = f'{base}{counter}'
+        counter += 1
+    return username
+
+
 def register_view(request):
     if request.user.is_authenticated:
         return redirect_by_role(request.user)
@@ -100,22 +120,22 @@ def register_view(request):
         first_name   = request.POST.get('first_name', '').strip()
         last_name    = request.POST.get('last_name', '').strip()
         email        = request.POST.get('email', '').strip()
-        username     = request.POST.get('username', '').strip()
         password     = request.POST.get('password', '')
         password2    = request.POST.get('password2', '')
         company_name = request.POST.get('company_name', '').strip()
         phone_number = request.POST.get('phone_number', '').strip()
 
+        # ── Auto-generate username ──
+        username = _generate_username(first_name, last_name)
+
         # ── Validation ──
         errors = []
-        if not all([first_name, last_name, email, username, password]):
+        if not all([first_name, last_name, email, password]):
             errors.append('All required fields must be filled in.')
         if password != password2:
             errors.append('Passwords do not match.')
         if len(password) < 8:
             errors.append('Password must be at least 8 characters.')
-        if User.objects.filter(username=username).exists():
-            errors.append('Username already taken.')
         if User.objects.filter(email=email).exists():
             errors.append('Email already registered.')
 
@@ -176,12 +196,86 @@ def register_view(request):
 
         messages.success(
             request,
-            'Registration submitted! Your account is pending supervisor approval. '
-            'You will receive an email once approved.'
+            f'Registration submitted! Your username is <strong>{username}</strong>. '
+            'Your account is pending supervisor approval — you will receive an email once approved.'
         )
         return redirect('accounts:login')
 
     return render(request, 'accounts/register.html')
+
+
+# ─── Forgot Password ─────────────────────────────────────────────────────────
+
+def forgot_password(request):
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        try:
+            user = User.objects.get(email__iexact=email, is_active=True)
+            otp_code = OTP.generate_code()
+            OTP.objects.create(user=user, code=otp_code)
+            request.session['reset_user_id'] = user.id
+            try:
+                send_mail(
+                    subject='R3-PCR — Password Reset OTP',
+                    message=f'Your password reset OTP is: {otp_code}\nExpires in 10 minutes.',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    html_message=f'''
+                        <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;">
+                            <h2 style="color:#1f3d66;">R3-PCR Password Reset</h2>
+                            <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
+                            <p>Your password reset code is:</p>
+                            <h1 style="color:#1f3d66;letter-spacing:8px;">{otp_code}</h1>
+                            <p>Expires in <strong>10 minutes</strong>.</p>
+                            <p style="color:#94a3b8;font-size:12px;">If you did not request this, ignore this email.</p>
+                        </div>
+                    ''',
+                )
+            except Exception as e:
+                print(f'Password reset email error: {e}')
+            messages.success(request, 'OTP sent to your email. Check your inbox.')
+            return redirect('accounts:reset_password')
+        except User.DoesNotExist:
+            messages.error(request, 'No active account found with that email.')
+
+    return render(request, 'accounts/forgot_password.html')
+
+
+def reset_password(request):
+    user_id = request.session.get('reset_user_id')
+    if not user_id:
+        return redirect('accounts:forgot_password')
+
+    if request.method == 'POST':
+        otp_code    = request.POST.get('otp_code', '').strip()
+        new_password = request.POST.get('new_password', '')
+        confirm      = request.POST.get('confirm_password', '')
+
+        if new_password != confirm:
+            messages.error(request, 'Passwords do not match.')
+            return render(request, 'accounts/reset_password.html')
+        if len(new_password) < 8:
+            messages.error(request, 'Password must be at least 8 characters.')
+            return render(request, 'accounts/reset_password.html')
+
+        try:
+            user = User.objects.get(id=user_id)
+            otp  = OTP.objects.filter(user=user, is_used=False).latest('created_at')
+            if otp.is_valid() and otp.code == otp_code:
+                otp.is_used = True
+                otp.save()
+                user.set_password(new_password)
+                user.save()
+                del request.session['reset_user_id']
+                messages.success(request, 'Password reset successful. You can now log in.')
+                return redirect('accounts:login')
+            else:
+                messages.error(request, 'Invalid or expired OTP.')
+        except (User.DoesNotExist, OTP.DoesNotExist):
+            messages.error(request, 'Something went wrong. Please try again.')
+            return redirect('accounts:forgot_password')
+
+    return render(request, 'accounts/reset_password.html')
 
 
 # ─── Logout ───────────────────────────────────────────────────────────────────

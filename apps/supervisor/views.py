@@ -8,6 +8,7 @@ from django.conf import settings
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
+from apps.consignee.models import Feedback
 from .models import SystemConfig, Announcement
 
 
@@ -525,3 +526,33 @@ def delete_shipment(request, shipment_id):
         shipment.delete()
         messages.success(request, f'Shipment {hawb} permanently deleted.')
     return redirect('supervisor:dashboard')
+
+
+# ─── Feedback Management ──────────────────────────────────────────────────────
+
+@login_required
+@supervisor_required
+def manage_feedbacks(request):
+    feedbacks = Feedback.objects.select_related('consignee', 'shipment').order_by('-created_at')
+    return render(request, 'supervisor/feedbacks.html', {'feedbacks': feedbacks})
+
+
+@login_required
+@supervisor_required
+def approve_feedback(request, feedback_id):
+    if request.method == 'POST':
+        fb = get_object_or_404(Feedback, id=feedback_id)
+        fb.is_approved = True
+        fb.save()
+        messages.success(request, 'Feedback approved — it will now appear on the landing page.')
+    return redirect('supervisor:feedbacks')
+
+
+@login_required
+@supervisor_required
+def reject_feedback(request, feedback_id):
+    if request.method == 'POST':
+        fb = get_object_or_404(Feedback, id=feedback_id)
+        fb.delete()
+        messages.success(request, 'Feedback removed.')
+    return redirect('supervisor:feedbacks')
