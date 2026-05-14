@@ -1,4 +1,6 @@
 import json
+import os
+import tempfile
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -106,24 +108,33 @@ def ocr_extract(request, shipment_id, doc_id):
     shipment = get_object_or_404(Shipment, id=shipment_id)
     doc      = get_object_or_404(ShipmentDocument, id=doc_id, shipment=shipment)
     try:
-        print(f'[OCR] Starting: {doc.file.path} | type={doc.document_type}')
-        fields, raw_text = process_document(doc.file.path, doc.document_type)
-        print(f'[OCR] Raw text length: {len(raw_text) if raw_text else 0} chars')
-        print(f'[OCR] Fields returned: {list(fields.keys()) if fields else None}')
+        # Download file to a temp path (works for both local and S3/Supabase storage)
+        ext = os.path.splitext(doc.file.name)[1] or '.pdf'
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            doc.file.open('rb')
+            tmp.write(doc.file.read())
+            doc.file.close()
+            tmp_path = tmp.name
+        try:
+            print(f'[OCR] Starting: {doc.file.name} | type={doc.document_type}')
+            fields, raw_text = process_document(tmp_path, doc.document_type)
+            print(f'[OCR] Raw text length: {len(raw_text) if raw_text else 0} chars')
+            print(f'[OCR] Fields returned: {list(fields.keys()) if fields else None}')
 
-        if fields:
-            line_items = fields.pop('__items__', [])
-            request.session['ocr_fields']      = fields
-            request.session['ocr_items']       = line_items
-            request.session['ocr_shipment_id'] = shipment_id
-            found    = sum(1 for v in fields.values() if isinstance(v, dict) and v.get('value'))
-            item_msg = f', {len(line_items)} line items detected' if line_items else ''
-            # Store result in session so it survives the fetch→reload cycle
-            request.session['ocr_toast'] = ('success', f'OCR complete — {found} fields extracted{item_msg}.')
-            print(f'[OCR] Success: {found} fields, {len(line_items)} items')
-        else:
-            request.session['ocr_toast'] = ('warning', 'OCR ran but found no structured fields. Fill in manually.')
-            print(f'[OCR] No fields extracted. Raw text snippet: {repr(raw_text[:200]) if raw_text else "EMPTY"}')
+            if fields:
+                line_items = fields.pop('__items__', [])
+                request.session['ocr_fields']      = fields
+                request.session['ocr_items']       = line_items
+                request.session['ocr_shipment_id'] = shipment_id
+                found    = sum(1 for v in fields.values() if isinstance(v, dict) and v.get('value'))
+                item_msg = f', {len(line_items)} line items detected' if line_items else ''
+                request.session['ocr_toast'] = ('success', f'OCR complete — {found} fields extracted{item_msg}.')
+                print(f'[OCR] Success: {found} fields, {len(line_items)} items')
+            else:
+                request.session['ocr_toast'] = ('warning', 'OCR ran but found no structured fields. Fill in manually.')
+                print(f'[OCR] No fields extracted. Raw text snippet: {repr(raw_text[:200]) if raw_text else "EMPTY"}')
+        finally:
+            os.unlink(tmp_path)
     except Exception as e:
         import traceback
         print(f'[OCR] Exception: {e}')
