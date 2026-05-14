@@ -1,424 +1,360 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>R3-PCR — Pre-Clearance Decision Support System</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0f172a;
-            color: #f1f5f9;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 32px 16px;
-        }
-        .hero {
-            text-align: center;
-            max-width: 680px;
-            width: 100%;
-        }
-        .logo {
-            font-size: 56px;
-            font-weight: 800;
-            color: #3b82f6;
-            letter-spacing: -2px;
-            margin-bottom: 8px;
-        }
-        .tagline {
-            font-size: 18px;
-            color: #94a3b8;
-            margin-bottom: 24px;
-            letter-spacing: 0.5px;
-        }
-        .company {
-            font-size: 13px;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 48px;
-        }
-        .features {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 48px;
-        }
-        .feature-card {
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 12px;
-            padding: 20px 16px;
-            text-align: center;
-        }
-        .feature-icon { font-size: 28px; margin-bottom: 8px; }
-        .feature-title { font-size: 13px; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
-        .feature-desc { font-size: 11px; color: #94a3b8; }
 
-        /* ── CTA row ── */
-        .cta-row {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-            margin-bottom: 48px;
-            flex-wrap: wrap;
-        }
-        .btn-login {
-            display: inline-block;
-            background: #3b82f6;
-            color: #fff;
-            text-decoration: none;
-            padding: 14px 48px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            transition: background 0.2s;
-        }
-        .btn-login:hover { background: #2563eb; }
-        .btn-track-cta {
-            display: inline-block;
-            background: transparent;
-            color: #94a3b8;
-            border: 1px solid #334155;
-            text-decoration: none;
-            padding: 14px 32px;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: border-color 0.2s, color 0.2s;
-        }
-        .btn-track-cta:hover { border-color: #64748b; color: #e2e8f0; }
+    <meta name="viewport"
+    content="width=device-width, initial-scale=1.0">
 
-        /* ── Track shipment section ── */
-        .track-section {
-            width: 100%;
-            max-width: 560px;
-            margin: 0 auto 48px;
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 14px;
-            padding: 28px 32px;
-            text-align: left;
-        }
-        .track-section h2 {
-            font-size: 16px;
-            font-weight: 700;
-            color: #e2e8f0;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .track-section .track-note {
-            font-size: 12px;
-            color: #64748b;
-            margin-bottom: 20px;
-        }
-        .track-form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 14px;
-        }
-        .track-form-group label {
-            display: block;
-            font-size: 11px;
-            font-weight: 600;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            margin-bottom: 6px;
-        }
-        .track-form-group input {
-            width: 100%;
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 6px;
-            padding: 10px 12px;
-            color: #f1f5f9;
-            font-size: 13px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        .track-form-group input:focus { border-color: #3b82f6; }
-        .btn-search {
-            width: 100%;
-            background: #3b82f6;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 11px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .btn-search:hover { background: #2563eb; }
+    <title>
+        R3-PCR | Landing Page
+    </title>
 
-        /* ── Error alert ── */
-        .track-error {
-            background: #450a0a;
-            border: 1px solid #7f1d1d;
-            color: #fca5a5;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 13px;
-            margin-top: 14px;
-        }
+    <!-- POPPINS -->
+    <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
 
-        /* ── Result card ── */
-        .track-result {
-            margin-top: 20px;
-            background: #0f172a;
-            border: 1px solid #1e3a5f;
-            border-radius: 10px;
-            padding: 20px;
-        }
-        .track-result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .track-hawb {
-            font-size: 18px;
-            font-weight: 700;
-            color: #3b82f6;
-            letter-spacing: 0.5px;
-        }
-        .track-status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-        }
-        .status-pending   { background: #1e3a5f; color: #93c5fd; }
-        .status-in_review { background: #2d1b69; color: #c4b5fd; }
-        .status-approved  { background: #052e16; color: #86efac; }
-        .status-rejected  { background: #450a0a; color: #fca5a5; }
-        .status-other     { background: #1e293b; color: #94a3b8; }
+    <!-- FONT AWESOME -->
+    <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-        .track-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px 24px;
-        }
-        .track-field label {
-            font-size: 10px;
-            font-weight: 600;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            display: block;
-            margin-bottom: 3px;
-        }
-        .track-field span {
-            font-size: 13px;
-            color: #e2e8f0;
-        }
-        .track-boc {
-            margin-top: 14px;
-            padding-top: 14px;
-            border-top: 1px solid #1e293b;
-        }
-        .track-boc label {
-            font-size: 10px;
-            font-weight: 600;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            display: block;
-            margin-bottom: 3px;
-        }
-        .track-boc span { font-size: 13px; color: #e2e8f0; }
-        .track-disclaimer {
-            font-size: 11px;
-            color: #475569;
-            margin-top: 14px;
-            border-top: 1px solid #1e293b;
-            padding-top: 10px;
-        }
+    <!-- CSS -->
+    <link
+    rel="stylesheet"
+    href="{% static 'css/landing.css' %}">
 
-        .footer {
-            font-size: 12px;
-            color: #475569;
-            text-align: center;
-        }
-
-        /* ── Testimonials ── */
-        .testimonials {
-            width: 100%;
-            max-width: 680px;
-            margin: 0 auto 48px;
-        }
-        .testimonials h3 {
-            font-size: 14px;
-            font-weight: 700;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .testimonials-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 14px;
-        }
-        .testimonial-card {
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 12px;
-            padding: 18px 20px;
-            text-align: left;
-        }
-        .testimonial-stars { color: #f59e0b; font-size: 16px; margin-bottom: 8px; letter-spacing: 2px; }
-        .testimonial-comment { font-size: 13px; color: #94a3b8; line-height: 1.6; margin-bottom: 12px; font-style: italic; }
-        .testimonial-name { font-size: 12px; font-weight: 600; color: #64748b; }
-    </style>
 </head>
+
 <body>
-    <div class="hero">
-        <div class="logo">R3-PCR</div>
-        <div class="tagline">Pre-Clearance Decision Support System</div>
-        <div class="company">RTripleJ Customs Brokerage &nbsp;·&nbsp; Philippines</div>
 
-        <div class="features">
-            <div class="feature-card">
-                <div class="feature-icon">🧮</div>
-                <div class="feature-title">EDT Computation</div>
-                <div class="feature-desc">Per-item duty & tax calculation using official ECDT formula</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔍</div>
-                <div class="feature-title">OCR Extraction</div>
-                <div class="feature-desc">Automated invoice field extraction via Tesseract OCR</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🚢</div>
-                <div class="feature-title">Shipping Advisory</div>
-                <div class="feature-desc">WMCDA-based LCL / FCL / Air recommendation engine</div>
-            </div>
+   <!-- =========================================
+         NAVBAR
+    ========================================== -->
+
+    <header class="navbar">
+
+        <div class="nav-left">
+            <a href="#" class="logo-link">
+                <img src="{% static 'images/Thumbnail for R3-PCR.png' %}" alt="R3-PCR Logo">
+            </a>
         </div>
 
-        <div class="cta-row">
-            <a href="/accounts/login/" class="btn-login">Login to System</a>
-            <a href="/track/" class="btn-track-cta">📦 Track a Shipment</a>
+        <div class="nav-right">
+
+            <div class="language-dropdown">
+                <div class="selected-language" id="selectedLanguage">
+                    <i class="fa-solid fa-globe"></i>
+                    <span id="currentLanguage">EN</span>
+                </div>
+                <div class="language-menu">
+                    <div class="language-option" data-lang="en">English</div>
+                    <div class="language-option" data-lang="fil">Filipino</div>
+                </div>
+            </div>
+
+            <a href="#">ABOUT</a>
+            <a href="#">CONTACT US</a>
+
+            <a href="{% url 'accounts:register' %}" class="register-btn">REGISTER</a>
+            <a href="{% url 'accounts:login' %}" class="login-btn-nav">LOG IN</a>
+
         </div>
 
-        <!-- ── Track Shipment Section ── -->
-        {% if track_mode or track_result or track_error %}
-        <div class="track-section">
-            <h2>📦 Track Your Shipment</h2>
-            <p class="track-note">Enter your Shipment ID and registered email to check status. No login required.</p>
+    </header>
 
-            <form method="post" action="/track/">
-                {% csrf_token %}
-                <div class="track-form-grid">
-                    <div class="track-form-group">
-                        <label for="hawb_number">Shipment ID (HAWB)</label>
-                        <input type="text" id="hawb_number" name="hawb_number"
-                               placeholder="R3PCR-2025-000001"
-                               value="{{ request.POST.hawb_number }}"
-                               autocomplete="off">
-                    </div>
-                    <div class="track-form-group">
-                        <label for="consignee_email">Registered Email</label>
-                        <input type="email" id="consignee_email" name="consignee_email"
-                               placeholder="you@email.com"
-                               value="{{ request.POST.consignee_email }}"
-                               autocomplete="off">
-                    </div>
+    <!-- =========================================
+         HERO SECTION
+    ========================================== -->
+
+    <section class="hero-section">
+        <div class="hero-content">
+
+            <h1>Simplify your pre-clearance process</h1>
+
+            <p>
+                Streamline your customs pre-clearance
+                workflow with automated document handling
+                and real-time shipment monitoring.
+            </p>
+
+            <div class="hero-buttons">
+                <a href="#" class="start-btn">START NOW</a>
+                <a href="#trackingSection" class="explore-btn">EXPLORE</a>
+            </div>
+
+            <div class="hero-features">
+                <div class="feature-item">
+                    <i class="fa-solid fa-check"></i>
+                    <span>Secure</span>
                 </div>
-                <button type="submit" class="btn-search">🔍 Track Shipment</button>
-            </form>
-
-            {% if track_error %}
-            <div class="track-error">⚠ {{ track_error }}</div>
-            {% endif %}
-
-            {% if track_result %}
-            <div class="track-result">
-                <div class="track-result-header">
-                    <div class="track-hawb">{{ track_result.hawb_number }}</div>
-                    <span class="track-status-badge status-{{ track_result.status_code }}">
-                        {{ track_result.status }}
-                    </span>
+                <div class="feature-item">
+                    <i class="fa-solid fa-check"></i>
+                    <span>Transparent</span>
                 </div>
-
-                <div class="track-grid">
-                    <div class="track-field">
-                        <label>Import Type</label>
-                        <span>{{ track_result.import_type }}</span>
-                    </div>
-                    <div class="track-field">
-                        <label>Urgency</label>
-                        <span>{{ track_result.urgency }}</span>
-                    </div>
-                    <div class="track-field">
-                        <label>Submitted</label>
-                        <span>{{ track_result.submitted_at|date:"M d, Y g:i A" }}</span>
-                    </div>
-                    <div class="track-field">
-                        <label>Last Updated</label>
-                        <span>{{ track_result.last_updated|date:"M d, Y g:i A" }}</span>
-                    </div>
+                <div class="feature-item">
+                    <i class="fa-solid fa-check"></i>
+                    <span>Reliable</span>
                 </div>
+            </div>
 
-                {% if track_result.boc_reference %}
-                <div class="track-boc">
-                    <label>BOC Reference</label>
-                    <span>{{ track_result.boc_reference }}</span>
-                    {% if track_result.boc_status %}
-                    &nbsp;&nbsp;<span style="color:#64748b;">·</span>&nbsp;&nbsp;
-                    <span>{{ track_result.boc_status }}</span>
+        </div>
+    </section>
+
+    <!-- =========================================
+         TRACKING SECTION
+    ========================================== -->
+
+    <section class="tracking-wrapper" id="trackingSection">
+        <div class="tracking-card">
+
+            <div class="tracking-tabs">
+                <button class="tab-btn active" id="trackingTab">TRACKING</button>
+                <button class="tab-btn" id="locationTab">LOCATION</button>
+            </div>
+
+            <!-- TRACKING TAB -->
+            <div class="tab-content active" id="trackingContent">
+
+                <form method="POST" action="/track/" class="tracking-form">
+                    {% csrf_token %}
+                    <div class="tracking-inputs">
+                        <div class="input-group">
+                            <label>SHIPMENT ID NUMBER</label>
+                            <input type="text" name="hawb_number" class="shipment-input"
+                                placeholder="R3PCR-2026-000001"
+                                value="{{ request.POST.hawb_number }}"
+                                autocomplete="off">
+                        </div>
+                        <div class="input-group">
+                            <label>REGISTERED EMAIL</label>
+                            <input type="email" name="consignee_email"
+                                placeholder="example@email.com"
+                                value="{{ request.POST.consignee_email }}"
+                                autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="track-btn-wrapper">
+                        <button type="submit" class="track-btn">
+                            {% if track_result %}TRACK ANOTHER SHIPMENT{% else %}TRACK SHIPMENT{% endif %}
+                        </button>
+                    </div>
+                </form>
+
+                {% if track_error %}
+                <div class="track-error">⚠ {{ track_error }}</div>
+                {% endif %}
+
+                {% if track_result %}
+                <div class="tracking-result">
+                    <div class="result-top">
+                        <div class="result-id">
+                            <h2>{{ track_result.hawb_number }}</h2>
+                        </div>
+                        <div class="result-status">
+                            <span class="status-badge status-{{ track_result.status_code }}">
+                                {{ track_result.status }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="result-details">
+                        <div class="detail-item">
+                            <span>IMPORT TYPE</span>
+                            <h4>{{ track_result.import_type }}</h4>
+                        </div>
+                        <div class="detail-item">
+                            <span>URGENCY</span>
+                            <h4>{{ track_result.urgency }}</h4>
+                        </div>
+                        <div class="detail-item">
+                            <span>SUBMITTED</span>
+                            <h4>{{ track_result.submitted_at|date:"M j, Y g:iA" }}</h4>
+                        </div>
+                        <div class="detail-item">
+                            <span>LAST UPDATED</span>
+                            <h4>{{ track_result.last_updated|date:"M j, Y g:iA" }}</h4>
+                        </div>
+                    </div>
+                    {% if track_result.boc_reference %}
+                    <div class="boc-section">
+                        <span class="boc-label">BOC REFERENCE</span>
+                        <h4>{{ track_result.boc_reference }}</h4>
+                    </div>
                     {% endif %}
+                    <p class="result-note">
+                        For security, only public status information is displayed.
+                        Login to view full details.
+                    </p>
                 </div>
                 {% endif %}
 
-                <div class="track-disclaimer">
-                    🔒 For security, only public status information is shown. Login to view full details.
-                </div>
             </div>
-            {% endif %}
-        </div>
-        {% endif %}
 
-        {% if feedbacks %}
-        <div class="testimonials">
-            <h3>⭐ What Our Clients Say</h3>
-            <div class="testimonials-grid">
-                {% for fb in feedbacks %}
-                <div class="testimonial-card">
-                    <div class="testimonial-stars">
-                        {% for i in "12345" %}{% if forloop.counter <= fb.rating %}★{% else %}☆{% endif %}{% endfor %}
+            <!-- LOCATION TAB -->
+            <div class="tab-content" id="locationContent">
+
+                <a href="https://maps.app.goo.gl/ninJyB8WifPVQLpAA" target="_blank" class="location-item">
+                    <div class="location-left">
+                        <i class="fa-solid fa-building"></i>
+                        <div>
+                            <span>MAIN OFFICE</span>
+                            <h3>Paranaque</h3>
+                        </div>
                     </div>
-                    <p class="testimonial-comment">"{{ fb.comment|truncatechars:160 }}"</p>
-                    <p class="testimonial-name">
-                        — {{ fb.consignee.get_full_name|default:fb.consignee.username }}
-                        {% if fb.consignee.company_name %}&nbsp;· {{ fb.consignee.company_name }}{% endif %}
-                    </p>
-                </div>
-                {% endfor %}
+                </a>
+
+                <a href="https://maps.app.goo.gl/ninJyB8WifPVQLpAA" target="_blank" class="location-item">
+                    <div class="location-left">
+                        <i class="fa-solid fa-ship"></i>
+                        <div>
+                            <span>PORT</span>
+                            <h3>Pasay</h3>
+                        </div>
+                    </div>
+                </a>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- =========================================
+         PARTNER SECTION
+    ========================================== -->
+
+    <section class="partner-section">
+        <div class="partner-container">
+
+            <div class="partner-content">
+                <h2>Partner with RTripleJ Customs Brokerage</h2>
+                <p>
+                    Improve coordination and simplify shipment handling through digital
+                    submission workflows and centralized processing visibility.
+                </p>
+                <span class="partner-note">
+                    Supporting smarter and more reliable import processing.
+                </span>
+                <a href="https://rtriplejcb.com" target="_blank" class="partner-btn">VISIT RTRIPLEJ</a>
+            </div>
+
+            <div class="partner-image">
+                <img src="{% static 'images/RtripleJ Logo.png' %}" alt="RTripleJ Logo">
+            </div>
+
+        </div>
+    </section>
+
+    <!-- =========================================
+         AFFILIATIONS SECTION
+    ========================================= -->
+
+    <section class="affiliations-section">
+        <h3>LICENSES AND ACCREDITATION</h3>
+        <div class="affiliations-logos">
+            <div class="affiliation-item"><img src="{% static 'images/CHAMBER_LOGO.png' %}" alt="CCBI"></div>
+            <div class="affiliation-item"><img src="{% static 'images/DTI.png' %}" alt="DTI Philippines"></div>
+            <div class="affiliation-item"><img src="{% static 'images/ICTS_LOGO.png' %}" alt="ICTSI"></div>
+            <div class="affiliation-item"><img src="{% static 'images/BOC_LOGO.png' %}" alt="Bureau of Customs"></div>
+            <div class="affiliation-item"><img src="{% static 'images/ATI_LOGO.png' %}" alt="Asian Terminals"></div>
+            <div class="affiliation-item"><img src="{% static 'images/BIR.png' %}" alt="BIR"></div>
+        </div>
+    </section>
+
+    <!-- =========================================
+         FEATURES SHOWCASE SECTION
+    ========================================= -->
+
+    <section class="showcase-section">
+        <div class="showcase-header">
+            <h2>Built for Better Shipment Visibility</h2>
+            <p>
+                Access submission records, monitor processing status, and manage shipment
+                activities through a centralized consignee dashboard.
+            </p>
+        </div>
+        <div class="showcase-carousel">
+            <div class="showcase-card left" onclick="activateSlide(0)">
+                <img src="{% static 'images/maindashcon.png' %}" alt="Dashboard Preview">
+            </div>
+            <div class="showcase-card active" onclick="activateSlide(1)">
+                <img src="{% static 'images/maindashcon1.png' %}" alt="Dashboard Preview">
+            </div>
+            <div class="showcase-card right" onclick="activateSlide(2)">
+                <img src="{% static 'images/maindashcon2.png' %}" alt="Dashboard Preview">
             </div>
         </div>
-        {% endif %}
+    </section>
 
-        <div class="footer">
-            <p>Authorized personnel only &nbsp;·&nbsp; R3-PCR v1.0</p>
+    <!-- =========================================
+         TESTIMONIALS SECTION
+    ========================================= -->
+
+    {% if feedbacks %}
+    <section class="testimonials-section">
+        <h3>⭐ What Our Clients Say</h3>
+        <div class="testimonials-grid">
+            {% for fb in feedbacks %}
+            <div class="testimonial-card">
+                <div class="testimonial-stars">
+                    {% for i in "12345" %}{% if forloop.counter <= fb.rating %}★{% else %}☆{% endif %}{% endfor %}
+                </div>
+                <p class="testimonial-comment">"{{ fb.comment|truncatechars:160 }}"</p>
+                <p class="testimonial-name">
+                    — {{ fb.consignee.get_full_name|default:fb.consignee.username }}
+                    {% if fb.consignee.company_name %}&nbsp;· {{ fb.consignee.company_name }}{% endif %}
+                </p>
+            </div>
+            {% endfor %}
         </div>
-    </div>
+    </section>
+    {% endif %}
+
+    <!-- =========================================
+         FOOTER
+    ========================================== -->
+
+    <footer class="footer">
+        <div class="footer-content">
+
+            <div class="footer-social">
+                <h4 id="followText">FOLLOW US</h4>
+                <div class="social-icons">
+                    <img src="{% static 'accounts/img/Facebook.png' %}">
+                    <img src="{% static 'accounts/img/insta.png' %}">
+                    <img src="{% static 'accounts/img/linkedin.png' %}">
+                </div>
+            </div>
+
+            <div class="footer-center">
+                <img src="{% static 'accounts/img/Thumbnail for R3-PCR.png' %}">
+                <div class="footer-links">
+                    <a href="#">TERMS & PRIVACY</a>
+                    <a href="#">FEATURES</a>
+                    <a href="#">ABOUT</a>
+                    <a href="#">RTRIPLEJ</a>
+                </div>
+                <p>© 2026 R3-PCR — RTripleJ Customs Brokerage. All Rights Reserved.</p>
+            </div>
+
+            <div class="footer-contact">
+                <h4 id="contactText">CONTACT US</h4>
+                <div class="contact-icons">
+                    <img src="{% static 'accounts/img/email icon.png' %}">
+                    <img src="{% static 'accounts/img/Location.png' %}">
+                    <img src="{% static 'accounts/img/Contact.png' %}">
+                </div>
+            </div>
+
+        </div>
+    </footer>
+
+    <!-- JS -->
+    <script src="{% static 'js/landing.js' %}"></script>
+
 </body>
 </html>
