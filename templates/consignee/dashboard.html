@@ -68,10 +68,6 @@
     <!-- Status Breakdown -->
     <div class="card">
         <p class="card-title" style="margin-bottom:14px;">Submission Status Breakdown</p>
-        {% with statuses=total|add:0 %}
-        {% for label, key, color in "Pending,pending,#f59e0b|In Review,in_review,#3b82f6|For Payment,for_payment,#a78bfa|Submitted to BOC,submitted,#22d3ee|Approved,approved,#22c55e|Rejected,rejected,#ef4444|For Revision,revised,#f97316"|split:"|" %}
-        {% endfor %}
-        {% endwith %}
 
         {% if pending %}
         <div style="margin-bottom:8px;">
