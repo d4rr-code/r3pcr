@@ -5,6 +5,59 @@
 
 {% block content %}
 
+<!-- ─── Filter Bar ────────────────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:24px;">
+    <form method="GET" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+        <div style="flex:1; min-width:140px;">
+            <label style="color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase;
+                          letter-spacing:0.8px; display:block; margin-bottom:4px;">Date From</label>
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-input"
+                   style="padding:7px 12px; font-size:13px;">
+        </div>
+        <div style="flex:1; min-width:140px;">
+            <label style="color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase;
+                          letter-spacing:0.8px; display:block; margin-bottom:4px;">Date To</label>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-input"
+                   style="padding:7px 12px; font-size:13px;">
+        </div>
+        <div style="min-width:180px;">
+            <label style="color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase;
+                          letter-spacing:0.8px; display:block; margin-bottom:4px;">Declarant</label>
+            <select name="declarant" class="form-input" style="padding:7px 12px; font-size:13px;">
+                <option value="">All Declarants</option>
+                {% for d in declarants %}
+                <option value="{{ d.username }}" {% if declarant_filter == d.username %}selected{% endif %}>
+                    {{ d.get_full_name|default:d.username }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex; gap:8px; align-self:flex-end;">
+            <button type="submit" class="btn btn-primary" style="font-size:12px; padding:8px 16px;">
+                Apply Filters
+            </button>
+            {% if date_from or date_to or declarant_filter %}
+            <a href="{% url 'supervisor:analytics' %}" class="btn btn-secondary"
+               style="font-size:12px; padding:8px 16px;">Clear</a>
+            {% endif %}
+        </div>
+        <div style="align-self:flex-end; margin-left:auto;">
+            <button type="button" onclick="exportAnalytics()" class="btn btn-secondary"
+                    style="font-size:12px; padding:8px 16px;">
+                📷 Export as Image
+            </button>
+        </div>
+    </form>
+    {% if date_from or date_to or declarant_filter %}
+    <p style="font-size:12px; color:#f59e0b; margin-top:10px; margin-bottom:0;">
+        ⚠️ Showing filtered data —
+        {% if date_from %}from {{ date_from }}{% endif %}
+        {% if date_to %}to {{ date_to }}{% endif %}
+        {% if declarant_filter %}· Declarant: {{ declarant_filter }}{% endif %}
+    </p>
+    {% endif %}
+</div>
+
 <!-- ─── Status Overview ───────────────────────────────────────────────────── -->
 <div class="card" style="margin-bottom:24px;">
     <p class="card-title">📊 Shipment Status Breakdown
@@ -511,4 +564,31 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+function exportAnalytics() {
+    var btn = document.querySelector('[onclick="exportAnalytics()"]');
+    btn.textContent = '⏳ Capturing...';
+    btn.disabled = true;
+
+    var target = document.querySelector('.main-content');
+    html2canvas(target, { backgroundColor: '#0f172a', scale: 1.5, useCORS: true })
+        .then(function(canvas) {
+            var link = document.createElement('a');
+            link.download = 'r3pcr-analytics.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            btn.textContent = '📷 Export as Image';
+            btn.disabled = false;
+        })
+        .catch(function() {
+            alert('Export failed. Please try again.');
+            btn.textContent = '📷 Export as Image';
+            btn.disabled = false;
+        });
+}
+</script>
 {% endblock %}
