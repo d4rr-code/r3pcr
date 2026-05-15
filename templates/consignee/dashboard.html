@@ -39,6 +39,14 @@
         <p class="kpi-label">In Review</p>
         <p class="kpi-value">{{ in_review }}</p>
     </div>
+    <div class="kpi-card yellow">
+        <p class="kpi-label">For Payment</p>
+        <p class="kpi-value">{{ for_payment }}</p>
+    </div>
+    <div class="kpi-card blue">
+        <p class="kpi-label">Submitted to BOC</p>
+        <p class="kpi-value">{{ submitted }}</p>
+    </div>
     <div class="kpi-card green">
         <p class="kpi-label">Approved</p>
         <p class="kpi-value">{{ approved }}</p>
@@ -47,7 +55,124 @@
         <p class="kpi-label">Rejected</p>
         <p class="kpi-value">{{ rejected }}</p>
     </div>
+    <div class="kpi-card yellow">
+        <p class="kpi-label">For Revision</p>
+        <p class="kpi-value">{{ revised }}</p>
+    </div>
 </div>
+
+<!-- ─── Analytics ──────────────────────────────────────────────────────────── -->
+{% if total %}
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+
+    <!-- Status Breakdown -->
+    <div class="card">
+        <p class="card-title" style="margin-bottom:14px;">Submission Status Breakdown</p>
+        {% with statuses=total|add:0 %}
+        {% for label, key, color in "Pending,pending,#f59e0b|In Review,in_review,#3b82f6|For Payment,for_payment,#a78bfa|Submitted to BOC,submitted,#22d3ee|Approved,approved,#22c55e|Rejected,rejected,#ef4444|For Revision,revised,#f97316"|split:"|" %}
+        {% endfor %}
+        {% endwith %}
+
+        {% if pending %}
+        <div style="margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+                <span style="color:#94a3b8;">Pending</span>
+                <span style="color:#f59e0b; font-weight:600;">{{ pending }}</span>
+            </div>
+            <div style="background:#1e293b; border-radius:999px; height:6px;">
+                <div style="height:6px; border-radius:999px; background:#f59e0b; width:{% widthratio pending total 100 %}%;"></div>
+            </div>
+        </div>
+        {% endif %}
+        {% if in_review %}
+        <div style="margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+                <span style="color:#94a3b8;">In Review</span>
+                <span style="color:#3b82f6; font-weight:600;">{{ in_review }}</span>
+            </div>
+            <div style="background:#1e293b; border-radius:999px; height:6px;">
+                <div style="height:6px; border-radius:999px; background:#3b82f6; width:{% widthratio in_review total 100 %}%;"></div>
+            </div>
+        </div>
+        {% endif %}
+        {% if for_payment %}
+        <div style="margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+                <span style="color:#94a3b8;">For Payment</span>
+                <span style="color:#a78bfa; font-weight:600;">{{ for_payment }}</span>
+            </div>
+            <div style="background:#1e293b; border-radius:999px; height:6px;">
+                <div style="height:6px; border-radius:999px; background:#a78bfa; width:{% widthratio for_payment total 100 %}%;"></div>
+            </div>
+        </div>
+        {% endif %}
+        {% if submitted %}
+        <div style="margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+                <span style="color:#94a3b8;">Submitted to BOC</span>
+                <span style="color:#22d3ee; font-weight:600;">{{ submitted }}</span>
+            </div>
+            <div style="background:#1e293b; border-radius:999px; height:6px;">
+                <div style="height:6px; border-radius:999px; background:#22d3ee; width:{% widthratio submitted total 100 %}%;"></div>
+            </div>
+        </div>
+        {% endif %}
+        {% if approved %}
+        <div style="margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+                <span style="color:#94a3b8;">Approved</span>
+                <span style="color:#22c55e; font-weight:600;">{{ approved }}</span>
+            </div>
+            <div style="background:#1e293b; border-radius:999px; height:6px;">
+                <div style="height:6px; border-radius:999px; background:#22c55e; width:{% widthratio approved total 100 %}%;"></div>
+            </div>
+        </div>
+        {% endif %}
+        {% if rejected %}
+        <div style="margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+                <span style="color:#94a3b8;">Rejected</span>
+                <span style="color:#ef4444; font-weight:600;">{{ rejected }}</span>
+            </div>
+            <div style="background:#1e293b; border-radius:999px; height:6px;">
+                <div style="height:6px; border-radius:999px; background:#ef4444; width:{% widthratio rejected total 100 %}%;"></div>
+            </div>
+        </div>
+        {% endif %}
+        {% if revised %}
+        <div style="margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+                <span style="color:#94a3b8;">For Revision</span>
+                <span style="color:#f97316; font-weight:600;">{{ revised }}</span>
+            </div>
+            <div style="background:#1e293b; border-radius:999px; height:6px;">
+                <div style="height:6px; border-radius:999px; background:#f97316; width:{% widthratio revised total 100 %}%;"></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Import Type Breakdown -->
+    <div class="card">
+        <p class="card-title" style="margin-bottom:14px;">Import Type Breakdown</p>
+        {% for item in import_breakdown %}
+        <div style="margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+                <span style="color:#94a3b8;">{{ item.label }}</span>
+                <span style="color:#f1f5f9; font-weight:600;">{{ item.count }}</span>
+            </div>
+            <div style="background:#1e293b; border-radius:999px; height:6px;">
+                <div style="height:6px; border-radius:999px; background:#3b82f6;
+                            width:{% widthratio item.count total 100 %}%;"></div>
+            </div>
+        </div>
+        {% empty %}
+        <p style="color:#64748b; font-size:13px;">No data yet.</p>
+        {% endfor %}
+    </div>
+
+</div>
+{% endif %}
 
 <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
