@@ -29,8 +29,8 @@
                 <div class="language-option" data-lang="fil">Filipino</div>
             </div>
         </div>
-        <a href="#">ABOUT</a>
-        <a href="#">CONTACT US</a>
+        <a href="{% url 'landing' %}#about">ABOUT</a>
+        <a href="{% url 'landing' %}#contact">CONTACT US</a>
         <a href="{% url 'accounts:register' %}" class="register-btn">REGISTER</a>
         <a href="{% url 'accounts:login' %}" class="login-btn-nav">LOG IN</a>
     </div>

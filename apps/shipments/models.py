@@ -14,9 +14,10 @@ class Shipment(models.Model):
     ]
 
     SHIPMENT_TYPE_CHOICES = [
-        ('lcl', 'LCL - Less Container Load'),
-        ('fcl', 'FCL - Full Container Load'),
-        ('air', 'Air Freight'),
+        ('air',  'Air Freight'),
+        ('sea',  'Sea Freight'),
+        ('lcl',  'LCL - Less Container Load'),
+        ('fcl',  'FCL - Full Container Load'),
         ('land', 'Land Freight'),
     ]
 

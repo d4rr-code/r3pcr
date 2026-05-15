@@ -96,6 +96,42 @@ def verify_otp_view(request):
     return render(request, 'accounts/verify_otp.html')
 
 
+# ─── Resend OTP ───────────────────────────────────────────────────────────────
+
+def resend_otp(request):
+    user_id = request.session.get('pre_auth_user_id')
+    if not user_id:
+        return redirect('accounts:login')
+    try:
+        user = User.objects.get(id=user_id)
+        otp_code = OTP.generate_code()
+        OTP.objects.create(user=user, code=otp_code)
+        try:
+            send_mail(
+                subject='R3-PCR Login OTP (Resent)',
+                message=f'Your new OTP code is: {otp_code}\nExpires in 10 minutes.',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=f'''
+                    <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;">
+                        <h2 style="color:#3b82f6;">R3-PCR System</h2>
+                        <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
+                        <p>Your new OTP code is:</p>
+                        <h1 style="color:#3b82f6;letter-spacing:8px;">{otp_code}</h1>
+                        <p>Expires in <strong>10 minutes</strong>.</p>
+                    </div>
+                ''',
+            )
+        except Exception as e:
+            print(f'Resend OTP email error: {e}')
+            print(f'Resent OTP for {user.username}: {otp_code}')
+        messages.success(request, 'A new OTP has been sent to your email.')
+    except User.DoesNotExist:
+        messages.error(request, 'Session expired. Please log in again.')
+        return redirect('accounts:login')
+    return redirect('accounts:verify_otp')
+
+
 # ─── Self-Registration (Consignee) ────────────────────────────────────────────
 
 def _generate_username(first_name, last_name):

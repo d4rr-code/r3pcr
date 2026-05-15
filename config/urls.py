@@ -53,10 +53,13 @@ def track_shipment(request):
             except Shipment.DoesNotExist:
                 error = 'No shipment found with that ID and email combination. Please check your details.'
 
+    from apps.consignee.models import Feedback
+    feedbacks = Feedback.objects.filter(is_approved=True).select_related('consignee').order_by('-created_at')[:6]
     return render(request, 'landing.html', {
         'track_result': result,
         'track_error':  error,
         'track_mode':   True,
+        'feedbacks':    feedbacks,
     })
 
 

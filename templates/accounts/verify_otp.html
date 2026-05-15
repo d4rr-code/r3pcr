@@ -70,8 +70,8 @@
 
             </div>
 
-            <a href="#">ABOUT</a>
-            <a href="#">CONTACT US</a>
+            <a href="{% url 'landing' %}#about">ABOUT</a>
+            <a href="{% url 'landing' %}#contact">CONTACT US</a>
 
             <a href="{% url 'accounts:register' %}"
             class="register-btn">
@@ -153,6 +153,15 @@
                 </button>
 
             </form>
+
+            <!-- RESEND -->
+            <div style="text-align:center; margin-top:14px; font-size:13px; color:rgba(255,255,255,0.6);">
+                Didn't receive it?
+                <a href="{% url 'accounts:resend_otp' %}"
+                   style="color:#3b82f6; font-weight:600; text-decoration:none; margin-left:4px;">
+                    Resend OTP
+                </a>
+            </div>
 
             <!-- BACK -->
             <a href="{% url 'accounts:login' %}"

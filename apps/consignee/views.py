@@ -39,15 +39,41 @@ def generate_hawb():
 
 @login_required
 def dashboard(request):
+    from django.db.models import Count
     shipments = Shipment.objects.filter(consignee=request.user)
-    context = {
-        'total':            shipments.count(),
-        'pending':          shipments.filter(status='pending').count(),
-        'in_review':        shipments.filter(status='in_review').count(),
-        'approved':         shipments.filter(status='approved').count(),
-        'rejected':         shipments.filter(status='rejected').count(),
-        'recent_shipments': shipments[:5],
+    total = shipments.count()
+
+    status_counts = {
+        'pending':     shipments.filter(status='pending').count(),
+        'in_review':   shipments.filter(status='in_review').count(),
+        'for_payment': shipments.filter(status='for_payment').count(),
+        'submitted':   shipments.filter(status='submitted').count(),
+        'approved':    shipments.filter(status='approved').count(),
+        'rejected':    shipments.filter(status='rejected').count(),
+        'revised':     shipments.filter(status='revised').count(),
     }
+
+    import_breakdown = list(
+        shipments.values('import_type')
+                 .annotate(count=Count('id'))
+                 .order_by('-count')
+    )
+    # Attach display labels
+    import_labels = dict(Shipment.IMPORT_TYPE_CHOICES)
+    for item in import_breakdown:
+        item['label'] = import_labels.get(item['import_type'], item['import_type'])
+
+    context = {
+        'total': total,
+        **status_counts,
+        'import_breakdown':  import_breakdown,
+        'recent_shipments':  shipments.order_by('-submitted_at'),
+    }
+
+    from apps.supervisor.models import Announcement
+    recent_announcements = Announcement.objects.filter(is_active=True).order_by('-created_at')[:3]
+    context['recent_announcements'] = recent_announcements
+
     return render(request, 'consignee/dashboard.html', context)
 
 

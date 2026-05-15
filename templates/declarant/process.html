@@ -316,6 +316,32 @@
                 {% endif %}
             </div>
 
+            {% if shipment.shipment_type == 'sea' %}
+            <div style="background:#1e3a5f; border:1px solid #3b82f6; border-radius:8px;
+                        padding:14px; margin-bottom:14px;">
+                <p style="color:#93c5fd; font-size:12px; font-weight:700; margin:0 0 10px;
+                           text-transform:uppercase; letter-spacing:0.5px;">
+                    🚢 Refine Sea Freight Type
+                </p>
+                <p style="color:#64748b; font-size:11px; margin:0 0 10px;">
+                    Consignee selected Sea Freight. Specify the container type:
+                </p>
+                <form method="POST" action="{% url 'declarant:update_shipping_mode' shipment.id %}">
+                    {% csrf_token %}
+                    <div style="display:flex; gap:8px;">
+                        <button type="submit" name="shipment_type" value="lcl"
+                                class="btn btn-secondary" style="flex:1; font-size:12px;">
+                            🚢 LCL — Shared Container
+                        </button>
+                        <button type="submit" name="shipment_type" value="fcl"
+                                class="btn btn-secondary" style="flex:1; font-size:12px;">
+                            📦 FCL — Full Container
+                        </button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+
             <form method="POST" action="{% url 'declarant:update_status' shipment.id %}">
                 {% csrf_token %}
                 <div class="form-group">

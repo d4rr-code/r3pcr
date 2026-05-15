@@ -91,13 +91,8 @@
 
             </div>
 
-            <a href="#">
-                ABOUT
-            </a>
-
-            <a href="#">
-                CONTACT US
-            </a>
+            <a href="#about">ABOUT</a>
+            <a href="#contact">CONTACT US</a>
 
             <a href="{% url 'accounts:register' %}"
             class="register-btn">
@@ -144,22 +139,8 @@
 
             <!-- BUTTONS -->
             <div class="hero-buttons">
-
-                <a href="#"
-                class="start-btn">
-
-                    START NOW
-
-                </a>
-
-                <a
-                href="#trackingSection"
-                class="explore-btn">
-
-                    EXPLORE
-
-                </a>
-
+                <a href="{% url 'accounts:register' %}" class="start-btn">START NOW</a>
+                <a href="#trackingSection" class="explore-btn">EXPLORE</a>
             </div>
 
             <!-- FEATURES -->
@@ -515,8 +496,7 @@ id="locationContent">
          PARTNER SECTION
     ========================================== -->
 
-    <section class="partner-section">
-
+    <section class="partner-section" id="about">
         <div class="partner-container">
 
             <!-- LEFT -->
@@ -707,22 +687,43 @@ id="locationContent">
             alt="Dashboard Preview">
 
         </div>
+    </section>
 
-        <!-- RIGHT -->
-        <div
-        class="showcase-card right"
-        onclick="activateSlide(2)">
+    <!-- =========================================
+         TESTIMONIALS SECTION
+    ========================================= -->
 
-            <img
-            src="{% static 'images/maindashcon2.png' %}"
-
-            alt="Dashboard Preview">
-
+    {% if feedbacks %}
+    <section class="testimonials-section">
+        <p class="testimonials-label">CLIENT TESTIMONIALS</p>
+        <h2 class="testimonials-heading">What Our Consignees Say</h2>
+        <div class="testimonials-grid">
+            {% for fb in feedbacks %}
+            <div class="testimonial-card">
+                <div class="testimonial-stars">
+                    {% for i in "12345" %}{% if forloop.counter <= fb.rating %}<span class="star-filled">★</span>{% else %}<span class="star-empty">★</span>{% endif %}{% endfor %}
+                </div>
+                <p class="testimonial-comment">"{{ fb.comment|truncatechars:180 }}"</p>
+                <div class="testimonial-footer">
+                    <div class="testimonial-avatar">{{ fb.consignee.first_name|default:fb.consignee.username|slice:":1"|upper }}</div>
+                    <div>
+                        <p class="testimonial-name">{{ fb.consignee.get_full_name|default:fb.consignee.username }}</p>
+                        {% if fb.consignee.company_name %}
+                        <p class="testimonial-company">{{ fb.consignee.company_name }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
+    </section>
+    {% endif %}
 
-    </div>
-</section>
-    <!-- FOOTER -->
+    <!-- =========================================
+         FOOTER
+    ========================================== -->
+
+    <div id="contact" style="scroll-margin-top:0;"></div>
     <footer class="footer">
         <div class="footer-content">
             <!-- SOCIAL -->
