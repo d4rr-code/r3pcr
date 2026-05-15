@@ -182,6 +182,20 @@ def process_shipment(request, shipment_id):
 # ─── Update Status ────────────────────────────────────────────────────────────
 
 @login_required
+def update_shipping_mode(request, shipment_id):
+    if request.method != 'POST':
+        return redirect('declarant:process', shipment_id=shipment_id)
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    mode = request.POST.get('shipment_type', '').strip()
+    if mode in ('lcl', 'fcl'):
+        shipment.shipment_type = mode
+        shipment.save()
+        messages.success(request, f'Shipping mode refined to "{shipment.get_shipment_type_display()}".')
+    else:
+        messages.error(request, 'Please select LCL or FCL.')
+    return redirect('declarant:process', shipment_id=shipment_id)
+
+
 def update_status(request, shipment_id):
     if request.method != 'POST':
         return redirect('declarant:queue')

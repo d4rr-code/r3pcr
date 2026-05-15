@@ -46,7 +46,7 @@
                         — What mode is this shipment arriving by?
                     </span>
                 </label>
-                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
                     <label style="cursor:pointer;">
                         <input type="radio" name="shipment_type" value="air" required
                                style="display:none;" onchange="highlightMode(this)">
@@ -55,29 +55,18 @@
                                     text-align:center; transition:all 0.15s; background:#0f172a;">
                             <div style="font-size:28px; margin-bottom:6px;">✈️</div>
                             <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">Air Freight</p>
-                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">Fast, smaller cargo</p>
+                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">By air cargo</p>
                         </div>
                     </label>
                     <label style="cursor:pointer;">
-                        <input type="radio" name="shipment_type" value="lcl"
+                        <input type="radio" name="shipment_type" value="sea"
                                style="display:none;" onchange="highlightMode(this)">
-                        <div class="mode-card" data-mode="lcl"
+                        <div class="mode-card" data-mode="sea"
                              style="border:2px solid #334155; border-radius:10px; padding:16px 12px;
                                     text-align:center; transition:all 0.15s; background:#0f172a;">
                             <div style="font-size:28px; margin-bottom:6px;">🚢</div>
-                            <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">LCL</p>
-                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">Shared container</p>
-                        </div>
-                    </label>
-                    <label style="cursor:pointer;">
-                        <input type="radio" name="shipment_type" value="fcl"
-                               style="display:none;" onchange="highlightMode(this)">
-                        <div class="mode-card" data-mode="fcl"
-                             style="border:2px solid #334155; border-radius:10px; padding:16px 12px;
-                                    text-align:center; transition:all 0.15s; background:#0f172a;">
-                            <div style="font-size:28px; margin-bottom:6px;">📦</div>
-                            <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">FCL</p>
-                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">Full container</p>
+                            <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">Sea Freight</p>
+                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">By vessel / container</p>
                         </div>
                     </label>
                     <label style="cursor:pointer;">
@@ -88,7 +77,7 @@
                                     text-align:center; transition:all 0.15s; background:#0f172a;">
                             <div style="font-size:28px; margin-bottom:6px;">🚛</div>
                             <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">Land Freight</p>
-                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">Road transport</p>
+                            <p style="color:#64748b; font-size:11px; margin:4px 0 0;">By road transport</p>
                         </div>
                     </label>
                 </div>
