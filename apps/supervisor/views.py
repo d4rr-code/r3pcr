@@ -195,7 +195,20 @@ def toggle_user(request, user_id):
 @login_required
 @supervisor_required
 def analytics(request):
-    shipments  = Shipment.objects.all()
+    # ── Filters ──────────────────────────────────────────────────────────────
+    date_from      = request.GET.get('date_from', '').strip()
+    date_to        = request.GET.get('date_to', '').strip()
+    declarant_filter = request.GET.get('declarant', '').strip()
+
+    shipments = Shipment.objects.all()
+
+    if date_from:
+        shipments = shipments.filter(submitted_at__date__gte=date_from)
+    if date_to:
+        shipments = shipments.filter(submitted_at__date__lte=date_to)
+    if declarant_filter:
+        shipments = shipments.filter(declarant__username=declarant_filter)
+
     total      = shipments.count()
     declarants = User.objects.filter(role='declarant')
 
@@ -370,14 +383,19 @@ def analytics(request):
                     buckets['very_slow'] += 1
 
     context = {
-        'status_data':       status_counts,
-        'status_pcts':       status_pcts,
-        'declarant_data':    declarant_data,
-        'total_shipments':   total,
-        'top_hs':            list(top_hs),
-        'wmcda':             wmcda,
-        'processing_stats':  processing_stats,
+        'status_data':        status_counts,
+        'status_pcts':        status_pcts,
+        'declarant_data':     declarant_data,
+        'total_shipments':    total,
+        'top_hs':             list(top_hs),
+        'wmcda':              wmcda,
+        'processing_stats':   processing_stats,
         'processing_buckets': buckets,
+        # Filters
+        'date_from':          date_from,
+        'date_to':            date_to,
+        'declarant_filter':   declarant_filter,
+        'declarants':         declarants,
     }
     return render(request, 'supervisor/analytics.html', context)
 
