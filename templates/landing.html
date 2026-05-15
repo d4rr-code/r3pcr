@@ -39,30 +39,74 @@
 
     <header class="navbar">
 
+        <!-- LOGO -->
         <div class="nav-left">
-            <a href="#" class="logo-link">
-                <img src="{% static 'images/Thumbnail for R3-PCR.png' %}" alt="R3-PCR Logo">
+
+            <a href="#"
+            class="logo-link">
+
+                <img
+                src="{% static 'images/Thumbnail for R3-PCR.png' %}"
+                alt="R3-PCR Logo">
+
             </a>
+
         </div>
 
+        <!-- NAVIGATION -->
         <div class="nav-right">
 
+            <!-- LANGUAGE -->
             <div class="language-dropdown">
-                <div class="selected-language" id="selectedLanguage">
+
+                <div class="selected-language"
+                id="selectedLanguage">
+
                     <i class="fa-solid fa-globe"></i>
-                    <span id="currentLanguage">EN</span>
+
+                    <span id="currentLanguage">
+                        EN
+                    </span>
+
                 </div>
+
+                <!-- MENU -->
                 <div class="language-menu">
-                    <div class="language-option" data-lang="en">English</div>
-                    <div class="language-option" data-lang="fil">Filipino</div>
+
+                    <div class="language-option"
+                    data-lang="en">
+
+                        English
+
+                    </div>
+
+                    <div class="language-option"
+                    data-lang="fil">
+
+                        Filipino
+
+                    </div>
+
                 </div>
+
             </div>
 
             <a href="#about">ABOUT</a>
             <a href="#contact">CONTACT US</a>
 
-            <a href="{% url 'accounts:register' %}" class="register-btn">REGISTER</a>
-            <a href="{% url 'accounts:login' %}" class="login-btn-nav">LOG IN</a>
+            <a href="{% url 'accounts:register' %}"
+            class="register-btn">
+
+                REGISTER
+
+            </a>
+
+            <a href="{% url 'accounts:login' %}"
+            class="login-btn-nav">
+
+                LOG IN
+
+            </a>
 
         </div>
 
@@ -73,155 +117,380 @@
     ========================================== -->
 
     <section class="hero-section">
+
         <div class="hero-content">
 
-            <h1>Simplify your pre-clearance process</h1>
+            <!-- TITLE -->
+            <h1>
 
+                Simplify your
+                pre-clearance process
+
+            </h1>
+
+            <!-- SUBTITLE -->
             <p>
+
                 Streamline your customs pre-clearance
                 workflow with automated document handling
                 and real-time shipment monitoring.
+
             </p>
 
+            <!-- BUTTONS -->
             <div class="hero-buttons">
                 <a href="{% url 'accounts:register' %}" class="start-btn">START NOW</a>
                 <a href="#trackingSection" class="explore-btn">EXPLORE</a>
             </div>
 
+            <!-- FEATURES -->
             <div class="hero-features">
+
                 <div class="feature-item">
+
                     <i class="fa-solid fa-check"></i>
-                    <span>Secure</span>
+
+                    <span>
+                        Secure
+                    </span>
+
                 </div>
+
                 <div class="feature-item">
+
                     <i class="fa-solid fa-check"></i>
-                    <span>Transparent</span>
+
+                    <span>
+                        Transparent
+                    </span>
+
                 </div>
+
                 <div class="feature-item">
+
                     <i class="fa-solid fa-check"></i>
-                    <span>Reliable</span>
+
+                    <span>
+                        Reliable
+                    </span>
+
                 </div>
+
             </div>
 
         </div>
+
     </section>
 
     <!-- =========================================
          TRACKING SECTION
     ========================================== -->
 
-    <section class="tracking-wrapper" id="trackingSection">
-        <div class="tracking-card">
+  <!-- =========================================
+     TRACKING OVERLAY SECTION
+========================================= -->
 
-            <div class="tracking-tabs">
-                <button class="tab-btn active" id="trackingTab">TRACKING</button>
-                <button class="tab-btn" id="locationTab">LOCATION</button>
-            </div>
+<section class="tracking-wrapper"
+id="trackingSection">
 
-            <!-- TRACKING TAB -->
-            <div class="tab-content active" id="trackingContent">
+    <div class="tracking-card">
 
-                <form method="POST" action="/track/" class="tracking-form">
-                    {% csrf_token %}
-                    <div class="tracking-inputs">
-                        <div class="input-group">
-                            <label>SHIPMENT ID NUMBER</label>
-                            <input type="text" name="hawb_number" class="shipment-input"
-                                placeholder="R3PCR-2026-000001"
-                                value="{{ request.POST.hawb_number }}"
-                                autocomplete="off">
-                        </div>
-                        <div class="input-group">
-                            <label>REGISTERED EMAIL</label>
-                            <input type="email" name="consignee_email"
-                                placeholder="example@email.com"
-                                value="{{ request.POST.consignee_email }}"
-                                autocomplete="off">
-                        </div>
-                    </div>
-                    <div class="track-btn-wrapper">
-                        <button type="submit" class="track-btn">
-                            {% if track_result %}TRACK ANOTHER SHIPMENT{% else %}TRACK SHIPMENT{% endif %}
-                        </button>
-                    </div>
-                </form>
+        <!-- =====================================
+             TABS
+        ====================================== -->
 
-                {% if track_error %}
-                <div class="track-error">⚠ {{ track_error }}</div>
-                {% endif %}
+        <div class="tracking-tabs">
 
-                {% if track_result %}
-                <div class="tracking-result">
-                    <div class="result-top">
-                        <div class="result-id">
-                            <h2>{{ track_result.hawb_number }}</h2>
-                        </div>
-                        <div class="result-status">
-                            <span class="status-badge status-{{ track_result.status_code }}">
-                                {{ track_result.status }}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="result-details">
-                        <div class="detail-item">
-                            <span>IMPORT TYPE</span>
-                            <h4>{{ track_result.import_type }}</h4>
-                        </div>
-                        <div class="detail-item">
-                            <span>URGENCY</span>
-                            <h4>{{ track_result.urgency }}</h4>
-                        </div>
-                        <div class="detail-item">
-                            <span>SUBMITTED</span>
-                            <h4>{{ track_result.submitted_at|date:"M j, Y g:iA" }}</h4>
-                        </div>
-                        <div class="detail-item">
-                            <span>LAST UPDATED</span>
-                            <h4>{{ track_result.last_updated|date:"M j, Y g:iA" }}</h4>
-                        </div>
-                    </div>
-                    {% if track_result.boc_reference %}
-                    <div class="boc-section">
-                        <span class="boc-label">BOC REFERENCE</span>
-                        <h4>{{ track_result.boc_reference }}</h4>
-                    </div>
-                    {% endif %}
-                    <p class="result-note">
-                        For security, only public status information is displayed.
-                        Login to view full details.
-                    </p>
-                </div>
-                {% endif %}
+            <button
+            class="tab-btn active"
+            id="trackingTab">
 
-            </div>
+                TRACKING
 
-            <!-- LOCATION TAB -->
-            <div class="tab-content" id="locationContent">
+            </button>
 
-                <a href="https://maps.app.goo.gl/ninJyB8WifPVQLpAA" target="_blank" class="location-item">
-                    <div class="location-left">
-                        <i class="fa-solid fa-building"></i>
-                        <div>
-                            <span>MAIN OFFICE</span>
-                            <h3>Paranaque</h3>
-                        </div>
-                    </div>
-                </a>
+            <button
+            class="tab-btn"
+            id="locationTab">
 
-                <a href="https://maps.app.goo.gl/ninJyB8WifPVQLpAA" target="_blank" class="location-item">
-                    <div class="location-left">
-                        <i class="fa-solid fa-ship"></i>
-                        <div>
-                            <span>PORT</span>
-                            <h3>Pasay</h3>
-                        </div>
-                    </div>
-                </a>
+                LOCATION
 
-            </div>
+            </button>
 
         </div>
-    </section>
+
+        <!-- =====================================
+             TRACKING TAB CONTENT
+        ====================================== -->
+
+        <div
+        class="tab-content active"
+        id="trackingContent">
+
+            <!-- =================================
+                 TRACKING FORM
+            ================================== -->
+
+            <form
+            method="POST"
+            action="/track/"
+            class="tracking-form">
+
+                {% csrf_token %}
+
+                <!-- INPUT ROW -->
+                <div class="tracking-inputs">
+
+                    <!-- SHIPMENT -->
+                    <div class="input-group">
+
+                        <label>
+                            SHIPMENT ID NUMBER
+                        </label>
+
+                        <input
+                        type="text"
+                        name="hawb_number"
+                        class="shipment-input"
+
+                        placeholder="R3PCR-2026-000001"
+
+                        value="{{ request.POST.hawb_number }}"
+
+                        autocomplete="off">
+
+                    </div>
+
+                    <!-- EMAIL -->
+                    <div class="input-group">
+
+                        <label>
+                            REGISTERED EMAIL
+                        </label>
+
+                        <input
+                        type="email"
+                        name="consignee_email"
+
+                        placeholder="example@email.com"
+
+                        value="{{ request.POST.consignee_email }}"
+
+                        autocomplete="off">
+
+                    </div>
+
+                </div>
+
+                <!-- BUTTON -->
+                <div class="track-btn-wrapper">
+
+                    <button
+                    type="submit"
+                    class="track-btn">
+
+                        {% if track_result %}
+
+                            TRACK ANOTHER SHIPMENT
+
+                        {% else %}
+
+                            TRACK SHIPMENT
+
+                        {% endif %}
+
+                    </button>
+
+                </div>
+
+            </form>
+
+            <!-- =================================
+                 TRACK ERROR
+            ================================== -->
+
+            {% if track_error %}
+
+            <div class="track-error">
+
+                ⚠ {{ track_error }}
+
+            </div>
+
+            {% endif %}
+
+            <!-- =================================
+                 TRACK RESULT
+            ================================== -->
+
+            {% if track_result %}
+
+            <div class="tracking-result">
+
+                <!-- RESULT HEADER -->
+                <div class="result-top">
+
+                    <!-- LEFT -->
+                    <div class="result-id">
+
+                        <h2>
+
+                            {{ track_result.hawb_number }}
+
+                        </h2>
+
+                    </div>
+
+                    <!-- RIGHT -->
+                    <div class="result-status">
+
+                        <span class="status-badge
+                        status-{{ track_result.status_code }}">
+
+                            {{ track_result.status }}
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+                <!-- DETAILS -->
+                <div class="result-details">
+
+                    <!-- IMPORT TYPE -->
+                    <div class="detail-item">
+
+                        <span>
+                            IMPORT TYPE
+                        </span>
+
+                        <h4>
+
+                            {{ track_result.import_type }}
+
+                        </h4>
+
+                    </div>
+
+                    <!-- URGENCY -->
+                    <div class="detail-item">
+
+                        <span>
+                            URGENCY
+                        </span>
+
+                        <h4>
+
+                            {{ track_result.urgency }}
+
+                        </h4>
+
+                    </div>
+
+                    <!-- SUBMITTED -->
+                    <div class="detail-item">
+
+                        <span>
+                            SUBMITTED
+                        </span>
+
+                        <h4>
+
+                            {{ track_result.submitted_at|date:"M j, Y g:iA" }}
+
+                        </h4>
+
+                    </div>
+
+                    <!-- UPDATED -->
+                    <div class="detail-item">
+
+                        <span>
+                            LAST UPDATED
+                        </span>
+
+                        <h4>
+
+                            {{ track_result.last_updated|date:"M j, Y g:iA" }}
+
+                        </h4>
+
+                    </div>
+
+                </div>
+
+                <!-- OPTIONAL BOC -->
+                {% if track_result.boc_reference %}
+
+                <div class="boc-section">
+
+                    <span class="boc-label">
+
+                        BOC REFERENCE
+
+                    </span>
+
+                    <h4>
+
+                        {{ track_result.boc_reference }}
+
+                    </h4>
+
+                </div>
+
+                {% endif %}
+
+                <!-- DISCLAIMER -->
+                <p class="result-note">
+
+                    For security, only public status
+                    information is displayed.
+                    Login to view full details.
+
+                </p>
+
+            </div>
+
+            {% endif %}
+
+        </div>
+
+        <!-- =====================================
+             LOCATION TAB
+        ====================================== -->
+<div
+class="tab-content"
+id="locationContent">
+
+    <!-- MAIN OFFICE -->
+    <a
+    href="https://maps.app.goo.gl/ninJyB8WifPVQLpAA"
+    target="_blank"
+    class="location-item">
+        <div class="location-left">
+            <i class="fa-solid fa-building"></i>
+            <div>
+                <span>MAIN OFFICE</span>
+                <h3>Paranaque</h3>
+            </div>
+        </div>
+    </a>
+    <a
+    href="https://maps.app.goo.gl/ninJyB8WifPVQLpAA"
+    target="_blank"
+    class="location-item">
+        <div class="location-left">
+            <i class="fa-solid fa-ship"></i>
+            <div>
+                <span>PORT</span>
+                <h3>Pasay</h3>
+            </div>
+        </div>
+    </a>
+</div>
+    </div>
+</section>
 
     <!-- =========================================
          PARTNER SECTION
@@ -230,63 +499,193 @@
     <section class="partner-section" id="about">
         <div class="partner-container">
 
+            <!-- LEFT -->
             <div class="partner-content">
-                <h2>Partner with RTripleJ Customs Brokerage</h2>
+
+                <h2>
+
+                    Partner with
+                    RTripleJ Customs Brokerage
+
+                </h2>
+
                 <p>
-                    Improve coordination and simplify shipment handling through digital
-                    submission workflows and centralized processing visibility.
+
+                    Improve coordination and simplify
+                    shipment handling through digital
+                    submission workflows and centralized
+                    processing visibility.
+
                 </p>
+
                 <span class="partner-note">
-                    Supporting smarter and more reliable import processing.
+
+                    Supporting smarter and more
+                    reliable import processing.
+
                 </span>
-                <a href="https://rtriplejcb.com" target="_blank" class="partner-btn">VISIT RTRIPLEJ</a>
+
+                <!-- BUTTON -->
+                <a
+                href="https://rtriplejcb.com"
+
+                target="_blank"
+
+                class="partner-btn">
+
+                    VISIT RTRIPLEJ
+
+                </a>
+
             </div>
 
+            <!-- RIGHT -->
             <div class="partner-image">
-                <img src="{% static 'images/RtripleJ Logo.png' %}" alt="RTripleJ Logo">
+
+                <img
+                src="{% static 'images/RtripleJ Logo.png' %}"
+
+                alt="RTripleJ Logo">
+
             </div>
 
         </div>
+
     </section>
+<!-- =========================================
+     AFFILIATIONS SECTION
+========================================= -->
 
-    <!-- =========================================
-         AFFILIATIONS SECTION
-    ========================================= -->
+<section class="affiliations-section">
 
-    <section class="affiliations-section">
-        <h3>LICENSES AND ACCREDITATION</h3>
-        <div class="affiliations-logos">
-            <div class="affiliation-item"><img src="{% static 'images/CHAMBER_LOGO.png' %}" alt="CCBI"></div>
-            <div class="affiliation-item"><img src="{% static 'images/DTI.png' %}" alt="DTI Philippines"></div>
-            <div class="affiliation-item"><img src="{% static 'images/ICTS_LOGO.png' %}" alt="ICTSI"></div>
-            <div class="affiliation-item"><img src="{% static 'images/BOC_LOGO.png' %}" alt="Bureau of Customs"></div>
-            <div class="affiliation-item"><img src="{% static 'images/ATI_LOGO.png' %}" alt="Asian Terminals"></div>
-            <div class="affiliation-item"><img src="{% static 'images/BIR.png' %}" alt="BIR"></div>
+    <!-- TITLE -->
+    <h3>
+
+        LICENSES AND ACCREDITATION
+
+    </h3>
+
+    <!-- LOGOS -->
+    <div class="affiliations-logos">
+
+        <!-- CCBI -->
+        <div class="affiliation-item">
+
+            <img
+            src="{% static 'images/CHAMBER_LOGO.png' %}"
+
+            alt="CCBI">
+
         </div>
-    </section>
 
-    <!-- =========================================
-         FEATURES SHOWCASE SECTION
-    ========================================= -->
+        <!-- DTI -->
+        <div class="affiliation-item">
 
-    <section class="showcase-section">
-        <div class="showcase-header">
-            <h2>Built for Better Shipment Visibility</h2>
-            <p>
-                Access submission records, monitor processing status, and manage shipment
-                activities through a centralized consignee dashboard.
-            </p>
+            <img
+            src="{% static 'images/DTI.png' %}"
+
+            alt="DTI Philippines">
+
         </div>
-        <div class="showcase-carousel">
-            <div class="showcase-card left" onclick="activateSlide(0)">
-                <img src="{% static 'images/maindashcon.png' %}" alt="Dashboard Preview">
-            </div>
-            <div class="showcase-card active" onclick="activateSlide(1)">
-                <img src="{% static 'images/maindashcon1.png' %}" alt="Dashboard Preview">
-            </div>
-            <div class="showcase-card right" onclick="activateSlide(2)">
-                <img src="{% static 'images/maindashcon2.png' %}" alt="Dashboard Preview">
-            </div>
+
+        <!-- ICTSI -->
+        <div class="affiliation-item">
+
+            <img
+            src="{% static 'images/ICTS_LOGO.png' %}"
+
+            alt="ICTSI">
+
+        </div>
+
+        <!-- BOC -->
+        <div class="affiliation-item">
+
+            <img
+            src="{% static 'images/BOC_LOGO.png' %}"
+
+            alt="Bureau of Customs">
+
+        </div>
+
+        <!-- ATI -->
+        <div class="affiliation-item">
+
+            <img
+            src="{% static 'images/ATI_LOGO.png' %}"
+
+            alt="Asian Terminals">
+
+        </div>
+
+        <!-- BIR -->
+        <div class="affiliation-item">
+
+            <img
+            src="{% static 'images/BIR.png' %}"
+
+            alt="BIR">
+
+        </div>
+
+    </div>
+
+</section>
+<!-- =========================================
+     FEATURES SHOWCASE SECTION
+========================================= -->
+
+<section class="showcase-section">
+
+    <!-- TITLE -->
+    <div class="showcase-header">
+
+        <h2>
+
+            Built for Better
+            Shipment Visibility
+
+        </h2>
+
+        <p>
+
+            Access submission records, monitor
+            processing status, and manage shipment
+            activities through a centralized
+            consignee dashboard.
+
+        </p>
+
+    </div>
+
+    <!-- =====================================
+         CAROUSEL
+    ====================================== -->
+
+    <div class="showcase-carousel">
+
+        <!-- LEFT -->
+        <div
+        class="showcase-card left"
+        onclick="activateSlide(0)">
+
+            <img
+            src="{% static 'images/maindashcon.png' %}"
+
+            alt="Dashboard Preview">
+
+        </div>
+
+        <!-- CENTER -->
+        <div
+        class="showcase-card active"
+        onclick="activateSlide(1)">
+
+            <img
+            src="{% static 'images/maindashcon1.png' %}"
+
+            alt="Dashboard Preview">
+
         </div>
     </section>
 
@@ -327,9 +726,9 @@
     <div id="contact" style="scroll-margin-top:0;"></div>
     <footer class="footer">
         <div class="footer-content">
-
+            <!-- SOCIAL -->
             <div class="footer-social">
-                <h4 id="followText">FOLLOW US</h4>
+                <h4 id="followText"> FOLLOW US </h4>
                 <div class="social-icons">
                     <img src="{% static 'accounts/img/Facebook.png' %}">
                     <img src="{% static 'accounts/img/insta.png' %}">
@@ -337,6 +736,7 @@
                 </div>
             </div>
 
+            <!-- CENTER -->
             <div class="footer-center">
                 <img src="{% static 'accounts/img/Thumbnail for R3-PCR.png' %}">
                 <div class="footer-links">
@@ -345,23 +745,27 @@
                     <a href="#">ABOUT</a>
                     <a href="#">RTRIPLEJ</a>
                 </div>
-                <p>© 2026 R3-PCR — RTripleJ Customs Brokerage. All Rights Reserved.</p>
+                <p>
+                    © 2026 R3-PCR — RTripleJ Customs Brokerage.
+                    All Rights Reserved.
+                </p>
             </div>
 
+            <!-- CONTACT -->
             <div class="footer-contact">
-                <h4 id="contactText">CONTACT US</h4>
+                <h4 id="contactText"> CONTACT US </h4>
                 <div class="contact-icons">
                     <img src="{% static 'accounts/img/email icon.png' %}">
                     <img src="{% static 'accounts/img/Location.png' %}">
                     <img src="{% static 'accounts/img/Contact.png' %}">
                 </div>
             </div>
-
         </div>
     </footer>
-
     <!-- JS -->
-    <script src="{% static 'js/landing.js' %}"></script>
+    <script
+    src="{% static 'js/landing.js' %}">
+    </script>
 
 </body>
 </html>
