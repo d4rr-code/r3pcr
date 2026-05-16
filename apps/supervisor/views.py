@@ -1,4 +1,5 @@
 import logging
+import threading
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -8,6 +9,22 @@ from django.core.mail import send_mail
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _send_mail_async(subject, message, from_email, recipient_list, html_message=None, log_tag=''):
+    """Send email in a daemon thread — never blocks the HTTP response."""
+    def _send():
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=from_email,
+                recipient_list=recipient_list,
+                html_message=html_message,
+            )
+        except Exception as e:
+            print(f'[EMAIL ERROR] {log_tag}: {e}')
+    threading.Thread(target=_send, daemon=True).start()
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
@@ -96,31 +113,29 @@ def approve_registration(request, user_id):
         user.save()
 
         if user.email:
-            try:
-                send_mail(
-                    subject='R3-PCR — Account Approved',
-                    message=(
-                        f'Hello {user.first_name or user.username},\n\n'
-                        f'Your R3-PCR account has been approved. '
-                        f'You can now log in.\n\nUsername: {user.username}'
-                    ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    html_message=f'''
-                        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">
-                            <h2 style="color:#22c55e;">Account Approved!</h2>
-                            <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
-                            <p>Your R3-PCR account has been <strong style="color:#22c55e;">approved</strong>.
-                               You can now log in.</p>
-                            <p><strong>Username:</strong> {user.username}</p>
-                            <p style="color:#94a3b8;font-size:12px;margin-top:20px;">
-                                R3-PCR Pre-Clearance Decision Support System
-                            </p>
-                        </div>
-                    ''',
-                )
-            except Exception as ex:
-                print(f'Approval email error: {ex}')
+            _send_mail_async(
+                subject='R3-PCR — Account Approved',
+                message=(
+                    f'Hello {user.first_name or user.username},\n\n'
+                    f'Your R3-PCR account has been approved. '
+                    f'You can now log in.\n\nUsername: {user.username}'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=f'''
+                    <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">
+                        <h2 style="color:#22c55e;">Account Approved!</h2>
+                        <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
+                        <p>Your R3-PCR account has been <strong style="color:#22c55e;">approved</strong>.
+                           You can now log in.</p>
+                        <p><strong>Username:</strong> {user.username}</p>
+                        <p style="color:#94a3b8;font-size:12px;margin-top:20px;">
+                            R3-PCR Pre-Clearance Decision Support System
+                        </p>
+                    </div>
+                ''',
+                log_tag=f'approval email to {user.username}',
+            )
 
         messages.success(request, f'Account for {user.username} approved and activated.')
     return redirect('supervisor:users')
@@ -135,18 +150,16 @@ def reject_registration(request, user_id):
         email    = user.email
         name     = user.first_name or username
         if email:
-            try:
-                send_mail(
-                    subject='R3-PCR — Registration Not Approved',
-                    message=(
-                        f'Hello {name},\n\nUnfortunately your R3-PCR registration was not approved. '
-                        f'Please contact the administrator for more information.'
-                    ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[email],
-                )
-            except Exception as ex:
-                print(f'Rejection email error: {ex}')
+            _send_mail_async(
+                subject='R3-PCR — Registration Not Approved',
+                message=(
+                    f'Hello {name},\n\nUnfortunately your R3-PCR registration was not approved. '
+                    f'Please contact the administrator for more information.'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                log_tag=f'rejection email to {username}',
+            )
         user.delete()
         messages.warning(request, f'Registration for {username} rejected and removed.')
     return redirect('supervisor:users')
