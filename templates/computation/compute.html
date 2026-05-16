@@ -563,21 +563,55 @@
         </table>
     </div>
 
-    <!-- Totals footer -->
-    <div style="padding:8px 14px; background:#0f172a; border-top:2px solid #334155;
-                display:grid; grid-template-columns:repeat(3,1fr); gap:8px; font-size:12px;">
-        <div>
-            <span style="color:#64748b;">Total EXW:</span>
-            <strong style="color:#f1f5f9; margin-left:4px;" id="total-exw">$0.00</strong>
+    <!-- Totals footer — live estimate -->
+    <div style="padding:10px 14px; background:#0f172a; border-top:2px solid #334155; font-size:12px;">
+
+        <!-- Row 1: core ECDT totals -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
+            <div>
+                <span style="color:#64748b;">Total EXW:</span>
+                <strong style="color:#f1f5f9; margin-left:4px;" id="total-exw">$0.00</strong>
+            </div>
+            <div>
+                <span style="color:#64748b;">Total D/V ₱:</span>
+                <strong style="color:#3b82f6; margin-left:4px;" id="total-dvphp">₱0.00</strong>
+            </div>
+            <div>
+                <span style="color:#64748b;">Total CUD ₱:</span>
+                <strong style="color:#f59e0b; margin-left:4px;" id="total-cud">₱0.00</strong>
+            </div>
         </div>
-        <div>
-            <span style="color:#64748b;">Total D/V ₱:</span>
-            <strong style="color:#3b82f6; margin-left:4px;" id="total-dvphp">₱0.00</strong>
+
+        <!-- Row 2: fee breakdown chips -->
+        <div style="border-top:1px solid #1e293b; padding-top:8px;
+                    display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1.4fr; gap:6px;">
+            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
+                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">VAT (12%)</p>
+                <p style="color:#a78bfa; font-size:12px; font-weight:700; margin:0;" id="live-vat">—</p>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
+                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">Brokerage Fee</p>
+                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-bf">—</p>
+                <p style="color:#475569; font-size:9px; margin:1px 0 0;" id="live-bf-tier"></p>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
+                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">CDS (fixed)</p>
+                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;">₱130.00</p>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
+                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">IPF</p>
+                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-ipf">—</p>
+            </div>
+            <div style="background:#172554; border-radius:6px; padding:6px 8px; text-align:center;
+                        border:1px solid #1d4ed8;">
+                <p style="color:#93c5fd; font-size:10px; margin:0 0 2px; font-weight:700;
+                          text-transform:uppercase; letter-spacing:0.4px;">Est. Total</p>
+                <p style="color:#3b82f6; font-size:13px; font-weight:800; margin:0;" id="live-total">—</p>
+            </div>
         </div>
-        <div>
-            <span style="color:#64748b;">Total CUD ₱:</span>
-            <strong style="color:#f59e0b; margin-left:4px;" id="total-cud">₱0.00</strong>
-        </div>
+        <p style="color:#334155; font-size:10px; margin:6px 0 0; text-align:right;">
+            Live estimate — updates as you type
+        </p>
     </div>
 </div>
 
@@ -1186,6 +1220,41 @@ function fillFromOCR() {
     recalcAll();
 }
 
+// ── BF / IPF lookup tables (mirrors views.py) ─────────────────────────────────
+function getBF(dvPhp) {
+    if (dvPhp <= 0)      return 0;
+    if (dvPhp <= 10000)  return 1300;
+    if (dvPhp <= 20000)  return 2000;
+    if (dvPhp <= 30000)  return 2700;
+    if (dvPhp <= 40000)  return 3300;
+    if (dvPhp <= 50000)  return 3600;
+    if (dvPhp <= 60000)  return 4000;
+    if (dvPhp <= 100000) return 4700;
+    if (dvPhp <= 200000) return 5300;
+    return 6000;
+}
+function getBFTier(dvPhp) {
+    if (dvPhp <= 0)      return '';
+    if (dvPhp <= 10000)  return '≤ ₱10K';
+    if (dvPhp <= 20000)  return '₱10K–20K';
+    if (dvPhp <= 30000)  return '₱20K–30K';
+    if (dvPhp <= 40000)  return '₱30K–40K';
+    if (dvPhp <= 50000)  return '₱40K–50K';
+    if (dvPhp <= 60000)  return '₱50K–60K';
+    if (dvPhp <= 100000) return '₱60K–100K';
+    if (dvPhp <= 200000) return '₱100K–200K';
+    return '> ₱200K';
+}
+function getIPF(dvPhp) {
+    if (dvPhp <= 0)      return 0;
+    if (dvPhp <= 25000)  return 250;
+    if (dvPhp <= 50000)  return 500;
+    if (dvPhp <= 250000) return 750;
+    if (dvPhp <= 500000) return 1000;
+    if (dvPhp <= 750000) return 1500;
+    return 2000;
+}
+
 // ── Live recalculation ────────────────────────────────────────────────────────
 function recalcAll() {
     var rows      = document.querySelectorAll('#ecdt-body tr');
@@ -1233,6 +1302,27 @@ function recalcAll() {
     document.getElementById('total-exw').textContent   = '$' + totalExw.toLocaleString('en-US', {minimumFractionDigits:2});
     document.getElementById('total-dvphp').textContent = '₱' + totalDvPhp.toLocaleString('en-US', {minimumFractionDigits:2});
     document.getElementById('total-cud').textContent   = '₱' + totalCud.toLocaleString('en-US', {minimumFractionDigits:2});
+
+    // ── Live fee chips ──────────────────────────────────────────────────────────
+    var fmt = function(n) {
+        return '₱' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    };
+    if (totalDvPhp > 0) {
+        var liveVat   = (totalDvPhp + totalCud) * 0.12;
+        var liveBf    = getBF(totalDvPhp);
+        var liveIpf   = getIPF(totalDvPhp);
+        var liveTotal = totalDvPhp + totalCud + liveVat + liveBf + 130 + liveIpf;
+        document.getElementById('live-vat').textContent     = fmt(liveVat);
+        document.getElementById('live-bf').textContent      = fmt(liveBf);
+        document.getElementById('live-bf-tier').textContent = getBFTier(totalDvPhp);
+        document.getElementById('live-ipf').textContent     = fmt(liveIpf);
+        document.getElementById('live-total').textContent   = fmt(liveTotal);
+    } else {
+        ['live-vat','live-bf','live-ipf','live-total'].forEach(function(id) {
+            document.getElementById(id).textContent = '—';
+        });
+        document.getElementById('live-bf-tier').textContent = '';
+    }
 }
 
 // ── Add / Remove rows ─────────────────────────────────────────────────────────
