@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -5,6 +6,8 @@ from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
@@ -490,8 +493,15 @@ def system_config(request):
         hs_rates = request.POST.getlist('hs_rate[]')
         for hs_id, rate in zip(hs_ids, hs_rates):
             try:
-                hs = HSCode.objects.get(id=int(hs_id))
-                hs.duty_rate = float(rate)
+                hs       = HSCode.objects.get(id=int(hs_id))
+                rate_val = float(rate)
+                if not (0 <= rate_val <= 100):
+                    messages.warning(
+                        request,
+                        f'Duty rate for HS {hs.code} must be between 0 and 100%. Skipped.'
+                    )
+                    continue
+                hs.duty_rate = rate_val
                 hs.save(update_fields=['duty_rate'])
             except (HSCode.DoesNotExist, ValueError):
                 pass
@@ -541,6 +551,19 @@ def delete_shipment(request, shipment_id):
     if request.method == 'POST':
         shipment = get_object_or_404(Shipment, id=shipment_id)
         hawb     = shipment.hawb_number
+
+        # Persist audit record to server logs BEFORE deleting.
+        # StatusLog can't survive (CASCADE), so we write to the application log
+        # which is retained by Railway and can be reviewed later.
+        logger.warning(
+            'AUDIT: Shipment %s (consignee=%s, status=%s) permanently deleted by supervisor %s at %s',
+            hawb,
+            shipment.consignee.username,
+            shipment.status,
+            request.user.username,
+            timezone.now().isoformat(),
+        )
+
         shipment.delete()
         messages.success(request, f'Shipment {hawb} permanently deleted.')
     return redirect('supervisor:dashboard')

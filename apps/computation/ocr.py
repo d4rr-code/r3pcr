@@ -45,11 +45,19 @@ def _extract_line_items(text):
     Returns [] if fewer than 2 distinct items are found (fall back to single-total mode).
     """
     SKIP_WORDS = {
+        # totals / summaries
         'subtotal', 'sub-total', 'sub total', 'grand total', 'total', 'discount',
+        'net value', 'net amount', 'net price', 'value of goods', 'invoice amount',
+        'total amount', 'total value', 'credit', 'debit', 'balance', 'position',
+        # logistics / charges
         'freight', 'insurance', 'shipping', 'handling', 'tax', 'vat', 'charges',
+        'surcharge', 'customs', 'duty', 'fee', 'commission',
+        # document / header words
         'invoice', 'description', 'item', 'qty', 'quantity', 'unit', 'price',
         'amount', 'no.', 'number', 'date', 'currency', 'terms', 'payment',
-        'bank', 'page', 'consignee', 'shipper', 'marks',
+        'bank', 'page', 'consignee', 'shipper', 'marks', 'country of origin',
+        'gross weight', 'net weight', 'packing', 'carton', 'certificate',
+        'warranty', 'incoterm', 'delivery', 'order', 'contract', 'ref',
     }
     # Pattern: a line ending with a monetary amount (with optional currency prefix)
     money_pat = re.compile(
@@ -82,7 +90,14 @@ def _extract_line_items(text):
         # Skip if description part is mostly numbers / looks like a row number
         if re.match(r'^[\d\s\.\-]+$', desc_part):
             continue
-        if len(desc_part) < 3:
+        # Skip if description starts with a number (e.g. "1.00 PC", "3.73 EUR")
+        if re.match(r'^\d', desc_part):
+            continue
+        if len(desc_part) < 4:
+            continue
+        # Skip if description contains known skip words
+        low_desc = desc_part.lower()
+        if any(w in low_desc for w in SKIP_WORDS):
             continue
 
         amount_str = m.group(m.lastindex) if m.lastindex else None
@@ -91,6 +106,10 @@ def _extract_line_items(text):
         try:
             amount = float(amount_str.replace(',', ''))
         except (ValueError, TypeError):
+            continue
+
+        # Skip suspiciously small amounts (likely unit prices not line totals)
+        if amount < 1.00:
             continue
 
         # Try to extract quantity from the matched groups
@@ -212,15 +231,41 @@ def extract_fields_from_invoice(text):
     desc_keywords = [
         ('SUNGLASSES', 'Sunglasses'),
         ('INCUBATOR', 'Incubator'),
+        ('OVEN', 'Laboratory Oven'),
+        ('CHAMBER', 'Climate Chamber'),
+        ('CENTRIFUGE', 'Centrifuge'),
+        ('MICROSCOPE', 'Microscope'),
         ('PLASTIC NASAL SPRAY', 'Plastic Nasal Spray Bottle'),
         ('PLASTIC BOTTLE', 'Plastic Bottle'),
         ('NASAL SPRAY', 'Nasal Spray'),
         ('BOTTLE', 'Plastic Bottle'),
+        ('SPARE PART', 'Spare Parts'),
+        ('ACCESSORY', 'Accessories'),
+        ('EQUIPMENT', 'Laboratory Equipment'),
+        ('INSTRUMENT', 'Scientific Instrument'),
+        ('DEVICE', 'Electronic Device'),
+        ('MACHINE', 'Machinery'),
+        ('CHEMICAL', 'Chemical'),
+        ('REAGENT', 'Reagent'),
+        ('TEXTILE', 'Textile'),
+        ('GARMENT', 'Garment'),
+        ('ELECTRONIC', 'Electronic Components'),
+        ('FURNITURE', 'Furniture'),
+        ('FOOD', 'Food Products'),
     ]
     for keyword, label in desc_keywords:
         if keyword in text_upper:
             description = label
             break
+
+    # Try extracting from invoice line if no keyword matched
+    if not description:
+        m = re.search(
+            r'(?:Description|Commodity|Goods?)\s*[:\s]+([A-Za-z][^\n]{3,60})',
+            text, re.IGNORECASE
+        )
+        if m:
+            description = m.group(1).strip()
 
     # ── Consignee ──────────────────────────────────────────────────────────────
     consignee_name = ''

@@ -93,8 +93,11 @@
             <select name="urgency" class="form-input" style="padding:7px 12px; font-size:13px;"
                     onchange="this.form.submit()">
                 <option value="">All Urgency</option>
-                <option value="urgent" {% if urgency_filter == 'urgent' %}selected{% endif %}>⚡ Urgent</option>
-                <option value="normal" {% if urgency_filter == 'normal' %}selected{% endif %}>Normal</option>
+                <option value="rush"     {% if urgency_filter == 'rush'     %}selected{% endif %}>🚨 Rush</option>
+                <option value="urgent"   {% if urgency_filter == 'urgent'   %}selected{% endif %}>⚡ Urgent</option>
+                <option value="priority" {% if urgency_filter == 'priority' %}selected{% endif %}>⏩ Priority</option>
+                <option value="standard" {% if urgency_filter == 'standard' %}selected{% endif %}>📋 Standard</option>
+                <option value="normal"   {% if urgency_filter == 'normal'   %}selected{% endif %}>📋 Standard (Legacy)</option>
             </select>
         </div>
         <div style="min-width:170px;">
@@ -164,10 +167,14 @@
                     {{ s.import_type|capfirst|default:"—" }}
                 </td>
                 <td style="padding:12px 16px; font-size:12px;">
-                    {% if s.urgency == 'urgent' %}
-                        <span style="color:#ef4444; font-weight:700;">⚡ Urgent</span>
+                    {% if s.urgency == 'rush' %}
+                        <span style="color:#ef4444; font-weight:700;">🚨 Rush</span>
+                    {% elif s.urgency == 'urgent' %}
+                        <span style="color:#f97316; font-weight:700;">⚡ Urgent</span>
+                    {% elif s.urgency == 'priority' %}
+                        <span style="color:#3b82f6; font-weight:600;">⏩ Priority</span>
                     {% else %}
-                        <span style="color:#64748b;">Normal</span>
+                        <span style="color:#64748b;">📋 Standard</span>
                     {% endif %}
                 </td>
                 <td style="padding:12px 16px; font-size:13px;">
@@ -242,6 +249,28 @@
             {% endfor %}
         </tbody>
     </table>
+    {% if pending.has_other_pages %}
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-top:1px solid #1e293b; background:#0f172a;">
+        <span style="color:#64748b; font-size:12px;">
+            Page {{ pending.number }} of {{ pending.paginator.num_pages }}
+            &nbsp;·&nbsp; {{ pending.paginator.count }} shipment{{ pending.paginator.count|pluralize }} total
+        </span>
+        <div style="display:flex; gap:8px;">
+            {% if pending.has_previous %}
+            <a href="?page={{ pending.previous_page_number }}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}{% if due_filter %}&due={{ due_filter }}{% endif %}"
+               style="padding:5px 12px; background:#1e293b; color:#94a3b8; border-radius:6px; font-size:12px; text-decoration:none; border:1px solid #334155;">
+                ← Previous
+            </a>
+            {% endif %}
+            {% if pending.has_next %}
+            <a href="?page={{ pending.next_page_number }}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}{% if due_filter %}&due={{ due_filter }}{% endif %}"
+               style="padding:5px 12px; background:#1e293b; color:#94a3b8; border-radius:6px; font-size:12px; text-decoration:none; border:1px solid #334155;">
+                Next →
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
     {% else %}
     <div style="padding:32px; text-align:center; color:#64748b;">
         <p>No pending shipments match the current filters.</p>
@@ -302,10 +331,14 @@
                     {{ s.import_type|capfirst|default:"—" }}
                 </td>
                 <td style="padding:12px 16px; font-size:12px;">
-                    {% if s.urgency == 'urgent' %}
-                        <span style="color:#ef4444; font-weight:700;">⚡ Urgent</span>
+                    {% if s.urgency == 'rush' %}
+                        <span style="color:#ef4444; font-weight:700;">🚨 Rush</span>
+                    {% elif s.urgency == 'urgent' %}
+                        <span style="color:#f97316; font-weight:700;">⚡ Urgent</span>
+                    {% elif s.urgency == 'priority' %}
+                        <span style="color:#3b82f6; font-weight:600;">⏩ Priority</span>
                     {% else %}
-                        <span style="color:#64748b;">Normal</span>
+                        <span style="color:#64748b;">📋 Standard</span>
                     {% endif %}
                 </td>
                 <td style="padding:12px 16px; font-size:13px;">
@@ -479,13 +512,16 @@ function showPreview(btn) {
     document.getElementById('pm-type').textContent       = btn.dataset.importtype;
 
     var urgEl = document.getElementById('pm-urgency');
-    if (btn.dataset.urgency === 'urgent') {
-        urgEl.textContent = '⚡ Urgent';
-        urgEl.style.color = '#ef4444';
-    } else {
-        urgEl.textContent = 'Normal';
-        urgEl.style.color = '#64748b';
-    }
+    var urgMap = {
+        rush:     { label: '🚨 Rush',     color: '#ef4444' },
+        urgent:   { label: '⚡ Urgent',   color: '#f97316' },
+        priority: { label: '⏩ Priority', color: '#3b82f6' },
+        standard: { label: '📋 Standard', color: '#64748b' },
+        normal:   { label: '📋 Standard', color: '#64748b' },
+    };
+    var urgInfo = urgMap[btn.dataset.urgency] || { label: btn.dataset.urgencylabel, color: '#64748b' };
+    urgEl.textContent = urgInfo.label;
+    urgEl.style.color = urgInfo.color;
 
     var dueEl = document.getElementById('pm-due');
     var dueColor = btn.dataset.duecolor === 'red'    ? '#ef4444'
