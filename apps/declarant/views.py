@@ -2,9 +2,23 @@ import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.notifications.utils import create_notification
+
+
+# ─── Role Decorator ───────────────────────────────────────────────────────────
+
+def declarant_required(view_func):
+    """Restrict view to authenticated users with role='declarant'."""
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated or request.user.role != 'declarant':
+            messages.error(request, 'Access denied — declarants only.')
+            return redirect('accounts:login')
+        return view_func(request, *args, **kwargs)
+    wrapper.__name__ = view_func.__name__
+    return wrapper
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -36,6 +50,7 @@ def _annotate_due(shipments, today):
 # ─── Dashboard ────────────────────────────────────────────────────────────────
 
 @login_required
+@declarant_required
 def dashboard(request):
     shipments = Shipment.objects.all()
     my = {'declarant': request.user}
@@ -79,6 +94,7 @@ def dashboard(request):
 # ─── Queue Manager ────────────────────────────────────────────────────────────
 
 @login_required
+@declarant_required
 def queue_manager(request):
     today = timezone.localdate()
 
@@ -86,7 +102,7 @@ def queue_manager(request):
     pending_qs = Shipment.objects.filter(status='pending').select_related('consignee')
 
     urgency_filter = request.GET.get('urgency', '')
-    if urgency_filter in ('urgent', 'normal'):
+    if urgency_filter in ('standard', 'priority', 'urgent', 'rush', 'normal'):
         pending_qs = pending_qs.filter(urgency=urgency_filter)
 
     pending = list(pending_qs)
@@ -101,6 +117,11 @@ def queue_manager(request):
         except ValueError:
             pass
 
+    # Paginate pending queue — 25 per page
+    paginator    = Paginator(pending, 25)
+    page_number  = request.GET.get('page', 1)
+    pending_page = paginator.get_page(page_number)
+
     # In-review: my claimed shipments
     in_review = Shipment.objects.filter(
         status='in_review', declarant=request.user
@@ -113,7 +134,8 @@ def queue_manager(request):
     ).select_related('consignee').order_by('-updated_at')
 
     context = {
-        'pending':        pending,
+        'pending':        pending_page,   # now a Page object; templates use pending.object_list
+        'paginator':      paginator,
         'in_review':      in_review,
         'history':        history,
         'urgency_filter': urgency_filter,
@@ -125,7 +147,9 @@ def queue_manager(request):
 # ─── Claim Shipment ───────────────────────────────────────────────────────────
 
 @login_required
+@declarant_required
 def claim_shipment(request, shipment_id):
+    """Any active declarant may claim an unclaimed pending shipment."""
     shipment = get_object_or_404(Shipment, id=shipment_id)
     if shipment.status == 'pending':
         shipment.declarant = request.user
@@ -157,9 +181,16 @@ def claim_shipment(request, shipment_id):
 # ─── Process Shipment ─────────────────────────────────────────────────────────
 
 @login_required
+@declarant_required
 def process_shipment(request, shipment_id):
-    shipment   = get_object_or_404(Shipment, id=shipment_id)
-    documents  = shipment.documents.all()
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    # Only the assigned declarant may access the process page
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
+    documents   = shipment.documents.all()
     status_logs = shipment.status_logs.order_by('-changed_at')[:5]
 
     ocr_fields = None
@@ -179,23 +210,62 @@ def process_shipment(request, shipment_id):
     return render(request, 'declarant/process.html', context)
 
 
+# ─── Update Shipping Mode ─────────────────────────────────────────────────────
+
+@login_required
+@declarant_required
+def update_shipping_mode(request, shipment_id):
+    if request.method != 'POST':
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    # Only the assigned declarant may update the shipping mode
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
+    mode = request.POST.get('shipment_type', '').strip()
+    if mode in ('lcl', 'fcl'):
+        shipment.shipment_type = mode
+        shipment.save()
+        messages.success(request, f'Shipping mode refined to "{shipment.get_shipment_type_display()}".')
+    else:
+        messages.error(request, 'Please select LCL or FCL.')
+    return redirect('declarant:process', shipment_id=shipment_id)
+
+
 # ─── Update Status ────────────────────────────────────────────────────────────
 
 @login_required
+@declarant_required
 def update_status(request, shipment_id):
     if request.method != 'POST':
         return redirect('declarant:queue')
 
-    shipment   = get_object_or_404(Shipment, id=shipment_id)
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    # Only the assigned declarant may change shipment status
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
     new_status = request.POST.get('new_status', '').strip()
     notes      = request.POST.get('notes', '').strip()
 
-    if not new_status:
-        messages.error(request, 'Please select a status.')
+    # Validate status against known choices — prevents arbitrary string injection
+    valid_statuses = {key for key, _ in Shipment.STATUS_CHOICES}
+    if not new_status or new_status not in valid_statuses:
+        messages.error(request, 'Invalid status selected.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
     old_status = shipment.status
     shipment.status = new_status
+
+    # Record processing timestamp when shipment reaches a terminal state
+    if new_status in ('approved', 'rejected') and not shipment.processed_at:
+        shipment.processed_at = timezone.now()
+
     shipment.save()
 
     StatusLog.objects.create(
@@ -225,8 +295,14 @@ def update_status(request, shipment_id):
 # ─── Payment Confirmation ─────────────────────────────────────────────────────
 
 @login_required
+@declarant_required
 def payment_confirmation(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    # Only the assigned declarant may confirm payment
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
 
     if request.method == 'POST':
         payment_ref = request.POST.get('payment_reference', '').strip()
@@ -269,8 +345,14 @@ def payment_confirmation(request, shipment_id):
 # ─── BOC Tracking ─────────────────────────────────────────────────────────────
 
 @login_required
+@declarant_required
 def boc_tracking(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    # Only the assigned declarant may record BOC updates
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
 
     if request.method == 'POST':
         boc_reference = request.POST.get('boc_reference', '').strip()
@@ -287,6 +369,9 @@ def boc_tracking(request, shipment_id):
 
         if boc_status == 'Accepted':
             shipment.status = 'approved'
+            # Record final processing timestamp
+            if not shipment.processed_at:
+                shipment.processed_at = timezone.now()
             notif_type  = 'approved'
             notif_title = f'Shipment Approved — {shipment.hawb_number}'
             notif_msg   = (
@@ -295,6 +380,9 @@ def boc_tracking(request, shipment_id):
             )
         elif boc_status == 'Rejected':
             shipment.status = 'rejected'
+            # Record final processing timestamp
+            if not shipment.processed_at:
+                shipment.processed_at = timezone.now()
             notif_type  = 'rejected'
             notif_title = f'Shipment Rejected — {shipment.hawb_number}'
             notif_msg   = (

@@ -132,6 +132,10 @@
                     <svg class="nav-icon"><use href="#icon-announce"/></svg>
                     <span class="nav-text">Memos &amp; Announcements</span>
                 </a>
+                <a href="{% url 'supervisor:feedbacks' %}" class="nav-item">
+                    <svg class="nav-icon"><use href="#icon-clipboard"/></svg>
+                    <span class="nav-text">Feedbacks</span>
+                </a>
                 <a href="{% url 'supervisor:config' %}" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-settings"/></svg>
                     <span class="nav-text">System Config</span>
@@ -250,5 +254,36 @@
     </script>
 
     {% block extra_js %}{% endblock %}
+
+    <!-- Auto-logout after 30 minutes of inactivity -->
+    <script>
+    (function () {
+        var TIMEOUT = 30 * 60 * 1000; // 30 minutes
+        var WARNING  = 60 * 1000;      // warn 1 minute before
+        var logoutUrl = "{% url 'accounts:logout' %}";
+        var timer, warnTimer;
+
+        function resetTimer() {
+            clearTimeout(timer);
+            clearTimeout(warnTimer);
+            warnTimer = setTimeout(function () {
+                if (confirm('You have been inactive for 29 minutes. Click OK to stay logged in, or Cancel to log out now.')) {
+                    resetTimer();
+                } else {
+                    window.location.href = logoutUrl;
+                }
+            }, TIMEOUT - WARNING);
+            timer = setTimeout(function () {
+                window.location.href = logoutUrl;
+            }, TIMEOUT);
+        }
+
+        ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function (evt) {
+            document.addEventListener(evt, resetTimer, true);
+        });
+
+        resetTimer();
+    })();
+    </script>
 </body>
 </html>

@@ -153,18 +153,41 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'accounts.User'
 
-# Email
-EMAIL_BACKEND  = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
+# ── Email ─────────────────────────────────────────────────────────────────────
+#
+# HOW TO CHOOSE A BACKEND:
+#
+#   Option A — Gmail SMTP (works right away, good for alpha/testing):
+#     Set in Railway env:
+#       EMAIL_BACKEND   = django.core.mail.backends.smtp.EmailBackend
+#       EMAIL_HOST_USER     = your-gmail@gmail.com
+#       EMAIL_HOST_PASSWORD = your-gmail-app-password   ← App Password, not real password
+#       DEFAULT_FROM_EMAIL  = your-gmail@gmail.com
+#
+#   Option B — Resend (production, sends to ANY email):
+#     ⚠️  Resend's free plan only delivers to the account owner's email
+#         until you verify a custom domain.
+#         Steps:
+#           1. Go to resend.com → Domains → Add Domain (e.g. rtriplejcustoms.com)
+#           2. Add the DNS records Resend gives you
+#           3. Set in Railway env:
+#                EMAIL_BACKEND      = anymail.backends.resend.EmailBackend
+#                RESEND_API_KEY     = re_xxxxxxxxxxxx
+#                DEFAULT_FROM_EMAIL = noreply@rtriplejcustoms.com
+#
+#   Default (fallback if nothing set): Gmail SMTP
+#
+EMAIL_BACKEND      = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@r3pcr.com')
 
-# Gmail SMTP (local dev)
+# Gmail SMTP settings (used when EMAIL_BACKEND is smtp)
 EMAIL_HOST          = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT          = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS       = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER     = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
-# Resend (production)
+# Resend API key (used when EMAIL_BACKEND is anymail.backends.resend.EmailBackend)
 ANYMAIL = {
     'RESEND_API_KEY': os.getenv('RESEND_API_KEY', ''),
 }

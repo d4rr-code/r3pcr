@@ -1,3 +1,5 @@
+import logging
+import threading
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -5,6 +7,24 @@ from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
+
+def _send_mail_async(subject, message, from_email, recipient_list, html_message=None, log_tag=''):
+    """Send email in a daemon thread — never blocks the HTTP response."""
+    def _send():
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=from_email,
+                recipient_list=recipient_list,
+                html_message=html_message,
+            )
+        except Exception as e:
+            print(f'[EMAIL ERROR] {log_tag}: {e}')
+    threading.Thread(target=_send, daemon=True).start()
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
@@ -93,31 +113,29 @@ def approve_registration(request, user_id):
         user.save()
 
         if user.email:
-            try:
-                send_mail(
-                    subject='R3-PCR — Account Approved',
-                    message=(
-                        f'Hello {user.first_name or user.username},\n\n'
-                        f'Your R3-PCR account has been approved. '
-                        f'You can now log in.\n\nUsername: {user.username}'
-                    ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    html_message=f'''
-                        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">
-                            <h2 style="color:#22c55e;">Account Approved!</h2>
-                            <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
-                            <p>Your R3-PCR account has been <strong style="color:#22c55e;">approved</strong>.
-                               You can now log in.</p>
-                            <p><strong>Username:</strong> {user.username}</p>
-                            <p style="color:#94a3b8;font-size:12px;margin-top:20px;">
-                                R3-PCR Pre-Clearance Decision Support System
-                            </p>
-                        </div>
-                    ''',
-                )
-            except Exception as ex:
-                print(f'Approval email error: {ex}')
+            _send_mail_async(
+                subject='R3-PCR — Account Approved',
+                message=(
+                    f'Hello {user.first_name or user.username},\n\n'
+                    f'Your R3-PCR account has been approved. '
+                    f'You can now log in.\n\nUsername: {user.username}'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=f'''
+                    <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">
+                        <h2 style="color:#22c55e;">Account Approved!</h2>
+                        <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
+                        <p>Your R3-PCR account has been <strong style="color:#22c55e;">approved</strong>.
+                           You can now log in.</p>
+                        <p><strong>Username:</strong> {user.username}</p>
+                        <p style="color:#94a3b8;font-size:12px;margin-top:20px;">
+                            R3-PCR Pre-Clearance Decision Support System
+                        </p>
+                    </div>
+                ''',
+                log_tag=f'approval email to {user.username}',
+            )
 
         messages.success(request, f'Account for {user.username} approved and activated.')
     return redirect('supervisor:users')
@@ -132,18 +150,16 @@ def reject_registration(request, user_id):
         email    = user.email
         name     = user.first_name or username
         if email:
-            try:
-                send_mail(
-                    subject='R3-PCR — Registration Not Approved',
-                    message=(
-                        f'Hello {name},\n\nUnfortunately your R3-PCR registration was not approved. '
-                        f'Please contact the administrator for more information.'
-                    ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[email],
-                )
-            except Exception as ex:
-                print(f'Rejection email error: {ex}')
+            _send_mail_async(
+                subject='R3-PCR — Registration Not Approved',
+                message=(
+                    f'Hello {name},\n\nUnfortunately your R3-PCR registration was not approved. '
+                    f'Please contact the administrator for more information.'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                log_tag=f'rejection email to {username}',
+            )
         user.delete()
         messages.warning(request, f'Registration for {username} rejected and removed.')
     return redirect('supervisor:users')
@@ -195,7 +211,20 @@ def toggle_user(request, user_id):
 @login_required
 @supervisor_required
 def analytics(request):
-    shipments  = Shipment.objects.all()
+    # ── Filters ──────────────────────────────────────────────────────────────
+    date_from      = request.GET.get('date_from', '').strip()
+    date_to        = request.GET.get('date_to', '').strip()
+    declarant_filter = request.GET.get('declarant', '').strip()
+
+    shipments = Shipment.objects.all()
+
+    if date_from:
+        shipments = shipments.filter(submitted_at__date__gte=date_from)
+    if date_to:
+        shipments = shipments.filter(submitted_at__date__lte=date_to)
+    if declarant_filter:
+        shipments = shipments.filter(declarant__username=declarant_filter)
+
     total      = shipments.count()
     declarants = User.objects.filter(role='declarant')
 
@@ -370,14 +399,19 @@ def analytics(request):
                     buckets['very_slow'] += 1
 
     context = {
-        'status_data':       status_counts,
-        'status_pcts':       status_pcts,
-        'declarant_data':    declarant_data,
-        'total_shipments':   total,
-        'top_hs':            list(top_hs),
-        'wmcda':             wmcda,
-        'processing_stats':  processing_stats,
+        'status_data':        status_counts,
+        'status_pcts':        status_pcts,
+        'declarant_data':     declarant_data,
+        'total_shipments':    total,
+        'top_hs':             list(top_hs),
+        'wmcda':              wmcda,
+        'processing_stats':   processing_stats,
         'processing_buckets': buckets,
+        # Filters
+        'date_from':          date_from,
+        'date_to':            date_to,
+        'declarant_filter':   declarant_filter,
+        'declarants':         declarants,
     }
     return render(request, 'supervisor/analytics.html', context)
 
@@ -472,8 +506,15 @@ def system_config(request):
         hs_rates = request.POST.getlist('hs_rate[]')
         for hs_id, rate in zip(hs_ids, hs_rates):
             try:
-                hs = HSCode.objects.get(id=int(hs_id))
-                hs.duty_rate = float(rate)
+                hs       = HSCode.objects.get(id=int(hs_id))
+                rate_val = float(rate)
+                if not (0 <= rate_val <= 100):
+                    messages.warning(
+                        request,
+                        f'Duty rate for HS {hs.code} must be between 0 and 100%. Skipped.'
+                    )
+                    continue
+                hs.duty_rate = rate_val
                 hs.save(update_fields=['duty_rate'])
             except (HSCode.DoesNotExist, ValueError):
                 pass
@@ -523,6 +564,19 @@ def delete_shipment(request, shipment_id):
     if request.method == 'POST':
         shipment = get_object_or_404(Shipment, id=shipment_id)
         hawb     = shipment.hawb_number
+
+        # Persist audit record to server logs BEFORE deleting.
+        # StatusLog can't survive (CASCADE), so we write to the application log
+        # which is retained by Railway and can be reviewed later.
+        logger.warning(
+            'AUDIT: Shipment %s (consignee=%s, status=%s) permanently deleted by supervisor %s at %s',
+            hawb,
+            shipment.consignee.username,
+            shipment.status,
+            request.user.username,
+            timezone.now().isoformat(),
+        )
+
         shipment.delete()
         messages.success(request, f'Shipment {hawb} permanently deleted.')
     return redirect('supervisor:dashboard')

@@ -53,10 +53,10 @@
     </div>
 
 </div>
-            <a href="#">ABOUT</a>
-            <a href="#">CONTACT US</a>
+            <a href="{% url 'landing' %}#about">ABOUT</a>
+            <a href="{% url 'landing' %}#contact">CONTACT US</a>
             <a href="{% url 'accounts:register' %}" class="register-btn"> REGISTER </a>
-            <a href="#" class="login-btn-nav">LOG IN</a>
+            <a href="{% url 'accounts:login' %}" class="login-btn-nav">LOG IN</a>
         </div>
     </header>
 
@@ -115,12 +115,6 @@
                         <input type="checkbox" name="remember_me" id="rememberMe">
                         <span id="rememberText">Remember Me</span>
                     </div>
-                    <a href="{% url 'accounts:forgot_password' %}"
-                       style="font-size:13px; color:rgba(255,255,255,.75); text-decoration:none;"
-                       onmouseover="this.style.color='white'"
-                       onmouseout="this.style.color='rgba(255,255,255,.75)'">
-                        Forgot Password?
-                    </a>
                 </div>
 
                 <!-- LOGIN BUTTON -->
@@ -128,7 +122,7 @@
             </form>
 
             <!-- HELP -->
-            <div class="help-text" id="helpText"> Need help with your <a href="#">username</a> or <a href="#">password</a>?</div><hr>
+            <div class="help-text" id="helpText"> Need help with your <a href="mailto:support@rtriplejcb.com">username</a> or <a href="{% url 'accounts:forgot_password' %}">password</a>?</div><hr>
 
             <!-- REGISTER -->
             <div class="register-text" id="registerText"> Don’t have account yet?

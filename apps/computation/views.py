@@ -106,7 +106,13 @@ def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate):
 @login_required
 def ocr_extract(request, shipment_id, doc_id):
     shipment = get_object_or_404(Shipment, id=shipment_id)
-    doc      = get_object_or_404(ShipmentDocument, id=doc_id, shipment=shipment)
+
+    # Only the assigned declarant may run OCR on a shipment's documents
+    if request.user.role != 'declarant' or shipment.declarant != request.user:
+        messages.error(request, 'Access denied.')
+        return redirect('declarant:queue')
+
+    doc = get_object_or_404(ShipmentDocument, id=doc_id, shipment=shipment)
     try:
         # Download file to a temp path (works for both local and S3/Supabase storage)
         ext = os.path.splitext(doc.file.name)[1] or '.pdf'
@@ -147,7 +153,13 @@ def ocr_extract(request, shipment_id, doc_id):
 
 @login_required
 def compute_shipment(request, shipment_id):
-    shipment    = get_object_or_404(Shipment, id=shipment_id)
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    # Only the assigned declarant may compute duties for a shipment
+    if request.user.role != 'declarant' or shipment.declarant != request.user:
+        messages.error(request, 'Access denied.')
+        return redirect('declarant:queue')
+
     hs_codes    = HSCode.objects.filter(is_active=True)
     existing    = DutyComputation.objects.filter(shipment=shipment).first()
     advisory_ex = getattr(shipment, 'shipping_advisory', None)
@@ -428,6 +440,15 @@ def download_computation(request, shipment_id):
         return redirect('declarant:process', shipment_id=shipment_id)
 
     shipment    = get_object_or_404(Shipment, id=shipment_id)
+
+    # Allow: assigned declarant, the shipment's consignee, or any supervisor
+    is_assigned_declarant = request.user.role == 'declarant' and shipment.declarant == request.user
+    is_consignee          = request.user.role == 'consignee' and shipment.consignee == request.user
+    is_supervisor         = request.user.role == 'supervisor'
+    if not (is_assigned_declarant or is_consignee or is_supervisor):
+        messages.error(request, 'Access denied.')
+        return redirect('accounts:login')
+
     computation = get_object_or_404(DutyComputation, shipment=shipment)
     items       = computation.get_items()
 
@@ -572,15 +593,24 @@ def _lerp(x, x0, x1, y0, y1):
 
 
 def compute_wmcda(weight, volume, value, urgency, distance):
+    # Urgency factor: 0.0 = standard, 0.5 = priority, 1.0 = urgent, 1.3 = rush
+    _uf = {'standard': 0.0, 'normal': 0.0, 'priority': 0.5, 'urgent': 1.0, 'rush': 1.3}.get(urgency, 0.0)
+
     lcl_cost  = _lerp(value, 0, 30000, 0.90, 0.30)
     fcl_cost  = _lerp(value, 0, 30000, 0.30, 0.92)
     air_cost  = max(0.20, _lerp(value, 0, 50000, 0.48, 0.32))
-    land_cost = max(0.20, _lerp(distance, 0, 2000, 0.90, 0.28))   # cheap nearby, drops over distance
+    land_cost = max(0.20, _lerp(distance, 0, 2000, 0.90, 0.28))
 
-    lcl_time  = 0.35 if urgency == 'urgent' else 0.72
-    fcl_time  = 0.48 if urgency == 'urgent' else 0.78
-    air_time  = 0.96 if urgency == 'urgent' else 0.62
-    land_time = 0.60 if urgency == 'urgent' else max(0.30, _lerp(distance, 0, 2000, 0.88, 0.35))
+    # Time scores: air benefits most from urgency, sea (LCL/FCL) penalised
+    _base_lcl_time  = max(0.30, _lerp(distance, 0, 2000, 0.72, 0.50))
+    _base_fcl_time  = max(0.35, _lerp(distance, 0, 2000, 0.78, 0.55))
+    _base_air_time  = 0.62
+    _base_land_time = max(0.30, _lerp(distance, 0, 2000, 0.88, 0.35))
+
+    lcl_time  = max(0.20, _base_lcl_time  - 0.37 * _uf)   # worse under urgency
+    fcl_time  = max(0.25, _base_fcl_time  - 0.30 * _uf)   # worse under urgency
+    air_time  = min(0.99, _base_air_time  + 0.34 * _uf)   # better under urgency
+    land_time = max(0.25, _base_land_time - 0.20 * _uf)   # slightly worse
 
     lcl_weight  = _lerp(weight, 0, 2000, 0.92, 0.28)
     fcl_weight  = _lerp(weight, 0, 2000, 0.18, 0.95)
@@ -626,25 +656,31 @@ def compute_wmcda(weight, volume, value, urgency, distance):
     value_label   = f'${value:,.0f}'
     dist_label    = f'{distance:.0f}km'
 
+    _is_time_critical = urgency in ('urgent', 'rush')
+    _urgency_label    = {'standard': 'standard', 'normal': 'standard',
+                         'priority': 'priority', 'urgent': 'urgent', 'rush': 'rush'}.get(urgency, urgency)
     explanations = {
         'lcl': (
             f'LCL is cost-efficient for moderate cargo ({weight_label}, {value_label}). '
-            f'{"Not recommended due to urgency — slower transit times." if urgency == "urgent" else "Suitable transit time for normal urgency."}'
+            f'{"Not recommended — slower sea transit conflicts with {_urgency_label} urgency." if _is_time_critical else "Suitable transit time for this urgency level."}'
         ),
         'fcl': (
             f'FCL is optimal for heavy or high-value cargo. '
             f'Cargo weight of {weight_label} and value of {value_label} '
             f'{"justify the container cost." if value > 10000 or weight > 500 else "may underutilize a full container."}'
+            f'{" Sea transit may be too slow for {_urgency_label} urgency." if _is_time_critical else ""}'
         ),
         'air': (
+            f'{"🚨 Rush — Air Freight only viable option for immediate delivery. " if urgency == "rush" else ""}'
             f'{"⚡ Air Freight recommended — urgency requires fastest transit. " if urgency == "urgent" else ""}'
-            f'{"Air Freight offers best security and tracking for high-value goods at " + value_label + "." if value > 10000 and urgency != "urgent" else ""}'
-            f'{"Air Freight is competitive for this shipment profile." if urgency != "urgent" and value <= 10000 else ""}'
+            f'{"⏩ Air Freight ideal for priority delivery at " + value_label + "." if urgency == "priority" else ""}'
+            f'{"Air Freight offers best security and tracking for high-value goods at " + value_label + "." if value > 10000 and not _is_time_critical else ""}'
+            f'{"Air Freight is competitive for this shipment profile." if not _is_time_critical and value <= 10000 else ""}'
         ),
         'land': (
             f'{"🚛 Land Freight is the fastest option for this nearby route (" + dist_label + ")." if distance <= 500 else "Land Freight is cost-effective for this route (" + dist_label + ")."} '
             f'Cargo weight of {weight_label} is well-suited for road transport. '
-            f'{"Urgency is manageable for short-haul land routes." if urgency == "urgent" else "Suitable for normal-urgency delivery schedules."}'
+            f'{"Short-haul land routes can accommodate {_urgency_label} urgency." if _is_time_critical and distance <= 500 else "Suitable for this urgency level." if not _is_time_critical else "Road transit may be too slow for time-critical urgency on this route."}'
         ),
     }
     explanation = explanations.get(recommended, '')
@@ -657,6 +693,12 @@ def compute_wmcda(weight, volume, value, urgency, distance):
 @login_required
 def shipping_advisory(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    # Only the assigned declarant may access the shipping advisory
+    if request.user.role != 'declarant' or shipment.declarant != request.user:
+        messages.error(request, 'Access denied.')
+        return redirect('declarant:queue')
+
     existing = ShippingAdvisory.objects.filter(shipment=shipment).first()
     result = breakdown = explanation = None
     scores = None

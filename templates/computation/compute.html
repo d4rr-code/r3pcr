@@ -267,6 +267,19 @@
     font-size: 11px;
     text-align: center;
 }
+.hs-chapter-header {
+    padding: 5px 10px 3px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #475569;
+    background: #0f172a;
+    border-bottom: 1px solid #1e293b;
+    position: sticky;
+    top: 0;
+}
+.hs-chapter-header + .hs-result-item { border-top: none; }
 </style>
 {% endblock %}
 
@@ -550,21 +563,55 @@
         </table>
     </div>
 
-    <!-- Totals footer -->
-    <div style="padding:8px 14px; background:#0f172a; border-top:2px solid #334155;
-                display:grid; grid-template-columns:repeat(3,1fr); gap:8px; font-size:12px;">
-        <div>
-            <span style="color:#64748b;">Total EXW:</span>
-            <strong style="color:#f1f5f9; margin-left:4px;" id="total-exw">$0.00</strong>
+    <!-- Totals footer — live estimate -->
+    <div style="padding:10px 14px; background:#0f172a; border-top:2px solid #334155; font-size:12px;">
+
+        <!-- Row 1: core ECDT totals -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
+            <div>
+                <span style="color:#64748b;">Total EXW:</span>
+                <strong style="color:#f1f5f9; margin-left:4px;" id="total-exw">$0.00</strong>
+            </div>
+            <div>
+                <span style="color:#64748b;">Total D/V ₱:</span>
+                <strong style="color:#3b82f6; margin-left:4px;" id="total-dvphp">₱0.00</strong>
+            </div>
+            <div>
+                <span style="color:#64748b;">Total CUD ₱:</span>
+                <strong style="color:#f59e0b; margin-left:4px;" id="total-cud">₱0.00</strong>
+            </div>
         </div>
-        <div>
-            <span style="color:#64748b;">Total D/V ₱:</span>
-            <strong style="color:#3b82f6; margin-left:4px;" id="total-dvphp">₱0.00</strong>
+
+        <!-- Row 2: fee breakdown chips -->
+        <div style="border-top:1px solid #1e293b; padding-top:8px;
+                    display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1.4fr; gap:6px;">
+            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
+                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">VAT (12%)</p>
+                <p style="color:#a78bfa; font-size:12px; font-weight:700; margin:0;" id="live-vat">—</p>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
+                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">Brokerage Fee</p>
+                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-bf">—</p>
+                <p style="color:#475569; font-size:9px; margin:1px 0 0;" id="live-bf-tier"></p>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
+                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">CDS (fixed)</p>
+                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;">₱130.00</p>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
+                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">IPF</p>
+                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-ipf">—</p>
+            </div>
+            <div style="background:#172554; border-radius:6px; padding:6px 8px; text-align:center;
+                        border:1px solid #1d4ed8;">
+                <p style="color:#93c5fd; font-size:10px; margin:0 0 2px; font-weight:700;
+                          text-transform:uppercase; letter-spacing:0.4px;">Est. Total</p>
+                <p style="color:#3b82f6; font-size:13px; font-weight:800; margin:0;" id="live-total">—</p>
+            </div>
         </div>
-        <div>
-            <span style="color:#64748b;">Total CUD ₱:</span>
-            <strong style="color:#f59e0b; margin-left:4px;" id="total-cud">₱0.00</strong>
-        </div>
+        <p style="color:#334155; font-size:10px; margin:6px 0 0; text-align:right;">
+            Live estimate — updates as you type
+        </p>
     </div>
 </div>
 
@@ -899,10 +946,45 @@ var ocrData = {
     {% endif %}
 };
 
-// HS Codes list — includes description for searchable picker
+// HS Codes list — includes description and chapter for searchable picker
 var hsCodesData = [
-    {% for hs in hs_codes %}{id: {{ hs.id }}, code: '{{ hs.code|escapejs }}', rate: {{ hs.duty_rate }}, desc: '{{ hs.description|truncatechars:60|escapejs }}'}{% if not forloop.last %},{% endif %}{% endfor %}
+    {% for hs in hs_codes %}{id: {{ hs.id }}, code: '{{ hs.code|escapejs }}', rate: {{ hs.duty_rate }}, desc: '{{ hs.description|truncatechars:60|escapejs }}', chapter: '{{ hs.chapter|default:""|escapejs }}'}{% if not forloop.last %},{% endif %}{% endfor %}
 ];
+
+// Chapter number → display name (AHTN 2022 / Philippine tariff)
+var HS_CHAPTER_NAMES = {
+    '01':'Live Animals','02':'Meat & Offal','03':'Fish & Seafood','04':'Dairy & Eggs',
+    '05':'Other Animal Products','06':'Live Plants & Flowers','07':'Vegetables',
+    '08':'Fruits & Nuts','09':'Coffee, Tea & Spices','10':'Cereals',
+    '11':'Milling Products','12':'Oil Seeds & Plants','13':'Lac, Gums & Resins',
+    '14':'Vegetable Plaiting Materials','15':'Animal & Vegetable Fats',
+    '16':'Meat & Fish Preparations','17':'Sugars','18':'Cocoa & Chocolate',
+    '19':'Pastry & Food Preparations','20':'Preserved Vegetables & Fruits',
+    '21':'Miscellaneous Food','22':'Beverages & Spirits','23':'Residues & Animal Feed',
+    '24':'Tobacco','25':'Salt, Sulfur & Stone','26':'Ores & Slag',
+    '27':'Mineral Fuels & Oils','28':'Inorganic Chemicals','29':'Organic Chemicals',
+    '30':'Pharmaceutical Products','31':'Fertilizers','32':'Dyes, Pigments & Tanning',
+    '33':'Essential Oils & Cosmetics','34':'Soap & Waxes','35':'Albuminoids & Glues',
+    '36':'Explosives & Matches','37':'Photographic Goods','38':'Miscellaneous Chemicals',
+    '39':'Plastics','40':'Rubber','41':'Raw Hides & Skins','42':'Leather Articles',
+    '43':'Furskins','44':'Wood & Wood Products','45':'Cork','46':'Straw & Basketware',
+    '47':'Wood Pulp','48':'Paper & Paperboard','49':'Printed Books & Media',
+    '50':'Silk','51':'Wool & Fine Hair','52':'Cotton','53':'Other Vegetable Fibres',
+    '54':'Manmade Filaments','55':'Manmade Staple Fibres','56':'Wadding & Felt',
+    '57':'Carpets & Floor Coverings','58':'Special Woven Fabrics','59':'Coated Textiles',
+    '60':'Knitted Fabrics','61':'Knitted Apparel','62':'Woven Apparel',
+    '63':'Other Textile Articles','64':'Footwear','65':'Headgear','66':'Umbrellas',
+    '67':'Feathers & Artificial Flowers','68':'Stone & Cement Articles',
+    '69':'Ceramic Products','70':'Glass & Glassware','71':'Precious Stones & Metals',
+    '72':'Iron & Steel','73':'Iron & Steel Articles','74':'Copper & Articles',
+    '75':'Nickel','76':'Aluminum & Articles','78':'Lead','79':'Zinc','80':'Tin',
+    '81':'Other Base Metals','82':'Tools & Implements','83':'Misc Metal Articles',
+    '84':'Machinery & Mechanical Appliances','85':'Electrical Machinery & Equipment',
+    '86':'Railway & Tramway','87':'Vehicles & Parts','88':'Aircraft & Spacecraft',
+    '89':'Ships & Boats','90':'Optical & Medical Instruments','91':'Clocks & Watches',
+    '92':'Musical Instruments','93':'Arms & Ammunition','94':'Furniture & Bedding',
+    '95':'Toys, Games & Sports','96':'Miscellaneous Articles','97':'Works of Art'
+};
 
 // Multi-item list extracted by OCR (from invoice/packing list line items)
 var ocrItems = [
@@ -920,11 +1002,36 @@ var ocrItems = [
 // ── HS Code Searchable Picker ─────────────────────────────────────────────────
 
 function _filterHsCodes(query) {
-    if (!query) return hsCodesData.slice(0, 40); // show first 40 when empty
-    var q = query.toLowerCase();
-    return hsCodesData.filter(function(hs) {
-        return hs.code.toLowerCase().includes(q) || hs.desc.toLowerCase().includes(q);
-    }).slice(0, 50);
+    if (!query || query.trim() === '') return hsCodesData.slice(0, 60);
+    var q     = query.trim().toLowerCase();
+    var words = q.split(/\s+/).filter(Boolean);
+
+    var scored = [];
+    for (var i = 0; i < hsCodesData.length; i++) {
+        var hs   = hsCodesData[i];
+        var code = hs.code.toLowerCase();
+        var desc = hs.desc.toLowerCase();
+        var score = 0;
+
+        // Code matching — highest priority
+        if (code === q)                                              score = 100;
+        else if (code.startsWith(q))                                score = 90;
+        else if (code.replace(/\./g,'').startsWith(q.replace(/\./g,''))) score = 85;
+        else if (code.includes(q))                                  score = 70;
+
+        // Description word matching
+        var matchedWords = 0;
+        for (var w = 0; w < words.length; w++) {
+            if (desc.includes(words[w]) || code.includes(words[w])) matchedWords++;
+        }
+        if (matchedWords === words.length)      score = Math.max(score, 60);
+        else if (matchedWords > 0)              score = Math.max(score, 25 + matchedWords * 8);
+
+        if (score > 0) scored.push({ hs: hs, score: score });
+    }
+
+    scored.sort(function(a, b) { return b.score - a.score; });
+    return scored.slice(0, 60).map(function(s) { return s.hs; });
 }
 
 function _positionHsResults(picker) {
@@ -942,13 +1049,32 @@ function _renderHsResults(picker, query) {
     if (matches.length === 0) {
         results.innerHTML = '<div class="hs-no-results">No HS codes found for "' + query + '"</div>';
     } else {
-        results.innerHTML = matches.map(function(hs) {
-            return '<div class="hs-result-item" data-id="' + hs.id + '" data-rate="' + hs.rate + '" data-code="' + hs.code + '">' +
-                   '<span class="hs-code-badge">' + hs.code + '</span>' +
-                   '<span class="hs-desc-text">' + hs.desc + '</span>' +
-                   '<span class="hs-rate-badge">' + hs.rate + '%</span>' +
-                   '</div>';
-        }).join('');
+        // Group results by chapter
+        var groups = {};
+        var order  = [];
+        matches.forEach(function(hs) {
+            var ch = hs.chapter || '00';
+            if (!groups[ch]) { groups[ch] = []; order.push(ch); }
+            groups[ch].push(hs);
+        });
+
+        var html = '';
+        order.forEach(function(ch) {
+            var chName = HS_CHAPTER_NAMES[ch] || ('Chapter ' + ch);
+            html += '<div class="hs-chapter-header">Ch. ' + ch + ' — ' + chName + '</div>';
+            groups[ch].forEach(function(hs) {
+                html += '<div class="hs-result-item"' +
+                        ' data-id="' + hs.id + '"' +
+                        ' data-rate="' + hs.rate + '"' +
+                        ' data-code="' + hs.code + '">' +
+                        '<span class="hs-code-badge">' + hs.code + '</span>' +
+                        '<span class="hs-desc-text">' + hs.desc + '</span>' +
+                        '<span class="hs-rate-badge">' + hs.rate + '%</span>' +
+                        '</div>';
+            });
+        });
+        results.innerHTML = html;
+
         // Attach click handlers
         results.querySelectorAll('.hs-result-item').forEach(function(item) {
             item.addEventListener('mousedown', function(e) {
@@ -1094,6 +1220,41 @@ function fillFromOCR() {
     recalcAll();
 }
 
+// ── BF / IPF lookup tables (mirrors views.py) ─────────────────────────────────
+function getBF(dvPhp) {
+    if (dvPhp <= 0)      return 0;
+    if (dvPhp <= 10000)  return 1300;
+    if (dvPhp <= 20000)  return 2000;
+    if (dvPhp <= 30000)  return 2700;
+    if (dvPhp <= 40000)  return 3300;
+    if (dvPhp <= 50000)  return 3600;
+    if (dvPhp <= 60000)  return 4000;
+    if (dvPhp <= 100000) return 4700;
+    if (dvPhp <= 200000) return 5300;
+    return 6000;
+}
+function getBFTier(dvPhp) {
+    if (dvPhp <= 0)      return '';
+    if (dvPhp <= 10000)  return '≤ ₱10K';
+    if (dvPhp <= 20000)  return '₱10K–20K';
+    if (dvPhp <= 30000)  return '₱20K–30K';
+    if (dvPhp <= 40000)  return '₱30K–40K';
+    if (dvPhp <= 50000)  return '₱40K–50K';
+    if (dvPhp <= 60000)  return '₱50K–60K';
+    if (dvPhp <= 100000) return '₱60K–100K';
+    if (dvPhp <= 200000) return '₱100K–200K';
+    return '> ₱200K';
+}
+function getIPF(dvPhp) {
+    if (dvPhp <= 0)      return 0;
+    if (dvPhp <= 25000)  return 250;
+    if (dvPhp <= 50000)  return 500;
+    if (dvPhp <= 250000) return 750;
+    if (dvPhp <= 500000) return 1000;
+    if (dvPhp <= 750000) return 1500;
+    return 2000;
+}
+
 // ── Live recalculation ────────────────────────────────────────────────────────
 function recalcAll() {
     var rows      = document.querySelectorAll('#ecdt-body tr');
@@ -1141,6 +1302,27 @@ function recalcAll() {
     document.getElementById('total-exw').textContent   = '$' + totalExw.toLocaleString('en-US', {minimumFractionDigits:2});
     document.getElementById('total-dvphp').textContent = '₱' + totalDvPhp.toLocaleString('en-US', {minimumFractionDigits:2});
     document.getElementById('total-cud').textContent   = '₱' + totalCud.toLocaleString('en-US', {minimumFractionDigits:2});
+
+    // ── Live fee chips ──────────────────────────────────────────────────────────
+    var fmt = function(n) {
+        return '₱' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    };
+    if (totalDvPhp > 0) {
+        var liveVat   = (totalDvPhp + totalCud) * 0.12;
+        var liveBf    = getBF(totalDvPhp);
+        var liveIpf   = getIPF(totalDvPhp);
+        var liveTotal = totalDvPhp + totalCud + liveVat + liveBf + 130 + liveIpf;
+        document.getElementById('live-vat').textContent     = fmt(liveVat);
+        document.getElementById('live-bf').textContent      = fmt(liveBf);
+        document.getElementById('live-bf-tier').textContent = getBFTier(totalDvPhp);
+        document.getElementById('live-ipf').textContent     = fmt(liveIpf);
+        document.getElementById('live-total').textContent   = fmt(liveTotal);
+    } else {
+        ['live-vat','live-bf','live-ipf','live-total'].forEach(function(id) {
+            document.getElementById(id).textContent = '—';
+        });
+        document.getElementById('live-bf-tier').textContent = '';
+    }
 }
 
 // ── Add / Remove rows ─────────────────────────────────────────────────────────

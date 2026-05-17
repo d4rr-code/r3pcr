@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
-from apps.shipments.models import Shipment, ShipmentDocument
+from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.accounts.models import User
 from apps.notifications.utils import create_notification
 from .models import Feedback
@@ -39,15 +39,60 @@ def generate_hawb():
 
 @login_required
 def dashboard(request):
+    from django.db.models import Count
     shipments = Shipment.objects.filter(consignee=request.user)
-    context = {
-        'total':            shipments.count(),
-        'pending':          shipments.filter(status='pending').count(),
-        'in_review':        shipments.filter(status='in_review').count(),
-        'approved':         shipments.filter(status='approved').count(),
-        'rejected':         shipments.filter(status='rejected').count(),
-        'recent_shipments': shipments[:5],
+    total = shipments.count()
+
+    status_counts = {
+        'pending':     shipments.filter(status='pending').count(),
+        'in_review':   shipments.filter(status='in_review').count(),
+        'for_payment': shipments.filter(status='for_payment').count(),
+        'submitted':   shipments.filter(status='submitted').count(),
+        'approved':    shipments.filter(status='approved').count(),
+        'rejected':    shipments.filter(status='rejected').count(),
+        'revised':     shipments.filter(status='revised').count(),
     }
+
+    import_breakdown = list(
+        shipments.values('import_type')
+                 .annotate(count=Count('id'))
+                 .order_by('-count')
+    )
+    import_labels = dict(Shipment.IMPORT_TYPE_CHOICES)
+    for item in import_breakdown:
+        item['label'] = import_labels.get(item['import_type'], item['import_type'])
+
+    mode_breakdown = list(
+        shipments.values('shipment_type')
+                 .annotate(count=Count('id'))
+                 .order_by('-count')
+    )
+    mode_labels = dict(Shipment.SHIPMENT_TYPE_CHOICES)
+    for item in mode_breakdown:
+        item['label'] = mode_labels.get(item['shipment_type'], item['shipment_type'] or 'Not specified')
+
+    urgency_breakdown = list(
+        shipments.values('urgency')
+                 .annotate(count=Count('id'))
+                 .order_by('-count')
+    )
+    urgency_labels = dict(Shipment.URGENCY_CHOICES)
+    for item in urgency_breakdown:
+        item['label'] = urgency_labels.get(item['urgency'], item['urgency'] or 'Unknown')
+
+    context = {
+        'total': total,
+        **status_counts,
+        'import_breakdown':   import_breakdown,
+        'mode_breakdown':     mode_breakdown,
+        'urgency_breakdown':  urgency_breakdown,
+        'recent_shipments':   shipments.order_by('-submitted_at'),
+    }
+
+    from apps.supervisor.models import Announcement
+    recent_announcements = Announcement.objects.filter(is_active=True).order_by('-created_at')[:3]
+    context['recent_announcements'] = recent_announcements
+
     return render(request, 'consignee/dashboard.html', context)
 
 
@@ -224,6 +269,15 @@ def upload_receipt(request, shipment_id):
             shipment.payment_receipt = file
             shipment.payment_receipt_uploaded_at = timezone.now()
             shipment.save()
+
+            # Audit trail — record receipt upload in status log
+            StatusLog.objects.create(
+                shipment=shipment,
+                changed_by=request.user,
+                old_status=shipment.status,
+                new_status=shipment.status,
+                notes='Payment receipt uploaded by consignee.',
+            )
 
             # Notify declarant
             if shipment.declarant:

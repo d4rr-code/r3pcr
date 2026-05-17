@@ -91,13 +91,8 @@
 
             </div>
 
-            <a href="#">
-                ABOUT
-            </a>
-
-            <a href="#">
-                CONTACT US
-            </a>
+            <a href="#about">ABOUT</a>
+            <a href="#contact">CONTACT US</a>
 
             <a href="{% url 'accounts:register' %}"
             class="register-btn">
@@ -145,7 +140,7 @@
             <!-- BUTTONS -->
             <div class="hero-buttons">
 
-                <a href="#"
+                <a href="{% url 'accounts:register' %}"
                 class="start-btn">
 
                     START NOW
@@ -249,8 +244,10 @@ id="trackingSection">
 
                 {% csrf_token %}
 
+                <!-- INPUT ROW -->
                 <div class="tracking-inputs">
 
+                    <!-- SHIPMENT -->
                     <div class="input-group">
 
                         <label>
@@ -267,6 +264,7 @@ id="trackingSection">
 
                     </div>
 
+                    <!-- EMAIL -->
                     <div class="input-group">
 
                         <label>
@@ -284,6 +282,7 @@ id="trackingSection">
 
                 </div>
 
+                <!-- BUTTON -->
                 <div class="track-btn-wrapper">
 
                     <button
@@ -302,59 +301,103 @@ id="trackingSection">
 
             </form>
 
+            <!-- =================================
+                 TRACK ERROR
+            ================================== -->
+
             {% if track_error %}
+
             <div class="track-error">
+
                 ⚠ {{ track_error }}
+
             </div>
+
             {% endif %}
 
+            <!-- =================================
+                 TRACK RESULT
+            ================================== -->
+
             {% if track_result %}
+
             <div class="tracking-result">
 
+                <!-- RESULT HEADER -->
                 <div class="result-top">
+
+                    <!-- LEFT -->
                     <div class="result-id">
-                        <h2>{{ track_result.hawb_number }}</h2>
+
+                        <h2>
+                            {{ track_result.hawb_number }}
+                        </h2>
+
                     </div>
+
+                    <!-- RIGHT -->
                     <div class="result-status">
-                        <span class="status-badge status-{{ track_result.status_code }}">
+
+                        <span class="status-badge
+                        status-{{ track_result.status_code }}">
+
                             {{ track_result.status }}
+
                         </span>
+
                     </div>
+
                 </div>
 
+                <!-- DETAILS -->
                 <div class="result-details">
+
                     <div class="detail-item">
                         <span>IMPORT TYPE</span>
                         <h4>{{ track_result.import_type }}</h4>
                     </div>
+
                     <div class="detail-item">
                         <span>URGENCY</span>
                         <h4>{{ track_result.urgency }}</h4>
                     </div>
+
                     <div class="detail-item">
                         <span>SUBMITTED</span>
                         <h4>{{ track_result.submitted_at|date:"M j, Y g:iA" }}</h4>
                     </div>
+
                     <div class="detail-item">
                         <span>LAST UPDATED</span>
                         <h4>{{ track_result.last_updated|date:"M j, Y g:iA" }}</h4>
                     </div>
+
                 </div>
 
+                <!-- OPTIONAL BOC -->
                 {% if track_result.boc_reference %}
+
                 <div class="boc-section">
+
                     <span class="boc-label">BOC REFERENCE</span>
+
                     <h4>{{ track_result.boc_reference }}</h4>
+
                 </div>
+
                 {% endif %}
 
+                <!-- DISCLAIMER -->
                 <p class="result-note">
+
                     For security, only public status
                     information is displayed.
                     Login to view full details.
+
                 </p>
 
             </div>
+
             {% endif %}
 
         </div>
@@ -396,7 +439,7 @@ id="trackingSection">
          PARTNER SECTION
     ========================================== -->
 
-    <section class="partner-section">
+    <section class="partner-section" id="about">
 
         <div class="partner-container">
 
@@ -510,18 +553,24 @@ id="trackingSection">
 
     {% if feedbacks %}
     <section class="testimonials-section">
-        <h3>⭐ What Our Clients Say</h3>
+        <p class="testimonials-label">CLIENT TESTIMONIALS</p>
+        <h2 class="testimonials-heading">What Our Consignees Say</h2>
         <div class="testimonials-grid">
             {% for fb in feedbacks %}
             <div class="testimonial-card">
                 <div class="testimonial-stars">
-                    {% for i in "12345" %}{% if forloop.counter <= fb.rating %}★{% else %}☆{% endif %}{% endfor %}
+                    {% for i in "12345" %}{% if forloop.counter <= fb.rating %}<span class="star-filled">★</span>{% else %}<span class="star-empty">★</span>{% endif %}{% endfor %}
                 </div>
-                <p class="testimonial-comment">"{{ fb.comment|truncatechars:160 }}"</p>
-                <p class="testimonial-name">
-                    — {{ fb.consignee.get_full_name|default:fb.consignee.username }}
-                    {% if fb.consignee.company_name %}&nbsp;· {{ fb.consignee.company_name }}{% endif %}
-                </p>
+                <p class="testimonial-comment">"{{ fb.comment|truncatechars:180 }}"</p>
+                <div class="testimonial-footer">
+                    <div class="testimonial-avatar">{{ fb.consignee.first_name|default:fb.consignee.username|slice:":1"|upper }}</div>
+                    <div>
+                        <p class="testimonial-name">{{ fb.consignee.get_full_name|default:fb.consignee.username }}</p>
+                        {% if fb.consignee.company_name %}
+                        <p class="testimonial-company">{{ fb.consignee.company_name }}</p>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -532,6 +581,7 @@ id="trackingSection">
          FOOTER
     ========================================== -->
 
+    <div id="contact" style="scroll-margin-top:0;"></div>
     <footer class="footer">
         <div class="footer-content">
 

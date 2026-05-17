@@ -1,3 +1,4 @@
+import threading
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib import messages
@@ -6,6 +7,23 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import User, OTP
+
+
+def _send_mail_async(subject, message, from_email, recipient_list, html_message=None, log_tag=''):
+    """Send email in a daemon thread so the HTTP response is never blocked."""
+    def _send():
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=from_email,
+                recipient_list=recipient_list,
+                html_message=html_message,
+            )
+        except Exception as e:
+            print(f'[EMAIL ERROR] {log_tag}: {e}')
+    t = threading.Thread(target=_send, daemon=True)
+    t.start()
 
 
 # ─── Login ────────────────────────────────────────────────────────────────────
@@ -37,28 +55,25 @@ def login_view(request):
             OTP.objects.create(user=user, code=otp_code)
             request.session['pre_auth_user_id'] = user.id
 
-            try:
-                send_mail(
-                    subject='R3-PCR Login OTP',
-                    message=f'Your OTP code is: {otp_code}\nExpires in 10 minutes.',
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    html_message=f'''
-                        <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;">
-                            <h2 style="color:#3b82f6;">R3-PCR System</h2>
-                            <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
-                            <p>Your OTP code is:</p>
-                            <h1 style="color:#3b82f6;letter-spacing:8px;">{otp_code}</h1>
-                            <p>Expires in <strong>10 minutes</strong>.</p>
-                            <p style="color:#94a3b8;font-size:12px;">
-                                If you did not request this, ignore this email.
-                            </p>
-                        </div>
-                    ''',
-                )
-            except Exception as e:
-                print(f'Email error: {e}')
-                print(f'OTP for {user.username}: {otp_code}')
+            _send_mail_async(
+                subject='R3-PCR Login OTP',
+                message=f'Your OTP code is: {otp_code}\nExpires in 10 minutes.',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=f'''
+                    <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;">
+                        <h2 style="color:#3b82f6;">R3-PCR System</h2>
+                        <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
+                        <p>Your OTP code is:</p>
+                        <h1 style="color:#3b82f6;letter-spacing:8px;">{otp_code}</h1>
+                        <p>Expires in <strong>10 minutes</strong>.</p>
+                        <p style="color:#94a3b8;font-size:12px;">
+                            If you did not request this, ignore this email.
+                        </p>
+                    </div>
+                ''',
+                log_tag=f'login OTP for {user.username}',
+            )
 
             messages.success(request, 'OTP sent to your email.')
             return redirect('accounts:verify_otp')
@@ -94,6 +109,39 @@ def verify_otp_view(request):
             return redirect('accounts:login')
 
     return render(request, 'accounts/verify_otp.html')
+
+
+# ─── Resend OTP ───────────────────────────────────────────────────────────────
+
+def resend_otp(request):
+    user_id = request.session.get('pre_auth_user_id')
+    if not user_id:
+        return redirect('accounts:login')
+    try:
+        user = User.objects.get(id=user_id)
+        otp_code = OTP.generate_code()
+        OTP.objects.create(user=user, code=otp_code)
+        _send_mail_async(
+            subject='R3-PCR Login OTP (Resent)',
+            message=f'Your new OTP code is: {otp_code}\nExpires in 10 minutes.',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=f'''
+                <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;">
+                    <h2 style="color:#3b82f6;">R3-PCR System</h2>
+                    <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
+                    <p>Your new OTP code is:</p>
+                    <h1 style="color:#3b82f6;letter-spacing:8px;">{otp_code}</h1>
+                    <p>Expires in <strong>10 minutes</strong>.</p>
+                </div>
+            ''',
+            log_tag=f'resend OTP for {user.username}',
+        )
+        messages.success(request, 'A new OTP has been sent to your email.')
+    except User.DoesNotExist:
+        messages.error(request, 'Session expired. Please log in again.')
+        return redirect('accounts:login')
+    return redirect('accounts:verify_otp')
 
 
 # ─── Self-Registration (Consignee) ────────────────────────────────────────────
@@ -163,36 +211,34 @@ def register_view(request):
         # ── Notify all supervisors ──
         supervisors = User.objects.filter(role='supervisor', is_active=True)
         for sup in supervisors:
-            try:
-                send_mail(
-                    subject='R3-PCR — New Registration Pending Approval',
-                    message=(
-                        f'{first_name} {last_name} ({username}) has registered '
-                        f'and is awaiting your approval.\n\n'
-                        f'Email: {email}\nCompany: {company_name or "—"}'
-                    ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[sup.email],
-                    html_message=f'''
-                        <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
-                            <h2 style="color:#3b82f6;">R3-PCR — New Registration</h2>
-                            <p>A new consignee has registered and needs approval:</p>
-                            <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-                                <tr><td style="color:#94a3b8;padding:4px 0;">Name</td>
-                                    <td style="font-weight:600;">{first_name} {last_name}</td></tr>
-                                <tr><td style="color:#94a3b8;padding:4px 0;">Username</td>
-                                    <td>{username}</td></tr>
-                                <tr><td style="color:#94a3b8;padding:4px 0;">Email</td>
-                                    <td>{email}</td></tr>
-                                <tr><td style="color:#94a3b8;padding:4px 0;">Company</td>
-                                    <td>{company_name or "—"}</td></tr>
-                            </table>
-                            <p>Log in to the supervisor panel to approve or reject.</p>
-                        </div>
-                    ''',
-                )
-            except Exception as ex:
-                print(f'Supervisor notification error: {ex}')
+            _send_mail_async(
+                subject='R3-PCR — New Registration Pending Approval',
+                message=(
+                    f'{first_name} {last_name} ({username}) has registered '
+                    f'and is awaiting your approval.\n\n'
+                    f'Email: {email}\nCompany: {company_name or "—"}'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[sup.email],
+                html_message=f'''
+                    <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
+                        <h2 style="color:#3b82f6;">R3-PCR — New Registration</h2>
+                        <p>A new consignee has registered and needs approval:</p>
+                        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                            <tr><td style="color:#94a3b8;padding:4px 0;">Name</td>
+                                <td style="font-weight:600;">{first_name} {last_name}</td></tr>
+                            <tr><td style="color:#94a3b8;padding:4px 0;">Username</td>
+                                <td>{username}</td></tr>
+                            <tr><td style="color:#94a3b8;padding:4px 0;">Email</td>
+                                <td>{email}</td></tr>
+                            <tr><td style="color:#94a3b8;padding:4px 0;">Company</td>
+                                <td>{company_name or "—"}</td></tr>
+                        </table>
+                        <p>Log in to the supervisor panel to approve or reject.</p>
+                    </div>
+                ''',
+                log_tag=f'new registration notify to {sup.username}',
+            )
 
         messages.success(
             request,
@@ -214,25 +260,23 @@ def forgot_password(request):
             otp_code = OTP.generate_code()
             OTP.objects.create(user=user, code=otp_code)
             request.session['reset_user_id'] = user.id
-            try:
-                send_mail(
-                    subject='R3-PCR — Password Reset OTP',
-                    message=f'Your password reset OTP is: {otp_code}\nExpires in 10 minutes.',
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    html_message=f'''
-                        <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;">
-                            <h2 style="color:#1f3d66;">R3-PCR Password Reset</h2>
-                            <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
-                            <p>Your password reset code is:</p>
-                            <h1 style="color:#1f3d66;letter-spacing:8px;">{otp_code}</h1>
-                            <p>Expires in <strong>10 minutes</strong>.</p>
-                            <p style="color:#94a3b8;font-size:12px;">If you did not request this, ignore this email.</p>
-                        </div>
-                    ''',
-                )
-            except Exception as e:
-                print(f'Password reset email error: {e}')
+            _send_mail_async(
+                subject='R3-PCR — Password Reset OTP',
+                message=f'Your password reset OTP is: {otp_code}\nExpires in 10 minutes.',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=f'''
+                    <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;">
+                        <h2 style="color:#1f3d66;">R3-PCR Password Reset</h2>
+                        <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
+                        <p>Your password reset code is:</p>
+                        <h1 style="color:#1f3d66;letter-spacing:8px;">{otp_code}</h1>
+                        <p>Expires in <strong>10 minutes</strong>.</p>
+                        <p style="color:#94a3b8;font-size:12px;">If you did not request this, ignore this email.</p>
+                    </div>
+                ''',
+                log_tag=f'password reset OTP for {user.username}',
+            )
             messages.success(request, 'OTP sent to your email. Check your inbox.')
             return redirect('accounts:reset_password')
         except User.DoesNotExist:
