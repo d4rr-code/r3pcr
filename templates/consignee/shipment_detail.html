@@ -66,8 +66,12 @@
                 </div>
                 <div>
                     <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Urgency</p>
-                    <p style="font-size:13px; color:{% if shipment.urgency == 'urgent' %}#ef4444{% else %}#94a3b8{% endif %}; font-weight:{% if shipment.urgency == 'urgent' %}600{% else %}400{% endif %};">
-                        {% if shipment.urgency == 'urgent' %}⚡ Urgent{% else %}Normal{% endif %}
+                    <p style="font-size:13px; font-weight:{% if shipment.urgency in 'urgent,rush' %}600{% else %}400{% endif %};
+                               color:{% if shipment.urgency == 'rush' %}#ef4444{% elif shipment.urgency == 'urgent' %}#f97316{% elif shipment.urgency == 'priority' %}#f59e0b{% else %}#94a3b8{% endif %};">
+                        {% if shipment.urgency == 'rush' %}🚨 Rush / Time-Critical
+                        {% elif shipment.urgency == 'urgent' %}⚡ Urgent
+                        {% elif shipment.urgency == 'priority' %}⏩ Priority
+                        {% else %}Standard{% endif %}
                     </p>
                 </div>
                 {% if shipment.description %}

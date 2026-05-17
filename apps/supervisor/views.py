@@ -522,9 +522,19 @@ def system_config(request):
         messages.success(request, 'Configuration saved.')
         return redirect('supervisor:config')
 
+    # Gather "last updated" metadata for key configs to display in template
+    config_meta = {
+        row.key: row
+        for row in SystemConfig.objects.filter(
+            key__in=['exchange_rate', 'vat_rate',
+                     'wmcda_w_cost', 'wmcda_w_time', 'wmcda_w_weight', 'wmcda_w_risk']
+        ).select_related('updated_by')
+    }
+
     return render(request, 'supervisor/config.html', {
-        'config':   config,
-        'hs_codes': hs_codes,
+        'config':      config,
+        'hs_codes':    hs_codes,
+        'config_meta': config_meta,
     })
 
 

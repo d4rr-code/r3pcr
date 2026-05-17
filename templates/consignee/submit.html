@@ -31,13 +31,54 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Urgency *</label>
-                <select name="urgency" class="form-input" required>
-                    <option value="">— Select —</option>
-                    <option value="normal">Normal</option>
-                    <option value="urgent">⚡ Urgent</option>
-                </select>
+            <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-label">Urgency Level *</label>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px;">
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="urgency" value="standard" required
+                               style="display:none;" onchange="highlightUrgency(this)">
+                        <div class="urgency-card" data-urgency="standard"
+                             style="border:2px solid #334155; border-radius:10px; padding:14px 10px;
+                                    text-align:center; transition:all 0.15s; background:#0f172a;">
+                            <div style="font-size:22px; margin-bottom:4px;">📋</div>
+                            <p style="color:#f1f5f9; font-size:12px; font-weight:600; margin:0;">Standard</p>
+                            <p style="color:#64748b; font-size:10px; margin:4px 0 0;">Regular processing<br>No time pressure</p>
+                        </div>
+                    </label>
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="urgency" value="priority"
+                               style="display:none;" onchange="highlightUrgency(this)">
+                        <div class="urgency-card" data-urgency="priority"
+                             style="border:2px solid #334155; border-radius:10px; padding:14px 10px;
+                                    text-align:center; transition:all 0.15s; background:#0f172a;">
+                            <div style="font-size:22px; margin-bottom:4px;">⏩</div>
+                            <p style="color:#f1f5f9; font-size:12px; font-weight:600; margin:0;">Priority</p>
+                            <p style="color:#64748b; font-size:10px; margin:4px 0 0;">Moderately time-sensitive<br>Sooner than usual</p>
+                        </div>
+                    </label>
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="urgency" value="urgent"
+                               style="display:none;" onchange="highlightUrgency(this)">
+                        <div class="urgency-card" data-urgency="urgent"
+                             style="border:2px solid #334155; border-radius:10px; padding:14px 10px;
+                                    text-align:center; transition:all 0.15s; background:#0f172a;">
+                            <div style="font-size:22px; margin-bottom:4px;">⚡</div>
+                            <p style="color:#f1f5f9; font-size:12px; font-weight:600; margin:0;">Urgent</p>
+                            <p style="color:#64748b; font-size:10px; margin:4px 0 0;">Time-critical<br>Expedited handling</p>
+                        </div>
+                    </label>
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="urgency" value="rush"
+                               style="display:none;" onchange="highlightUrgency(this)">
+                        <div class="urgency-card" data-urgency="rush"
+                             style="border:2px solid #334155; border-radius:10px; padding:14px 10px;
+                                    text-align:center; transition:all 0.15s; background:#0f172a;">
+                            <div style="font-size:22px; margin-bottom:4px;">🚨</div>
+                            <p style="color:#f1f5f9; font-size:12px; font-weight:600; margin:0;">Rush</p>
+                            <p style="color:#64748b; font-size:10px; margin:4px 0 0;">Emergency — immediate<br>processing required</p>
+                        </div>
+                    </label>
+                </div>
             </div>
 
             <div class="form-group" style="grid-column:1/-1;">
@@ -153,6 +194,19 @@ function highlightMode(radio) {
     var card = radio.closest('label').querySelector('.mode-card');
     card.style.borderColor = '#3b82f6';
     card.style.background  = '#1e3a5f';
+}
+
+var URGENCY_COLORS = { standard: '#64748b', priority: '#3b82f6', urgent: '#f97316', rush: '#ef4444' };
+var URGENCY_BG     = { standard: '#1e293b', priority: '#1e3a5f', urgent: '#2d1b00', rush: '#450a0a' };
+function highlightUrgency(radio) {
+    document.querySelectorAll('.urgency-card').forEach(function(card) {
+        card.style.borderColor = '#334155';
+        card.style.background  = '#0f172a';
+    });
+    var urgency = radio.value;
+    var card = radio.closest('label').querySelector('.urgency-card');
+    card.style.borderColor = URGENCY_COLORS[urgency] || '#334155';
+    card.style.background  = URGENCY_BG[urgency]     || '#0f172a';
 }
 
 var _otherDocCount = 0;

@@ -124,10 +124,14 @@
         <p style="color:#64748b; font-size:13px; margin:4px 0 0;">
             {{ shipment.consignee.get_full_name|default:shipment.consignee.username }} ·
             {{ shipment.import_type|capfirst }} ·
-            {% if shipment.urgency == 'urgent' %}
-                <span style="color:#ef4444;">⚡ Urgent</span>
+            {% if shipment.urgency == 'rush' %}
+                <span style="color:#ef4444; font-weight:600;">🚨 Rush</span>
+            {% elif shipment.urgency == 'urgent' %}
+                <span style="color:#f97316; font-weight:600;">⚡ Urgent</span>
+            {% elif shipment.urgency == 'priority' %}
+                <span style="color:#f59e0b;">⏩ Priority</span>
             {% else %}
-                Normal
+                Standard
             {% endif %}
         </p>
     </div>
@@ -364,6 +368,43 @@
                 </button>
             </form>
         </div>
+
+        <!-- 6.2 Deficiency Flagging -->
+        {% if shipment.status == 'in_review' or shipment.status == 'pending' %}
+        <div class="card" style="margin-bottom:16px; border:1px solid #7c3aed44;">
+            <p class="card-title" style="color:#a78bfa;">⚠ Flag Document Deficiency</p>
+            <p style="color:#64748b; font-size:12px; margin-bottom:12px;">
+                Flag a missing or incorrect document. The consignee will be notified immediately.
+            </p>
+            <form method="POST" action="{% url 'declarant:flag_deficiency' shipment.id %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label" style="font-size:12px;">Deficiency Type</label>
+                    <select name="deficiency_type" class="form-input" style="font-size:13px;" required>
+                        <option value="">— Select issue —</option>
+                        <option value="missing_invoice">Missing Commercial Invoice</option>
+                        <option value="missing_packing">Missing Packing List</option>
+                        <option value="missing_awb">Missing Airway Bill / BOL</option>
+                        <option value="incorrect_values">Incorrect Declared Values</option>
+                        <option value="illegible_doc">Illegible / Poor Quality Document</option>
+                        <option value="missing_other">Missing Supporting Document</option>
+                        <option value="other">Other Issue</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size:12px;">Notes (optional)</label>
+                    <textarea name="deficiency_notes" class="form-input" rows="2"
+                        style="font-size:13px;"
+                        placeholder="Describe the specific issue or what is needed..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-secondary"
+                        style="width:100%; border-color:#7c3aed; color:#a78bfa;"
+                        onclick="return confirm('Flag deficiency and notify consignee?');">
+                    Flag &amp; Notify Consignee
+                </button>
+            </form>
+        </div>
+        {% endif %}
 
         <!-- Payment Confirmation -->
         {% if shipment.status == 'for_payment' %}

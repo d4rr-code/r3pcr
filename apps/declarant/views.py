@@ -342,6 +342,62 @@ def payment_confirmation(request, shipment_id):
     return render(request, 'declarant/payment.html', context)
 
 
+# ─── Flag Document Deficiency ────────────────────────────────────────────────
+
+@login_required
+@declarant_required
+def flag_deficiency(request, shipment_id):
+    """Flag a document deficiency and notify the consignee."""
+    if request.method != 'POST':
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
+    deficiency_type  = request.POST.get('deficiency_type', '').strip()
+    deficiency_notes = request.POST.get('deficiency_notes', '').strip()
+
+    if not deficiency_type:
+        messages.error(request, 'Please select a deficiency type.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    type_labels = {
+        'missing_invoice': 'Missing Commercial Invoice',
+        'missing_packing': 'Missing Packing List',
+        'missing_awb':     'Missing Airway Bill / Bill of Lading',
+        'incorrect_values':'Incorrect Declared Values',
+        'illegible_doc':   'Illegible / Poor Quality Document',
+        'missing_other':   'Missing Supporting Document',
+        'other':           'Document Deficiency',
+    }
+    type_label = type_labels.get(deficiency_type, deficiency_type)
+    note_text  = f'{type_label}. {deficiency_notes}'.strip('. ') if deficiency_notes else type_label
+
+    # Audit trail — same status, just record the flag
+    StatusLog.objects.create(
+        shipment=shipment,
+        changed_by=request.user,
+        old_status=shipment.status,
+        new_status=shipment.status,
+        notes=f'Deficiency flagged: {note_text}',
+    )
+
+    # Notify the consignee
+    create_notification(
+        recipient=shipment.consignee,
+        shipment=shipment,
+        notification_type='status_update',
+        title=f'Document Deficiency — {shipment.hawb_number}',
+        message=f'A deficiency has been flagged on your shipment: {note_text}. Please check your submissions and contact your declarant.',
+    )
+
+    messages.success(request, f'Deficiency flagged — consignee has been notified.')
+    return redirect('declarant:process', shipment_id=shipment_id)
+
+
 # ─── BOC Tracking ─────────────────────────────────────────────────────────────
 
 @login_required

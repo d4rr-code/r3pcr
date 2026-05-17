@@ -63,94 +63,62 @@
 
 <!-- ─── Analytics ──────────────────────────────────────────────────────────── -->
 {% if total %}
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px;">
 
-    <!-- Status Breakdown -->
+    <!-- Shipping Mode Breakdown -->
     <div class="card">
-        <p class="card-title" style="margin-bottom:14px;">Submission Status Breakdown</p>
+        <p class="card-title" style="margin-bottom:14px;">Shipping Mode</p>
+        {% for item in mode_breakdown %}
+        {% if item.shipment_type %}
+        <div style="margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+                <span style="color:#94a3b8;">
+                    {% if item.shipment_type == 'air' %}✈️ {% elif item.shipment_type == 'sea' or item.shipment_type == 'lcl' or item.shipment_type == 'fcl' %}🚢 {% elif item.shipment_type == 'land' %}🚛 {% endif %}
+                    {{ item.label }}
+                </span>
+                <span style="color:#f1f5f9; font-weight:600;">{{ item.count }}</span>
+            </div>
+            <div style="background:#1e293b; border-radius:999px; height:6px;">
+                <div style="height:6px; border-radius:999px;
+                    background:{% if item.shipment_type == 'air' %}#3b82f6{% elif item.shipment_type == 'sea' %}#22d3ee{% elif item.shipment_type == 'lcl' %}#8b5cf6{% elif item.shipment_type == 'fcl' %}#a78bfa{% else %}#f59e0b{% endif %};
+                    width:{% widthratio item.count total 100 %}%;"></div>
+            </div>
+        </div>
+        {% endif %}
+        {% empty %}
+        <p style="color:#64748b; font-size:13px;">No data yet.</p>
+        {% endfor %}
+    </div>
 
-        {% if pending %}
+    <!-- Urgency Breakdown -->
+    <div class="card">
+        <p class="card-title" style="margin-bottom:14px;">Urgency Level</p>
+        {% for item in urgency_breakdown %}
         <div style="margin-bottom:8px;">
             <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
-                <span style="color:#94a3b8;">Pending</span>
-                <span style="color:#f59e0b; font-weight:600;">{{ pending }}</span>
+                <span style="color:#94a3b8;">
+                    {% if item.urgency == 'rush' %}🔴 {% elif item.urgency == 'urgent' %}🟠 {% elif item.urgency == 'priority' %}🔵 {% else %}⚪ {% endif %}
+                    {{ item.label }}
+                </span>
+                <span style="font-weight:600;
+                    color:{% if item.urgency == 'rush' %}#ef4444{% elif item.urgency == 'urgent' %}#f97316{% elif item.urgency == 'priority' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                    {{ item.count }}
+                </span>
             </div>
             <div style="background:#1e293b; border-radius:999px; height:6px;">
-                <div style="height:6px; border-radius:999px; background:#f59e0b; width:{% widthratio pending total 100 %}%;"></div>
+                <div style="height:6px; border-radius:999px;
+                    background:{% if item.urgency == 'rush' %}#ef4444{% elif item.urgency == 'urgent' %}#f97316{% elif item.urgency == 'priority' %}#3b82f6{% else %}#64748b{% endif %};
+                    width:{% widthratio item.count total 100 %}%;"></div>
             </div>
         </div>
-        {% endif %}
-        {% if in_review %}
-        <div style="margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
-                <span style="color:#94a3b8;">In Review</span>
-                <span style="color:#3b82f6; font-weight:600;">{{ in_review }}</span>
-            </div>
-            <div style="background:#1e293b; border-radius:999px; height:6px;">
-                <div style="height:6px; border-radius:999px; background:#3b82f6; width:{% widthratio in_review total 100 %}%;"></div>
-            </div>
-        </div>
-        {% endif %}
-        {% if for_payment %}
-        <div style="margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
-                <span style="color:#94a3b8;">For Payment</span>
-                <span style="color:#a78bfa; font-weight:600;">{{ for_payment }}</span>
-            </div>
-            <div style="background:#1e293b; border-radius:999px; height:6px;">
-                <div style="height:6px; border-radius:999px; background:#a78bfa; width:{% widthratio for_payment total 100 %}%;"></div>
-            </div>
-        </div>
-        {% endif %}
-        {% if submitted %}
-        <div style="margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
-                <span style="color:#94a3b8;">Submitted to BOC</span>
-                <span style="color:#22d3ee; font-weight:600;">{{ submitted }}</span>
-            </div>
-            <div style="background:#1e293b; border-radius:999px; height:6px;">
-                <div style="height:6px; border-radius:999px; background:#22d3ee; width:{% widthratio submitted total 100 %}%;"></div>
-            </div>
-        </div>
-        {% endif %}
-        {% if approved %}
-        <div style="margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
-                <span style="color:#94a3b8;">Approved</span>
-                <span style="color:#22c55e; font-weight:600;">{{ approved }}</span>
-            </div>
-            <div style="background:#1e293b; border-radius:999px; height:6px;">
-                <div style="height:6px; border-radius:999px; background:#22c55e; width:{% widthratio approved total 100 %}%;"></div>
-            </div>
-        </div>
-        {% endif %}
-        {% if rejected %}
-        <div style="margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
-                <span style="color:#94a3b8;">Rejected</span>
-                <span style="color:#ef4444; font-weight:600;">{{ rejected }}</span>
-            </div>
-            <div style="background:#1e293b; border-radius:999px; height:6px;">
-                <div style="height:6px; border-radius:999px; background:#ef4444; width:{% widthratio rejected total 100 %}%;"></div>
-            </div>
-        </div>
-        {% endif %}
-        {% if revised %}
-        <div style="margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
-                <span style="color:#94a3b8;">For Revision</span>
-                <span style="color:#f97316; font-weight:600;">{{ revised }}</span>
-            </div>
-            <div style="background:#1e293b; border-radius:999px; height:6px;">
-                <div style="height:6px; border-radius:999px; background:#f97316; width:{% widthratio revised total 100 %}%;"></div>
-            </div>
-        </div>
-        {% endif %}
+        {% empty %}
+        <p style="color:#64748b; font-size:13px;">No data yet.</p>
+        {% endfor %}
     </div>
 
     <!-- Import Type Breakdown -->
     <div class="card">
-        <p class="card-title" style="margin-bottom:14px;">Import Type Breakdown</p>
+        <p class="card-title" style="margin-bottom:14px;">Import Type</p>
         {% for item in import_breakdown %}
         <div style="margin-bottom:8px;">
             <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
@@ -158,7 +126,7 @@
                 <span style="color:#f1f5f9; font-weight:600;">{{ item.count }}</span>
             </div>
             <div style="background:#1e293b; border-radius:999px; height:6px;">
-                <div style="height:6px; border-radius:999px; background:#3b82f6;
+                <div style="height:6px; border-radius:999px; background:#22c55e;
                             width:{% widthratio item.count total 100 %}%;"></div>
             </div>
         </div>

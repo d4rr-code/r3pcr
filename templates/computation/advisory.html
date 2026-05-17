@@ -101,12 +101,10 @@
                     {% endif %}
                 </div>
                 <select name="urgency_level" class="form-input" style="border-color:#166534;">
-                    <option value="normal" {% if auto_data.urgency_level != 'urgent' %}selected{% endif %}>
-                        Normal
-                    </option>
-                    <option value="urgent" {% if auto_data.urgency_level == 'urgent' %}selected{% endif %}>
-                        ⚡ Urgent
-                    </option>
+                    <option value="standard" {% if auto_data.urgency_level in 'standard,normal' %}selected{% endif %}>Standard</option>
+                    <option value="priority" {% if auto_data.urgency_level == 'priority' %}selected{% endif %}>⏩ Priority</option>
+                    <option value="urgent"   {% if auto_data.urgency_level == 'urgent' %}selected{% endif %}>⚡ Urgent</option>
+                    <option value="rush"     {% if auto_data.urgency_level == 'rush' %}selected{% endif %}>🚨 Rush / Time-Critical</option>
                 </select>
             </div>
             <div class="form-group">
