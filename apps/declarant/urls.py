@@ -12,4 +12,5 @@ urlpatterns = [
     path('update-shipping-mode/<int:shipment_id>/', views.update_shipping_mode, name='update_shipping_mode'),
     path('payment/<int:shipment_id>/', views.payment_confirmation, name='payment'),
     path('boc/<int:shipment_id>/', views.boc_tracking, name='boc'),
+    path('flag-deficiency/<int:shipment_id>/', views.flag_deficiency, name='flag_deficiency'),
 ]

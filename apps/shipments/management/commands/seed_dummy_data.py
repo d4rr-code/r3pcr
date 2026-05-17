@@ -63,7 +63,7 @@ DESCRIPTIONS = [
 
 IMPORT_TYPES = ['commercial', 'personal', 'balik_bayan', 'courier', 'sample', 'diplomatic']
 SHIP_TYPES   = ['lcl', 'fcl', 'air']
-URGENCIES    = ['normal', 'urgent']
+URGENCIES    = ['standard', 'priority', 'urgent', 'rush']
 
 
 def rand_hawb(prefix, n):
@@ -189,7 +189,7 @@ class Command(BaseCommand):
             desc      = random.choice(DESCRIPTIONS)
             itype     = random.choice(IMPORT_TYPES)
             stype     = random.choice(SHIP_TYPES)
-            urgency   = random.choices(URGENCIES, weights=[70, 30])[0]
+            urgency   = random.choices(URGENCIES, weights=[40, 30, 20, 10])[0]
             qty       = Decimal(str(random.randint(1, 500)))
             weight    = Decimal(str(round(random.uniform(0.5, 2000), 2)))
             exw_usd   = Decimal(str(round(random.uniform(200, 50000), 2)))
