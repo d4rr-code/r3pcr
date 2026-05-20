@@ -4,6 +4,8 @@ from django.conf import settings
 from django.views.static import serve
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.generic import TemplateView
+
 
 
 def landing(request):
@@ -73,6 +75,7 @@ urlpatterns = [
     path('declarant/',     include('apps.declarant.urls',     namespace='declarant')),
     path('computation/',   include('apps.computation.urls',   namespace='computation')),
     path('notifications/', include('apps.notifications.urls', namespace='notifications')),
+    path('terms/', TemplateView.as_view(template_name='terms-privacy.html'), name='terms'),
 ]
 
 # Serve media files in all environments using serve() directly — static() ignores DEBUG=False
