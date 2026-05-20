@@ -22,8 +22,11 @@ class Shipment(models.Model):
     ]
 
     URGENCY_CHOICES = [
-        ('normal', 'Normal'),
-        ('urgent', 'Urgent'),
+        ('standard', 'Standard'),
+        ('priority', 'Priority'),
+        ('urgent',   'Urgent'),
+        ('rush',     'Rush / Time-Critical'),
+        ('normal',   'Standard'),   # legacy alias — kept for existing records
     ]
 
     IMPORT_TYPE_CHOICES = [

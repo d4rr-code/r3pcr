@@ -93,6 +93,13 @@ class ShippingAdvisory(models.Model):
     recommended_type = models.CharField(
         max_length=10, choices=SHIPPING_TYPE_CHOICES, null=True, blank=True
     )
+
+    # Declarant override / advisory to consignee
+    declarant_recommendation = models.CharField(
+        max_length=10, choices=SHIPPING_TYPE_CHOICES, null=True, blank=True
+    )
+    declarant_note = models.TextField(null=True, blank=True)
+
     computed_by = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True
     )

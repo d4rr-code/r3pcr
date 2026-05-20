@@ -1,8 +1,10 @@
 import datetime
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.http import JsonResponse
 from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.notifications.utils import create_notification
@@ -89,6 +91,52 @@ def dashboard(request):
         'pending_shipments':   pending_list,
     }
     return render(request, 'declarant/dashboard.html', context)
+
+
+# ─── Shipment Preview (JSON for queue modal) ──────────────────────────────────
+
+@login_required
+@declarant_required
+def shipment_preview(request, shipment_id):
+    """Return JSON details for the queue preview modal (pending shipments only)."""
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    # Documents list
+    docs = []
+    for doc in shipment.documents.all():
+        docs.append({
+            'type':  doc.get_document_type_display(),
+            'name':  doc.file.name.split('/')[-1],
+            'url':   doc.file.url,
+        })
+
+    # Line items from DutyComputation if it exists
+    items = []
+    computation = getattr(shipment, 'computation', None)
+    if computation and computation.items_json:
+        try:
+            items = json.loads(computation.items_json)
+        except (ValueError, TypeError):
+            items = []
+
+    data = {
+        'hawb':            shipment.hawb_number,
+        'consignee':       shipment.consignee.get_full_name() or shipment.consignee.username,
+        'import_type':     shipment.get_import_type_display(),
+        'shipment_type':   shipment.get_shipment_type_display() if shipment.shipment_type else None,
+        'urgency':         shipment.urgency,
+        'urgency_label':   shipment.get_urgency_display(),
+        'description':     shipment.description or '',
+        'quantity':        str(shipment.quantity) if shipment.quantity else None,
+        'declared_value':  str(shipment.declared_value) if shipment.declared_value else None,
+        'gross_weight':    str(shipment.gross_weight) if shipment.gross_weight else None,
+        'freight_cost':    str(shipment.freight_cost) if shipment.freight_cost else None,
+        'insurance_cost':  str(shipment.insurance_cost) if shipment.insurance_cost else None,
+        'submitted_at':    shipment.submitted_at.strftime('%b %d, %Y %H:%M'),
+        'documents':       docs,
+        'items':           items,
+    }
+    return JsonResponse(data)
 
 
 # ─── Queue Manager ────────────────────────────────────────────────────────────
@@ -340,6 +388,62 @@ def payment_confirmation(request, shipment_id):
 
     context = {'shipment': shipment}
     return render(request, 'declarant/payment.html', context)
+
+
+# ─── Flag Document Deficiency ────────────────────────────────────────────────
+
+@login_required
+@declarant_required
+def flag_deficiency(request, shipment_id):
+    """Flag a document deficiency and notify the consignee."""
+    if request.method != 'POST':
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
+    deficiency_type  = request.POST.get('deficiency_type', '').strip()
+    deficiency_notes = request.POST.get('deficiency_notes', '').strip()
+
+    if not deficiency_type:
+        messages.error(request, 'Please select a deficiency type.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    type_labels = {
+        'missing_invoice': 'Missing Commercial Invoice',
+        'missing_packing': 'Missing Packing List',
+        'missing_awb':     'Missing Airway Bill / Bill of Lading',
+        'incorrect_values':'Incorrect Declared Values',
+        'illegible_doc':   'Illegible / Poor Quality Document',
+        'missing_other':   'Missing Supporting Document',
+        'other':           'Document Deficiency',
+    }
+    type_label = type_labels.get(deficiency_type, deficiency_type)
+    note_text  = f'{type_label}. {deficiency_notes}'.strip('. ') if deficiency_notes else type_label
+
+    # Audit trail — same status, just record the flag
+    StatusLog.objects.create(
+        shipment=shipment,
+        changed_by=request.user,
+        old_status=shipment.status,
+        new_status=shipment.status,
+        notes=f'Deficiency flagged: {note_text}',
+    )
+
+    # Notify the consignee
+    create_notification(
+        recipient=shipment.consignee,
+        shipment=shipment,
+        notification_type='status_update',
+        title=f'Document Deficiency — {shipment.hawb_number}',
+        message=f'A deficiency has been flagged on your shipment: {note_text}. Please check your submissions and contact your declarant.',
+    )
+
+    messages.success(request, f'Deficiency flagged — consignee has been notified.')
+    return redirect('declarant:process', shipment_id=shipment_id)
 
 
 # ─── BOC Tracking ─────────────────────────────────────────────────────────────

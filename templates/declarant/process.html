@@ -124,10 +124,14 @@
         <p style="color:#64748b; font-size:13px; margin:4px 0 0;">
             {{ shipment.consignee.get_full_name|default:shipment.consignee.username }} ·
             {{ shipment.import_type|capfirst }} ·
-            {% if shipment.urgency == 'urgent' %}
-                <span style="color:#ef4444;">⚡ Urgent</span>
+            {% if shipment.urgency == 'rush' %}
+                <span style="color:#ef4444; font-weight:600;">🚨 Rush</span>
+            {% elif shipment.urgency == 'urgent' %}
+                <span style="color:#f97316; font-weight:600;">⚡ Urgent</span>
+            {% elif shipment.urgency == 'priority' %}
+                <span style="color:#f59e0b;">⏩ Priority</span>
             {% else %}
-                Normal
+                Standard
             {% endif %}
         </p>
     </div>
@@ -163,7 +167,18 @@
 
         <!-- Documents List -->
         <div class="card" style="margin-top:16px;">
-            <p class="card-title">Attached Documents</p>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <p class="card-title" style="margin:0;">Attached Documents</p>
+                {% if documents %}
+                <button type="button"
+                        class="btn btn-primary"
+                        style="font-size:11px; padding:6px 14px;"
+                        title="Run OCR on all documents at once and merge results"
+                        onclick="startOCR('{% url 'computation:ocr_extract_all' shipment.id %}', 'All Documents')">
+                    🔍 OCR All Documents
+                </button>
+                {% endif %}
+            </div>
             {% if documents %}
             <div style="display:flex; flex-direction:column; gap:10px;">
                 {% for doc in documents %}
@@ -183,20 +198,10 @@
                             Uploaded {{ doc.uploaded_at|date:"M d, Y" }}
                         </p>
                     </div>
-                    <div style="display:flex; gap:6px; flex-shrink:0;">
-                        <button onclick="loadDoc('{{ doc.file.url }}', '{{ doc.get_document_type_display }}')"
-                                class="btn btn-secondary" style="font-size:11px; padding:5px 10px;">
-                            View
-                        </button>
-                        <!-- OCR button — uses fetch + timer overlay -->
-                        <button type="button"
-                                class="btn btn-primary"
-                                style="font-size:11px; padding:5px 10px;"
-                                title="Extract data via OCR"
-                                onclick="startOCR('{% url 'computation:ocr_extract' shipment.id doc.id %}', '{{ doc.get_document_type_display }}')">
-                            OCR
-                        </button>
-                    </div>
+                    <button onclick="loadDoc('{{ doc.file.url }}', '{{ doc.get_document_type_display }}')"
+                            class="btn btn-secondary" style="font-size:11px; padding:5px 10px; flex-shrink:0;">
+                        View
+                    </button>
                 </div>
                 {% endfor %}
             </div>
@@ -208,13 +213,24 @@
         <!-- OCR Extracted Fields -->
         {% if ocr_fields %}
         <div class="card" style="margin-top:16px;">
-            <p class="card-title">OCR Extracted Fields
-                <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:6px;">
-                    — <span style="color:#22c55e;">●</span> high ≥85%
-                    <span style="color:#f59e0b; margin-left:4px;">●</span> medium ≥70%
-                    <span style="color:#ef4444; margin-left:4px;">●</span> low
-                </span>
-            </p>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                <p class="card-title" style="margin:0;">OCR Extracted Fields
+                    <span style="color:#64748b; font-weight:400; font-size:11px; margin-left:6px;">
+                        <span style="color:#22c55e;">●</span> ≥85%
+                        <span style="color:#f59e0b; margin-left:3px;">●</span> ≥70%
+                        <span style="color:#ef4444; margin-left:3px;">●</span> low
+                    </span>
+                </p>
+                <!-- Source legend -->
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <span style="font-size:10px; background:#1e293b; color:#93c5fd;
+                                 padding:2px 7px; border-radius:10px;">📄 Invoice</span>
+                    <span style="font-size:10px; background:#1e293b; color:#86efac;
+                                 padding:2px 7px; border-radius:10px;">✈️ AWB</span>
+                    <span style="font-size:10px; background:#1e293b; color:#fbbf24;
+                                 padding:2px 7px; border-radius:10px;">📦 Packing</span>
+                </div>
+            </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 16px;">
                 {% for key, field in ocr_fields.items %}
                 {% if field.value %}
@@ -225,11 +241,17 @@
                         {% elif field.confidence > 0 %}conf-low
                         {% else %}conf-none{% endif %}">
                     </span>
-                    <span style="color:#64748b;">{{ key|title|cut:"_" }}:</span>
-                    <span style="color:#f1f5f9; font-weight:500;">{{ field.value }}</span>
-                    {% if field.confidence > 0 %}
-                    <span style="color:#475569; font-size:10px;">
-                        ({{ field.confidence|floatformat:0 }}%)
+                    <span style="color:#64748b;">{{ key|title|cut:"_"|cut:" " }}:</span>
+                    <span style="color:#f1f5f9; font-weight:500; overflow:hidden;
+                                 text-overflow:ellipsis; white-space:nowrap; max-width:120px;"
+                          title="{{ field.value }}">{{ field.value }}</span>
+                    <!-- Source badge -->
+                    {% if field.source %}
+                    <span style="font-size:9px; padding:1px 5px; border-radius:8px; flex-shrink:0;
+                        {% if field.source == 'invoice' %}background:#172554; color:#93c5fd;
+                        {% elif field.source == 'airway_bill' %}background:#052e16; color:#86efac;
+                        {% else %}background:#422006; color:#fbbf24;{% endif %}">
+                        {{ field.source|cut:"_"|title|truncatechars:4 }}
                     </span>
                     {% endif %}
                 </div>
@@ -237,7 +259,7 @@
                 {% endfor %}
             </div>
             <a href="{% url 'computation:compute' shipment.id %}?ocr=1"
-               class="btn btn-primary" style="font-size:12px; margin-top:12px;">
+               class="btn btn-primary" style="font-size:12px; margin-top:12px; display:block; text-align:center;">
                 Open Computation Tool with OCR data →
             </a>
         </div>
@@ -364,6 +386,43 @@
                 </button>
             </form>
         </div>
+
+        <!-- 6.2 Deficiency Flagging -->
+        {% if shipment.status == 'in_review' or shipment.status == 'pending' %}
+        <div class="card" style="margin-bottom:16px; border:1px solid #7c3aed44;">
+            <p class="card-title" style="color:#a78bfa;">⚠ Flag Document Deficiency</p>
+            <p style="color:#64748b; font-size:12px; margin-bottom:12px;">
+                Flag a missing or incorrect document. The consignee will be notified immediately.
+            </p>
+            <form method="POST" action="{% url 'declarant:flag_deficiency' shipment.id %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label" style="font-size:12px;">Deficiency Type</label>
+                    <select name="deficiency_type" class="form-input" style="font-size:13px;" required>
+                        <option value="">— Select issue —</option>
+                        <option value="missing_invoice">Missing Commercial Invoice</option>
+                        <option value="missing_packing">Missing Packing List</option>
+                        <option value="missing_awb">Missing Airway Bill / BOL</option>
+                        <option value="incorrect_values">Incorrect Declared Values</option>
+                        <option value="illegible_doc">Illegible / Poor Quality Document</option>
+                        <option value="missing_other">Missing Supporting Document</option>
+                        <option value="other">Other Issue</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size:12px;">Notes (optional)</label>
+                    <textarea name="deficiency_notes" class="form-input" rows="2"
+                        style="font-size:13px;"
+                        placeholder="Describe the specific issue or what is needed..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-secondary"
+                        style="width:100%; border-color:#7c3aed; color:#a78bfa;"
+                        onclick="return confirm('Flag deficiency and notify consignee?');">
+                    Flag &amp; Notify Consignee
+                </button>
+            </form>
+        </div>
+        {% endif %}
 
         <!-- Payment Confirmation -->
         {% if shipment.status == 'for_payment' %}

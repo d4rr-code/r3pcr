@@ -101,7 +101,71 @@ def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate):
     return computed_items, summary
 
 
-# ─── OCR Extract ─────────────────────────────────────────────────────────────
+# ─── OCR Merge Helpers ───────────────────────────────────────────────────────
+
+# Priority order per field: which document type to prefer when the same field
+# appears in more than one document.
+_OCR_FIELD_PRIORITY = {
+    'declared_value':    ['invoice', 'packing_list'],
+    'description':       ['invoice', 'packing_list', 'airway_bill'],
+    'total_quantity':    ['packing_list', 'invoice'],
+    'gross_weight':      ['airway_bill', 'packing_list'],
+    'volume_cbm':        ['airway_bill', 'packing_list'],
+    'hawb_number':       ['airway_bill'],
+    'invoice_number':    ['invoice'],
+    'invoice_date':      ['invoice'],
+    'hs_code':           ['invoice', 'airway_bill'],
+    'flight_number':     ['airway_bill'],
+    'flight_date':       ['airway_bill'],
+    'port_loading':      ['airway_bill'],
+    'port_discharge':    ['airway_bill'],
+    'origin':            ['airway_bill', 'invoice'],
+    'destination':       ['airway_bill', 'invoice'],
+    'consignee_name':    ['invoice'],
+    'consignee_address': ['invoice'],
+    'currency':          ['invoice'],
+    'net_weight':        ['packing_list'],
+    'num_packages':      ['packing_list'],
+}
+
+_DOC_LABEL = {
+    'invoice':      'Invoice',
+    'airway_bill':  'Airway Bill',
+    'packing_list': 'Packing List',
+}
+
+
+def merge_ocr_results(results):
+    """
+    Merge OCR results from multiple documents into one dict.
+    Each merged field: {'value': ..., 'confidence': ..., 'source': doc_type}
+    Priority per field is defined in _OCR_FIELD_PRIORITY.
+    """
+    merged = {}
+    all_fields = set()
+    for doc_data in results.values():
+        all_fields.update(doc_data.get('fields', {}).keys())
+
+    for field in all_fields:
+        priority = _OCR_FIELD_PRIORITY.get(field, list(results.keys()))
+        # Try priority order first, then any remaining doc
+        search_order = priority + [d for d in results if d not in priority]
+        for doc_type in search_order:
+            if doc_type not in results:
+                continue
+            fdata = results[doc_type].get('fields', {}).get(field)
+            if fdata and isinstance(fdata, dict) and fdata.get('value'):
+                merged[field] = {
+                    'value':      fdata['value'],
+                    'confidence': fdata.get('confidence', 0.0),
+                    'source':     doc_type,
+                }
+                break
+
+    return merged
+
+
+# ─── OCR Extract (single document — kept for fallback) ───────────────────────
 
 @login_required
 def ocr_extract(request, shipment_id, doc_id):
@@ -146,6 +210,101 @@ def ocr_extract(request, shipment_id, doc_id):
         print(f'[OCR] Exception: {e}')
         traceback.print_exc()
         request.session['ocr_toast'] = ('error', f'OCR failed: {e}')
+    return redirect('declarant:process', shipment_id=shipment_id)
+
+
+# ─── OCR Extract All (single button — merges all documents) ──────────────────
+
+@login_required
+def ocr_extract_all(request, shipment_id):
+    """Run OCR on every invoice/airway_bill/packing_list document at once,
+    then merge results into a single unified field set stored in the session."""
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    if request.user.role != 'declarant' or shipment.declarant != request.user:
+        messages.error(request, 'Access denied.')
+        return redirect('declarant:queue')
+
+    documents = shipment.documents.filter(
+        document_type__in=['invoice', 'airway_bill', 'packing_list']
+    )
+    if not documents.exists():
+        request.session['ocr_toast'] = ('warning', 'No supported documents uploaded yet.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    results  = {}   # { doc_type: { 'fields': {...}, 'items': [...] } }
+    failed   = []
+    n_fields = 0
+
+    for doc in documents:
+        doc_type = doc.document_type
+        # If multiple docs of same type, last one wins (edge case)
+        try:
+            ext = os.path.splitext(doc.file.name)[1] or '.pdf'
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                doc.file.open('rb')
+                tmp.write(doc.file.read())
+                doc.file.close()
+                tmp_path = tmp.name
+            try:
+                print(f'[OCR-ALL] Processing {doc_type}: {doc.file.name}')
+                fields, raw_text = process_document(tmp_path, doc_type)
+                if fields:
+                    items = fields.pop('__items__', [])
+                    results[doc_type] = {'fields': fields, 'items': items}
+                    found = sum(1 for v in fields.values()
+                                if isinstance(v, dict) and v.get('value'))
+                    n_fields += found
+                    print(f'[OCR-ALL] {doc_type}: {found} fields, {len(items)} items')
+                else:
+                    print(f'[OCR-ALL] {doc_type}: no fields extracted')
+            finally:
+                os.unlink(tmp_path)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            failed.append(_DOC_LABEL.get(doc_type, doc_type))
+            print(f'[OCR-ALL] Failed on {doc_type}: {e}')
+
+    if results:
+        merged = merge_ocr_results(results)
+
+        # Best items list: invoice first, packing list as fallback
+        best_items = (
+            results.get('invoice',      {}).get('items') or
+            results.get('packing_list', {}).get('items') or
+            []
+        )
+
+        # Persist in session
+        request.session['ocr_results']     = results          # per-doc (for debugging / future use)
+        request.session['ocr_merged']      = merged           # merged with source tags
+        request.session['ocr_fields']      = merged           # backward-compat key used by compute page
+        request.session['ocr_items']       = best_items
+        request.session['ocr_shipment_id'] = shipment_id
+
+        n_docs  = len(results)
+        n_items = len(best_items)
+        msg = (
+            f'OCR complete — {n_docs} document{"s" if n_docs != 1 else ""} scanned, '
+            f'{n_fields} field{"s" if n_fields != 1 else ""} extracted'
+        )
+        if n_items:
+            msg += f', {n_items} line item{"s" if n_items != 1 else ""} detected'
+        if failed:
+            msg += f'. Could not read: {", ".join(failed)}'
+        request.session['ocr_toast'] = ('success', msg)
+    else:
+        request.session['ocr_toast'] = (
+            'warning',
+            'OCR ran but could not extract any fields. '
+            'Check document quality or fill in values manually.'
+        )
+
+    # Redirect back to process page (default) or compute page
+    next_page = request.GET.get('next', 'process')
+    if next_page == 'compute':
+        return redirect(f'/computation/compute/{shipment_id}/?ocr=1')
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
@@ -810,3 +969,57 @@ def shipping_advisory(request, shipment_id):
         'missing_fields': missing_fields,
     }
     return render(request, 'computation/advisory.html', context)
+
+
+# ─── Save Declarant Advisory ──────────────────────────────────────────────────
+
+@login_required
+def save_declarant_advisory(request, shipment_id):
+    if request.method != 'POST':
+        return redirect('computation:advisory', shipment_id=shipment_id)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    if request.user.role != 'declarant' or shipment.declarant != request.user:
+        messages.error(request, 'Access denied.')
+        return redirect('declarant:queue')
+
+    advisory = ShippingAdvisory.objects.filter(shipment=shipment).first()
+    if not advisory:
+        messages.error(request, 'Run the WMCDA computation first before saving an advisory.')
+        return redirect('computation:advisory', shipment_id=shipment_id)
+
+    recommendation = request.POST.get('declarant_recommendation', '').strip()
+    note = request.POST.get('declarant_note', '').strip()
+
+    valid_types = {'air', 'lcl', 'fcl', 'land', ''}
+    if recommendation not in valid_types:
+        messages.error(request, 'Invalid shipping type selected.')
+        return redirect('computation:advisory', shipment_id=shipment_id)
+
+    advisory.declarant_recommendation = recommendation or None
+    advisory.declarant_note = note or None
+    advisory.save(update_fields=['declarant_recommendation', 'declarant_note'])
+
+    if recommendation:
+        label_map = {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL', 'land': 'Land Freight'}
+        mode_label = label_map.get(recommendation, recommendation.upper())
+        try:
+            from apps.notifications.utils import create_notification
+            create_notification(
+                recipient=shipment.consignee,
+                shipment=shipment,
+                notification_type='status_update',
+                title=f'Declarant Advisory — {shipment.hawb_number}',
+                message=(
+                    f'Your declarant recommends {mode_label} for your shipment. '
+                    f'{note}' if note else f'Your declarant recommends {mode_label} for your shipment.'
+                ),
+            )
+        except Exception:
+            pass
+        messages.success(request, f'Advisory saved — {mode_label} recommended to consignee.')
+    else:
+        messages.success(request, 'Declarant advisory cleared.')
+
+    return redirect('computation:advisory', shipment_id=shipment_id)

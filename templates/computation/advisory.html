@@ -101,12 +101,10 @@
                     {% endif %}
                 </div>
                 <select name="urgency_level" class="form-input" style="border-color:#166534;">
-                    <option value="normal" {% if auto_data.urgency_level != 'urgent' %}selected{% endif %}>
-                        Normal
-                    </option>
-                    <option value="urgent" {% if auto_data.urgency_level == 'urgent' %}selected{% endif %}>
-                        ⚡ Urgent
-                    </option>
+                    <option value="standard" {% if auto_data.urgency_level in 'standard,normal' %}selected{% endif %}>Standard</option>
+                    <option value="priority" {% if auto_data.urgency_level == 'priority' %}selected{% endif %}>⏩ Priority</option>
+                    <option value="urgent"   {% if auto_data.urgency_level == 'urgent' %}selected{% endif %}>⚡ Urgent</option>
+                    <option value="rush"     {% if auto_data.urgency_level == 'rush' %}selected{% endif %}>🚨 Rush / Time-Critical</option>
                 </select>
             </div>
             <div class="form-group">
@@ -345,7 +343,152 @@
         </div>
         {% endif %}
 
+        {% if existing %}
+        <!-- ── Declarant Advisory Picker ───────────────────────────────────── -->
+        <div class="card" style="margin-top:20px;">
+            <p class="card-title" style="margin-bottom:4px;">Your Advisory to Consignee</p>
+            <p style="color:#64748b; font-size:12px; margin-bottom:18px;">
+                WMCDA recommends <strong style="color:#f1f5f9;">{{ existing.recommended_type|upper }}</strong>.
+                You may confirm this or pick a different mode based on your judgment.
+            </p>
+
+            {% if existing.declarant_recommendation %}
+            <div style="background:#1e3a5f; border:1px solid #2563eb; border-radius:8px;
+                        padding:12px 16px; margin-bottom:16px; display:flex; align-items:center; gap:12px;">
+                <span style="font-size:22px;">
+                    {% if existing.declarant_recommendation == 'air' %}✈️
+                    {% elif existing.declarant_recommendation == 'fcl' %}🚢
+                    {% elif existing.declarant_recommendation == 'land' %}🚛
+                    {% else %}📦{% endif %}
+                </span>
+                <div>
+                    <p style="color:#93c5fd; font-size:10px; font-weight:700; margin:0; text-transform:uppercase; letter-spacing:.05em;">Current Advisory</p>
+                    <p style="color:#f1f5f9; font-size:14px; font-weight:700; margin:2px 0 0;">
+                        {% if existing.declarant_recommendation == 'air' %}Air Freight
+                        {% elif existing.declarant_recommendation == 'lcl' %}LCL — Less Container Load
+                        {% elif existing.declarant_recommendation == 'fcl' %}FCL — Full Container Load
+                        {% elif existing.declarant_recommendation == 'land' %}Land Freight
+                        {% endif %}
+                    </p>
+                    {% if existing.declarant_note %}
+                    <p style="color:#93c5fd; font-size:12px; margin:6px 0 0; font-style:italic;">
+                        "{{ existing.declarant_note }}"
+                    </p>
+                    {% endif %}
+                </div>
+                <!-- Clear form -->
+                <form method="POST" action="{% url 'computation:save_advisory' shipment.id %}" style="margin:0 0 0 auto;">
+                    {% csrf_token %}
+                    <input type="hidden" name="declarant_recommendation" value="">
+                    <input type="hidden" name="declarant_note" value="">
+                    <button type="submit" class="btn btn-secondary"
+                            style="font-size:11px; padding:5px 12px;"
+                            onclick="return confirm('Clear the advisory?');">
+                        Clear
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+            <form method="POST" action="{% url 'computation:save_advisory' shipment.id %}">
+                {% csrf_token %}
+
+                <!-- Shipping type cards -->
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+
+                    <label id="adv-lcl" onclick="highlightAdv('lcl')"
+                           style="border-radius:8px; padding:14px 10px; text-align:center; cursor:pointer;
+                                  border:2px solid {% if existing.declarant_recommendation == 'lcl' %}#2563eb{% else %}#1e293b{% endif %};
+                                  background:{% if existing.declarant_recommendation == 'lcl' %}#172554{% else %}#0f172a{% endif %};">
+                        <input type="radio" name="declarant_recommendation" value="lcl"
+                               {% if existing.declarant_recommendation == 'lcl' %}checked{% endif %}
+                               style="display:none;">
+                        <p style="font-size:20px; margin:0 0 4px;">📦</p>
+                        <p style="color:#f1f5f9; font-size:12px; font-weight:600; margin:0;">LCL</p>
+                        <p style="color:#64748b; font-size:10px; margin:2px 0 0;">Score: {{ existing.lcl_score|floatformat:3 }}</p>
+                    </label>
+
+                    <label id="adv-fcl" onclick="highlightAdv('fcl')"
+                           style="border-radius:8px; padding:14px 10px; text-align:center; cursor:pointer;
+                                  border:2px solid {% if existing.declarant_recommendation == 'fcl' %}#2563eb{% else %}#1e293b{% endif %};
+                                  background:{% if existing.declarant_recommendation == 'fcl' %}#172554{% else %}#0f172a{% endif %};">
+                        <input type="radio" name="declarant_recommendation" value="fcl"
+                               {% if existing.declarant_recommendation == 'fcl' %}checked{% endif %}
+                               style="display:none;">
+                        <p style="font-size:20px; margin:0 0 4px;">🚢</p>
+                        <p style="color:#f1f5f9; font-size:12px; font-weight:600; margin:0;">FCL</p>
+                        <p style="color:#64748b; font-size:10px; margin:2px 0 0;">Score: {{ existing.fcl_score|floatformat:3 }}</p>
+                    </label>
+
+                    <label id="adv-air" onclick="highlightAdv('air')"
+                           style="border-radius:8px; padding:14px 10px; text-align:center; cursor:pointer;
+                                  border:2px solid {% if existing.declarant_recommendation == 'air' %}#2563eb{% else %}#1e293b{% endif %};
+                                  background:{% if existing.declarant_recommendation == 'air' %}#172554{% else %}#0f172a{% endif %};">
+                        <input type="radio" name="declarant_recommendation" value="air"
+                               {% if existing.declarant_recommendation == 'air' %}checked{% endif %}
+                               style="display:none;">
+                        <p style="font-size:20px; margin:0 0 4px;">✈️</p>
+                        <p style="color:#f1f5f9; font-size:12px; font-weight:600; margin:0;">Air Freight</p>
+                        <p style="color:#64748b; font-size:10px; margin:2px 0 0;">Score: {{ existing.air_score|floatformat:3 }}</p>
+                    </label>
+
+                    <label id="adv-land" onclick="highlightAdv('land')"
+                           style="border-radius:8px; padding:14px 10px; text-align:center; cursor:pointer;
+                                  border:2px solid {% if existing.declarant_recommendation == 'land' %}#2563eb{% else %}#1e293b{% endif %};
+                                  background:{% if existing.declarant_recommendation == 'land' %}#172554{% else %}#0f172a{% endif %};">
+                        <input type="radio" name="declarant_recommendation" value="land"
+                               {% if existing.declarant_recommendation == 'land' %}checked{% endif %}
+                               style="display:none;">
+                        <p style="font-size:20px; margin:0 0 4px;">🚛</p>
+                        <p style="color:#f1f5f9; font-size:12px; font-weight:600; margin:0;">Land Freight</p>
+                        <p style="color:#64748b; font-size:10px; margin:2px 0 0;">Score: {{ existing.land_score|floatformat:3 }}</p>
+                    </label>
+
+                </div>
+
+                <!-- Note -->
+                <div class="form-group">
+                    <label class="form-label">Note to Consignee <span style="color:#64748b; font-weight:400;">(optional)</span></label>
+                    <textarea name="declarant_note" class="form-input" rows="3"
+                              placeholder="e.g. Air freight is recommended given the urgency and cargo value. Sea freight may cause delays."
+                              >{{ existing.declarant_note|default:'' }}</textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width:100%;">
+                    Save Advisory
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+function highlightAdv(type) {
+    var types = ['lcl', 'fcl', 'air', 'land'];
+    types.forEach(function(t) {
+        var el = document.getElementById('adv-' + t);
+        if (!el) return;
+        if (t === type) {
+            el.style.borderColor  = '#2563eb';
+            el.style.background   = '#172554';
+        } else {
+            el.style.borderColor  = '#1e293b';
+            el.style.background   = '#0f172a';
+        }
+    });
+    // Check the hidden radio
+    var radio = document.querySelector('input[name="declarant_recommendation"][value="' + type + '"]');
+    if (radio) radio.checked = true;
+}
+// Highlight already-selected on load
+(function() {
+    var checked = document.querySelector('input[name="declarant_recommendation"]:checked');
+    if (checked) highlightAdv(checked.value);
+})();
+</script>
+{% endblock %}
 
 {% endblock %}

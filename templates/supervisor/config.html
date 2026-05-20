@@ -25,6 +25,12 @@
                 <p style="color:#64748b; font-size:11px; margin-top:4px;">
                     Used in all duty computations.
                 </p>
+                {% with m=config_meta.exchange_rate %}{% if m and m.updated_by %}
+                <p style="color:#475569; font-size:11px; margin-top:2px;">
+                    Last updated by <strong style="color:#64748b;">{{ m.updated_by.get_full_name|default:m.updated_by.username }}</strong>
+                    on {{ m.updated_at|date:"M d, Y H:i" }}
+                </p>
+                {% endif %}{% endwith %}
             </div>
             <div class="form-group">
                 <label class="form-label">VAT Rate (%)</label>
@@ -34,6 +40,12 @@
                 <p style="color:#64748b; font-size:11px; margin-top:4px;">
                     Standard Philippine VAT is 12%.
                 </p>
+                {% with m=config_meta.vat_rate %}{% if m and m.updated_by %}
+                <p style="color:#475569; font-size:11px; margin-top:2px;">
+                    Last updated by <strong style="color:#64748b;">{{ m.updated_by.get_full_name|default:m.updated_by.username }}</strong>
+                    on {{ m.updated_at|date:"M d, Y H:i" }}
+                </p>
+                {% endif %}{% endwith %}
             </div>
         </div>
         <button type="submit" class="btn btn-primary" style="margin-top:8px;">
@@ -92,6 +104,12 @@
                 </span>
             </p>
             <button type="submit" class="btn btn-primary">Save WMCDA Weights</button>
+            {% with m=config_meta.wmcda_w_cost %}{% if m and m.updated_by %}
+            <p style="color:#475569; font-size:11px; margin:0;">
+                Last updated by <strong style="color:#64748b;">{{ m.updated_by.get_full_name|default:m.updated_by.username }}</strong>
+                on {{ m.updated_at|date:"M d, Y H:i" }}
+            </p>
+            {% endif %}{% endwith %}
         </div>
     </form>
 </div>
