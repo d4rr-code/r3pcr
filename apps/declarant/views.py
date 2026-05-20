@@ -1,8 +1,10 @@
 import datetime
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.http import JsonResponse
 from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.notifications.utils import create_notification
@@ -89,6 +91,52 @@ def dashboard(request):
         'pending_shipments':   pending_list,
     }
     return render(request, 'declarant/dashboard.html', context)
+
+
+# ─── Shipment Preview (JSON for queue modal) ──────────────────────────────────
+
+@login_required
+@declarant_required
+def shipment_preview(request, shipment_id):
+    """Return JSON details for the queue preview modal (pending shipments only)."""
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    # Documents list
+    docs = []
+    for doc in shipment.documents.all():
+        docs.append({
+            'type':  doc.get_document_type_display(),
+            'name':  doc.file.name.split('/')[-1],
+            'url':   doc.file.url,
+        })
+
+    # Line items from DutyComputation if it exists
+    items = []
+    computation = getattr(shipment, 'computation', None)
+    if computation and computation.items_json:
+        try:
+            items = json.loads(computation.items_json)
+        except (ValueError, TypeError):
+            items = []
+
+    data = {
+        'hawb':            shipment.hawb_number,
+        'consignee':       shipment.consignee.get_full_name() or shipment.consignee.username,
+        'import_type':     shipment.get_import_type_display(),
+        'shipment_type':   shipment.get_shipment_type_display() if shipment.shipment_type else None,
+        'urgency':         shipment.urgency,
+        'urgency_label':   shipment.get_urgency_display(),
+        'description':     shipment.description or '',
+        'quantity':        str(shipment.quantity) if shipment.quantity else None,
+        'declared_value':  str(shipment.declared_value) if shipment.declared_value else None,
+        'gross_weight':    str(shipment.gross_weight) if shipment.gross_weight else None,
+        'freight_cost':    str(shipment.freight_cost) if shipment.freight_cost else None,
+        'insurance_cost':  str(shipment.insurance_cost) if shipment.insurance_cost else None,
+        'submitted_at':    shipment.submitted_at.strftime('%b %d, %Y %H:%M'),
+        'documents':       docs,
+        'items':           items,
+    }
+    return JsonResponse(data)
 
 
 # ─── Queue Manager ────────────────────────────────────────────────────────────

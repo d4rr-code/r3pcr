@@ -341,7 +341,17 @@
 
     <!-- Documents List -->
     <div class="card" style="margin-top:16px;">
-        <p class="card-title">Attached Documents</p>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <p class="card-title" style="margin:0;">Attached Documents</p>
+            {% if documents %}
+            <button type="button"
+                    class="btn btn-primary"
+                    style="font-size:10px; padding:5px 12px;"
+                    onclick="startOCR('{% url 'computation:ocr_extract_all' shipment.id %}?next=compute', 'All Documents')">
+                🔍 OCR All Documents
+            </button>
+            {% endif %}
+        </div>
         {% if documents %}
         <div style="display:flex; flex-direction:column; gap:8px;">
             {% for doc in documents %}
@@ -363,13 +373,6 @@
                 </div>
                 <button onclick="loadDoc('{{ doc.file.url }}','{{ doc.get_document_type_display }}')"
                         class="btn btn-secondary" style="font-size:10px; padding:4px 9px;">View</button>
-                {% if doc.document_type in 'invoice,airway_bill,packing_list' %}
-                <button type="button" class="btn btn-primary"
-                        style="font-size:10px; padding:4px 9px;"
-                        onclick="startOCR('{% url 'computation:ocr_extract' shipment.id doc.id %}','{{ doc.get_document_type_display }}')">
-                    OCR
-                </button>
-                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -382,7 +385,15 @@
     {% if ocr_fields %}
     <div class="card" style="margin-top:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <p class="card-title" style="margin:0;">OCR Extracted Fields</p>
+            <div>
+                <p class="card-title" style="margin:0 0 2px;">OCR Extracted Fields</p>
+                <p style="color:#475569; font-size:10px; margin:0;">
+                    Merged from all documents —
+                    <span style="color:#93c5fd;">📄 Invoice</span>
+                    <span style="margin-left:4px; color:#86efac;">✈️ AWB</span>
+                    <span style="margin-left:4px; color:#fbbf24;">📦 Packing</span>
+                </p>
+            </div>
             <button type="button" onclick="fillFromOCR()"
                     class="btn btn-primary" style="font-size:11px; padding:5px 12px;">
                 ↓ Fill Table
@@ -391,11 +402,21 @@
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 12px;">
             {% for key, field in ocr_fields.items %}
             {% if field.value %}
-            <div style="display:flex; align-items:center; gap:6px; font-size:11px; margin-bottom:4px;">
-                <span style="width:8px; height:8px; border-radius:50%; flex-shrink:0;
+            <div style="display:flex; align-items:center; gap:5px; font-size:11px; margin-bottom:4px;">
+                <span style="width:7px; height:7px; border-radius:50%; flex-shrink:0;
                     background:{% if field.confidence >= 0.85 %}#22c55e{% elif field.confidence >= 0.70 %}#f59e0b{% else %}#ef4444{% endif %};"></span>
-                <span style="color:#64748b;">{{ key|title|cut:"_" }}:</span>
-                <span style="color:#f1f5f9; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ field.value }}</span>
+                <span style="color:#64748b; flex-shrink:0;">{{ key|title|cut:"_"|cut:" " }}:</span>
+                <span style="color:#f1f5f9; font-weight:500; overflow:hidden;
+                             text-overflow:ellipsis; white-space:nowrap;"
+                      title="{{ field.value }}">{{ field.value }}</span>
+                {% if field.source %}
+                <span style="font-size:9px; padding:1px 5px; border-radius:8px; flex-shrink:0;
+                    {% if field.source == 'invoice' %}background:#172554; color:#93c5fd;
+                    {% elif field.source == 'airway_bill' %}background:#052e16; color:#86efac;
+                    {% else %}background:#422006; color:#fbbf24;{% endif %}">
+                    {{ field.source|cut:"_"|title|truncatechars:4 }}
+                </span>
+                {% endif %}
             </div>
             {% endif %}
             {% endfor %}

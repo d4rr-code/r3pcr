@@ -48,9 +48,37 @@
             </div>
         </div>
 
-        <div style="margin-bottom:16px;">
+        <div style="margin-bottom:14px;">
             <p style="color:#64748b; font-size:11px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.05em;">Description</p>
             <p id="pm-desc" style="color:#94a3b8; font-size:13px; margin:0; line-height:1.5;"></p>
+        </div>
+
+        <!-- Extra fields from AJAX -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; margin-bottom:14px;">
+            <div>
+                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Declared Shipping Mode</p>
+                <p id="pm-mode" style="color:#f1f5f9; font-size:13px; margin:0;">—</p>
+            </div>
+            <div>
+                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Quantity</p>
+                <p id="pm-quantity" style="color:#f1f5f9; font-size:13px; margin:0;">—</p>
+            </div>
+            <div>
+                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Freight Cost</p>
+                <p id="pm-freight" style="color:#f1f5f9; font-size:13px; margin:0;">—</p>
+            </div>
+            <div>
+                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Insurance Cost</p>
+                <p id="pm-insurance" style="color:#f1f5f9; font-size:13px; margin:0;">—</p>
+            </div>
+        </div>
+
+        <!-- Line Items -->
+        <div style="margin-bottom:14px; padding:12px 14px; background:#0f172a; border-radius:8px;">
+            <p style="color:#64748b; font-size:11px; margin:0 0 8px; text-transform:uppercase; letter-spacing:.05em;">Line Items</p>
+            <div id="pm-items">
+                <p style="color:#475569; font-size:12px; margin:0; font-style:italic;">Loading…</p>
+            </div>
         </div>
 
         <div style="margin-bottom:20px; padding:12px 14px; background:#0f172a; border-radius:8px;">
@@ -230,7 +258,8 @@
                             data-weight="{{ s.gross_weight|default:'' }}"
                             data-desc="{{ s.description|default:'No description provided.' }}"
                             data-docs="{{ s.documents.count }}"
-                            data-claimurl="{% url 'declarant:claim' s.id %}">
+                            data-claimurl="{% url 'declarant:claim' s.id %}"
+                            data-previewurl="{% url 'declarant:preview' s.id %}">
                         Preview
                     </button>
                 </td>
@@ -506,10 +535,11 @@ function updatePendingCount(n) {
 function showPreview(btn) {
     var modal = document.getElementById('preview-modal');
 
-    document.getElementById('pm-hawb').textContent       = btn.dataset.hawb;
-    document.getElementById('pm-submitted').textContent  = 'Submitted ' + btn.dataset.submitted;
-    document.getElementById('pm-consignee').textContent  = btn.dataset.consignee;
-    document.getElementById('pm-type').textContent       = btn.dataset.importtype;
+    // ── Immediate fill from data-attrs ──────────────────────────────────────
+    document.getElementById('pm-hawb').textContent      = btn.dataset.hawb;
+    document.getElementById('pm-submitted').textContent = 'Submitted ' + btn.dataset.submitted;
+    document.getElementById('pm-consignee').textContent = btn.dataset.consignee;
+    document.getElementById('pm-type').textContent      = btn.dataset.importtype;
 
     var urgEl = document.getElementById('pm-urgency');
     var urgMap = {
@@ -530,12 +560,10 @@ function showPreview(btn) {
     dueEl.textContent = btn.dataset.due + ' — ' + btn.dataset.duelabel;
     dueEl.style.color = dueColor;
 
-    var valEl = document.getElementById('pm-value');
-    valEl.textContent = btn.dataset.value ? 'USD ' + parseFloat(btn.dataset.value).toLocaleString() : '—';
-
-    var wtEl = document.getElementById('pm-weight');
-    wtEl.textContent = btn.dataset.weight ? btn.dataset.weight + ' kg' : '—';
-
+    document.getElementById('pm-value').textContent =
+        btn.dataset.value ? 'USD ' + parseFloat(btn.dataset.value).toLocaleString() : '—';
+    document.getElementById('pm-weight').textContent =
+        btn.dataset.weight ? btn.dataset.weight + ' kg' : '—';
     document.getElementById('pm-desc').textContent = btn.dataset.desc;
 
     var docsCount = parseInt(btn.dataset.docs) || 0;
@@ -544,10 +572,77 @@ function showPreview(btn) {
             ? docsCount + ' document' + (docsCount !== 1 ? 's' : '') + ' attached'
             : 'No documents uploaded yet.';
 
+    // Reset AJAX fields
+    document.getElementById('pm-mode').textContent      = '—';
+    document.getElementById('pm-quantity').textContent  = '—';
+    document.getElementById('pm-freight').textContent   = '—';
+    document.getElementById('pm-insurance').textContent = '—';
+    document.getElementById('pm-items').innerHTML =
+        '<p style="color:#475569; font-size:12px; margin:0; font-style:italic;">Loading…</p>';
+
     document.getElementById('pm-claim-form').action = btn.dataset.claimurl;
 
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+
+    // ── Fetch full details from server ───────────────────────────────────────
+    if (!btn.dataset.previewurl) return;
+    fetch(btn.dataset.previewurl)
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            document.getElementById('pm-mode').textContent =
+                d.shipment_type || 'Not yet declared';
+            document.getElementById('pm-quantity').textContent =
+                d.quantity ? d.quantity + ' units' : '—';
+            document.getElementById('pm-freight').textContent =
+                d.freight_cost ? 'USD ' + parseFloat(d.freight_cost).toLocaleString() : '—';
+            document.getElementById('pm-insurance').textContent =
+                d.insurance_cost ? 'USD ' + parseFloat(d.insurance_cost).toLocaleString() : '—';
+
+            // Line items
+            var itemsEl = document.getElementById('pm-items');
+            if (d.items && d.items.length > 0) {
+                var rows = d.items.map(function(it) {
+                    var desc = it.description || it.desc || '—';
+                    var qty  = it.quantity || it.qty || '—';
+                    var unit = it.unit_price != null ? 'USD ' + parseFloat(it.unit_price).toLocaleString() : '—';
+                    var amt  = it.amount != null ? 'USD ' + parseFloat(it.amount).toLocaleString() : '—';
+                    return '<tr style="border-top:1px solid #1e293b;">' +
+                        '<td style="padding:7px 10px; color:#e2e8f0; font-size:12px;">' + desc + '</td>' +
+                        '<td style="padding:7px 10px; color:#94a3b8; font-size:12px; text-align:center;">' + qty + '</td>' +
+                        '<td style="padding:7px 10px; color:#94a3b8; font-size:12px; text-align:right;">' + unit + '</td>' +
+                        '<td style="padding:7px 10px; color:#94a3b8; font-size:12px; text-align:right;">' + amt + '</td>' +
+                        '</tr>';
+                }).join('');
+                itemsEl.innerHTML =
+                    '<table style="width:100%; border-collapse:collapse;">' +
+                    '<thead><tr style="background:#0a0f1a;">' +
+                    '<th style="padding:7px 10px; text-align:left; color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:.04em;">Description</th>' +
+                    '<th style="padding:7px 10px; text-align:center; color:#64748b; font-size:10px; text-transform:uppercase;">Qty</th>' +
+                    '<th style="padding:7px 10px; text-align:right; color:#64748b; font-size:10px; text-transform:uppercase;">Unit Price</th>' +
+                    '<th style="padding:7px 10px; text-align:right; color:#64748b; font-size:10px; text-transform:uppercase;">Amount</th>' +
+                    '</tr></thead>' +
+                    '<tbody>' + rows + '</tbody></table>';
+            } else {
+                itemsEl.innerHTML =
+                    '<p style="color:#475569; font-size:12px; margin:0; font-style:italic;">' +
+                    'No line items yet — available after ECDT computation.</p>';
+            }
+
+            // Update docs section with linked list
+            if (d.documents && d.documents.length > 0) {
+                var docLinks = d.documents.map(function(doc) {
+                    return '<a href="' + doc.url + '" target="_blank" ' +
+                        'style="color:#3b82f6; font-size:12px; display:block; margin-bottom:4px; text-decoration:none;">' +
+                        '📄 ' + doc.type + '</a>';
+                }).join('');
+                document.getElementById('pm-docs').innerHTML = docLinks;
+            }
+        })
+        .catch(function() {
+            document.getElementById('pm-items').innerHTML =
+                '<p style="color:#ef4444; font-size:12px; margin:0;">Failed to load details.</p>';
+        });
 }
 
 function closePreview() {

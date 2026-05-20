@@ -448,6 +448,39 @@
                 by {{ advisory.computed_by.get_full_name|default:advisory.computed_by.username }}
                 {% endif %}
             </div>
+
+            {% if advisory.declarant_recommendation %}
+            <div style="margin-top:14px; padding:14px 16px; border-radius:10px;
+                        background:#0d2237; border:2px solid #2563eb;">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                    <span style="font-size:22px;">
+                        {% if advisory.declarant_recommendation == 'air' %}✈️
+                        {% elif advisory.declarant_recommendation == 'fcl' %}🚢
+                        {% elif advisory.declarant_recommendation == 'land' %}🚛
+                        {% else %}📦{% endif %}
+                    </span>
+                    <div>
+                        <p style="font-size:10px; font-weight:700; color:#93c5fd; margin:0;
+                                  text-transform:uppercase; letter-spacing:.05em;">Declarant's Advisory</p>
+                        <p style="font-size:14px; font-weight:700; color:#f1f5f9; margin:2px 0 0;">
+                            {% if advisory.declarant_recommendation == 'air' %}Air Freight
+                            {% elif advisory.declarant_recommendation == 'lcl' %}LCL — Less Container Load
+                            {% elif advisory.declarant_recommendation == 'fcl' %}FCL — Full Container Load
+                            {% elif advisory.declarant_recommendation == 'land' %}Land Freight
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                {% if advisory.declarant_note %}
+                <p style="color:#93c5fd; font-size:12px; margin:8px 0 0; line-height:1.5;
+                           padding:8px 12px; background:rgba(37,99,235,0.15); border-radius:6px;
+                           border-left:3px solid #2563eb; font-style:italic;">
+                    "{{ advisory.declarant_note }}"
+                </p>
+                {% endif %}
+            </div>
+            {% endif %}
+
         </div>
 
         {% else %}
