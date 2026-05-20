@@ -3,6 +3,9 @@ from PIL import Image
 from pdf2image import convert_from_path
 import re
 import os
+import io
+import base64
+import requests as http_requests
 
 
 def _w(value, conf=0.85):
@@ -12,26 +15,66 @@ def _w(value, conf=0.85):
     return {'value': '', 'confidence': 0.0}
 
 
+def _vision_api_call(api_key, image_bytes):
+    """Send raw image bytes to Google Vision API. Returns extracted text string."""
+    url = f'https://vision.googleapis.com/v1/images:annotate?key={api_key}'
+    payload = {
+        'requests': [{
+            'image': {'content': base64.b64encode(image_bytes).decode('utf-8')},
+            'features': [{'type': 'DOCUMENT_TEXT_DETECTION'}],
+        }]
+    }
+    try:
+        resp = http_requests.post(url, json=payload, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data['responses'][0].get('fullTextAnnotation', {}).get('text', '')
+        else:
+            print(f"Vision API error {resp.status_code}: {resp.text[:300]}")
+            return ''
+    except Exception as e:
+        print(f"Vision API request error: {e}")
+        return ''
+
+
 def extract_text_from_file(file_path):
+    """
+    Extract text from a document file using Google Vision API (preferred)
+    or Tesseract OCR (fallback when GOOGLE_VISION_API_KEY is not set).
+    """
     ext = os.path.splitext(file_path)[1].lower()
+    api_key = os.getenv('GOOGLE_VISION_API_KEY', '')
+
     try:
         if ext == '.pdf':
-            # POPPLER_PATH env var: set on Windows dev, leave unset on Linux/Railway
             poppler_path = os.getenv('POPPLER_PATH') or None
-            images = convert_from_path(
-                file_path,
-                dpi=300,
-                poppler_path=poppler_path,
-            )
-            text = ''
-            for image in images:
-                text += pytesseract.image_to_string(image)
-            return text
+            images = convert_from_path(file_path, dpi=200, poppler_path=poppler_path)
+
+            if api_key:
+                # ── Google Vision path ──────────────────────────────────────────
+                full_text = ''
+                for image in images:
+                    buf = io.BytesIO()
+                    image.save(buf, format='JPEG')
+                    full_text += _vision_api_call(api_key, buf.getvalue()) + '\n'
+                return full_text
+            else:
+                # ── Tesseract fallback ─────────────────────────────────────────
+                full_text = ''
+                for image in images:
+                    full_text += pytesseract.image_to_string(image)
+                return full_text
+
         elif ext in ['.jpg', '.jpeg', '.png']:
-            image = Image.open(file_path)
-            return pytesseract.image_to_string(image)
+            if api_key:
+                with open(file_path, 'rb') as f:
+                    return _vision_api_call(api_key, f.read())
+            else:
+                image = Image.open(file_path)
+                return pytesseract.image_to_string(image)
         else:
             return ''
+
     except Exception as e:
         print(f"OCR extraction error: {e}")
         return ''
