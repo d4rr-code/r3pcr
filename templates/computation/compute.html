@@ -536,23 +536,70 @@
         </div>
     </div>
 
-    <!-- ── Port / Terminal Charges ──────────────────────────────────── -->
+    <!-- ── Port / Terminal / Transport Charges (per shipment type) ─── -->
     <div style="margin-top:10px; padding-top:10px; border-top:1px solid #1e293b;">
         <p style="color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;
                   letter-spacing:0.5px; margin:0 0 8px;">
-            Port / Terminal Charges
+            {% if shipment.shipment_type == 'air' %}
+                Air Terminal Charges
+            {% elif shipment.shipment_type == 'land' %}
+                Transport / Handling Charges
+            {% else %}
+                Port / Terminal Charges
+            {% endif %}
             <span style="color:#334155; font-weight:400; text-transform:none; letter-spacing:0;">
                 — declarant inputs (PHP)
             </span>
         </p>
-        <div style="display:grid; grid-template-columns:1fr 1fr{% if shipment.shipment_type == 'fcl' %} 1fr{% endif %}; gap:10px;">
+
+        {% if shipment.shipment_type == 'air' %}
+        <!-- ── AIR: NAIA / air terminal fees ─────────────────────── -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div>
+                <label class="form-label" style="font-size:11px;">Air Terminal Fee (PHP)
+                    <span style="color:#334155; font-weight:400;">e.g. NAIA handling</span>
+                </label>
+                <input type="number" name="arrastre" id="arrastre" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.arrastre|default:'0' }}" oninput="recalcAll()">
+            </div>
+            <div>
+                <label class="form-label" style="font-size:11px;">Airfreight Handling (PHP)
+                    <span style="color:#334155; font-weight:400;">other terminal charges</span>
+                </label>
+                <input type="number" name="wharfage" id="wharfage" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.wharfage|default:'0' }}" oninput="recalcAll()">
+            </div>
+        </div>
+
+        {% elif shipment.shipment_type == 'land' %}
+        <!-- ── LAND: trucking / handling fees ────────────────────── -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div>
+                <label class="form-label" style="font-size:11px;">Trucking Fee (PHP)</label>
+                <input type="number" name="arrastre" id="arrastre" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.arrastre|default:'0' }}" oninput="recalcAll()">
+            </div>
+            <div>
+                <label class="form-label" style="font-size:11px;">Handling Fee (PHP)</label>
+                <input type="number" name="wharfage" id="wharfage" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.wharfage|default:'0' }}" oninput="recalcAll()">
+            </div>
+        </div>
+
+        {% elif shipment.shipment_type == 'fcl' %}
+        <!-- ── FCL: arrastre + wharfage + CSF (CSF → BOC only) ───── -->
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
             <div>
                 <label class="form-label" style="font-size:11px;">Arrastre (PHP)</label>
                 <input type="number" name="arrastre" id="arrastre" class="form-input"
                        style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
                        value="{{ existing.arrastre|default:'0' }}" oninput="recalcAll()">
                 <p style="color:#334155; font-size:10px; margin:2px 0 0;">
-                    Ref: 20ft ₱5,496 · 40ft ₱12,608 · LCL ₱5,496
+                    Ref: 20ft ₱5,496 · 40ft ₱12,608
                 </p>
             </div>
             <div>
@@ -561,13 +608,13 @@
                        style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
                        value="{{ existing.wharfage|default:'0' }}" oninput="recalcAll()">
                 <p style="color:#334155; font-size:10px; margin:2px 0 0;">
-                    Ref: 20ft ₱519.35 · 40ft ₱779.05 · LCL ₱519.35
+                    Ref: 20ft ₱519.35 · 40ft ₱779.05
                 </p>
             </div>
-            {% if shipment.shipment_type == 'fcl' %}
             <div>
-                <label class="form-label" style="font-size:11px;">CSF / Container (USD)
-                    <span style="color:#334155; font-weight:400;">FCL only</span>
+                <label class="form-label" style="font-size:11px;">
+                    CSF (USD)
+                    <span style="color:#3b82f6; font-weight:400; font-size:10px;">→ BOC fees</span>
                 </label>
                 <input type="number" name="csf_usd" id="csf_usd" class="form-input"
                        style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
@@ -579,9 +626,7 @@
                     Ref: 20FT = USD 5 · 40FT = USD 10
                 </p>
             </div>
-            {% endif %}
         </div>
-        {% if shipment.shipment_type == 'fcl' %}
         <div style="margin-top:8px;">
             <label class="form-label" style="font-size:11px;">Container Type</label>
             <div style="display:flex; gap:14px; margin-top:5px;">
@@ -597,6 +642,29 @@
                            onchange="onContainerTypeChange('40ft')">
                     40FT
                 </label>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- ── LCL (default sea): arrastre + wharfage only ─────────── -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div>
+                <label class="form-label" style="font-size:11px;">Arrastre (PHP)</label>
+                <input type="number" name="arrastre" id="arrastre" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.arrastre|default:'0' }}" oninput="recalcAll()">
+                <p style="color:#334155; font-size:10px; margin:2px 0 0;">
+                    Ref: ₱5,496
+                </p>
+            </div>
+            <div>
+                <label class="form-label" style="font-size:11px;">Wharfage (PHP)</label>
+                <input type="number" name="wharfage" id="wharfage" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.wharfage|default:'0' }}" oninput="recalcAll()">
+                <p style="color:#334155; font-size:10px; margin:2px 0 0;">
+                    Ref: ₱519.35
+                </p>
             </div>
         </div>
         {% endif %}
@@ -793,20 +861,28 @@
             </div>
         </div>
 
-        <!-- Row 3: port fees + total landed cost + BOC total -->
+        <!-- Row 3: port/transport fees + TLC + BOC total -->
         <div style="display:grid; grid-template-columns:1fr 1fr {% if shipment.shipment_type == 'fcl' %}1fr {% endif %}1.5fr 1.5fr; gap:5px;">
             <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
-                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">Arrastre</p>
+                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">
+                    {% if shipment.shipment_type == 'air' %}Air Terminal
+                    {% elif shipment.shipment_type == 'land' %}Trucking
+                    {% else %}Arrastre{% endif %}
+                </p>
                 <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-arrastre">₱0.00</p>
             </div>
             <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
-                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">Wharfage</p>
+                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">
+                    {% if shipment.shipment_type == 'air' %}Handling
+                    {% elif shipment.shipment_type == 'land' %}Handling
+                    {% else %}Wharfage{% endif %}
+                </p>
                 <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-wharfage">₱0.00</p>
             </div>
             {% if shipment.shipment_type == 'fcl' %}
             <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
-                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">CSF (₱)</p>
-                <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-csf">₱0.00</p>
+                <p style="color:#3b82f6; font-size:9px; margin:0 0 2px;">CSF → BOC</p>
+                <p style="color:#60a5fa; font-size:11px; font-weight:700; margin:0;" id="live-csf">₱0.00</p>
             </div>
             {% endif %}
             <div style="background:#172554; border-radius:6px; padding:5px 8px; text-align:center;
@@ -823,7 +899,7 @@
             </div>
         </div>
         <p style="color:#334155; font-size:10px; margin:5px 0 0; text-align:right;">
-            Live estimate — TLC = D/V + Bank Chg + CUD + BF + CDS + IPF + Port Fees · VAT = 12% × TLC
+            TLC = D/V + Bank Chg + CUD + BF + CDS + IPF + Fees{% if shipment.shipment_type == 'fcl' %} (CSF not in TLC — goes to BOC){% endif %} · VAT = 12% × TLC
         </p>
     </div>
 </div>
@@ -883,6 +959,43 @@
                 </span>
             </div>
 
+            <!-- Port / terminal / transport fees — labels vary by shipment type -->
+            {% if shipment.shipment_type == 'air' %}
+            <div class="summary-row">
+                <span class="summary-label">Air Terminal Fee</span>
+                <span class="summary-value">
+                    {% if result %}₱{{ result.arrastre|floatformat:2 }}
+                    {% elif existing %}₱{{ existing.arrastre|floatformat:2 }}
+                    {% else %}₱0.00{% endif %}
+                </span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Airfreight Handling</span>
+                <span class="summary-value">
+                    {% if result %}₱{{ result.wharfage|floatformat:2 }}
+                    {% elif existing %}₱{{ existing.wharfage|floatformat:2 }}
+                    {% else %}₱0.00{% endif %}
+                </span>
+            </div>
+            {% elif shipment.shipment_type == 'land' %}
+            <div class="summary-row">
+                <span class="summary-label">Trucking Fee</span>
+                <span class="summary-value">
+                    {% if result %}₱{{ result.arrastre|floatformat:2 }}
+                    {% elif existing %}₱{{ existing.arrastre|floatformat:2 }}
+                    {% else %}₱0.00{% endif %}
+                </span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Handling Fee</span>
+                <span class="summary-value">
+                    {% if result %}₱{{ result.wharfage|floatformat:2 }}
+                    {% elif existing %}₱{{ existing.wharfage|floatformat:2 }}
+                    {% else %}₱0.00{% endif %}
+                </span>
+            </div>
+            {% else %}
+            <!-- LCL / FCL: arrastre + wharfage -->
             <div class="summary-row">
                 <span class="summary-label">Arrastre</span>
                 <span class="summary-value">
@@ -891,7 +1004,6 @@
                     {% else %}₱0.00{% endif %}
                 </span>
             </div>
-
             <div class="summary-row">
                 <span class="summary-label">Wharfage</span>
                 <span class="summary-value">
@@ -900,17 +1012,8 @@
                     {% else %}₱0.00{% endif %}
                 </span>
             </div>
-
-            {% if shipment.shipment_type == 'fcl' %}
-            <div class="summary-row">
-                <span class="summary-label">CSF (Container Service Fee)</span>
-                <span class="summary-value">
-                    {% if result %}₱{{ result.csf_php|floatformat:2 }}
-                    {% elif existing %}₱{{ existing.csf_php|floatformat:2 }}
-                    {% else %}₱0.00{% endif %}
-                </span>
-            </div>
             {% endif %}
+            <!-- NOTE: CSF is NOT in TLC — it appears in BOC fees for FCL only -->
 
             <div class="summary-row">
                 <span class="summary-label">CDS (Customs Doc Stamp)</span>
@@ -984,23 +1087,27 @@
                         {% else %}—{% endif %}
                     </span>
                 </div>
+                {% if shipment.shipment_type == 'fcl' %}
+                <div class="boc-row">
+                    <span style="color:#94a3b8;">CSF</span>
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        {% if result %}₱{{ result.csf_php|floatformat:2 }}
+                        {% elif existing %}₱{{ existing.csf_php|floatformat:2 }}
+                        {% else %}₱0.00{% endif %}
+                    </span>
+                </div>
+                {% endif %}
 
                 <div class="boc-row boc-total-row">
                     <span style="color:#60a5fa; font-size:13px;">TOTAL BOC FEES</span>
                     <span style="color:#3b82f6; font-size:15px; font-weight:800;">
                         {% if result %}₱{{ result.boc_total|floatformat:2 }}
-                        {% elif existing %}
-                            {% with boc=existing.total_duties_and_taxes %}
-                            {% if boc %}
-                                ₱{% if existing.customs_duty and existing.vat_amount and existing.ipf %}{{ existing.customs_duty|add:existing.vat_amount|floatformat:2 }}{% else %}—{% endif %}
-                            {% else %}—{% endif %}
-                            {% endwith %}
                         {% else %}—{% endif %}
                     </span>
                 </div>
 
                 <p style="color:#334155; font-size:10px; margin:10px 0 0; text-align:center;">
-                    CUD + VAT + CDS + IPF
+                    CUD + VAT + CDS + IPF{% if shipment.shipment_type == 'fcl' %} + CSF{% endif %}
                 </p>
             </div>
 
@@ -1653,13 +1760,16 @@ function recalcAll() {
     document.getElementById('total-cud').textContent   = _fmt(totalCud);
 
     // Live fee summary
+    // NOTE: CSF is NOT in TLC — it's added to BOC only (FCL only; 0 for other types)
     if (totalDvPhp > 0 || bankChg > 0 || arrastre > 0 || wharfage > 0 || csfPhp > 0) {
-        var liveBf    = getBF(totalDvPhp);
-        var liveIpf   = getIPF(totalDvPhp);
-        var liveTlc   = totalDvPhp + bankChg + totalCud + liveBf + 130 + liveIpf
-                        + arrastre + wharfage + csfPhp;
-        var liveVat   = liveTlc * 0.12;
-        var liveBoc   = totalCud + liveVat + 130 + liveIpf;
+        var liveBf  = getBF(totalDvPhp);
+        var liveIpf = getIPF(totalDvPhp);
+        // TLC excludes CSF
+        var liveTlc = totalDvPhp + bankChg + totalCud + liveBf + 130 + liveIpf
+                      + arrastre + wharfage;
+        var liveVat = liveTlc * 0.12;
+        // BOC includes CSF (only non-zero for FCL)
+        var liveBoc = totalCud + liveVat + 130 + liveIpf + csfPhp;
 
         document.getElementById('live-bf').textContent      = _fmt(liveBf);
         document.getElementById('live-bf-tier').textContent = getBFTier(totalDvPhp);

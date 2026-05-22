@@ -96,17 +96,17 @@ def compute_ecdt(items_data, exchange_rate,
     bank_charges_d  = Decimal(str(bank_charges or 0))
 
     # Total Landed Cost = DV + Bank Charges + CUD + BF + Arrastre + Wharfage + CDS + IPF
-    # VAT is calculated ON TOP of Total Landed Cost, shown separately
+    # NOTE: CSF is NOT included in TLC — it appears only in the BOC fees total (FCL)
     total_landed_cost = round(
         taxable_value + bank_charges_d + customs_duties + brokerage_fee
-        + cds + ipf + arrastre_d + wharfage_d + csf_d, 2
+        + cds + ipf + arrastre_d + wharfage_d, 2
     )
 
     # VAT = 12% of Total Landed Cost (matches client CDT Excel convention)
     vat = round(total_landed_cost * Decimal('0.12'), 2)
 
-    # BOC total = CUD + VAT + CDS + IPF (what gets paid to Customs)
-    boc_total = round(customs_duties + vat + cds + ipf, 2)
+    # BOC total = CUD + VAT + CDS + IPF + CSF (CSF only applies to FCL; 0 for others)
+    boc_total = round(customs_duties + vat + cds + ipf + csf_d, 2)
 
     summary = {
         'taxable_value':    taxable_value,
