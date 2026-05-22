@@ -373,6 +373,127 @@
     </div>
 </div>
 
+<!-- ─── Shipment Info Header (mirrors Excel CDT header block) ─────────────── -->
+<div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px;
+            padding:14px 18px; margin-bottom:16px;">
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <span style="color:#3b82f6; font-size:10px; font-weight:700;
+                     text-transform:uppercase; letter-spacing:0.7px;">
+            📋 Shipment Information
+        </span>
+        <span style="flex:1; height:1px; background:#1e293b; display:block;"></span>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px 24px;">
+
+        <!-- Consignee -->
+        <div>
+            <p style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.5px;margin:0 0 3px;">Consignee</p>
+            <p style="color:#f1f5f9;font-size:13px;font-weight:600;margin:0;line-height:1.3;">
+                {{ shipment.consignee.get_full_name|default:shipment.consignee.username }}
+            </p>
+            {% if shipment.consignee.company_name %}
+            <p style="color:#64748b;font-size:11px;margin:1px 0 0;">
+                {{ shipment.consignee.company_name }}
+            </p>
+            {% endif %}
+        </div>
+
+        <!-- HBL / HAWB -->
+        <div>
+            <p style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.5px;margin:0 0 3px;">HBL / HAWB No.</p>
+            <p style="color:#60a5fa;font-size:13px;font-weight:700;margin:0;font-family:monospace;">
+                {{ shipment.hawb_number }}
+            </p>
+        </div>
+
+        <!-- Shipment Mode -->
+        <div>
+            <p style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.5px;margin:0 0 3px;">Shipment Mode</p>
+            <p style="font-size:13px;font-weight:600;margin:0;
+                      color:{% if shipment.shipment_type == 'air' %}#3b82f6
+                            {% elif shipment.shipment_type == 'fcl' %}#a78bfa
+                            {% elif shipment.shipment_type == 'lcl' or shipment.shipment_type == 'sea' %}#22d3ee
+                            {% elif shipment.shipment_type == 'land' %}#f59e0b
+                            {% else %}#94a3b8{% endif %};">
+                {% if shipment.shipment_type == 'air' %}✈️
+                {% elif shipment.shipment_type == 'fcl' %}📦
+                {% elif shipment.shipment_type == 'lcl' or shipment.shipment_type == 'sea' %}🚢
+                {% elif shipment.shipment_type == 'land' %}🚛{% endif %}
+                {{ shipment.get_shipment_type_display|default:"Not specified" }}
+            </p>
+        </div>
+
+        <!-- Import Type -->
+        <div>
+            <p style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.5px;margin:0 0 3px;">Import Type</p>
+            <p style="color:#f1f5f9;font-size:13px;margin:0;">
+                {{ shipment.get_import_type_display }}
+            </p>
+        </div>
+
+        <!-- Exchange Rate -->
+        <div>
+            <p style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.5px;margin:0 0 3px;">Exchange Rate (USD/PHP)</p>
+            <p style="color:#fbbf24;font-size:13px;font-weight:700;margin:0;">
+                {% if existing and existing.exchange_rate %}
+                    ₱ {{ existing.exchange_rate }}
+                {% elif default_rate %}
+                    ₱ {{ default_rate }}
+                    <span style="color:#475569;font-size:10px;font-weight:400;">(default)</span>
+                {% else %}
+                    <span style="color:#475569;">—</span>
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Gross Weight -->
+        {% if shipment.gross_weight %}
+        <div>
+            <p style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.5px;margin:0 0 3px;">Gross Weight</p>
+            <p style="color:#f1f5f9;font-size:13px;margin:0;">
+                {{ shipment.gross_weight }} kg
+            </p>
+        </div>
+        {% endif %}
+
+        <!-- Date Filed -->
+        <div>
+            <p style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.5px;margin:0 0 3px;">Date Filed</p>
+            <p style="color:#f1f5f9;font-size:13px;margin:0;">
+                {{ shipment.submitted_at|date:"M d, Y" }}
+            </p>
+        </div>
+
+        <!-- Status -->
+        <div>
+            <p style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.5px;margin:0 0 3px;">Status</p>
+            <span class="badge badge-{{ shipment.status }}" style="font-size:11px;">
+                {{ shipment.get_status_display }}
+            </span>
+        </div>
+
+        <!-- BOC Reference (shown only when assigned) -->
+        {% if shipment.boc_reference %}
+        <div>
+            <p style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.5px;margin:0 0 3px;">BOC Reference No.</p>
+            <p style="color:#22c55e;font-size:13px;font-weight:700;margin:0;font-family:monospace;">
+                {{ shipment.boc_reference }}
+            </p>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
 <div class="compute-layout">
 
 <!-- ══════════════════════════════════════════════════════════════════════════
