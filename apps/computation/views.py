@@ -697,179 +697,310 @@ def download_computation(request, shipment_id):
     computation = get_object_or_404(DutyComputation, shipment=shipment)
     items       = computation.get_items()
 
+    from openpyxl.utils import get_column_letter
+
     wb = Workbook()
     ws = wb.active
     ws.title = 'ECDT Summary'
+    ws.sheet_view.showGridLines = False
 
-    header_fill  = PatternFill('solid', fgColor='1E3A5F')
-    summary_fill = PatternFill('solid', fgColor='0F172A')
-    total_fill   = PatternFill('solid', fgColor='172554')
-    hdr_font     = Font(bold=True, color='FFFFFF', size=10)
-    title_font   = Font(bold=True, color='3B82F6', size=14)
-    bold_white   = Font(bold=True, color='FFFFFF', size=10)
-    blue_font    = Font(bold=True, color='3B82F6', size=12)
-    thin         = Side(style='thin', color='334155')
-    border       = Border(left=thin, right=thin, top=thin, bottom=thin)
-    center       = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    right_align  = Alignment(horizontal='right', vertical='center')
+    # ── Style helpers ─────────────────────────────────────────────────────────
+    NAVY   = PatternFill('solid', fgColor='1E3A5F')
+    YELLOW = PatternFill('solid', fgColor='FFF9C4')
+    YELL2  = PatternFill('solid', fgColor='FFFF99')
 
-    # 14 columns: #, Desc, EXW, Freight, Ins, D/V$, D/V₱, HS Code, Rate%, CUD₱, GW, NW, QTY, PKGS
-    ws.merge_cells('A1:N1')
-    ws['A1'] = 'R3-PCR — ECDT Pre-Clearance Computation Summary'
-    ws['A1'].font = title_font
-    ws['A1'].alignment = center
+    def _sd(style='thin', color='BBBBBB'):
+        return Side(style=style, color=color)
 
-    _consignee_name = shipment.consignee.get_full_name() or shipment.consignee.username
-    _company        = shipment.consignee.company_name or ''
-    _mode_label     = shipment.get_shipment_type_display() if shipment.shipment_type else '—'
-    _import_label   = shipment.get_import_type_display()
-    _date_filed     = shipment.submitted_at.strftime('%b %d, %Y') if shipment.submitted_at else '—'
+    T_BRD = Border(left=_sd(), right=_sd(), top=_sd(), bottom=_sd())
+    DBL   = Border(top=_sd('thin', '000000'), bottom=_sd('double', '000000'))
+    THCK  = Border(top=_sd('medium', '000000'), bottom=_sd('medium', '000000'),
+                   left=_sd(), right=_sd())
 
-    ws.merge_cells('A2:N2')
-    ws['A2'] = (
-        f'Shipment Ref: {shipment.hawb_number}  |  '
-        f'Consignee: {_consignee_name}'
-        + (f' ({_company})' if _company else '')
-        + f'  |  Exchange Rate: ₱{float(computation.exchange_rate):.4f}  |  '
-        f'Mode: {_mode_label}  |  Import: {_import_label}  |  Date: {_date_filed}'
-    )
-    ws['A2'].font = Font(color='94A3B8', size=9)
-    ws['A2'].alignment = center
+    _c = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    _r = Alignment(horizontal='right',  vertical='center')
+    _l = Alignment(horizontal='left',   vertical='center', wrap_text=True)
 
-    headers = [
-        '#', 'Description', 'EXW/FOB\n(USD)', 'Freight\n(USD)',
-        'Insurance\n(USD)', 'D/V\n(USD)', 'D/V\n(PHP)',
-        'HS Code', 'Rate %', 'CUD\n(PHP)', 'GW\n(kg)', 'NW\n(kg)', 'QTY', 'PKGS',
-    ]
-
-    for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=4, column=col, value=h)
-        cell.font      = hdr_font
-        cell.fill      = header_fill
-        cell.border    = border
-        cell.alignment = center
-
-    ws.row_dimensions[4].height = 32
-
-    for i, item in enumerate(items, 1):
-        row  = 4 + i
-        # Per-item HS code — use stored value or fall back to computation-level
-        hs_code_display = item.get('hs_code_id', '')
-        if hs_code_display:
-            try:
-                from apps.shipments.models import HSCode as _HSCode
-                _hso = _HSCode.objects.get(id=hs_code_display)
-                hs_code_display = _hso.code
-            except Exception:
-                hs_code_display = str(hs_code_display)
-        else:
-            hs_code_display = computation.hs_code.code if computation.hs_code else '—'
-
-        data = [
-            item.get('no', i),
-            item.get('description', ''),
-            item.get('exw', 0),
-            item.get('item_freight', 0),
-            item.get('item_insurance', 0),
-            item.get('dv_usd', 0),
-            item.get('dv_php', 0),
-            hs_code_display,
-            item.get('duty_rate', float(computation.duty_rate)),
-            item.get('cud', 0),
-            item.get('gw', ''),
-            item.get('nw', ''),
-            item.get('quantity', ''),
-            item.get('pkgs', ''),
-        ]
-        for col, val in enumerate(data, 1):
-            cell = ws.cell(row=row, column=col, value=val)
-            cell.border    = border
-            cell.alignment = right_align if col > 2 else Alignment(vertical='center')
-            if col in (3, 4, 5, 6):   cell.number_format = '#,##0.00'
-            elif col in (7, 10):       cell.number_format = '₱#,##0.00'
-            elif col == 9:             cell.number_format = '0.00"%"'
-
-    summary_row = 4 + len(items) + 2
-    _csf_php = float((computation.csf_usd or 0) * (computation.exchange_rate or 0))
-    _bank    = float(computation.bank_charges or 0)
-    summaries = [
-        ('Taxable Value (Sum D/V PHP)',          computation.dutiable_value,    False),
-        ('Bank Charges',                         _bank,                         False),
-        ('Customs Duties (Total CUD)',           computation.customs_duty,      False),
-        ('Brokerage Fee',                        computation.brokerage_fee,     False),
-        ('Arrastre',                             computation.arrastre,          False),
-        ('Wharfage',                             computation.wharfage,          False),
-        ('CSF (Container Service Fee)',          _csf_php,                      False),
-        ('Customs Documentary Stamp (CDS)',      130,                           False),
-        ('Import Processing Fee (IPF)',          computation.ipf,               False),
-        ('TOTAL LANDED COST',                    computation.total_landed_cost, True),
-        ('VAT (12% of Total Landed Cost)',       computation.vat_amount,        False),
-    ]
-
-    # BOC box (right side) — starts 2 cols right of summary label/value
-    boc_summaries = [
-        ('BOC: Customs Duties',    computation.customs_duty,      False),
-        ('BOC: VAT (12%)',         computation.vat_amount,        False),
-        ('BOC: CDS',               130,                           False),
-        ('BOC: IPF',               computation.ipf,               False),
-        ('TOTAL BOC FEES',         None,                          True),
-    ]
-    _boc_total = (
-        float(computation.customs_duty  or 0) +
-        float(computation.vat_amount    or 0) +
-        130 +
-        float(computation.ipf           or 0)
-    )
-
-    ws.cell(row=summary_row - 1, column=9, value='ECDT SUMMARY').font = bold_white
-    ws.cell(row=summary_row - 1, column=12, value='BOC FEES').font = bold_white
-
-    for r_offset, (label, value, is_total) in enumerate(summaries):
-        row        = summary_row + r_offset
-        label_cell = ws.cell(row=row, column=9, value=label)
-        val_data   = float(value) if value is not None else 0
-        value_cell = ws.cell(row=row, column=11, value=val_data)
-        label_cell.border = value_cell.border = border
-        value_cell.number_format = '₱#,##0.00'
-        value_cell.alignment     = right_align
-        if is_total:
-            label_cell.font = value_cell.font = blue_font
-            label_cell.fill = value_cell.fill = total_fill
-        else:
-            label_cell.font  = Font(color='94A3B8', size=10)
-            label_cell.fill  = summary_fill
-            value_cell.font  = Font(color='F1F5F9', size=10)
-            value_cell.fill  = summary_fill
-
-    for r_offset, (label, value, is_total) in enumerate(boc_summaries):
-        row        = summary_row + r_offset
-        label_cell = ws.cell(row=row, column=12, value=label)
-        val_data   = _boc_total if is_total else (float(value) if value is not None else 0)
-        value_cell = ws.cell(row=row, column=14, value=val_data)
-        label_cell.border = value_cell.border = border
-        value_cell.number_format = '₱#,##0.00'
-        value_cell.alignment     = right_align
-        if is_total:
-            label_cell.font = value_cell.font = blue_font
-            label_cell.fill = value_cell.fill = total_fill
-        else:
-            label_cell.font  = Font(color='94A3B8', size=10)
-            label_cell.fill  = summary_fill
-            value_cell.font  = Font(color='F1F5F9', size=10)
-            value_cell.fill  = summary_fill
-
-    from openpyxl.utils import get_column_letter
-    col_widths = [5, 36, 12, 12, 12, 12, 14, 14, 8, 14, 8, 8, 6, 6]
-    for i, w in enumerate(col_widths, 1):
+    # ── Column widths A–N ─────────────────────────────────────────────────────
+    for i, w in enumerate([5, 40, 11, 10, 10, 11, 13, 13, 7, 13, 7, 7, 7, 6], 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
-    note_row = summary_row + max(len(summaries), len(boc_summaries)) + 2
-    ws.merge_cells(f'A{note_row}:N{note_row}')
-    ws[f'A{note_row}'] = (
-        'ESTIMATED COMPUTATION ONLY. Final assessment will be based on BOC/Customs findings. '
-        'Generated by R3-PCR Pre-Clearance DSS.'
+    # ── Data helpers ──────────────────────────────────────────────────────────
+    _cn      = shipment.consignee
+    _co_name = _cn.company_name or _cn.get_full_name() or _cn.username
+    _date_s  = computation.updated_at.strftime('%B %d, %Y') if computation.updated_at else '—'
+    _hbl     = shipment.hawb_number
+    _usdphp  = float(computation.exchange_rate)
+    _gw      = f'{float(shipment.gross_weight):.2f}' if shipment.gross_weight else '—'
+    _desc    = shipment.description or '—'
+    _reg     = shipment.boc_reference or '—'
+    _csf_php = float((computation.csf_usd or 0) * (computation.exchange_rate or 0))
+    _bank    = float(computation.bank_charges or 0)
+    _prep_by = (
+        computation.computed_by.get_full_name() or computation.computed_by.username
+    ) if computation.computed_by else '—'
+
+    def _lbl(r, c, txt):
+        cell = ws.cell(row=r, column=c, value=txt)
+        cell.font = Font(size=9, color='555555')
+        cell.alignment = _l
+
+    def _val(r, c, txt, bold=False, red=False):
+        cell = ws.cell(row=r, column=c, value=txt)
+        cell.font = Font(size=10, bold=bold, color='CC0000' if red else '000000')
+        cell.alignment = _l
+        return cell
+
+    def _mval(r, c1, c2, txt, bold=False, red=False):
+        ws.merge_cells(start_row=r, start_column=c1, end_row=r, end_column=c2)
+        return _val(r, c1, txt, bold=bold, red=red)
+
+    # ── HEADER BLOCK rows 1–6 ─────────────────────────────────────────────────
+    # Row 1: Consignee | Date | Invoice Number
+    _lbl(1, 1, 'Consignee:')
+    _mval(1, 2, 4, _co_name, bold=True)
+    _lbl(1, 6, 'Date:')
+    _val(1, 7, _date_s, bold=True)
+    _lbl(1, 10, 'Invoice Number:')
+    _mval(1, 11, 14, '—')
+
+    # Row 2: Attention | HBL No. (red bold) | Invoice Date
+    _lbl(2, 1, 'Attention:')
+    _lbl(2, 6, 'HBL No.')
+    ws.merge_cells(start_row=2, start_column=7, end_row=2, end_column=9)
+    c = ws.cell(row=2, column=7, value=_hbl)
+    c.font = Font(size=11, bold=True, color='CC0000')
+    c.alignment = _l
+    _lbl(2, 10, 'Invoice Date:')
+    _mval(2, 11, 14, '—')
+
+    # Row 3: CBM | Shipments of
+    _lbl(3, 6, 'CBM')
+    _val(3, 7, '—')
+    _lbl(3, 10, 'Shipments of')
+    _mval(3, 11, 14, _desc)
+
+    # Row 4: ETA | Registry No. | Incoterms (red)
+    _lbl(4, 1, 'ETA')
+    _val(4, 2, '—')
+    _lbl(4, 6, 'Registry No.')
+    _val(4, 7, _reg, bold=(_reg != '—'))
+    _lbl(4, 10, 'Incoterms:')
+    c = ws.cell(row=4, column=11, value='FOB')
+    c.font = Font(size=10, bold=True, color='CC0000')
+    c.alignment = _l
+
+    # Row 5: Port | USD/PHP (underlined) | Gross Weight
+    _lbl(5, 1, 'Port')
+    _val(5, 2, '—')
+    _lbl(5, 6, 'USD/PHP:')
+    c = ws.cell(row=5, column=7, value=_usdphp)
+    c.font = Font(size=10, bold=True, underline='single')
+    c.alignment = _l
+    c.number_format = '0.0000'
+    _lbl(5, 10, 'Gross Weight (Kgs):')
+    _mval(5, 11, 14, _gw, bold=True)
+
+    # Row 6: CFS (red)
+    _lbl(6, 1, 'CFS')
+    c = ws.cell(row=6, column=2, value='—')
+    c.font = Font(size=10, bold=True, color='CC0000')
+    c.alignment = _l
+
+    ws.row_dimensions[7].height = 8   # blank separator
+
+    # ── TABLE HEADERS row 8 ───────────────────────────────────────────────────
+    HDR = 8
+    for col, h in enumerate([
+        '', 'Item Descriptions', 'EXW/FOB\n($)', 'Freight\n($)',
+        'Insurance\n($)', 'D/V\n($)', 'D/V\n(PHP)',
+        'HS Code', 'Rate', 'CUD\n(PHP)', 'GW', 'NW', 'QTY', 'PKGS',
+    ], 1):
+        cell = ws.cell(row=HDR, column=col, value=h)
+        cell.font = Font(bold=True, color='FFFFFF', size=10)
+        cell.fill = NAVY
+        cell.border = T_BRD
+        cell.alignment = _c
+    ws.row_dimensions[HDR].height = 32
+
+    # ── LINE ITEMS ────────────────────────────────────────────────────────────
+    tot = dict(exw=0.0, fr=0.0, ins=0.0, dvusd=0.0, dvphp=0.0, cud=0.0)
+
+    for i, item in enumerate(items, 1):
+        row = HDR + i
+
+        hs_d = item.get('hs_code_id', '')
+        if hs_d:
+            try:
+                from apps.shipments.models import HSCode as _HSCode
+                hs_d = _HSCode.objects.get(id=hs_d).code
+            except Exception:
+                hs_d = str(hs_d)
+        else:
+            hs_d = computation.hs_code.code if computation.hs_code else '—'
+
+        row_data = [
+            i,
+            item.get('description', ''),
+            float(item.get('exw',           0) or 0),
+            float(item.get('item_freight',  0) or 0),
+            float(item.get('item_insurance',0) or 0),
+            float(item.get('dv_usd',        0) or 0),
+            float(item.get('dv_php',        0) or 0),
+            hs_d,
+            float(item.get('duty_rate', float(computation.duty_rate)) or 0),
+            float(item.get('cud',           0) or 0),
+            item.get('gw',       '') or '',
+            item.get('nw',       '') or '',
+            item.get('quantity', '') or '',
+            item.get('pkgs',     '') or '',
+        ]
+
+        tot['exw']   += row_data[2]
+        tot['fr']    += row_data[3]
+        tot['ins']   += row_data[4]
+        tot['dvusd'] += row_data[5]
+        tot['dvphp'] += row_data[6]
+        tot['cud']   += row_data[9]
+
+        for col, val in enumerate(row_data, 1):
+            cell = ws.cell(row=row, column=col, value=val)
+            cell.border    = T_BRD
+            cell.font      = Font(size=10)
+            cell.alignment = _r if col > 2 else _l
+            if col in (3, 4, 5, 6): cell.number_format = '#,##0.00'
+            elif col in (7, 10):    cell.number_format = '#,##0.00'
+            elif col == 9:          cell.number_format = '0"%"'
+
+    # ── TOTAL ROW ─────────────────────────────────────────────────────────────
+    TRW = HDR + len(items) + 1
+    for col, val in enumerate([
+        None, 'TOTAL',
+        tot['exw'], tot['fr'], tot['ins'], tot['dvusd'], tot['dvphp'],
+        None, None, tot['cud'],
+        None, None, None, None,
+    ], 1):
+        cell = ws.cell(row=TRW, column=col, value=val)
+        cell.font   = Font(bold=True, size=10)
+        cell.border = THCK
+        cell.alignment = _r if col > 2 else _l
+        if col in (3, 4, 5, 6): cell.number_format = '#,##0.00'
+        elif col in (7, 10):    cell.number_format = '#,##0.00'
+
+    # "Estimated" italic note under total row
+    ws.merge_cells(start_row=TRW+1, start_column=3, end_row=TRW+1, end_column=5)
+    c = ws.cell(row=TRW+1, column=3, value='Estimated')
+    c.font = Font(size=9, italic=True, color='CC0000')
+    c.alignment = _c
+
+    # ── SUMMARY SECTION ───────────────────────────────────────────────────────
+    SR = TRW + 3
+
+    _boc_total = (
+        float(computation.customs_duty or 0) +
+        float(computation.vat_amount   or 0) +
+        130.0 +
+        float(computation.ipf          or 0)
     )
-    ws[f'A{note_row}'].font = Font(color='64748B', italic=True, size=8)
+
+    left_rows = [
+        ('Taxable Value',         float(computation.dutiable_value    or 0), False),
+        ('Bank Charges',          _bank or None,                             False),
+        ('Customs Duties',        float(computation.customs_duty      or 0), False),
+        ('Brokerage Fee',         float(computation.brokerage_fee     or 0), False),
+        ('Arrastre',              float(computation.arrastre          or 0), False),
+        ('Wharfage',              float(computation.wharfage          or 0), False),
+    ]
+    if _csf_php:
+        left_rows.append(('CSF (Container Service Fee)', _csf_php, False))
+    left_rows += [
+        ('Customs Docs. Stamp',   130.0,                                     False),
+        ('Import Processing Fee', float(computation.ipf               or 0), False),
+        ('Total Landed Cost',     float(computation.total_landed_cost  or 0), True),
+        ('VAT 12%',               float(computation.vat_amount        or 0), False),
+    ]
+
+    right_rows = [
+        ('CUD',   float(computation.customs_duty or 0), False),
+        ('VAT',   float(computation.vat_amount   or 0), False),
+        ('CDS',   130.0,                               False),
+        ('IPF',   float(computation.ipf          or 0), False),
+        ('TOTAL', _boc_total,                          True),
+    ]
+
+    # "SUMMARY;" header label above the right box
+    ws.merge_cells(start_row=SR-1, start_column=11, end_row=SR-1, end_column=14)
+    c = ws.cell(row=SR-1, column=11, value='SUMMARY;')
+    c.font = Font(bold=True, size=10)
+    c.alignment = _l
+
+    # Left: labels F-I merged, value at col J
+    for r_off, (lbl, val, is_tlc) in enumerate(left_rows):
+        r = SR + r_off
+        ws.merge_cells(start_row=r, start_column=6, end_row=r, end_column=9)
+        lc = ws.cell(row=r, column=6, value=lbl)
+        lc.font = Font(bold=is_tlc, size=10)
+        lc.alignment = _l
+
+        disp = val if val is not None else '-'
+        vc = ws.cell(row=r, column=10, value=disp)
+        vc.font = Font(bold=is_tlc, size=10)
+        vc.alignment = _r
+        if isinstance(disp, float):
+            vc.number_format = '#,##0.00'
+        if is_tlc:
+            lc.border = DBL
+            vc.border = DBL
+
+    # Right: labels K-L merged, value M-N merged
+    for r_off, (lbl, val, is_total) in enumerate(right_rows):
+        r = SR + r_off
+        ws.merge_cells(start_row=r, start_column=11, end_row=r, end_column=12)
+        lc = ws.cell(row=r, column=11, value=lbl)
+        lc.font = Font(bold=is_total, size=10)
+        lc.alignment = _l
+        if is_total:
+            lc.fill   = YELLOW
+            lc.border = Border(
+                top=_sd('medium', '000000'), bottom=_sd('medium', '000000'),
+                left=_sd('medium', '000000'),
+            )
+
+        ws.merge_cells(start_row=r, start_column=13, end_row=r, end_column=14)
+        vc = ws.cell(row=r, column=13, value=float(val))
+        vc.number_format = '#,##0.00'
+        vc.alignment = _r
+        vc.font = Font(bold=is_total, size=10)
+        if is_total:
+            vc.fill   = YELLOW
+            vc.border = Border(
+                top=_sd('medium', '000000'), bottom=_sd('medium', '000000'),
+                right=_sd('medium', '000000'),
+            )
+
+    # ── DISCLAIMER (yellow box, 2 lines) ─────────────────────────────────────
+    DR = SR + max(len(left_rows), len(right_rows)) + 1
+    for line_off, txt in enumerate([
+        'ESTIMATED COMPUTATION ONLY.',
+        'FINAL ASSESSMENT WILL BE BASED ON CUSTOMS FINDINGS.',
+    ]):
+        r = DR + line_off
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=8)
+        c = ws.cell(row=r, column=1, value=txt)
+        c.font = Font(bold=True, size=9)
+        c.alignment = _l
+        for col in range(1, 9):
+            ws.cell(row=r, column=col).fill = YELL2
+
+    # ── SIGNATURE LINE ────────────────────────────────────────────────────────
+    SIGR = DR + 3
+    ws.cell(row=SIGR, column=9, value='Prepared By:').font = Font(size=10)
+    ws.cell(row=SIGR, column=9).alignment = _l
+    ws.merge_cells(start_row=SIGR, start_column=10, end_row=SIGR, end_column=11)
+    ws.cell(row=SIGR, column=10, value=_prep_by).font = Font(size=10, italic=True)
+    ws.cell(row=SIGR, column=10).alignment = _l
+    ws.cell(row=SIGR, column=13, value='Conforme:').font = Font(size=10)
+    ws.cell(row=SIGR, column=13).alignment = _l
 
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
