@@ -105,8 +105,10 @@ def compute_ecdt(items_data, exchange_rate,
     # VAT = 12% of Total Landed Cost (matches client CDT Excel convention)
     vat = round(total_landed_cost * Decimal('0.12'), 2)
 
-    # BOC total = CUD + VAT + CDS + IPF + CSF (CSF only applies to FCL; 0 for others)
-    boc_total = round(customs_duties + vat + cds + ipf + csf_d, 2)
+    # BOC total = CUD + VAT + CDS + IPF only.
+    # CSF is a separate port terminal charge — displayed in the summary but NOT
+    # counted in TLC or BOC (matches existing client CDT Excel format).
+    boc_total = round(customs_duties + vat + cds + ipf, 2)
 
     summary = {
         'taxable_value':    taxable_value,
@@ -717,11 +719,19 @@ def download_computation(request, shipment_id):
     ws['A1'].font = title_font
     ws['A1'].alignment = center
 
+    _consignee_name = shipment.consignee.get_full_name() or shipment.consignee.username
+    _company        = shipment.consignee.company_name or ''
+    _mode_label     = shipment.get_shipment_type_display() if shipment.shipment_type else '—'
+    _import_label   = shipment.get_import_type_display()
+    _date_filed     = shipment.submitted_at.strftime('%b %d, %Y') if shipment.submitted_at else '—'
+
     ws.merge_cells('A2:N2')
     ws['A2'] = (
         f'Shipment Ref: {shipment.hawb_number}  |  '
-        f'Consignee: {shipment.consignee.get_full_name() or shipment.consignee.username}  |  '
-        f'Exchange Rate: {float(computation.exchange_rate):.4f}'
+        f'Consignee: {_consignee_name}'
+        + (f' ({_company})' if _company else '')
+        + f'  |  Exchange Rate: ₱{float(computation.exchange_rate):.4f}  |  '
+        f'Mode: {_mode_label}  |  Import: {_import_label}  |  Date: {_date_filed}'
     )
     ws['A2'].font = Font(color='94A3B8', size=9)
     ws['A2'].alignment = center

@@ -1001,8 +1001,9 @@
                 <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-wharfage">₱0.00</p>
             </div>
             {% if shipment.shipment_type == 'fcl' %}
-            <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
-                <p style="color:#3b82f6; font-size:9px; margin:0 0 2px;">CSF → BOC</p>
+            <div style="background:#0c1a2e; border-radius:6px; padding:5px 6px; text-align:center;
+                        border:1px dashed #1e3a5f;">
+                <p style="color:#60a5fa; font-size:9px; margin:0 0 2px;">CSF (separate)</p>
                 <p style="color:#60a5fa; font-size:11px; font-weight:700; margin:0;" id="live-csf">₱0.00</p>
             </div>
             {% endif %}
@@ -1020,7 +1021,7 @@
             </div>
         </div>
         <p style="color:#334155; font-size:10px; margin:5px 0 0; text-align:right;">
-            TLC = D/V + Bank Chg + CUD + BF + CDS + IPF + Fees{% if shipment.shipment_type == 'fcl' %} (CSF not in TLC — goes to BOC){% endif %} · VAT = 12% × TLC
+            TLC = D/V + Bank Chg + CUD + BF + CDS + IPF + Port Fees · VAT = 12% × TLC · BOC = CUD + VAT + CDS + IPF{% if shipment.shipment_type == 'fcl' %} · CSF shown separately{% endif %}
         </p>
     </div>
 </div>
@@ -1134,7 +1135,21 @@
                 </span>
             </div>
             {% endif %}
-            <!-- NOTE: CSF is NOT in TLC — it appears in BOC fees for FCL only -->
+
+            <!-- CSF: shown as a separate informational line — NOT in TLC, NOT in BOC -->
+            {% if shipment.shipment_type == 'fcl' %}
+            <div class="summary-row" style="border:1px dashed #1e3a5f; background:#0c1a2e;">
+                <span class="summary-label" style="color:#60a5fa;">
+                    CSF (Container Service Fee)
+                    <span style="font-size:9px; color:#334155; margin-left:4px;">— separate</span>
+                </span>
+                <span class="summary-value" style="color:#60a5fa;">
+                    {% if result %}₱{{ result.csf_php|floatformat:2 }}
+                    {% elif existing %}₱{{ existing.csf_php|floatformat:2 }}
+                    {% else %}₱0.00{% endif %}
+                </span>
+            </div>
+            {% endif %}
 
             <div class="summary-row">
                 <span class="summary-label">CDS (Customs Doc Stamp)</span>
@@ -1208,17 +1223,6 @@
                         {% else %}—{% endif %}
                     </span>
                 </div>
-                {% if shipment.shipment_type == 'fcl' %}
-                <div class="boc-row">
-                    <span style="color:#94a3b8;">CSF</span>
-                    <span style="color:#f1f5f9; font-weight:600;">
-                        {% if result %}₱{{ result.csf_php|floatformat:2 }}
-                        {% elif existing %}₱{{ existing.csf_php|floatformat:2 }}
-                        {% else %}₱0.00{% endif %}
-                    </span>
-                </div>
-                {% endif %}
-
                 <div class="boc-row boc-total-row">
                     <span style="color:#60a5fa; font-size:13px;">TOTAL BOC FEES</span>
                     <span style="color:#3b82f6; font-size:15px; font-weight:800;">
@@ -1228,8 +1232,13 @@
                 </div>
 
                 <p style="color:#334155; font-size:10px; margin:10px 0 0; text-align:center;">
-                    CUD + VAT + CDS + IPF{% if shipment.shipment_type == 'fcl' %} + CSF{% endif %}
+                    CUD + VAT + CDS + IPF
                 </p>
+                {% if shipment.shipment_type == 'fcl' %}
+                <p style="color:#1e3a5f; font-size:10px; margin:3px 0 0; text-align:center;">
+                    CSF paid separately to port terminal
+                </p>
+                {% endif %}
             </div>
 
             <!-- Exchange rate + computation info -->
@@ -1881,7 +1890,8 @@ function recalcAll() {
     document.getElementById('total-cud').textContent   = _fmt(totalCud);
 
     // Live fee summary
-    // NOTE: CSF is NOT in TLC — it's added to BOC only (FCL only; 0 for other types)
+    // NOTE: CSF is NOT in TLC and NOT in BOC — it is a separate port terminal charge
+    // shown for information only (matches client CDT Excel / PDF format).
     if (totalDvPhp > 0 || bankChg > 0 || arrastre > 0 || wharfage > 0 || csfPhp > 0) {
         var liveBf  = getBF(totalDvPhp);
         var liveIpf = getIPF(totalDvPhp);
@@ -1889,8 +1899,8 @@ function recalcAll() {
         var liveTlc = totalDvPhp + bankChg + totalCud + liveBf + 130 + liveIpf
                       + arrastre + wharfage;
         var liveVat = liveTlc * 0.12;
-        // BOC includes CSF (only non-zero for FCL)
-        var liveBoc = totalCud + liveVat + 130 + liveIpf + csfPhp;
+        // BOC = CUD + VAT + CDS + IPF only (CSF is separate, not in BOC)
+        var liveBoc = totalCud + liveVat + 130 + liveIpf;
 
         document.getElementById('live-bf').textContent      = _fmt(liveBf);
         document.getElementById('live-bf-tier').textContent = getBFTier(totalDvPhp);
