@@ -73,7 +73,7 @@
         <div style="margin-bottom:8px;">
             <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
                 <span style="color:#94a3b8;">
-                    {% if item.shipment_type == 'air' %}✈️ {% elif item.shipment_type == 'sea' or item.shipment_type == 'lcl' or item.shipment_type == 'fcl' %}🚢 {% elif item.shipment_type == 'land' %}🚛 {% endif %}
+                    {% if item.shipment_type == 'air' %}✈️ {% elif item.shipment_type == 'fcl' %}📦 {% elif item.shipment_type == 'sea' or item.shipment_type == 'lcl' %}🚢 {% elif item.shipment_type == 'land' %}🚛 {% endif %}
                     {{ item.label }}
                 </span>
                 <span style="color:#f1f5f9; font-weight:600;">{{ item.count }}</span>
