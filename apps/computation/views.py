@@ -703,23 +703,23 @@ def download_computation(request, shipment_id):
     ws = wb.active
     ws.title = 'ECDT Summary'
 
-    # ── Styles (dark theme — matches system UI) ───────────────────────────────
-    hdr_fill  = PatternFill('solid', fgColor='1E3A5F')   # navy  — table headers
-    sum_fill  = PatternFill('solid', fgColor='0F172A')   # near-black — summary rows
-    tlc_fill  = PatternFill('solid', fgColor='172554')   # deep blue  — TLC / BOC total
-    boc_fill  = PatternFill('solid', fgColor='0C1A2E')   # darker blue — BOC box
-    title_f   = Font(bold=True, color='3B82F6', size=14)
-    sub_f     = Font(color='94A3B8', size=9)
+    # ── Styles (light theme — white bg, dark text, print-friendly) ──────────────
+    hdr_fill  = PatternFill('solid', fgColor='1E3A5F')   # navy  — table headers (white text)
+    sum_fill  = PatternFill('solid', fgColor='F8FAFC')   # very light gray — summary rows
+    tlc_fill  = PatternFill('solid', fgColor='DBEAFE')   # light blue — TLC highlight
+    boc_fill  = PatternFill('solid', fgColor='F0F9FF')   # lightest blue — BOC box rows
+    title_f   = Font(bold=True, color='1E3A5F', size=14)
+    sub_f     = Font(color='475569', size=9)
     hdr_f     = Font(bold=True, color='FFFFFF', size=10)
-    lbl_f     = Font(color='94A3B8', size=10)
-    val_f     = Font(color='F1F5F9', size=10)
-    tlc_f     = Font(bold=True, color='3B82F6', size=12)
-    boc_lbl_f = Font(color='94A3B8', size=10)
-    boc_val_f = Font(color='F1F5F9', size=10)
-    sig_f     = Font(color='64748B', size=9)
+    lbl_f     = Font(color='475569', size=10)
+    val_f     = Font(color='0F172A', size=10)
+    tlc_f     = Font(bold=True, color='1E40AF', size=12)
+    boc_lbl_f = Font(color='1E3A5F', size=10)
+    boc_val_f = Font(bold=True, color='0F172A', size=10)
+    sig_f     = Font(color='475569', size=9)
     note_f    = Font(color='64748B', italic=True, size=8)
 
-    thin_s  = Side(style='thin',   color='334155')
+    thin_s  = Side(style='thin',   color='CBD5E1')
     thk_s   = Side(style='medium', color='1E3A5F')
     brd     = Border(left=thin_s, right=thin_s, top=thin_s, bottom=thin_s)
     boc_brd = Border(left=thk_s,  right=thk_s,  top=thk_s,  bottom=thk_s)
@@ -818,7 +818,7 @@ def download_computation(request, shipment_id):
 
         for col, val in enumerate(row_data, 1):
             cell = ws.cell(row=row, column=col, value=val)
-            cell.border = brd; cell.font = Font(color='F1F5F9', size=10)
+            cell.border = brd; cell.font = Font(color='0F172A', size=10)
             cell.alignment = _r if col > 2 else _l
             if col in (3, 4, 5, 6): cell.number_format = '#,##0.00'
             elif col in (7, 10):    cell.number_format = '#,##0.00'
