@@ -947,6 +947,37 @@
     </div>
     {% endif %}
 
+    <!-- ── DECLARANT ADVISORY ─────────────────────────────────────── -->
+    <div style="margin-top:10px; padding-top:10px; border-top:1px solid #1e293b;">
+        {% if advisory_existing and advisory_existing.declarant_recommendation %}
+        <div style="background:#0f2027; border:1px solid #1e40af; border-radius:8px; padding:12px 14px; display:flex; align-items:flex-start; gap:10px;">
+            <span style="font-size:18px;">👤</span>
+            <div style="flex:1;">
+                <p style="color:#60a5fa; font-size:11px; font-weight:700; margin:0 0 3px; text-transform:uppercase; letter-spacing:0.5px;">Declarant Advisory</p>
+                <p style="color:#f1f5f9; font-size:13px; font-weight:700; margin:0;">
+                    {% if advisory_existing.declarant_recommendation == 'air' %}✈️ Air Freight
+                    {% elif advisory_existing.declarant_recommendation == 'lcl' %}🚢 LCL
+                    {% elif advisory_existing.declarant_recommendation == 'fcl' %}📦 FCL
+                    {% elif advisory_existing.declarant_recommendation == 'land' %}🚛 Land Freight
+                    {% endif %}
+                </p>
+                {% if advisory_existing.declarant_note %}
+                <p style="color:#94a3b8; font-size:11px; margin:4px 0 0;">{{ advisory_existing.declarant_note }}</p>
+                {% endif %}
+            </div>
+            <a href="{% url 'computation:advisory' shipment.id %}"
+               style="font-size:11px; color:#3b82f6; text-decoration:none; white-space:nowrap;">Edit ✎</a>
+        </div>
+        {% else %}
+        <a href="{% url 'computation:advisory' shipment.id %}"
+           style="display:block; text-align:center; padding:10px; background:#1e293b;
+                  border:1px dashed #334155; border-radius:8px; color:#60a5fa;
+                  font-size:12px; font-weight:600; text-decoration:none;">
+            👤 Set Declarant Advisory →
+        </a>
+        {% endif %}
+    </div>
+
 </div>
 {% endif %}
 

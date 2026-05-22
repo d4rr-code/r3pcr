@@ -737,7 +737,11 @@ def hs_code_search(request):
     query   = request.GET.get('q', '')
     results = []
     if query:
-        results = HSCode.objects.filter(description__icontains=query, is_active=True)[:10]
+        from django.db.models import Q
+        results = HSCode.objects.filter(
+            Q(code__icontains=query) | Q(description__icontains=query),
+            is_active=True
+        )[:10]
     return render(request, 'computation/hs_search.html', {
         'query': query, 'results': results,
     })
