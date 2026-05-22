@@ -82,9 +82,11 @@ def extract_text_from_file(file_path):
 
 def _extract_line_items(text):
     """
-    Try to find individual line-item rows from invoice text.
-    Each item row typically has: description + qty + unit price + total amount.
-    Returns a list of dicts: [{description, quantity, unit_price, total_value}, ...]
+    Extract individual line-item rows from commercial invoice / packing list text.
+    Handles real invoice formats where rows may be prefixed with a row number
+    (e.g. "1 PRODUCT NAME 100 PCS 29.61 2,368.60").
+
+    Returns a list of dicts: [{description, quantity, total_value}, ...]
     Returns [] if fewer than 2 distinct items are found (fall back to single-total mode).
     """
     SKIP_WORDS = {
@@ -102,66 +104,68 @@ def _extract_line_items(text):
         'gross weight', 'net weight', 'packing', 'carton', 'certificate',
         'warranty', 'incoterm', 'delivery', 'order', 'contract', 'ref',
     }
-    # Pattern: a line ending with a monetary amount (with optional currency prefix)
-    money_pat = re.compile(
-        r'^(.+?)\s+'                           # description / leading content
-        r'(\d[\d,]*\.?\d*)\s*'                 # quantity or qty column (optional)
-        r'(?:[\d,]+\.?\d*\s+)?'                # unit price (optional)
-        r'(?:USD|EUR|CNY|JPY|GBP|PHP)?\s*'
-        r'([\d,]+\.\d{2})\s*$',               # line total (2 dp)
-        re.IGNORECASE,
-    )
-    # Simpler fallback: line with a description and a 2-dp amount at the end
-    simple_pat = re.compile(
-        r'^(.{4,80}?)\s+([\d,]+\.\d{2})\s*$'
-    )
+
+    # Match any line that ends with a 2-decimal monetary amount.
+    # The lazy (.+?) captures everything before the final amount.
+    line_pat = re.compile(r'^(.+?)\s+([\d,]+\.\d{2})\s*$')
 
     items = []
     for raw_line in text.splitlines():
         line = raw_line.strip()
-        if not line or len(line) < 8:
+        if not line or len(line) < 10:
             continue
         low = line.lower()
+        # Skip lines containing summary / header keywords
         if any(w in low for w in SKIP_WORDS):
             continue
 
-        m = money_pat.match(line) or simple_pat.match(line)
+        m = line_pat.match(line)
         if not m:
             continue
 
-        desc_part = m.group(1).strip()
-        # Skip if description part is mostly numbers / looks like a row number
-        if re.match(r'^[\d\s\.\-]+$', desc_part):
-            continue
-        # Skip if description starts with a number (e.g. "1.00 PC", "3.73 EUR")
-        if re.match(r'^\d', desc_part):
-            continue
-        if len(desc_part) < 4:
-            continue
-        # Skip if description contains known skip words
-        low_desc = desc_part.lower()
-        if any(w in low_desc for w in SKIP_WORDS):
+        desc_raw  = m.group(1).strip()
+        amount_str = m.group(2)
+
+        # Must contain at least one real English word (≥3 letters)
+        if not re.search(r'[A-Za-z]{3,}', desc_raw):
             continue
 
-        amount_str = m.group(m.lastindex) if m.lastindex else None
-        if not amount_str:
+        # Strip leading row number — invoices often prefix rows with "1 ", "2 ", etc.
+        desc_part = re.sub(r'^\d+\s+', '', desc_raw).strip()
+        if len(desc_part) < 4:
             continue
+        if not re.search(r'[A-Za-z]{3,}', desc_part):
+            continue
+
+        # Skip if description is now a known skip keyword
+        if any(w in desc_part.lower() for w in SKIP_WORDS):
+            continue
+
         try:
             amount = float(amount_str.replace(',', ''))
         except (ValueError, TypeError):
             continue
 
-        # Skip suspiciously small amounts (likely unit prices not line totals)
+        # Skip very small amounts (likely unit prices, not line totals)
         if amount < 1.00:
             continue
 
-        # Try to extract quantity from the matched groups
+        # Extract quantity from "(NNN PCS)" / "(NNN PIECES)" patterns in description
         qty = ''
-        if money_pat.match(line) and m.lastindex and m.lastindex >= 2:
-            qty = m.group(2).replace(',', '') if m.group(2) else ''
+        qty_match = re.search(
+            r'\((\d+)\s*(?:PCS|PIECES|UNITS?|CTN|CTNS?|SET|SETS|ROLLS?|BOX|BOXES)\)',
+            desc_part, re.IGNORECASE
+        )
+        if qty_match:
+            qty = qty_match.group(1)
+        else:
+            # Try to pick up a standalone number just before the final amount on the line
+            qty_inline = re.search(r'\s(\d+)\s+[\d,]+\.\d{2}\s*$', line)
+            if qty_inline:
+                qty = qty_inline.group(1)
 
         items.append({
-            'description': desc_part,
+            'description': desc_part[:200],   # cap at 200 chars
             'quantity':    qty,
             'total_value': amount,
         })
@@ -169,10 +173,10 @@ def _extract_line_items(text):
     if len(items) < 2:
         return []
 
-    # Remove the last item if its value equals the sum of all previous items (subtotal row)
+    # Drop trailing item if its value ≈ sum of all preceding items (slipped-through subtotal)
     if len(items) >= 2:
         preceding_sum = sum(it['total_value'] for it in items[:-1])
-        if abs(items[-1]['total_value'] - preceding_sum) < 0.05:
+        if preceding_sum > 0 and abs(items[-1]['total_value'] - preceding_sum) / preceding_sum < 0.01:
             items = items[:-1]
 
     if len(items) < 2:

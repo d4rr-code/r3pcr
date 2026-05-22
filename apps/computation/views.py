@@ -507,15 +507,39 @@ def compute_shipment(request, shipment_id):
 
         # OCR pre-fill
         if not items and request.GET.get('ocr') == '1':
-            ocr = request.session.get('ocr_fields', {})
-            if ocr:
+            _ocr_sid   = request.session.get('ocr_shipment_id')
+            _raw_items = request.session.get('ocr_items',  []) if _ocr_sid == shipment_id else []
+            _ocr_flds  = request.session.get('ocr_fields', {}) if _ocr_sid == shipment_id else {}
+
+            if _raw_items:
+                # ── Multi-item path: one row per extracted line item ──────────
+                items = [
+                    {
+                        'no':             i,
+                        'description':    it.get('description', ''),
+                        'exw':            it.get('total_value', ''),
+                        'quantity':       it.get('quantity', '') or '1',
+                        'hs_code_id':     '',
+                        'duty_rate':      0,
+                        'dv_php':         None,
+                        'cud':            None,
+                        'item_freight':   None,
+                        'item_insurance': None,
+                        'other_charges':  None,
+                        'dv_usd':         None,
+                    }
+                    for i, it in enumerate(_raw_items, 1)
+                ]
+            elif _ocr_flds:
+                # ── Single-total fallback: one row from merged OCR totals ─────
                 def _val(k):
-                    v = ocr.get(k, {})
+                    v = _ocr_flds.get(k, {})
                     return v.get('value', '') if isinstance(v, dict) else v
                 items = [{
                     'no': 1, 'description': _val('description'),
                     'exw': _val('declared_value'),
                     'quantity': _val('total_quantity') or '1',
+                    'hs_code_id': '', 'duty_rate': 0,
                     'dv_php': None, 'cud': None,
                     'item_freight': None, 'item_insurance': None,
                     'other_charges': None, 'dv_usd': None,
@@ -756,35 +780,78 @@ def _lerp(x, x0, x1, y0, y1):
 
 
 def compute_wmcda(weight, volume, value, urgency, distance):
-    # Urgency factor: 0.0 = standard, 0.5 = priority, 1.0 = urgent, 1.3 = rush
+    # ── Urgency factor ────────────────────────────────────────────────────────
+    # 0.0 = standard/normal, 0.5 = priority, 1.0 = urgent, 1.3 = rush
     _uf = {'standard': 0.0, 'normal': 0.0, 'priority': 0.5, 'urgent': 1.0, 'rush': 1.3}.get(urgency, 0.0)
+    _is_time_critical = urgency in ('urgent', 'rush')
+    _urgency_label    = {'standard': 'standard', 'normal': 'standard',
+                         'priority': 'priority', 'urgent': 'urgent', 'rush': 'rush'}.get(urgency, urgency)
 
-    lcl_cost  = _lerp(value, 0, 30000, 0.90, 0.30)
-    fcl_cost  = _lerp(value, 0, 30000, 0.30, 0.92)
-    air_cost  = max(0.20, _lerp(value, 0, 50000, 0.48, 0.32))
-    land_cost = max(0.20, _lerp(distance, 0, 2000, 0.90, 0.28))
+    # ── Land freight viability flag ───────────────────────────────────────────
+    # Land freight is only practical for domestic PH routes or short ASEAN
+    # cross-border routes. International sea/air routes (>1500 km) make land
+    # freight impractical.
+    _land_viable = distance <= 1500
 
-    # Time scores: air benefits most from urgency, sea (LCL/FCL) penalised
+    # ── Cost scores ───────────────────────────────────────────────────────────
+    # LCL: cost scales with CBM. Use volume if provided, else weight as proxy.
+    if volume > 0:
+        lcl_cost = max(0.20, _lerp(volume, 0, 15, 0.92, 0.28))   # ideal <5 CBM, poor >15
+        fcl_cost = min(0.95, _lerp(volume, 0, 15, 0.22, 0.90))   # ideal >15 CBM (fills container)
+    else:
+        lcl_cost = max(0.25, _lerp(weight, 0, 1000, 0.88, 0.35))
+        fcl_cost = _lerp(value, 0, 30000, 0.30, 0.88)
+
+    air_cost  = max(0.15, _lerp(weight, 0, 500, 0.55, 0.18))     # expensive per-kg above 100 kg
+    land_cost = max(0.20, _lerp(distance, 0, 1500, 0.90, 0.30)) if _land_viable else 0.15
+
+    # ── Time scores ───────────────────────────────────────────────────────────
     _base_lcl_time  = max(0.30, _lerp(distance, 0, 2000, 0.72, 0.50))
     _base_fcl_time  = max(0.35, _lerp(distance, 0, 2000, 0.78, 0.55))
     _base_air_time  = 0.62
-    _base_land_time = max(0.30, _lerp(distance, 0, 2000, 0.88, 0.35))
+    _base_land_time = max(0.20, _lerp(distance, 0, 1500, 0.88, 0.28)) if _land_viable else 0.20
 
     lcl_time  = max(0.20, _base_lcl_time  - 0.37 * _uf)   # worse under urgency
     fcl_time  = max(0.25, _base_fcl_time  - 0.30 * _uf)   # worse under urgency
     air_time  = min(0.99, _base_air_time  + 0.34 * _uf)   # better under urgency
-    land_time = max(0.25, _base_land_time - 0.20 * _uf)   # slightly worse
+    land_time = max(0.15, _base_land_time - 0.20 * _uf) if _land_viable else 0.15
 
-    lcl_weight  = _lerp(weight, 0, 2000, 0.92, 0.28)
-    fcl_weight  = _lerp(weight, 0, 2000, 0.18, 0.95)
-    air_weight  = max(0.10, _lerp(weight, 0, 300, 0.95, 0.15))
-    land_weight = _lerp(weight, 0, 2000, 0.70, 0.90)               # trucks handle moderate-heavy well
+    # ── Cargo suitability scores (weight + volume blended) ────────────────────
+    # Physical weight component
+    lcl_w  = _lerp(weight, 0, 2000, 0.92, 0.28)
+    fcl_w  = _lerp(weight, 0, 2000, 0.18, 0.95)
+    air_w  = max(0.10, _lerp(weight, 0, 300, 0.95, 0.15))
+    land_w = _lerp(weight, 0, 2000, 0.70, 0.90)
 
+    if volume > 0:
+        # Volume (CBM) component — critical for LCL vs FCL decision
+        # LCL sweet spot: <5 CBM. At 15 CBM (20ft container threshold) it's poor.
+        # FCL sweet spot: >15 CBM. Below 5 CBM wastes the container.
+        # Air: very harsh above 3 CBM (volumetric weight cost explodes).
+        # Land: trucks are flexible; minimal volume penalty.
+        lcl_v  = max(0.15, _lerp(volume, 0, 15, 0.95, 0.18))
+        fcl_v  = min(0.95, _lerp(volume, 0, 15, 0.18, 0.95))
+        air_v  = max(0.10, _lerp(volume, 0,  3, 0.95, 0.10))
+        land_v = max(0.55, _lerp(volume, 0, 50, 0.90, 0.60))
+        # Blend: 55% weight, 45% volume
+        lcl_weight  = round(0.55 * lcl_w  + 0.45 * lcl_v,  3)
+        fcl_weight  = round(0.55 * fcl_w  + 0.45 * fcl_v,  3)
+        air_weight  = round(0.55 * air_w  + 0.45 * air_v,  3)
+        land_weight = round(0.55 * land_w + 0.45 * land_v, 3) if _land_viable else 0.20
+    else:
+        # No volume data — weight only
+        lcl_weight  = lcl_w
+        fcl_weight  = fcl_w
+        air_weight  = air_w
+        land_weight = land_w if _land_viable else 0.20
+
+    # ── Risk scores ───────────────────────────────────────────────────────────
     lcl_risk  = _lerp(value, 0, 20000, 0.82, 0.40)
     fcl_risk  = 0.70
     air_risk  = _lerp(value, 0, 20000, 0.62, 0.92)
-    land_risk = max(0.40, _lerp(distance, 0, 2000, 0.72, 0.45))    # road risk grows with distance
+    land_risk = max(0.30, _lerp(distance, 0, 1500, 0.72, 0.38)) if _land_viable else 0.25
 
+    # ── Criterion weights from SystemConfig ───────────────────────────────────
     try:
         w_cost   = float(SystemConfig.get('wmcda_w_cost',   '35')) / 100
         w_time   = float(SystemConfig.get('wmcda_w_time',   '30')) / 100
@@ -815,35 +882,35 @@ def compute_wmcda(weight, volume, value, urgency, distance):
                  'weight': round(land_weight, 3), 'risk': round(land_risk, 3)},
     }
 
-    weight_label  = f'{weight:.0f}kg'
-    value_label   = f'${value:,.0f}'
-    dist_label    = f'{distance:.0f}km'
+    weight_label = f'{weight:.0f} kg'
+    value_label  = f'${value:,.0f}'
+    dist_label   = f'{distance:.0f} km'
+    vol_label    = f'{volume:.2f} CBM' if volume > 0 else ''
 
-    _is_time_critical = urgency in ('urgent', 'rush')
-    _urgency_label    = {'standard': 'standard', 'normal': 'standard',
-                         'priority': 'priority', 'urgent': 'urgent', 'rush': 'rush'}.get(urgency, urgency)
+    cargo_desc = f'{weight_label}{", " + vol_label if vol_label else ""}'
+
     explanations = {
         'lcl': (
-            f'LCL is cost-efficient for moderate cargo ({weight_label}, {value_label}). '
-            f'{"Not recommended — slower sea transit conflicts with {_urgency_label} urgency." if _is_time_critical else "Suitable transit time for this urgency level."}'
+            f'LCL is cost-efficient for small-to-moderate cargo ({cargo_desc}). '
+            f'{"Not recommended — slower sea transit conflicts with " + _urgency_label + " urgency." if _is_time_critical else "Suitable transit time for this urgency level."}'
         ),
         'fcl': (
-            f'FCL is optimal for heavy or high-value cargo. '
-            f'Cargo weight of {weight_label} and value of {value_label} '
-            f'{"justify the container cost." if value > 10000 or weight > 500 else "may underutilize a full container."}'
-            f'{" Sea transit may be too slow for {_urgency_label} urgency." if _is_time_critical else ""}'
+            f'FCL is optimal for large or heavy cargo. '
+            f'{"Volume of " + vol_label + " justifies a dedicated container. " if volume > 10 else ""}'
+            f'{"Cargo of " + cargo_desc + " and value of " + value_label + " justify the container cost." if value > 10000 or weight > 500 else "May underutilize a full container for this cargo size."}'
+            f'{" Sea transit may be too slow for " + _urgency_label + " urgency." if _is_time_critical else ""}'
         ),
         'air': (
             f'{"🚨 Rush — Air Freight only viable option for immediate delivery. " if urgency == "rush" else ""}'
             f'{"⚡ Air Freight recommended — urgency requires fastest transit. " if urgency == "urgent" else ""}'
-            f'{"⏩ Air Freight ideal for priority delivery at " + value_label + "." if urgency == "priority" else ""}'
-            f'{"Air Freight offers best security and tracking for high-value goods at " + value_label + "." if value > 10000 and not _is_time_critical else ""}'
+            f'{"⏩ Air Freight ideal for priority delivery at " + value_label + ". " if urgency == "priority" else ""}'
+            f'{"Air Freight offers best security and speed for high-value goods at " + value_label + "." if value > 10000 and not _is_time_critical else ""}'
             f'{"Air Freight is competitive for this shipment profile." if not _is_time_critical and value <= 10000 else ""}'
         ),
         'land': (
-            f'{"🚛 Land Freight is the fastest option for this nearby route (" + dist_label + ")." if distance <= 500 else "Land Freight is cost-effective for this route (" + dist_label + ")."} '
-            f'Cargo weight of {weight_label} is well-suited for road transport. '
-            f'{"Short-haul land routes can accommodate {_urgency_label} urgency." if _is_time_critical and distance <= 500 else "Suitable for this urgency level." if not _is_time_critical else "Road transit may be too slow for time-critical urgency on this route."}'
+            f'{"🚛 Land Freight is viable for this regional route (" + dist_label + ")." if distance <= 1000 else "Land Freight suited for this shorter route (" + dist_label + ")."} '
+            f'Cargo of {cargo_desc} is well-suited for road transport. '
+            f'{"Short-haul land routes can accommodate " + _urgency_label + " urgency." if _is_time_critical and distance <= 500 else "Suitable for this urgency level." if not _is_time_critical else "Road transit may be too slow for time-critical urgency on this route."}'
         ),
     }
     explanation = explanations.get(recommended, '')
