@@ -24,9 +24,9 @@ def get_brokerage_fee(taxable_value):
     if tv <= 60000:   return Decimal('4000')
     if tv <= 100000:  return Decimal('4700')
     if tv <= 200000:  return Decimal('5300')
-    # ₱5,300 + 1.25% of excess above ₱200,000
+    # ₱5,300 + 0.125% of excess above ₱200,000
     excess = Decimal(str(round(tv - 200000, 2)))
-    return Decimal('5300') + round(excess * Decimal('0.0125'), 2)
+    return Decimal('5300') + round(excess * Decimal('0.00125'), 2)
 
 
 def get_ipf(taxable_value):
@@ -41,29 +41,29 @@ def get_ipf(taxable_value):
 
 # ─── Per-Item ECDT Formula ────────────────────────────────────────────────────
 
-def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate,
-                 arrastre=0, wharfage=0, csf_php=0):
-    total_exw = sum(Decimal(str(item['exw_usd'])) for item in items_data)
-    if total_exw <= 0:
-        total_exw = Decimal('0')
-
+def compute_ecdt(items_data, exchange_rate,
+                 arrastre=0, wharfage=0, csf_php=0, bank_charges=0):
+    """
+    items_data keys: exw_usd, freight_usd, insurance_usd, duty_rate,
+                     description, quantity, hs_code_id, gw, nw, pkgs
+    D/V = EXW + Freight + Insurance  (no auto-3% O/C — matches client CDT tool)
+    Total Landed Cost excludes VAT; VAT = 12% of Total Landed Cost
+    Brokerage Fee: tiered table up to ₱200,000, then +0.125% of excess
+    """
     computed_items = []
     total_dv_php   = Decimal('0')
     total_cud      = Decimal('0')
 
     for i, item in enumerate(items_data):
-        exw        = Decimal(str(item['exw_usd']))
-        duty_rate  = Decimal(str(item.get('duty_rate', 0) or 0))
-        if total_exw > 0:
-            item_freight   = (exw / total_exw) * total_freight
-            item_insurance = (exw / total_exw) * total_insurance
-        else:
-            item_freight = item_insurance = Decimal('0')
+        exw            = Decimal(str(item['exw_usd']))
+        item_freight   = Decimal(str(item.get('freight_usd',   0) or 0))
+        item_insurance = Decimal(str(item.get('insurance_usd', 0) or 0))
+        duty_rate      = Decimal(str(item.get('duty_rate',     0) or 0))
 
-        other_charges = exw * Decimal('0.03')
-        dv_usd        = exw + item_freight + item_insurance + other_charges
-        dv_php        = dv_usd * exchange_rate
-        cud           = dv_php * (duty_rate / Decimal('100'))
+        # D/V = EXW + Freight + Insurance
+        dv_usd  = exw + item_freight + item_insurance
+        dv_php  = dv_usd * exchange_rate
+        cud     = dv_php * (duty_rate / Decimal('100'))
         total_dv_php += dv_php
         total_cud    += cud
 
@@ -76,34 +76,42 @@ def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate,
             'exw':            float(round(exw, 2)),
             'item_freight':   float(round(item_freight, 2)),
             'item_insurance': float(round(item_insurance, 2)),
-            'other_charges':  float(round(other_charges, 2)),
             'dv_usd':         float(round(dv_usd, 2)),
             'dv_php':         float(round(dv_php, 2)),
             'cud':            float(round(cud, 2)),
+            'gw':             item.get('gw', ''),
+            'nw':             item.get('nw', ''),
+            'pkgs':           item.get('pkgs', ''),
         })
 
-    taxable_value  = round(total_dv_php, 2)
-    customs_duties = round(total_cud, 2)
-    vat_base       = taxable_value + customs_duties
-    vat            = round(vat_base * Decimal('0.12'), 2)
-    brokerage_fee  = get_brokerage_fee(taxable_value)
-    cds            = Decimal('130')
-    ipf            = get_ipf(taxable_value)
+    taxable_value   = round(total_dv_php, 2)
+    customs_duties  = round(total_cud, 2)
+    brokerage_fee   = get_brokerage_fee(taxable_value)
+    cds             = Decimal('130')
+    ipf             = get_ipf(taxable_value)
 
-    arrastre_d = Decimal(str(arrastre or 0))
-    wharfage_d = Decimal(str(wharfage or 0))
-    csf_d      = Decimal(str(csf_php  or 0))
+    arrastre_d      = Decimal(str(arrastre     or 0))
+    wharfage_d      = Decimal(str(wharfage     or 0))
+    csf_d           = Decimal(str(csf_php      or 0))
+    bank_charges_d  = Decimal(str(bank_charges or 0))
 
+    # Total Landed Cost = DV + Bank Charges + CUD + BF + Arrastre + Wharfage + CDS + IPF
+    # VAT is calculated ON TOP of Total Landed Cost, shown separately
     total_landed_cost = round(
-        taxable_value + customs_duties + vat + brokerage_fee + cds + ipf
-        + arrastre_d + wharfage_d + csf_d, 2
+        taxable_value + bank_charges_d + customs_duties + brokerage_fee
+        + cds + ipf + arrastre_d + wharfage_d + csf_d, 2
     )
+
+    # VAT = 12% of Total Landed Cost (matches client CDT Excel convention)
+    vat = round(total_landed_cost * Decimal('0.12'), 2)
+
+    # BOC total = CUD + VAT + CDS + IPF (what gets paid to Customs)
+    boc_total = round(customs_duties + vat + cds + ipf, 2)
 
     summary = {
         'taxable_value':    taxable_value,
+        'bank_charges':     bank_charges_d,
         'customs_duties':   customs_duties,
-        'vat_base':         vat_base,
-        'vat':              vat,
         'brokerage_fee':    brokerage_fee,
         'cds':              cds,
         'ipf':              ipf,
@@ -111,6 +119,9 @@ def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate,
         'wharfage':         wharfage_d,
         'csf_php':          csf_d,
         'total_landed_cost': total_landed_cost,
+        'vat_base':         total_landed_cost,   # stored as vat_base in model
+        'vat':              vat,
+        'boc_total':        boc_total,
     }
     return computed_items, summary
 
@@ -354,35 +365,54 @@ def compute_shipment(request, shipment_id):
 
     if request.method == 'POST':
         try:
-            total_freight   = Decimal(request.POST.get('total_freight',   '0') or '0')
-            total_insurance = Decimal(request.POST.get('total_insurance', '0') or '0')
-            exchange_rate   = Decimal(request.POST.get('exchange_rate',   default_rate) or default_rate)
+            exchange_rate   = Decimal(request.POST.get('exchange_rate', default_rate) or default_rate)
             arrastre        = Decimal(request.POST.get('arrastre',   '0') or '0')
             wharfage        = Decimal(request.POST.get('wharfage',   '0') or '0')
             csf_usd_val     = Decimal(request.POST.get('csf_usd',   '0') or '0')
+            bank_charges    = Decimal(request.POST.get('bank_charges', '0') or '0')
             container_type  = (request.POST.get('container_type', '') or '').strip()
             csf_php_val     = csf_usd_val * exchange_rate
 
             descriptions  = request.POST.getlist('description[]')
             exw_values    = request.POST.getlist('exw_value[]')
+            freights_list = request.POST.getlist('item_freight[]')
+            ins_list      = request.POST.getlist('item_insurance[]')
             quantities    = request.POST.getlist('quantity[]')
             hs_code_ids   = request.POST.getlist('hs_code_id[]')
             duty_rates    = request.POST.getlist('item_duty_rate[]')
+            gws           = request.POST.getlist('gw[]')
+            nws           = request.POST.getlist('nw[]')
+            pkgs_list     = request.POST.getlist('pkgs[]')
 
-            # Pad lists to same length as descriptions
+            # Pad all lists to same length as descriptions
             n = len(descriptions)
-            hs_code_ids = (hs_code_ids + [''] * n)[:n]
-            duty_rates  = (duty_rates  + ['0'] * n)[:n]
+            def _pad(lst, default=''):
+                return (lst + [default] * n)[:n]
+            freights_list = _pad(freights_list, '0')
+            ins_list      = _pad(ins_list,      '0')
+            hs_code_ids   = _pad(hs_code_ids,   '')
+            duty_rates    = _pad(duty_rates,     '0')
+            gws           = _pad(gws,            '')
+            nws           = _pad(nws,            '')
+            pkgs_list     = _pad(pkgs_list,      '')
+            quantities    = _pad(quantities,     '')
 
             items_data = [
                 {
-                    'description': d.strip(),
-                    'exw_usd':     e,
-                    'quantity':    q,
-                    'hs_code_id':  h,
-                    'duty_rate':   dr or '0',
+                    'description':    d.strip(),
+                    'exw_usd':        e,
+                    'freight_usd':    f  or '0',
+                    'insurance_usd':  ins or '0',
+                    'quantity':       q,
+                    'hs_code_id':     h,
+                    'duty_rate':      dr or '0',
+                    'gw':             gw,
+                    'nw':             nw,
+                    'pkgs':           pk,
                 }
-                for d, e, q, h, dr in zip(descriptions, exw_values, quantities, hs_code_ids, duty_rates)
+                for d, e, f, ins, q, h, dr, gw, nw, pk
+                in zip(descriptions, exw_values, freights_list, ins_list,
+                       quantities, hs_code_ids, duty_rates, gws, nws, pkgs_list)
                 if e and float(e) > 0
             ]
             if not items_data:
@@ -390,9 +420,14 @@ def compute_shipment(request, shipment_id):
                 raise ValueError('no items')
 
             items, summary = compute_ecdt(
-                items_data, total_freight, total_insurance, exchange_rate,
-                arrastre=arrastre, wharfage=wharfage, csf_php=csf_php_val
+                items_data, exchange_rate,
+                arrastre=arrastre, wharfage=wharfage, csf_php=csf_php_val,
+                bank_charges=bank_charges
             )
+
+            # Totals for model storage
+            total_freight   = sum(Decimal(str(it.get('freight_usd',   0) or 0)) for it in items_data)
+            total_insurance = sum(Decimal(str(it.get('insurance_usd', 0) or 0)) for it in items_data)
             result = summary
 
             # Use first item's HS code + duty rate for model-level fields
@@ -423,6 +458,7 @@ def compute_shipment(request, shipment_id):
                     'vat_amount':        summary['vat'],
                     'brokerage_fee':     summary['brokerage_fee'],
                     'ipf':               summary['ipf'],
+                    'bank_charges':      bank_charges,
                     'arrastre':          arrastre,
                     'wharfage':          wharfage,
                     'csf_usd':           csf_usd_val,
@@ -675,28 +711,26 @@ def download_computation(request, shipment_id):
     center       = Alignment(horizontal='center', vertical='center', wrap_text=True)
     right_align  = Alignment(horizontal='right', vertical='center')
 
-    ws.merge_cells('A1:L1')
+    # 14 columns: #, Desc, EXW, Freight, Ins, D/V$, D/V₱, HS Code, Rate%, CUD₱, GW, NW, QTY, PKGS
+    ws.merge_cells('A1:N1')
     ws['A1'] = 'R3-PCR — ECDT Pre-Clearance Computation Summary'
     ws['A1'].font = title_font
     ws['A1'].alignment = center
 
-    ws.merge_cells('A2:L2')
+    ws.merge_cells('A2:N2')
     ws['A2'] = (
         f'Shipment Ref: {shipment.hawb_number}  |  '
         f'Consignee: {shipment.consignee.get_full_name() or shipment.consignee.username}  |  '
-        f'Exchange Rate: {float(computation.exchange_rate):.4f}  |  '
-        f'Duty Rate: {float(computation.duty_rate):.2f}%'
+        f'Exchange Rate: {float(computation.exchange_rate):.4f}'
     )
     ws['A2'].font = Font(color='94A3B8', size=9)
     ws['A2'].alignment = center
 
     headers = [
-        '#', 'Description', 'EXW (USD)', 'Freight\n(USD)',
-        'Insurance\n(USD)', 'O/C (USD)', 'D/V (USD)', 'D/V (PHP)',
-        'HS Code', 'Rate %', 'CUD (PHP)', 'Quantity',
+        '#', 'Description', 'EXW/FOB\n(USD)', 'Freight\n(USD)',
+        'Insurance\n(USD)', 'D/V\n(USD)', 'D/V\n(PHP)',
+        'HS Code', 'Rate %', 'CUD\n(PHP)', 'GW\n(kg)', 'NW\n(kg)', 'QTY', 'PKGS',
     ]
-    hs_code_display = computation.hs_code.code if computation.hs_code else '—'
-    duty_rate_pct   = float(computation.duty_rate)
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=4, column=col, value=h)
@@ -705,48 +739,103 @@ def download_computation(request, shipment_id):
         cell.border    = border
         cell.alignment = center
 
-    ws.row_dimensions[4].height = 30
+    ws.row_dimensions[4].height = 32
 
     for i, item in enumerate(items, 1):
         row  = 4 + i
+        # Per-item HS code — use stored value or fall back to computation-level
+        hs_code_display = item.get('hs_code_id', '')
+        if hs_code_display:
+            try:
+                from apps.shipments.models import HSCode as _HSCode
+                _hso = _HSCode.objects.get(id=hs_code_display)
+                hs_code_display = _hso.code
+            except Exception:
+                hs_code_display = str(hs_code_display)
+        else:
+            hs_code_display = computation.hs_code.code if computation.hs_code else '—'
+
         data = [
-            item.get('no', i), item.get('description', ''),
-            item.get('exw', 0),          item.get('item_freight', 0),
-            item.get('item_insurance', 0), item.get('other_charges', 0),
-            item.get('dv_usd', 0),       item.get('dv_php', 0),
-            hs_code_display,             duty_rate_pct,
-            item.get('cud', 0),          item.get('quantity', ''),
+            item.get('no', i),
+            item.get('description', ''),
+            item.get('exw', 0),
+            item.get('item_freight', 0),
+            item.get('item_insurance', 0),
+            item.get('dv_usd', 0),
+            item.get('dv_php', 0),
+            hs_code_display,
+            item.get('duty_rate', float(computation.duty_rate)),
+            item.get('cud', 0),
+            item.get('gw', ''),
+            item.get('nw', ''),
+            item.get('quantity', ''),
+            item.get('pkgs', ''),
         ]
         for col, val in enumerate(data, 1):
             cell = ws.cell(row=row, column=col, value=val)
             cell.border    = border
             cell.alignment = right_align if col > 2 else Alignment(vertical='center')
-            if col in (3, 4, 5, 6, 7): cell.number_format = '#,##0.00'
-            elif col in (8, 11):        cell.number_format = '₱#,##0.00'
-            elif col == 10:             cell.number_format = '0.00"%"'
+            if col in (3, 4, 5, 6):   cell.number_format = '#,##0.00'
+            elif col in (7, 10):       cell.number_format = '₱#,##0.00'
+            elif col == 9:             cell.number_format = '0.00"%"'
 
     summary_row = 4 + len(items) + 2
     _csf_php = float((computation.csf_usd or 0) * (computation.exchange_rate or 0))
+    _bank    = float(computation.bank_charges or 0)
     summaries = [
-        ('Taxable Value (Sum of D/V PHP)',      computation.dutiable_value,    False),
-        ('Customs Duties (Total CUD)',          computation.customs_duty,      False),
-        ('VAT Base (Taxable Value + CUD)',      computation.vat_base,          False),
-        ('VAT (12%)',                           computation.vat_amount,        False),
-        ('Brokerage Fee',                       computation.brokerage_fee,     False),
-        ('Customs Documentary Stamp (CDS)',     130,                           False),
-        ('Import Processing Fee (IPF)',         computation.ipf,               False),
-        ('Arrastre',                            computation.arrastre,          False),
-        ('Wharfage',                            computation.wharfage,          False),
-        ('CSF (Container Service Fee)',         _csf_php,                      False),
-        ('TOTAL LANDED COST',                   computation.total_landed_cost, True),
+        ('Taxable Value (Sum D/V PHP)',          computation.dutiable_value,    False),
+        ('Bank Charges',                         _bank,                         False),
+        ('Customs Duties (Total CUD)',           computation.customs_duty,      False),
+        ('Brokerage Fee',                        computation.brokerage_fee,     False),
+        ('Arrastre',                             computation.arrastre,          False),
+        ('Wharfage',                             computation.wharfage,          False),
+        ('CSF (Container Service Fee)',          _csf_php,                      False),
+        ('Customs Documentary Stamp (CDS)',      130,                           False),
+        ('Import Processing Fee (IPF)',          computation.ipf,               False),
+        ('TOTAL LANDED COST',                    computation.total_landed_cost, True),
+        ('VAT (12% of Total Landed Cost)',       computation.vat_amount,        False),
     ]
 
-    ws.cell(row=summary_row - 1, column=8, value='SUMMARY').font = bold_white
+    # BOC box (right side) — starts 2 cols right of summary label/value
+    boc_summaries = [
+        ('BOC: Customs Duties',    computation.customs_duty,      False),
+        ('BOC: VAT (12%)',         computation.vat_amount,        False),
+        ('BOC: CDS',               130,                           False),
+        ('BOC: IPF',               computation.ipf,               False),
+        ('TOTAL BOC FEES',         None,                          True),
+    ]
+    _boc_total = (
+        float(computation.customs_duty  or 0) +
+        float(computation.vat_amount    or 0) +
+        130 +
+        float(computation.ipf           or 0)
+    )
+
+    ws.cell(row=summary_row - 1, column=9, value='ECDT SUMMARY').font = bold_white
+    ws.cell(row=summary_row - 1, column=12, value='BOC FEES').font = bold_white
 
     for r_offset, (label, value, is_total) in enumerate(summaries):
         row        = summary_row + r_offset
-        label_cell = ws.cell(row=row, column=8, value=label)
-        value_cell = ws.cell(row=row, column=12, value=float(value) if value else 0)
+        label_cell = ws.cell(row=row, column=9, value=label)
+        val_data   = float(value) if value is not None else 0
+        value_cell = ws.cell(row=row, column=11, value=val_data)
+        label_cell.border = value_cell.border = border
+        value_cell.number_format = '₱#,##0.00'
+        value_cell.alignment     = right_align
+        if is_total:
+            label_cell.font = value_cell.font = blue_font
+            label_cell.fill = value_cell.fill = total_fill
+        else:
+            label_cell.font  = Font(color='94A3B8', size=10)
+            label_cell.fill  = summary_fill
+            value_cell.font  = Font(color='F1F5F9', size=10)
+            value_cell.fill  = summary_fill
+
+    for r_offset, (label, value, is_total) in enumerate(boc_summaries):
+        row        = summary_row + r_offset
+        label_cell = ws.cell(row=row, column=12, value=label)
+        val_data   = _boc_total if is_total else (float(value) if value is not None else 0)
+        value_cell = ws.cell(row=row, column=14, value=val_data)
         label_cell.border = value_cell.border = border
         value_cell.number_format = '₱#,##0.00'
         value_cell.alignment     = right_align
@@ -760,12 +849,12 @@ def download_computation(request, shipment_id):
             value_cell.fill  = summary_fill
 
     from openpyxl.utils import get_column_letter
-    col_widths = [5, 35, 12, 12, 12, 12, 12, 14, 12, 8, 14, 10]
+    col_widths = [5, 36, 12, 12, 12, 12, 14, 14, 8, 14, 8, 8, 6, 6]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
-    note_row = summary_row + len(summaries) + 2
-    ws.merge_cells(f'A{note_row}:L{note_row}')
+    note_row = summary_row + max(len(summaries), len(boc_summaries)) + 2
+    ws.merge_cells(f'A{note_row}:N{note_row}')
     ws[f'A{note_row}'] = (
         'ESTIMATED COMPUTATION ONLY. Final assessment will be based on BOC/Customs findings. '
         'Generated by R3-PCR Pre-Clearance DSS.'

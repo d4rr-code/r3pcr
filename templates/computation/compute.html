@@ -18,7 +18,6 @@
     width: 55%;
     min-width: 280px;
     max-width: calc(100% - 320px);
-    min-width: 280px;
 }
 #col-right {
     flex: 1 1 0;
@@ -67,9 +66,7 @@
     transition: background 0.15s;
 }
 #col-divider:hover .drag-handle,
-#col-divider.dragging .drag-handle {
-    background: #3b82f6;
-}
+#col-divider.dragging .drag-handle { background: #3b82f6; }
 #col-divider .drag-handle span {
     display: block;
     width: 2px;
@@ -78,9 +75,7 @@
     border-radius: 1px;
 }
 #col-divider:hover .drag-handle span,
-#col-divider.dragging .drag-handle span {
-    background: #fff;
-}
+#col-divider.dragging .drag-handle span { background: #fff; }
 /* ── Doc Viewer ──────────────────────────────────────────────────────────── */
 .doc-viewer {
     background: #0f172a;
@@ -120,21 +115,22 @@
     table-layout: fixed;
 }
 .ecdt-table th {
-    padding: 8px 6px;
+    padding: 7px 5px;
     background: #0f172a;
     color: #64748b;
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
     text-align: right;
     border-bottom: 2px solid #334155;
-    white-space: nowrap;
+    white-space: pre-line;
+    line-height: 1.3;
 }
 .ecdt-table th:first-child,
 .ecdt-table th:nth-child(2) { text-align: left; }
 .ecdt-table td {
-    padding: 6px;
+    padding: 5px;
     border-bottom: 1px solid #1e293b;
     color: #f1f5f9;
     vertical-align: middle;
@@ -144,18 +140,22 @@
     text-align: right;
     font-size: 11px;
 }
+.ecdt-table td.calc.dvphp { color: #60a5fa; font-weight: 600; }
+.ecdt-table td.calc.cud   { color: #fbbf24; font-weight: 600; }
 .ecdt-table tr:hover td { background: #0d1929; }
 .ecdt-input {
     background: #1e293b;
     border: 1px solid #334155;
     border-radius: 4px;
     color: #f1f5f9;
-    padding: 4px 6px;
-    font-size: 12px;
+    padding: 4px 5px;
+    font-size: 11px;
     width: 100%;
     box-sizing: border-box;
 }
 .ecdt-input:focus { outline: none; border-color: #3b82f6; }
+.ecdt-input.freight-input { border-color: #1e3a5f; }
+.ecdt-input.freight-input:focus { border-color: #3b82f6; }
 /* ── WMCDA Score Cards ───────────────────────────────────────────────────── */
 .mode-score-card {
     border: 2px solid #334155;
@@ -166,17 +166,6 @@
 }
 .mode-score-card.recommended { border-color: #22c55e; background: #052e16; }
 .mode-score-card.consignee-pick { border-color: #3b82f6; }
-.score-bar-track {
-    background: #1e293b;
-    border-radius: 999px;
-    height: 6px;
-    margin-top: 6px;
-}
-.score-bar-fill {
-    height: 6px;
-    border-radius: 999px;
-    transition: width 0.4s ease;
-}
 /* ── OCR overlay ─────────────────────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
 #ocr-overlay {
@@ -201,9 +190,9 @@
 /* ── HS Code Picker ──────────────────────────────────────────────────────── */
 .hs-picker { position: relative; }
 .hs-search-input {
-    width: 130px;
+    width: 100%;
     font-size: 11px;
-    padding: 4px 6px;
+    padding: 4px 5px;
     background: #1e293b;
     border: 1px solid #334155;
     border-radius: 4px;
@@ -279,7 +268,69 @@
     position: sticky;
     top: 0;
 }
-.hs-chapter-header + .hs-result-item { border-top: none; }
+/* ── Summary two-col layout ──────────────────────────────────────────────── */
+.ecdt-summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 10px;
+    background: #0f172a;
+    border-radius: 6px;
+    font-size: 12px;
+}
+.summary-row.total-row {
+    background: #172554;
+    border: 2px solid #3b82f6;
+    border-radius: 8px;
+    margin-top: 4px;
+    padding: 12px 14px;
+}
+.summary-row.vat-row {
+    background: #1a1033;
+    border: 1px solid #4c1d95;
+    border-radius: 6px;
+}
+.summary-label { color: #94a3b8; }
+.summary-label.total-label { color: #93c5fd; font-size: 13px; font-weight: 700; }
+.summary-value { font-weight: 600; color: #f1f5f9; }
+.summary-value.total-value { color: #3b82f6; font-size: 17px; font-weight: 800; }
+.summary-value.vat-value   { color: #a78bfa; }
+.boc-box {
+    background: #0c1a2e;
+    border: 1px solid #1e3a5f;
+    border-radius: 10px;
+    padding: 12px;
+}
+.boc-title {
+    color: #60a5fa;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.boc-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 5px 0;
+    border-bottom: 1px solid #1e3a5f;
+}
+.boc-row:last-child { border-bottom: none; }
+.boc-row.boc-total-row {
+    border-top: 2px solid #3b82f6;
+    margin-top: 6px;
+    padding-top: 8px;
+    font-weight: 700;
+}
 </style>
 {% endblock %}
 
@@ -307,6 +358,8 @@
             {% endif %}
             {% if shipment.urgency == 'urgent' %}
             · <span style="color:#ef4444;">⚡ Urgent</span>
+            {% elif shipment.urgency == 'rush' %}
+            · <span style="color:#ef4444;">🚨 Rush</span>
             {% endif %}
         </p>
     </div>
@@ -426,7 +479,7 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════
-     DIVIDER — Drag to resize
+     DIVIDER
 ════════════════════════════════════════════════════════════════════════════ -->
 <div id="col-divider">
     <div class="drag-handle">
@@ -444,7 +497,7 @@
 <!-- ── Parameters ─────────────────────────────────────────────────── -->
 <div class="card" style="margin-bottom:14px;">
     <p class="card-title" style="margin-bottom:10px;">Parameters</p>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
         <div>
             <label class="form-label" style="font-size:11px;">Exchange Rate (USD→PHP)</label>
             <input type="number" name="exchange_rate" id="exchange_rate" class="form-input"
@@ -452,16 +505,28 @@
                    value="{{ existing.exchange_rate|default:default_rate }}" required>
         </div>
         <div>
-            <label class="form-label" style="font-size:11px;">Total Freight (USD)</label>
+            <label class="form-label" style="font-size:11px;">
+                Total Freight (USD)
+                <span style="color:#334155; font-weight:400; font-size:10px;"> — auto-distribute</span>
+            </label>
             <input type="number" name="total_freight" id="total_freight" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                   value="{{ existing.total_freight|default:'0' }}" oninput="recalcAll()">
+                   value="{{ existing.total_freight|default:'0' }}" oninput="distributeFreight()">
         </div>
         <div>
-            <label class="form-label" style="font-size:11px;">Total Insurance (USD)</label>
+            <label class="form-label" style="font-size:11px;">
+                Total Insurance (USD)
+                <span style="color:#334155; font-weight:400; font-size:10px;"> — auto-distribute</span>
+            </label>
             <input type="number" name="total_insurance" id="total_insurance" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                   value="{{ existing.total_insurance|default:'0' }}" oninput="recalcAll()">
+                   value="{{ existing.total_insurance|default:'0' }}" oninput="distributeFreight()">
+        </div>
+        <div>
+            <label class="form-label" style="font-size:11px;">Bank Charges (PHP)</label>
+            <input type="number" name="bank_charges" id="bank_charges" class="form-input"
+                   style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                   value="{{ existing.bank_charges|default:'0' }}" oninput="recalcAll()">
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">Cargo Volume (CBM)</label>
@@ -477,7 +542,7 @@
                   letter-spacing:0.5px; margin:0 0 8px;">
             Port / Terminal Charges
             <span style="color:#334155; font-weight:400; text-transform:none; letter-spacing:0;">
-                — declarant inputs
+                — declarant inputs (PHP)
             </span>
         </p>
         <div style="display:grid; grid-template-columns:1fr 1fr{% if shipment.shipment_type == 'fcl' %} 1fr{% endif %}; gap:10px;">
@@ -538,46 +603,55 @@
     </div>
 </div>
 
-<!-- ── ECDT Line Items Table ──────────────────────────────────────── -->
+<!-- ── ECDT Line Items Table (Excel CDT column order) ─────────────── -->
 <div class="card" style="margin-bottom:14px; padding:0; overflow:hidden;">
     <div style="padding:10px 14px; background:#0f172a; border-bottom:1px solid #1e293b;
-                display:flex; justify-content:space-between; align-items:center;">
+                display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <p class="card-title" style="margin:0; font-size:13px;">ECDT Line Items</p>
-        <button type="button" class="btn btn-secondary" onclick="addRow()"
-                style="font-size:11px; padding:4px 10px;">+ Row</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <p style="color:#475569; font-size:10px; margin:0;">
+                D/V = EXW + Freight + Insurance
+            </p>
+            <button type="button" class="btn btn-secondary" onclick="addRow()"
+                    style="font-size:11px; padding:4px 10px;">+ Row</button>
+        </div>
     </div>
 
     <div style="overflow-x:auto;">
         <table class="ecdt-table" id="ecdt-table">
             <colgroup>
-                <col style="width:28px">  <!-- # -->
-                <col style="width:120px"> <!-- Description -->
-                <col style="width:70px">  <!-- EXW -->
-                <col style="width:46px">  <!-- Qty -->
+                <col style="width:26px">  <!-- # -->
+                <col style="width:150px"> <!-- Description -->
+                <col style="width:66px">  <!-- EXW/FOB $ -->
+                <col style="width:60px">  <!-- Freight $ (input) -->
+                <col style="width:60px">  <!-- Insurance $ (input) -->
+                <col style="width:66px">  <!-- D/V $ (calc) -->
+                <col style="width:72px">  <!-- D/V ₱ (calc) -->
                 <col style="width:130px"> <!-- HS Code -->
                 <col style="width:48px">  <!-- Rate% -->
-                <col style="width:58px">  <!-- Freight -->
-                <col style="width:58px">  <!-- Insurance -->
-                <col style="width:50px">  <!-- O/C -->
-                <col style="width:64px">  <!-- D/V USD -->
-                <col style="width:68px">  <!-- D/V PHP -->
-                <col style="width:68px">  <!-- CUD -->
-                <col style="width:28px">  <!-- del -->
+                <col style="width:72px">  <!-- CUD ₱ (calc) -->
+                <col style="width:44px">  <!-- GW -->
+                <col style="width:44px">  <!-- NW -->
+                <col style="width:44px">  <!-- QTY -->
+                <col style="width:44px">  <!-- PKGS -->
+                <col style="width:26px">  <!-- del -->
             </colgroup>
             <thead>
                 <tr>
                     <th style="text-align:left;">#</th>
                     <th style="text-align:left;">Description</th>
-                    <th>EXW $</th>
-                    <th>Qty</th>
+                    <th>EXW/FOB&#10;($)</th>
+                    <th>Freight&#10;($)</th>
+                    <th>Ins.&#10;($)</th>
+                    <th>D/V&#10;($)</th>
+                    <th>D/V&#10;(₱)</th>
                     <th style="text-align:left;">HS Code</th>
-                    <th>Rate%</th>
-                    <th>Freight $</th>
-                    <th>Ins. $</th>
-                    <th>O/C $</th>
-                    <th>D/V $</th>
-                    <th>D/V ₱</th>
-                    <th>CUD ₱</th>
+                    <th>Rate&#10;%</th>
+                    <th>CUD&#10;(₱)</th>
+                    <th>GW</th>
+                    <th>NW</th>
+                    <th>QTY</th>
+                    <th>PKGS</th>
                     <th></th>
                 </tr>
             </thead>
@@ -588,134 +662,168 @@
                     <td style="color:#64748b; font-size:11px;">{{ item.no }}</td>
                     <td>
                         <input class="ecdt-input" type="text" name="description[]"
-                               value="{{ item.description }}" placeholder="Item..." style="width:110px;">
+                               value="{{ item.description }}" placeholder="Item...">
                     </td>
                     <td>
                         <input class="ecdt-input exw-input" type="number" name="exw_value[]"
-                               step="0.01" value="{{ item.exw }}" placeholder="0.00"
+                               step="0.01" value="{{ item.exw|default:'' }}" placeholder="0.00"
                                oninput="recalcAll()">
                     </td>
                     <td>
-                        <input class="ecdt-input" type="number" name="quantity[]"
-                               step="1" value="{{ item.quantity }}" placeholder="0">
+                        <input class="ecdt-input freight-input" type="number" name="item_freight[]"
+                               step="0.01" value="{{ item.item_freight|default:'' }}" placeholder="0.00"
+                               oninput="recalcAll()">
                     </td>
                     <td>
+                        <input class="ecdt-input freight-input" type="number" name="item_insurance[]"
+                               step="0.01" value="{{ item.item_insurance|default:'' }}" placeholder="0.00"
+                               oninput="recalcAll()">
+                    </td>
+                    <td class="calc" data-field="dvusd">{% if item.dv_usd %}{{ item.dv_usd|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td class="calc dvphp" data-field="dvphp">{% if item.dv_php %}{{ item.dv_php|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td>
                         <div class="hs-picker" data-selected-id="{{ item.hs_code_id|default:'' }}">
-                            <input type="text" class="hs-search-input" placeholder="Search code or item..." autocomplete="off">
+                            <input type="text" class="hs-search-input" placeholder="Search..." autocomplete="off">
                             <input type="hidden" name="hs_code_id[]" value="{{ item.hs_code_id|default:'' }}">
                             <div class="hs-results"></div>
                         </div>
                     </td>
                     <td>
                         <input class="ecdt-input rate-input" type="number" name="item_duty_rate[]"
-                               step="0.01" placeholder="0"
-                               value="{{ item.duty_rate|default:'' }}"
-                               oninput="recalcAll()" style="width:44px;">
+                               step="0.01" placeholder="0" value="{{ item.duty_rate|default:'' }}"
+                               oninput="recalcAll()" style="width:40px;">
                     </td>
-                    <td class="calc" data-field="freight">{% if item.item_freight %}{{ item.item_freight|floatformat:2 }}{% endif %}</td>
-                    <td class="calc" data-field="ins">{% if item.item_insurance %}{{ item.item_insurance|floatformat:2 }}{% endif %}</td>
-                    <td class="calc" data-field="oc">{% if item.other_charges %}{{ item.other_charges|floatformat:2 }}{% endif %}</td>
-                    <td class="calc" data-field="dvusd">{% if item.dv_usd %}{{ item.dv_usd|floatformat:2 }}{% endif %}</td>
-                    <td class="calc" data-field="dvphp" style="color:#3b82f6;">{% if item.dv_php %}{{ item.dv_php|floatformat:2 }}{% endif %}</td>
-                    <td class="calc" data-field="cud" style="color:#f59e0b;">{% if item.cud %}{{ item.cud|floatformat:2 }}{% endif %}</td>
-                    <td><button type="button" onclick="removeRow(this)"
-                                style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px; padding:0 4px;">✕</button></td>
+                    <td class="calc cud" data-field="cud">{% if item.cud %}{{ item.cud|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td>
+                        <input class="ecdt-input" type="number" name="gw[]"
+                               step="0.01" value="{{ item.gw|default:'' }}" placeholder="0">
+                    </td>
+                    <td>
+                        <input class="ecdt-input" type="number" name="nw[]"
+                               step="0.01" value="{{ item.nw|default:'' }}" placeholder="0">
+                    </td>
+                    <td>
+                        <input class="ecdt-input" type="number" name="quantity[]"
+                               step="1" value="{{ item.quantity|default:'' }}" placeholder="0">
+                    </td>
+                    <td>
+                        <input class="ecdt-input" type="number" name="pkgs[]"
+                               step="1" value="{{ item.pkgs|default:'' }}" placeholder="0">
+                    </td>
+                    <td>
+                        <button type="button" onclick="removeRow(this)"
+                                style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 3px;">✕</button>
+                    </td>
                 </tr>
                 {% endfor %}
                 {% else %}
                 <tr>
                     <td style="color:#64748b; font-size:11px;">1</td>
-                    <td><input class="ecdt-input" type="text" name="description[]" placeholder="Item..." style="width:110px;"></td>
+                    <td><input class="ecdt-input" type="text" name="description[]" placeholder="Item..."></td>
                     <td><input class="ecdt-input exw-input" type="number" name="exw_value[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
-                    <td><input class="ecdt-input" type="number" name="quantity[]" step="1" placeholder="0"></td>
+                    <td><input class="ecdt-input freight-input" type="number" name="item_freight[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
+                    <td><input class="ecdt-input freight-input" type="number" name="item_insurance[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
+                    <td class="calc" data-field="dvusd">—</td>
+                    <td class="calc dvphp" data-field="dvphp">—</td>
                     <td>
                         <div class="hs-picker">
-                            <input type="text" class="hs-search-input" placeholder="Search code or item..." autocomplete="off">
+                            <input type="text" class="hs-search-input" placeholder="Search..." autocomplete="off">
                             <input type="hidden" name="hs_code_id[]" value="">
                             <div class="hs-results"></div>
                         </div>
                     </td>
-                    <td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" step="0.01" placeholder="0" oninput="recalcAll()" style="width:44px;"></td>
-                    <td class="calc" data-field="freight">—</td>
-                    <td class="calc" data-field="ins">—</td>
-                    <td class="calc" data-field="oc">—</td>
-                    <td class="calc" data-field="dvusd">—</td>
-                    <td class="calc" data-field="dvphp" style="color:#3b82f6;">—</td>
-                    <td class="calc" data-field="cud" style="color:#f59e0b;">—</td>
-                    <td><button type="button" onclick="removeRow(this)"
-                                style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px; padding:0 4px;">✕</button></td>
+                    <td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" step="0.01" placeholder="0" oninput="recalcAll()" style="width:40px;"></td>
+                    <td class="calc cud" data-field="cud">—</td>
+                    <td><input class="ecdt-input" type="number" name="gw[]" step="0.01" placeholder="0"></td>
+                    <td><input class="ecdt-input" type="number" name="nw[]" step="0.01" placeholder="0"></td>
+                    <td><input class="ecdt-input" type="number" name="quantity[]" step="1" placeholder="0"></td>
+                    <td><input class="ecdt-input" type="number" name="pkgs[]" step="1" placeholder="0"></td>
+                    <td>
+                        <button type="button" onclick="removeRow(this)"
+                                style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 3px;">✕</button>
+                    </td>
                 </tr>
                 {% endif %}
             </tbody>
         </table>
     </div>
 
-    <!-- Totals footer — live estimate -->
+    <!-- ── Live Totals Footer ────────────────────────────────────────── -->
     <div style="padding:10px 14px; background:#0f172a; border-top:2px solid #334155; font-size:12px;">
 
-        <!-- Row 1: core ECDT totals -->
+        <!-- Row 1: EXW / DV totals -->
         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
             <div>
                 <span style="color:#64748b;">Total EXW:</span>
                 <strong style="color:#f1f5f9; margin-left:4px;" id="total-exw">$0.00</strong>
             </div>
             <div>
-                <span style="color:#64748b;">Total D/V ₱:</span>
-                <strong style="color:#3b82f6; margin-left:4px;" id="total-dvphp">₱0.00</strong>
+                <span style="color:#64748b;">Total D/V (₱):</span>
+                <strong style="color:#60a5fa; margin-left:4px;" id="total-dvphp">₱0.00</strong>
             </div>
             <div>
-                <span style="color:#64748b;">Total CUD ₱:</span>
-                <strong style="color:#f59e0b; margin-left:4px;" id="total-cud">₱0.00</strong>
+                <span style="color:#64748b;">Total CUD (₱):</span>
+                <strong style="color:#fbbf24; margin-left:4px;" id="total-cud">₱0.00</strong>
             </div>
         </div>
 
-        <!-- Row 2: fee breakdown chips -->
+        <!-- Row 2: fee chips -->
         <div style="border-top:1px solid #1e293b; padding-top:8px;
-                    display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; margin-bottom:6px;">
-            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
-                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">VAT (12%)</p>
-                <p style="color:#a78bfa; font-size:12px; font-weight:700; margin:0;" id="live-vat">—</p>
+                    display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:5px; margin-bottom:6px;">
+            <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
+                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">Bank Charges</p>
+                <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-bc">₱0.00</p>
             </div>
-            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
-                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">Brokerage Fee</p>
-                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-bf">—</p>
-                <p style="color:#475569; font-size:9px; margin:1px 0 0;" id="live-bf-tier"></p>
+            <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
+                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">Brokerage Fee</p>
+                <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-bf">—</p>
+                <p style="color:#475569; font-size:9px; margin:0;" id="live-bf-tier"></p>
             </div>
-            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
-                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">CDS (fixed)</p>
-                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;">₱130.00</p>
+            <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
+                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">CDS (fixed)</p>
+                <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;">₱130.00</p>
             </div>
-            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
-                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">IPF</p>
-                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-ipf">—</p>
+            <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
+                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">IPF</p>
+                <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-ipf">—</p>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
+                <p style="color:#a78bfa; font-size:9px; margin:0 0 2px;">VAT 12%</p>
+                <p style="color:#a78bfa; font-size:11px; font-weight:700; margin:0;" id="live-vat">—</p>
             </div>
         </div>
 
-        <!-- Row 3: port fees + total -->
-        <div style="display:grid; grid-template-columns:1fr 1fr {% if shipment.shipment_type == 'fcl' %}1fr {% endif %}1.4fr; gap:6px;">
-            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
-                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">Arrastre</p>
-                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-arrastre">₱0.00</p>
+        <!-- Row 3: port fees + total landed cost + BOC total -->
+        <div style="display:grid; grid-template-columns:1fr 1fr {% if shipment.shipment_type == 'fcl' %}1fr {% endif %}1.5fr 1.5fr; gap:5px;">
+            <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
+                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">Arrastre</p>
+                <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-arrastre">₱0.00</p>
             </div>
-            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
-                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">Wharfage</p>
-                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-wharfage">₱0.00</p>
+            <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
+                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">Wharfage</p>
+                <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-wharfage">₱0.00</p>
             </div>
             {% if shipment.shipment_type == 'fcl' %}
-            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
-                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">CSF (PHP)</p>
-                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-csf">₱0.00</p>
+            <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
+                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">CSF (₱)</p>
+                <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-csf">₱0.00</p>
             </div>
             {% endif %}
-            <div style="background:#172554; border-radius:6px; padding:6px 8px; text-align:center;
+            <div style="background:#172554; border-radius:6px; padding:5px 8px; text-align:center;
                         border:1px solid #1d4ed8;">
-                <p style="color:#93c5fd; font-size:10px; margin:0 0 2px; font-weight:700;
-                          text-transform:uppercase; letter-spacing:0.4px;">Est. Total</p>
+                <p style="color:#93c5fd; font-size:9px; font-weight:700; margin:0 0 2px;
+                          text-transform:uppercase; letter-spacing:0.4px;">Total Landed Cost</p>
                 <p style="color:#3b82f6; font-size:13px; font-weight:800; margin:0;" id="live-total">—</p>
             </div>
+            <div style="background:#0c1a2e; border-radius:6px; padding:5px 8px; text-align:center;
+                        border:1px solid #1e3a5f;">
+                <p style="color:#60a5fa; font-size:9px; font-weight:700; margin:0 0 2px;
+                          text-transform:uppercase; letter-spacing:0.4px;">BOC Total</p>
+                <p style="color:#93c5fd; font-size:13px; font-weight:800; margin:0;" id="live-boc">—</p>
+            </div>
         </div>
-        <p style="color:#334155; font-size:10px; margin:6px 0 0; text-align:right;">
-            Live estimate — updates as you type
+        <p style="color:#334155; font-size:10px; margin:5px 0 0; text-align:right;">
+            Live estimate — TLC = D/V + Bank Chg + CUD + BF + CDS + IPF + Port Fees · VAT = 12% × TLC
         </p>
     </div>
 </div>
@@ -729,93 +837,192 @@
 
 </form>
 
-<!-- ── ECDT Summary ───────────────────────────────────────────────── -->
+<!-- ── ECDT Summary (post-compute, Excel layout) ─────────────────── -->
 {% if result or existing %}
 <div class="card" style="margin-bottom:14px;">
-    <p class="card-title">ECDT Summary</p>
-    {% with c=existing %}
-    <div style="display:flex; flex-direction:column; gap:6px;">
+    <p class="card-title" style="margin-bottom:14px;">ECDT Summary</p>
 
-        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
-            <span style="color:#94a3b8; font-size:12px;">Taxable Value (D/V PHP)</span>
-            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
-                {% if result %}₱{{ result.taxable_value|floatformat:2 }}
-                {% else %}₱{{ existing.dutiable_value|floatformat:2 }}{% endif %}
-            </span>
+    <div class="ecdt-summary-grid">
+
+        <!-- Left: Full ECDT breakdown -->
+        <div style="display:flex; flex-direction:column; gap:5px;">
+            <p style="color:#475569; font-size:10px; font-weight:700; text-transform:uppercase;
+                      letter-spacing:0.5px; margin:0 0 6px;">Cost Breakdown</p>
+
+            <div class="summary-row">
+                <span class="summary-label">Taxable Value (D/V PHP)</span>
+                <span class="summary-value">
+                    {% if result %}₱{{ result.taxable_value|floatformat:2 }}
+                    {% else %}₱{{ existing.dutiable_value|floatformat:2 }}{% endif %}
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">Bank Charges</span>
+                <span class="summary-value">
+                    {% if result %}₱{{ result.bank_charges|floatformat:2 }}
+                    {% elif existing %}₱{{ existing.bank_charges|floatformat:2 }}
+                    {% else %}₱0.00{% endif %}
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">Customs Duties (CUD)</span>
+                <span class="summary-value" style="color:#fbbf24;">
+                    {% if result %}₱{{ result.customs_duties|floatformat:2 }}
+                    {% else %}₱{{ existing.customs_duty|floatformat:2 }}{% endif %}
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">Brokerage Fee</span>
+                <span class="summary-value">
+                    {% if result %}₱{{ result.brokerage_fee|floatformat:2 }}
+                    {% elif existing.brokerage_fee %}₱{{ existing.brokerage_fee|floatformat:2 }}
+                    {% else %}—{% endif %}
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">Arrastre</span>
+                <span class="summary-value">
+                    {% if result %}₱{{ result.arrastre|floatformat:2 }}
+                    {% elif existing %}₱{{ existing.arrastre|floatformat:2 }}
+                    {% else %}₱0.00{% endif %}
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">Wharfage</span>
+                <span class="summary-value">
+                    {% if result %}₱{{ result.wharfage|floatformat:2 }}
+                    {% elif existing %}₱{{ existing.wharfage|floatformat:2 }}
+                    {% else %}₱0.00{% endif %}
+                </span>
+            </div>
+
+            {% if shipment.shipment_type == 'fcl' %}
+            <div class="summary-row">
+                <span class="summary-label">CSF (Container Service Fee)</span>
+                <span class="summary-value">
+                    {% if result %}₱{{ result.csf_php|floatformat:2 }}
+                    {% elif existing %}₱{{ existing.csf_php|floatformat:2 }}
+                    {% else %}₱0.00{% endif %}
+                </span>
+            </div>
+            {% endif %}
+
+            <div class="summary-row">
+                <span class="summary-label">CDS (Customs Doc Stamp)</span>
+                <span class="summary-value">₱130.00</span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">IPF (Import Processing Fee)</span>
+                <span class="summary-value">
+                    {% if result %}₱{{ result.ipf|floatformat:2 }}
+                    {% elif existing.ipf %}₱{{ existing.ipf|floatformat:2 }}
+                    {% else %}—{% endif %}
+                </span>
+            </div>
+
+            <!-- Total Landed Cost -->
+            <div class="summary-row total-row">
+                <span class="summary-label total-label">Total Landed Cost</span>
+                <span class="summary-value total-value">
+                    {% if result %}₱{{ result.total_landed_cost|floatformat:2 }}
+                    {% else %}₱{{ existing.total_landed_cost|floatformat:2 }}{% endif %}
+                </span>
+            </div>
+
+            <!-- VAT below TLC (matches Excel layout) -->
+            <div class="summary-row vat-row">
+                <span class="summary-label" style="color:#c4b5fd;">VAT (12% of TLC)</span>
+                <span class="summary-value vat-value">
+                    {% if result %}₱{{ result.vat|floatformat:2 }}
+                    {% elif existing.vat_amount %}₱{{ existing.vat_amount|floatformat:2 }}
+                    {% else %}—{% endif %}
+                </span>
+            </div>
+
+            <p style="color:#334155; font-size:10px; margin:4px 0 0; text-align:center;">
+                Estimated only. Final assessment based on BOC/Customs findings.
+            </p>
         </div>
-        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
-            <span style="color:#94a3b8; font-size:12px;">Customs Duties (CUD)</span>
-            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
-                {% if result %}₱{{ result.customs_duties|floatformat:2 }}
-                {% else %}₱{{ existing.customs_duty|floatformat:2 }}{% endif %}
-            </span>
+
+        <!-- Right: BOC mini-summary -->
+        <div>
+            <p style="color:#475569; font-size:10px; font-weight:700; text-transform:uppercase;
+                      letter-spacing:0.5px; margin:0 0 6px;">BOC Fees (To Bureau of Customs)</p>
+            <div class="boc-box">
+                <p class="boc-title">🏛 Bureau of Customs</p>
+
+                <div class="boc-row">
+                    <span style="color:#94a3b8;">Customs Duties (CUD)</span>
+                    <span style="color:#fbbf24; font-weight:600;">
+                        {% if result %}₱{{ result.customs_duties|floatformat:2 }}
+                        {% else %}₱{{ existing.customs_duty|floatformat:2 }}{% endif %}
+                    </span>
+                </div>
+                <div class="boc-row">
+                    <span style="color:#94a3b8;">VAT (12% of TLC)</span>
+                    <span style="color:#a78bfa; font-weight:600;">
+                        {% if result %}₱{{ result.vat|floatformat:2 }}
+                        {% elif existing.vat_amount %}₱{{ existing.vat_amount|floatformat:2 }}
+                        {% else %}—{% endif %}
+                    </span>
+                </div>
+                <div class="boc-row">
+                    <span style="color:#94a3b8;">CDS</span>
+                    <span style="color:#f1f5f9; font-weight:600;">₱130.00</span>
+                </div>
+                <div class="boc-row">
+                    <span style="color:#94a3b8;">IPF</span>
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        {% if result %}₱{{ result.ipf|floatformat:2 }}
+                        {% elif existing.ipf %}₱{{ existing.ipf|floatformat:2 }}
+                        {% else %}—{% endif %}
+                    </span>
+                </div>
+
+                <div class="boc-row boc-total-row">
+                    <span style="color:#60a5fa; font-size:13px;">TOTAL BOC FEES</span>
+                    <span style="color:#3b82f6; font-size:15px; font-weight:800;">
+                        {% if result %}₱{{ result.boc_total|floatformat:2 }}
+                        {% elif existing %}
+                            {% with boc=existing.total_duties_and_taxes %}
+                            {% if boc %}
+                                ₱{% if existing.customs_duty and existing.vat_amount and existing.ipf %}{{ existing.customs_duty|add:existing.vat_amount|floatformat:2 }}{% else %}—{% endif %}
+                            {% else %}—{% endif %}
+                            {% endwith %}
+                        {% else %}—{% endif %}
+                    </span>
+                </div>
+
+                <p style="color:#334155; font-size:10px; margin:10px 0 0; text-align:center;">
+                    CUD + VAT + CDS + IPF
+                </p>
+            </div>
+
+            <!-- Exchange rate + computation info -->
+            <div style="margin-top:10px; padding:8px 10px; background:#0f172a; border-radius:6px; border:1px solid #1e293b;">
+                <p style="color:#475569; font-size:11px; margin:0 0 4px; font-weight:600;">Computation Details</p>
+                <p style="color:#64748b; font-size:10px; margin:0;">
+                    Exchange Rate:
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        ₱{% if result %}{{ existing.exchange_rate|default:default_rate }}{% elif existing %}{{ existing.exchange_rate|floatformat:4 }}{% endif %} / USD
+                    </span>
+                </p>
+                {% if existing %}
+                <p style="color:#64748b; font-size:10px; margin:2px 0 0;">
+                    Computed: <span style="color:#94a3b8;">{{ existing.updated_at|date:"M d, Y H:i" }}</span>
+                    by <span style="color:#94a3b8;">{{ existing.computed_by.get_full_name|default:existing.computed_by.username }}</span>
+                </p>
+                {% endif %}
+            </div>
         </div>
-        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
-            <span style="color:#94a3b8; font-size:12px;">VAT (12%)</span>
-            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
-                {% if result %}₱{{ result.vat|floatformat:2 }}
-                {% else %}₱{{ existing.vat_amount|floatformat:2 }}{% endif %}
-            </span>
-        </div>
-        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
-            <span style="color:#94a3b8; font-size:12px;">Brokerage Fee</span>
-            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
-                {% if result %}₱{{ result.brokerage_fee|floatformat:2 }}
-                {% elif existing.brokerage_fee %}₱{{ existing.brokerage_fee|floatformat:2 }}
-                {% else %}—{% endif %}
-            </span>
-        </div>
-        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
-            <span style="color:#94a3b8; font-size:12px;">Customs Doc Stamp</span>
-            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">₱130.00</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
-            <span style="color:#94a3b8; font-size:12px;">Import Processing Fee</span>
-            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
-                {% if result %}₱{{ result.ipf|floatformat:2 }}
-                {% elif existing.ipf %}₱{{ existing.ipf|floatformat:2 }}
-                {% else %}—{% endif %}
-            </span>
-        </div>
-        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
-            <span style="color:#94a3b8; font-size:12px;">Arrastre</span>
-            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
-                {% if result %}₱{{ result.arrastre|floatformat:2 }}
-                {% elif existing %}₱{{ existing.arrastre|floatformat:2 }}
-                {% else %}₱0.00{% endif %}
-            </span>
-        </div>
-        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
-            <span style="color:#94a3b8; font-size:12px;">Wharfage</span>
-            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
-                {% if result %}₱{{ result.wharfage|floatformat:2 }}
-                {% elif existing %}₱{{ existing.wharfage|floatformat:2 }}
-                {% else %}₱0.00{% endif %}
-            </span>
-        </div>
-        {% if shipment.shipment_type == 'fcl' %}
-        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
-            <span style="color:#94a3b8; font-size:12px;">CSF (Container Service Fee)</span>
-            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
-                {% if result %}₱{{ result.csf_php|floatformat:2 }}
-                {% elif existing %}₱{{ existing.csf_php|floatformat:2 }}
-                {% else %}₱0.00{% endif %}
-            </span>
-        </div>
-        {% endif %}
-        <div style="display:flex; justify-content:space-between; padding:14px 12px;
-                    background:#172554; border-radius:8px; border:2px solid #3b82f6; margin-top:4px;">
-            <span style="color:#93c5fd; font-size:14px; font-weight:700;">Total Landed Cost</span>
-            <span style="color:#3b82f6; font-size:18px; font-weight:800;">
-                {% if result %}₱{{ result.total_landed_cost|floatformat:2 }}
-                {% else %}₱{{ existing.total_landed_cost|floatformat:2 }}{% endif %}
-            </span>
-        </div>
-        <p style="color:#475569; font-size:10px; text-align:center; margin-top:4px;">
-            Estimated only. Final assessment based on BOC/Customs findings.
-        </p>
+
     </div>
-    {% endwith %}
 </div>
 {% endif %}
 
@@ -833,12 +1040,12 @@
                 {% elif declared_rating == 'Fair' %}#f59e0b
                 {% else %}#ef4444{% endif %};">
 
-        <!-- Mode header -->
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
             <span style="font-size:26px;">
                 {% if shipment.shipment_type == 'air' %}✈️
                 {% elif shipment.shipment_type == 'lcl' %}🚢
-                {% else %}📦{% endif %}
+                {% elif shipment.shipment_type == 'fcl' %}📦
+                {% else %}🚛{% endif %}
             </span>
             <div style="flex:1;">
                 <p style="color:#94a3b8; font-size:10px; margin:0; text-transform:uppercase; letter-spacing:0.5px;">Declared Mode</p>
@@ -846,7 +1053,6 @@
                     {{ shipment.get_shipment_type_display }}
                 </p>
             </div>
-            <!-- Score + Rating badge -->
             <div style="text-align:right;">
                 <p style="font-size:22px; font-weight:800; margin:0;
                     color:{% if declared_rating == 'Excellent' %}#22c55e
@@ -864,10 +1070,8 @@
             </div>
         </div>
 
-        <!-- Subscore bars -->
         {% if declared_breakdown %}
         <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
-
             <div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
                     <span style="color:#94a3b8; font-size:11px;">💰 Cost Efficiency</span>
@@ -878,7 +1082,6 @@
                          width:{% widthratio declared_breakdown.cost 1 100 %}%;"></div>
                 </div>
             </div>
-
             <div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
                     <span style="color:#94a3b8; font-size:11px;">⏱ Transit Time</span>
@@ -889,7 +1092,6 @@
                          width:{% widthratio declared_breakdown.time 1 100 %}%;"></div>
                 </div>
             </div>
-
             <div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
                     <span style="color:#94a3b8; font-size:11px;">⚖️ Weight Suitability</span>
@@ -900,7 +1102,6 @@
                          width:{% widthratio declared_breakdown.weight 1 100 %}%;"></div>
                 </div>
             </div>
-
             <div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
                     <span style="color:#94a3b8; font-size:11px;">🛡 Risk Factor</span>
@@ -914,7 +1115,6 @@
         </div>
         {% endif %}
 
-        <!-- Verdict -->
         {% if wmcda_recommended == shipment.shipment_type %}
         <div style="background:#052e16; border:1px solid #166534; border-radius:6px;
                     padding:8px 12px; display:flex; align-items:center; gap:8px;">
@@ -937,7 +1137,7 @@
     </div>
     {% endif %}
 
-    <!-- ── COMPACT: All 4 mode scores strip ────────────────────────── -->
+    <!-- All 4 mode scores -->
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; margin-bottom:10px;">
         {% with sa=wmcda_scores.air %}
         <div style="background:#0f172a; border-radius:8px; padding:8px 10px; text-align:center;
@@ -947,11 +1147,8 @@
             <p style="margin:0; font-size:13px; font-weight:700;
                 color:{% if wmcda_recommended == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#94a3b8{% endif %};">
                 {{ sa|floatformat:3 }}</p>
-            {% if wmcda_recommended == 'air' %}
-            <p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
-            {% elif shipment.shipment_type == 'air' %}
-            <p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>
-            {% endif %}
+            {% if wmcda_recommended == 'air' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+            {% elif shipment.shipment_type == 'air' %}<p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>{% endif %}
         </div>
         {% endwith %}
         {% with sl=wmcda_scores.lcl %}
@@ -962,11 +1159,8 @@
             <p style="margin:0; font-size:13px; font-weight:700;
                 color:{% if wmcda_recommended == 'lcl' %}#22c55e{% elif shipment.shipment_type == 'lcl' %}#3b82f6{% else %}#94a3b8{% endif %};">
                 {{ sl|floatformat:3 }}</p>
-            {% if wmcda_recommended == 'lcl' %}
-            <p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
-            {% elif shipment.shipment_type == 'lcl' %}
-            <p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>
-            {% endif %}
+            {% if wmcda_recommended == 'lcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+            {% elif shipment.shipment_type == 'lcl' %}<p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>{% endif %}
         </div>
         {% endwith %}
         {% with sf=wmcda_scores.fcl %}
@@ -977,11 +1171,8 @@
             <p style="margin:0; font-size:13px; font-weight:700;
                 color:{% if wmcda_recommended == 'fcl' %}#22c55e{% elif shipment.shipment_type == 'fcl' %}#3b82f6{% else %}#94a3b8{% endif %};">
                 {{ sf|floatformat:3 }}</p>
-            {% if wmcda_recommended == 'fcl' %}
-            <p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
-            {% elif shipment.shipment_type == 'fcl' %}
-            <p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>
-            {% endif %}
+            {% if wmcda_recommended == 'fcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+            {% elif shipment.shipment_type == 'fcl' %}<p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>{% endif %}
         </div>
         {% endwith %}
         {% with sland=wmcda_scores.land %}
@@ -992,16 +1183,12 @@
             <p style="margin:0; font-size:13px; font-weight:700;
                 color:{% if wmcda_recommended == 'land' %}#22c55e{% elif shipment.shipment_type == 'land' %}#3b82f6{% else %}#94a3b8{% endif %};">
                 {{ sland|floatformat:3 }}</p>
-            {% if wmcda_recommended == 'land' %}
-            <p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
-            {% elif shipment.shipment_type == 'land' %}
-            <p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>
-            {% endif %}
+            {% if wmcda_recommended == 'land' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+            {% elif shipment.shipment_type == 'land' %}<p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>{% endif %}
         </div>
         {% endwith %}
     </div>
 
-    <!-- ── RECOMMENDATION: Only shown when declared ≠ recommended ─── -->
     {% if wmcda_recommended and wmcda_recommended != shipment.shipment_type %}
     <div style="background:#1a2e1a; border:1px solid #22c55e; border-radius:8px;
                 padding:12px 14px; margin-bottom:10px;">
@@ -1037,7 +1224,6 @@
     </div>
     {% endif %}
 
-    <!-- ── HISTORICAL PATTERN ──────────────────────────────────────── -->
     {% if wmcda_history %}
     <div style="background:#1e293b; border:1px solid #334155; border-radius:8px;
                 padding:10px 14px; display:flex; align-items:center; gap:10px;">
@@ -1057,7 +1243,7 @@
     </div>
     {% endif %}
 
-    <!-- ── DECLARANT ADVISORY ─────────────────────────────────────── -->
+    <!-- Declarant Advisory -->
     <div style="margin-top:10px; padding-top:10px; border-top:1px solid #1e293b;">
         {% if advisory_existing and advisory_existing.declarant_recommendation %}
         <div style="background:#0f2027; border:1px solid #1e40af; border-radius:8px; padding:12px 14px; display:flex; align-items:flex-start; gap:10px;">
@@ -1098,7 +1284,7 @@
 
 {% block extra_js %}
 <script>
-// ── OCR extracted data (from Django context) ──────────────────────────────────
+// ── OCR data from Django context ──────────────────────────────────────────────
 var ocrData = {
     {% if ocr_fields %}
     declared_value: '{{ ocr_fields.declared_value.value|default:"" }}',
@@ -1108,12 +1294,10 @@ var ocrData = {
     {% endif %}
 };
 
-// HS Codes list — includes description and chapter for searchable picker
 var hsCodesData = [
     {% for hs in hs_codes %}{id: {{ hs.id }}, code: '{{ hs.code|escapejs }}', rate: {{ hs.duty_rate }}, desc: '{{ hs.description|truncatechars:60|escapejs }}', chapter: '{{ hs.chapter|default:""|escapejs }}'}{% if not forloop.last %},{% endif %}{% endfor %}
 ];
 
-// Chapter number → display name (AHTN 2022 / Philippine tariff)
 var HS_CHAPTER_NAMES = {
     '01':'Live Animals','02':'Meat & Offal','03':'Fish & Seafood','04':'Dairy & Eggs',
     '05':'Other Animal Products','06':'Live Plants & Flowers','07':'Vegetables',
@@ -1148,15 +1332,10 @@ var HS_CHAPTER_NAMES = {
     '95':'Toys, Games & Sports','96':'Miscellaneous Articles','97':'Works of Art'
 };
 
-// Multi-item list extracted by OCR (from invoice/packing list line items)
 var ocrItems = [
     {% if ocr_items %}
     {% for item in ocr_items %}
-    {
-        description: '{{ item.description|escapejs }}',
-        quantity:    '{{ item.quantity|default:"" }}',
-        total_value: {{ item.total_value|default:0 }}
-    }{% if not forloop.last %},{% endif %}
+    {description: '{{ item.description|escapejs }}', quantity: '{{ item.quantity|default:"" }}', total_value: {{ item.total_value|default:0 }}}{% if not forloop.last %},{% endif %}
     {% endfor %}
     {% endif %}
 ];
@@ -1165,43 +1344,36 @@ var ocrItems = [
 
 function _filterHsCodes(query) {
     if (!query || query.trim() === '') return hsCodesData.slice(0, 60);
-    var q     = query.trim().toLowerCase();
+    var q = query.trim().toLowerCase();
     var words = q.split(/\s+/).filter(Boolean);
-
     var scored = [];
     for (var i = 0; i < hsCodesData.length; i++) {
-        var hs   = hsCodesData[i];
+        var hs = hsCodesData[i];
         var code = hs.code.toLowerCase();
         var desc = hs.desc.toLowerCase();
         var score = 0;
-
-        // Code matching — highest priority
-        if (code === q)                                              score = 100;
-        else if (code.startsWith(q))                                score = 90;
-        else if (code.replace(/\./g,'').startsWith(q.replace(/\./g,''))) score = 85;
-        else if (code.includes(q))                                  score = 70;
-
-        // Description word matching
+        if (code === q)                                                     score = 100;
+        else if (code.startsWith(q))                                        score = 90;
+        else if (code.replace(/\./g,'').startsWith(q.replace(/\./g,'')))    score = 85;
+        else if (code.includes(q))                                          score = 70;
         var matchedWords = 0;
         for (var w = 0; w < words.length; w++) {
             if (desc.includes(words[w]) || code.includes(words[w])) matchedWords++;
         }
-        if (matchedWords === words.length)      score = Math.max(score, 60);
-        else if (matchedWords > 0)              score = Math.max(score, 25 + matchedWords * 8);
-
-        if (score > 0) scored.push({ hs: hs, score: score });
+        if (matchedWords === words.length)  score = Math.max(score, 60);
+        else if (matchedWords > 0)          score = Math.max(score, 25 + matchedWords * 8);
+        if (score > 0) scored.push({hs: hs, score: score});
     }
-
     scored.sort(function(a, b) { return b.score - a.score; });
     return scored.slice(0, 60).map(function(s) { return s.hs; });
 }
 
 function _positionHsResults(picker) {
-    var input   = picker.querySelector('.hs-search-input');
+    var input = picker.querySelector('.hs-search-input');
     var results = picker.querySelector('.hs-results');
-    var rect    = input.getBoundingClientRect();
-    results.style.top   = (rect.bottom + 2) + 'px';
-    results.style.left  = rect.left + 'px';
+    var rect = input.getBoundingClientRect();
+    results.style.top  = (rect.bottom + 2) + 'px';
+    results.style.left = rect.left + 'px';
     results.style.width = Math.max(rect.width, 320) + 'px';
 }
 
@@ -1211,24 +1383,18 @@ function _renderHsResults(picker, query) {
     if (matches.length === 0) {
         results.innerHTML = '<div class="hs-no-results">No HS codes found for "' + query + '"</div>';
     } else {
-        // Group results by chapter
-        var groups = {};
-        var order  = [];
+        var groups = {}, order = [];
         matches.forEach(function(hs) {
             var ch = hs.chapter || '00';
             if (!groups[ch]) { groups[ch] = []; order.push(ch); }
             groups[ch].push(hs);
         });
-
         var html = '';
         order.forEach(function(ch) {
             var chName = HS_CHAPTER_NAMES[ch] || ('Chapter ' + ch);
             html += '<div class="hs-chapter-header">Ch. ' + ch + ' — ' + chName + '</div>';
             groups[ch].forEach(function(hs) {
-                html += '<div class="hs-result-item"' +
-                        ' data-id="' + hs.id + '"' +
-                        ' data-rate="' + hs.rate + '"' +
-                        ' data-code="' + hs.code + '">' +
+                html += '<div class="hs-result-item" data-id="' + hs.id + '" data-rate="' + hs.rate + '" data-code="' + hs.code + '">' +
                         '<span class="hs-code-badge">' + hs.code + '</span>' +
                         '<span class="hs-desc-text">' + hs.desc + '</span>' +
                         '<span class="hs-rate-badge">' + hs.rate + '%</span>' +
@@ -1236,11 +1402,9 @@ function _renderHsResults(picker, query) {
             });
         });
         results.innerHTML = html;
-
-        // Attach click handlers
         results.querySelectorAll('.hs-result-item').forEach(function(item) {
             item.addEventListener('mousedown', function(e) {
-                e.preventDefault(); // prevent blur before click
+                e.preventDefault();
                 _selectHsItem(picker, item.dataset.id, item.dataset.code, parseFloat(item.dataset.rate));
             });
         });
@@ -1256,8 +1420,6 @@ function _selectHsItem(picker, id, code, rate) {
     searchInput.classList.add('hs-selected');
     hiddenInput.value = id;
     picker.querySelector('.hs-results').classList.remove('open');
-
-    // Update rate-input in same row
     var tr = picker.closest('tr');
     if (tr) {
         var rateInput = tr.querySelector('.rate-input');
@@ -1269,8 +1431,6 @@ function _selectHsItem(picker, id, code, rate) {
 function initHsPicker(picker) {
     var searchInput = picker.querySelector('.hs-search-input');
     var hiddenInput = picker.querySelector('input[name="hs_code_id[]"]');
-
-    // Pre-fill from data-selected-id on page load
     var preId = picker.dataset.selectedId;
     if (preId) {
         var preHs = hsCodesData.find(function(h) { return String(h.id) === String(preId); });
@@ -1279,21 +1439,17 @@ function initHsPicker(picker) {
             searchInput.classList.add('hs-selected');
         }
     }
-
     searchInput.addEventListener('focus', function() {
         _renderHsResults(picker, this.value);
     });
-
     searchInput.addEventListener('input', function() {
         searchInput.classList.remove('hs-selected');
         hiddenInput.value = '';
         _renderHsResults(picker, this.value);
     });
-
     searchInput.addEventListener('blur', function() {
         setTimeout(function() {
             picker.querySelector('.hs-results').classList.remove('open');
-            // If no selection made, restore previous or clear
             if (!hiddenInput.value) {
                 searchInput.value = '';
                 searchInput.classList.remove('hs-selected');
@@ -1303,12 +1459,8 @@ function initHsPicker(picker) {
             }
         }, 150);
     });
-
-    // Reposition dropdown on scroll or resize (table can scroll horizontally)
     window.addEventListener('scroll', function() { _positionHsResults(picker); }, true);
     window.addEventListener('resize', function() { _positionHsResults(picker); });
-
-    // Close on outside click
     document.addEventListener('click', function(e) {
         if (!picker.contains(e.target)) {
             picker.querySelector('.hs-results').classList.remove('open');
@@ -1326,50 +1478,52 @@ function _createHsPicker() {
     var div = document.createElement('div');
     div.className = 'hs-picker';
     div.innerHTML =
-        '<input type="text" class="hs-search-input" placeholder="Search code or item..." autocomplete="off">' +
+        '<input type="text" class="hs-search-input" placeholder="Search..." autocomplete="off">' +
         '<input type="hidden" name="hs_code_id[]" value="">' +
         '<div class="hs-results"></div>';
     initHsPicker(div);
     return div;
 }
 
+// ── Build a new table row ─────────────────────────────────────────────────────
+// Col order: #, Desc, EXW, Freight, Ins, D/V$, D/V₱, HS, Rate%, CUD₱, GW, NW, QTY, PKGS, del
 function _makeRow(n, desc, exw, qty) {
     var tr = document.createElement('tr');
     tr.innerHTML =
         '<td style="color:#64748b;font-size:11px;">' + n + '</td>' +
         '<td><input class="ecdt-input" type="text" name="description[]" ' +
-             'value="' + desc.replace(/"/g,'&quot;') + '" placeholder="Item..." style="width:110px;"></td>' +
+             'value="' + (desc||'').replace(/"/g,'&quot;') + '" placeholder="Item..."></td>' +
         '<td><input class="ecdt-input exw-input" type="number" name="exw_value[]" ' +
-             'step="0.01" value="' + (exw || '') + '" placeholder="0.00" oninput="recalcAll()"></td>' +
-        '<td><input class="ecdt-input" type="number" name="quantity[]" ' +
-             'step="1" value="' + (qty || '') + '" placeholder="0"></td>' +
+             'step="0.01" value="' + (exw||'') + '" placeholder="0.00" oninput="recalcAll()"></td>' +
+        '<td><input class="ecdt-input freight-input" type="number" name="item_freight[]" ' +
+             'step="0.01" placeholder="0.00" oninput="recalcAll()"></td>' +
+        '<td><input class="ecdt-input freight-input" type="number" name="item_insurance[]" ' +
+             'step="0.01" placeholder="0.00" oninput="recalcAll()"></td>' +
+        '<td class="calc" data-field="dvusd">—</td>' +
+        '<td class="calc dvphp" data-field="dvphp">—</td>' +
         '<td class="hs-picker-td"></td>' +
         '<td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" ' +
-             'step="0.01" placeholder="0" oninput="recalcAll()" style="width:44px;"></td>' +
-        '<td class="calc" data-field="freight">—</td>' +
-        '<td class="calc" data-field="ins">—</td>' +
-        '<td class="calc" data-field="oc">—</td>' +
-        '<td class="calc" data-field="dvusd">—</td>' +
-        '<td class="calc" data-field="dvphp" style="color:#3b82f6;">—</td>' +
-        '<td class="calc" data-field="cud" style="color:#f59e0b;">—</td>' +
+             'step="0.01" placeholder="0" oninput="recalcAll()" style="width:40px;"></td>' +
+        '<td class="calc cud" data-field="cud">—</td>' +
+        '<td><input class="ecdt-input" type="number" name="gw[]" step="0.01" placeholder="0"></td>' +
+        '<td><input class="ecdt-input" type="number" name="nw[]" step="0.01" placeholder="0"></td>' +
+        '<td><input class="ecdt-input" type="number" name="quantity[]" step="1" value="' + (qty||'') + '" placeholder="0"></td>' +
+        '<td><input class="ecdt-input" type="number" name="pkgs[]" step="1" placeholder="0"></td>' +
         '<td><button type="button" onclick="removeRow(this)" ' +
-             'style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 4px;">✕</button></td>';
-    // Append picker element (can't inline HTML with event listeners cleanly)
+             'style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 3px;">✕</button></td>';
     tr.querySelector('.hs-picker-td').appendChild(_createHsPicker());
     return tr;
 }
 
+// ── Fill table from OCR ───────────────────────────────────────────────────────
 function fillFromOCR() {
     var tbody = document.getElementById('ecdt-body');
-
     if (ocrItems && ocrItems.length >= 2) {
-        // Multi-item fill — clear table and create one row per item
         tbody.innerHTML = '';
         ocrItems.forEach(function(item, idx) {
             tbody.appendChild(_makeRow(idx + 1, item.description, item.total_value, item.quantity));
         });
     } else {
-        // Single-total fallback — fill first row
         var firstRow = tbody.rows[0];
         if (!firstRow) return;
         if (ocrData.description)
@@ -1393,8 +1547,8 @@ function getBF(dvPhp) {
     if (dvPhp <= 60000)  return 4000;
     if (dvPhp <= 100000) return 4700;
     if (dvPhp <= 200000) return 5300;
-    // ₱5,300 + 1.25% of excess above ₱200,000
-    return 5300 + (dvPhp - 200000) * 0.0125;
+    // ₱5,300 + 0.125% of excess above ₱200,000
+    return 5300 + (dvPhp - 200000) * 0.00125;
 }
 function getBFTier(dvPhp) {
     if (dvPhp <= 0)      return '';
@@ -1406,7 +1560,7 @@ function getBFTier(dvPhp) {
     if (dvPhp <= 60000)  return '₱50K–60K';
     if (dvPhp <= 100000) return '₱60K–100K';
     if (dvPhp <= 200000) return '₱100K–200K';
-    return '> ₱200K (+1.25%)';
+    return '> ₱200K (+0.125%)';
 }
 function getIPF(dvPhp) {
     if (dvPhp <= 0)      return 0;
@@ -1419,37 +1573,45 @@ function getIPF(dvPhp) {
 }
 
 // ── Live recalculation ────────────────────────────────────────────────────────
+// D/V = EXW + Freight + Insurance (no O/C)
+// TLC = D/V + Bank Charges + CUD + BF + CDS + IPF + Arrastre + Wharfage + CSF
+// VAT = 12% × TLC
+// BOC Total = CUD + VAT + CDS + IPF
 function recalcAll() {
-    var rows      = document.querySelectorAll('#ecdt-body tr');
-    var freight   = parseFloat(document.getElementById('total_freight').value)   || 0;
-    var insurance = parseFloat(document.getElementById('total_insurance').value) || 0;
-    var exchRate  = parseFloat(document.getElementById('exchange_rate').value)   || 0;
+    var rows     = document.querySelectorAll('#ecdt-body tr');
+    var exchRate = parseFloat(document.getElementById('exchange_rate').value) || 0;
 
-    // ── Port fees ──────────────────────────────────────────────────────────────
+    // Port fees
     var arrEl    = document.getElementById('arrastre');
     var wharfEl  = document.getElementById('wharfage');
     var csfUsdEl = document.getElementById('csf_usd');
-    var arrastre = arrEl   ? (parseFloat(arrEl.value)   || 0) : 0;
-    var wharfage = wharfEl ? (parseFloat(wharfEl.value) || 0) : 0;
+    var bcEl     = document.getElementById('bank_charges');
+    var arrastre = arrEl    ? (parseFloat(arrEl.value)    || 0) : 0;
+    var wharfage = wharfEl  ? (parseFloat(wharfEl.value)  || 0) : 0;
     var csfUsd   = csfUsdEl ? (parseFloat(csfUsdEl.value) || 0) : 0;
+    var bankChg  = bcEl     ? (parseFloat(bcEl.value)     || 0) : 0;
     var csfPhp   = csfUsd * exchRate;
 
-    // Update CSF PHP preview
+    var _fmt = function(n) {
+        return '₱' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    };
+
+    // CSF PHP preview
     var csfPreview = document.getElementById('csf-php-preview');
     if (csfPreview) {
-        csfPreview.textContent = '= ₱' + csfPhp.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' PHP';
+        csfPreview.textContent = '= ' + _fmt(csfPhp) + ' PHP';
     }
 
-    // Update port fee live chips (always, regardless of DV PHP)
-    var _fmt = function(n) { return '₱' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+    // Live port chips
     var arrChip  = document.getElementById('live-arrastre');
     var wharChip = document.getElementById('live-wharfage');
     var csfChip  = document.getElementById('live-csf');
+    var bcChip   = document.getElementById('live-bc');
     if (arrChip)  arrChip.textContent  = _fmt(arrastre);
     if (wharChip) wharChip.textContent = _fmt(wharfage);
     if (csfChip)  csfChip.textContent  = _fmt(csfPhp);
+    if (bcChip)   bcChip.textContent   = _fmt(bankChg);
 
-    // Sum total EXW
     var totalExw = 0;
     rows.forEach(function(row) {
         var inp = row.querySelector('.exw-input');
@@ -1459,70 +1621,94 @@ function recalcAll() {
     var totalDvPhp = 0, totalCud = 0;
 
     rows.forEach(function(row) {
-        var inp      = row.querySelector('.exw-input');
-        var rateInp  = row.querySelector('.rate-input');
-        var exw      = parseFloat(inp     ? inp.value     : 0) || 0;
-        var dutyRate = parseFloat(rateInp ? rateInp.value : 0) || 0;
+        var exwInp  = row.querySelector('.exw-input');
+        var frInp   = row.querySelector('[name="item_freight[]"]');
+        var insInp  = row.querySelector('[name="item_insurance[]"]');
+        var rateInp = row.querySelector('.rate-input');
 
-        var itemFreight   = totalExw > 0 ? (exw / totalExw) * freight   : 0;
-        var itemInsurance = totalExw > 0 ? (exw / totalExw) * insurance : 0;
-        var oc            = exw * 0.03;
-        var dvUsd         = exw + itemFreight + itemInsurance + oc;
-        var dvPhp         = dvUsd * exchRate;
-        var cud           = dvPhp * (dutyRate / 100);
+        var exw       = parseFloat(exwInp  ? exwInp.value  : 0) || 0;
+        var freight   = parseFloat(frInp   ? frInp.value   : 0) || 0;
+        var insurance = parseFloat(insInp  ? insInp.value  : 0) || 0;
+        var dutyRate  = parseFloat(rateInp ? rateInp.value : 0) || 0;
+
+        // D/V = EXW + Freight + Insurance (NO O/C)
+        var dvUsd = exw + freight + insurance;
+        var dvPhp = dvUsd * exchRate;
+        var cud   = dvPhp * (dutyRate / 100);
 
         totalDvPhp += dvPhp;
         totalCud   += cud;
 
         function setCell(field, val) {
             var td = row.querySelector('[data-field="' + field + '"]');
-            if (td) td.textContent = val > 0 ? val.toFixed(2) : '—';
+            if (td) td.textContent = (val && val > 0) ? val.toFixed(2) : '—';
         }
-        setCell('freight', itemFreight);
-        setCell('ins',     itemInsurance);
-        setCell('oc',      oc);
-        setCell('dvusd',   dvUsd);
-        setCell('dvphp',   dvPhp);
-        setCell('cud',     cud);
+        setCell('dvusd', dvUsd);
+        setCell('dvphp', dvPhp);
+        setCell('cud',   cud);
     });
 
     document.getElementById('total-exw').textContent   = '$' + totalExw.toLocaleString('en-US', {minimumFractionDigits:2});
-    document.getElementById('total-dvphp').textContent = '₱' + totalDvPhp.toLocaleString('en-US', {minimumFractionDigits:2});
-    document.getElementById('total-cud').textContent   = '₱' + totalCud.toLocaleString('en-US', {minimumFractionDigits:2});
+    document.getElementById('total-dvphp').textContent = _fmt(totalDvPhp);
+    document.getElementById('total-cud').textContent   = _fmt(totalCud);
 
-    // ── Live fee chips ──────────────────────────────────────────────────────────
-    var fmt = function(n) {
-        return '₱' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
-    };
-    if (totalDvPhp > 0) {
-        var liveVat   = (totalDvPhp + totalCud) * 0.12;
+    // Live fee summary
+    if (totalDvPhp > 0 || bankChg > 0 || arrastre > 0 || wharfage > 0 || csfPhp > 0) {
         var liveBf    = getBF(totalDvPhp);
         var liveIpf   = getIPF(totalDvPhp);
-        var liveTotal = totalDvPhp + totalCud + liveVat + liveBf + 130 + liveIpf
+        var liveTlc   = totalDvPhp + bankChg + totalCud + liveBf + 130 + liveIpf
                         + arrastre + wharfage + csfPhp;
-        document.getElementById('live-vat').textContent     = fmt(liveVat);
-        document.getElementById('live-bf').textContent      = fmt(liveBf);
+        var liveVat   = liveTlc * 0.12;
+        var liveBoc   = totalCud + liveVat + 130 + liveIpf;
+
+        document.getElementById('live-bf').textContent      = _fmt(liveBf);
         document.getElementById('live-bf-tier').textContent = getBFTier(totalDvPhp);
-        document.getElementById('live-ipf').textContent     = fmt(liveIpf);
-        document.getElementById('live-total').textContent   = fmt(liveTotal);
+        document.getElementById('live-ipf').textContent     = _fmt(liveIpf);
+        document.getElementById('live-vat').textContent     = _fmt(liveVat);
+        document.getElementById('live-total').textContent   = _fmt(liveTlc);
+        document.getElementById('live-boc').textContent     = _fmt(liveBoc);
     } else {
-        ['live-vat','live-bf','live-ipf'].forEach(function(id) {
+        ['live-bf','live-ipf','live-vat','live-total','live-boc'].forEach(function(id) {
             var el = document.getElementById(id);
             if (el) el.textContent = '—';
         });
         document.getElementById('live-bf-tier').textContent = '';
-        // Still show partial total if port fees entered
-        var partialTotal = arrastre + wharfage + csfPhp;
-        document.getElementById('live-total').textContent =
-            partialTotal > 0 ? fmt(partialTotal) : '—';
     }
+}
+
+// ── Distribute global freight/insurance proportionally to per-row inputs ──────
+function distributeFreight() {
+    var totalFreight   = parseFloat(document.getElementById('total_freight').value)   || 0;
+    var totalInsurance = parseFloat(document.getElementById('total_insurance').value) || 0;
+    var rows           = document.querySelectorAll('#ecdt-body tr');
+
+    // Sum total EXW for proportional distribution
+    var totalExw = 0;
+    rows.forEach(function(row) {
+        var inp = row.querySelector('.exw-input');
+        totalExw += parseFloat(inp ? inp.value : 0) || 0;
+    });
+
+    rows.forEach(function(row) {
+        var exwInp = row.querySelector('.exw-input');
+        var frInp  = row.querySelector('[name="item_freight[]"]');
+        var insInp = row.querySelector('[name="item_insurance[]"]');
+        var exw    = parseFloat(exwInp ? exwInp.value : 0) || 0;
+        var ratio  = totalExw > 0 ? exw / totalExw : 0;
+
+        if (frInp)  frInp.value  = totalFreight   > 0 ? (totalFreight   * ratio).toFixed(2) : '';
+        if (insInp) insInp.value = totalInsurance > 0 ? (totalInsurance * ratio).toFixed(2) : '';
+    });
+
+    recalcAll();
 }
 
 // ── Add / Remove rows ─────────────────────────────────────────────────────────
 function addRow() {
     var tbody = document.getElementById('ecdt-body');
-    var n     = tbody.rows.length + 1;
+    var n = tbody.rows.length + 1;
     tbody.appendChild(_makeRow(n, '', '', ''));
+    recalcAll();
 }
 
 function removeRow(btn) {
@@ -1537,54 +1723,38 @@ function renumber() {
     });
 }
 
-// ── HS code auto-fill — handled per-row via onHsChange() ─────────────────────
-
 // ── Document viewer ───────────────────────────────────────────────────────────
 function loadDoc(url, label) {
-    var area    = document.getElementById('viewer-area');
-    var lbl     = document.getElementById('viewer-label');
+    var area = document.getElementById('viewer-area');
+    var lbl  = document.getElementById('viewer-label');
+    if (url.startsWith('/')) url = window.location.origin + url;
+    var ext   = url.split('?')[0].toLowerCase();
+    var isPdf = ext.endsWith('.pdf');
+    var isImg = /\.(jpe?g|png|gif|webp)$/.test(ext);
 
-    // Make relative URLs absolute using the current origin (host + port)
-    // Avoids Chrome resolving /media/... to port 80 instead of :8000
-    if (url.startsWith('/')) {
-        url = window.location.origin + url;
-    }
-
-    var ext     = url.split('?')[0].toLowerCase();
-    var isPdf   = ext.endsWith('.pdf');
-    var isImg   = /\.(jpe?g|png|gif|webp)$/.test(ext);
-
-    // Update header
     lbl.innerHTML = '— ' + label +
         ' <a href="' + url + '" target="_blank" ' +
-        'style="color:#3b82f6; font-size:11px; text-decoration:none; margin-left:8px; ' +
-        'padding:2px 8px; border:1px solid #334155; border-radius:4px; white-space:nowrap;">' +
+        'style="color:#3b82f6;font-size:11px;text-decoration:none;margin-left:8px;' +
+        'padding:2px 8px;border:1px solid #334155;border-radius:4px;white-space:nowrap;">' +
         'Open in new tab ↗</a>';
 
     if (isPdf) {
         area.innerHTML =
             '<div style="height:100%;display:flex;flex-direction:column;">' +
-            '<iframe src="' + url + '" ' +
-            'style="flex:1;width:100%;min-height:500px;border:none;display:block;" ' +
-            'allow="fullscreen"></iframe>' +
+            '<iframe src="' + url + '" style="flex:1;width:100%;min-height:500px;border:none;display:block;" allow="fullscreen"></iframe>' +
             '<div style="padding:10px;text-align:center;background:#0f172a;border-top:1px solid #1e293b;">' +
-            '<a href="' + url + '" target="_blank" ' +
-            'style="color:#3b82f6;font-size:12px;text-decoration:none;">Can\'t see the PDF? Open in new tab ↗</a>' +
-            '</div>' +
-            '</div>';
+            '<a href="' + url + '" target="_blank" style="color:#3b82f6;font-size:12px;text-decoration:none;">Can\'t see the PDF? Open in new tab ↗</a>' +
+            '</div></div>';
     } else if (isImg) {
         area.innerHTML =
             '<div style="background:#1e293b;height:100%;display:flex;align-items:center;justify-content:center;">' +
-            '<img src="' + url + '" ' +
-            'style="max-width:100%;max-height:100%;object-fit:contain;display:block;">' +
-            '</div>';
+            '<img src="' + url + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block;"></div>';
     } else {
         area.innerHTML =
             '<div style="padding:40px;text-align:center;background:#0f172a;height:100%;' +
             'display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">' +
             '<p style="color:#94a3b8;font-size:13px;">Preview not available for this file type.</p>' +
-            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:13px;">' +
-            'Open / Download ↗</a></div>';
+            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:13px;">Open / Download ↗</a></div>';
     }
 }
 
@@ -1592,11 +1762,11 @@ function loadDoc(url, label) {
 var _ocrTimer = null;
 function startOCR(url, docLabel) {
     var overlay = document.getElementById('ocr-overlay');
-    var elapsed = document.getElementById('ocr-elapsed');
     document.getElementById('ocr-label').textContent = 'Extracting: ' + docLabel + '...';
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     var t0 = Date.now();
+    var elapsed = document.getElementById('ocr-elapsed');
     _ocrTimer = setInterval(function() {
         var s = Math.floor((Date.now() - t0) / 1000);
         elapsed.textContent = Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
@@ -1619,8 +1789,6 @@ function onContainerTypeChange(type) {
     var arrEl   = document.getElementById('arrastre');
     var wharfEl = document.getElementById('wharfage');
     var csfEl   = document.getElementById('csf_usd');
-
-    // Only auto-fill if currently 0 (user hasn't entered custom values yet)
     if (type === '20ft') {
         if (arrEl   && (parseFloat(arrEl.value)   || 0) === 0) arrEl.value   = '5496';
         if (wharfEl && (parseFloat(wharfEl.value) || 0) === 0) wharfEl.value = '519.35';
@@ -1633,64 +1801,53 @@ function onContainerTypeChange(type) {
     recalcAll();
 }
 
-// ── Also recalc when exchange rate changes ────────────────────────────────────
+// ── Recalc when exchange rate changes ─────────────────────────────────────────
 document.getElementById('exchange_rate').addEventListener('input', recalcAll);
 
-// Initial calc
+// Initial calc + init HS pickers
 recalcAll();
 initAllHsPickers();
 
 // ── Drag-to-resize divider ────────────────────────────────────────────────────
 (function () {
-    var divider  = document.getElementById('col-divider');
-    var colLeft  = document.getElementById('col-left');
-    var colRight = document.getElementById('col-right');
-    var layout   = document.querySelector('.compute-layout');
-    var dragging = false;
+    var divider   = document.getElementById('col-divider');
+    var colLeft   = document.getElementById('col-left');
+    var layout    = document.querySelector('.compute-layout');
+    var dragging  = false;
     var startX, startLeftW;
 
-    divider.addEventListener('mousedown', function (e) {
+    divider.addEventListener('mousedown', function(e) {
         e.preventDefault();
-        dragging  = true;
-        startX    = e.clientX;
+        dragging   = true;
+        startX     = e.clientX;
         startLeftW = colLeft.getBoundingClientRect().width;
         divider.classList.add('dragging');
         document.body.style.cursor    = 'col-resize';
         document.body.style.userSelect = 'none';
     });
 
-    document.addEventListener('mousemove', function (e) {
+    document.addEventListener('mousemove', function(e) {
         if (!dragging) return;
         var totalW  = layout.getBoundingClientRect().width;
         var divW    = divider.getBoundingClientRect().width;
         var delta   = e.clientX - startX;
         var newLeft = startLeftW + delta;
-
-        // Clamp: left min 280px, right min 300px
-        var minLeft  = 280;
-        var minRight = 300;
-        newLeft = Math.max(minLeft, Math.min(newLeft, totalW - divW - minRight));
-
+        newLeft = Math.max(280, Math.min(newLeft, totalW - divW - 300));
         colLeft.style.width = newLeft + 'px';
-        // colRight expands via flex:1 automatically
     });
 
-    document.addEventListener('mouseup', function () {
+    document.addEventListener('mouseup', function() {
         if (!dragging) return;
         dragging = false;
         divider.classList.remove('dragging');
         document.body.style.cursor    = '';
         document.body.style.userSelect = '';
-    });
-
-    // Save/restore width in localStorage
-    var savedW = localStorage.getItem('compute_left_w');
-    if (savedW) colLeft.style.width = savedW + 'px';
-
-    document.addEventListener('mouseup', function () {
         var w = colLeft.getBoundingClientRect().width;
         if (w > 100) localStorage.setItem('compute_left_w', Math.round(w));
     });
+
+    var savedW = localStorage.getItem('compute_left_w');
+    if (savedW) colLeft.style.width = savedW + 'px';
 })();
 </script>
 {% endblock %}

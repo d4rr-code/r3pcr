@@ -44,6 +44,10 @@ class DutyComputation(models.Model):
     )
     total_landed_cost = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
 
+    # Misc charges (declarant inputs — override-able)
+    bank_charges   = models.DecimalField(max_digits=15, decimal_places=2, default=0,
+                                         help_text='Bank charges (if any)')
+
     # Port / terminal charges (declarant inputs — override-able)
     arrastre       = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     wharfage       = models.DecimalField(max_digits=15, decimal_places=2, default=0)
