@@ -44,6 +44,18 @@ class DutyComputation(models.Model):
     )
     total_landed_cost = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
 
+    # Port / terminal charges (declarant inputs — override-able)
+    arrastre       = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    wharfage       = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    csf_usd        = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text='Container Service Fee in USD (FCL only)'
+    )
+    container_type = models.CharField(
+        max_length=10, blank=True, default='',
+        help_text='20ft or 40ft (FCL only)'
+    )
+
     computed_by = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True
     )
@@ -60,6 +72,11 @@ class DutyComputation(models.Model):
         vat = self.vat_amount or 0
         total = cud + vat
         return total if total else None
+
+    @property
+    def csf_php(self):
+        """CSF converted to PHP using stored exchange rate."""
+        return (self.csf_usd or 0) * (self.exchange_rate or 0)
 
     def get_items(self):
         import json

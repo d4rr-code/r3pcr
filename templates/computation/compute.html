@@ -470,6 +470,72 @@
                    value="{{ advisory_existing.cargo_volume|default:'0' }}">
         </div>
     </div>
+
+    <!-- ── Port / Terminal Charges ──────────────────────────────────── -->
+    <div style="margin-top:10px; padding-top:10px; border-top:1px solid #1e293b;">
+        <p style="color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;
+                  letter-spacing:0.5px; margin:0 0 8px;">
+            Port / Terminal Charges
+            <span style="color:#334155; font-weight:400; text-transform:none; letter-spacing:0;">
+                — declarant inputs
+            </span>
+        </p>
+        <div style="display:grid; grid-template-columns:1fr 1fr{% if shipment.shipment_type == 'fcl' %} 1fr{% endif %}; gap:10px;">
+            <div>
+                <label class="form-label" style="font-size:11px;">Arrastre (PHP)</label>
+                <input type="number" name="arrastre" id="arrastre" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.arrastre|default:'0' }}" oninput="recalcAll()">
+                <p style="color:#334155; font-size:10px; margin:2px 0 0;">
+                    Ref: 20ft ₱5,496 · 40ft ₱12,608 · LCL ₱5,496
+                </p>
+            </div>
+            <div>
+                <label class="form-label" style="font-size:11px;">Wharfage (PHP)</label>
+                <input type="number" name="wharfage" id="wharfage" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.wharfage|default:'0' }}" oninput="recalcAll()">
+                <p style="color:#334155; font-size:10px; margin:2px 0 0;">
+                    Ref: 20ft ₱519.35 · 40ft ₱779.05 · LCL ₱519.35
+                </p>
+            </div>
+            {% if shipment.shipment_type == 'fcl' %}
+            <div>
+                <label class="form-label" style="font-size:11px;">CSF / Container (USD)
+                    <span style="color:#334155; font-weight:400;">FCL only</span>
+                </label>
+                <input type="number" name="csf_usd" id="csf_usd" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.csf_usd|default:'0' }}" oninput="recalcAll()">
+                <p style="color:#3b82f6; font-size:10px; margin:2px 0 0; font-weight:600;" id="csf-php-preview">
+                    = ₱0.00 PHP
+                </p>
+                <p style="color:#334155; font-size:10px; margin:1px 0 0;">
+                    Ref: 20FT = USD 5 · 40FT = USD 10
+                </p>
+            </div>
+            {% endif %}
+        </div>
+        {% if shipment.shipment_type == 'fcl' %}
+        <div style="margin-top:8px;">
+            <label class="form-label" style="font-size:11px;">Container Type</label>
+            <div style="display:flex; gap:14px; margin-top:5px;">
+                <label style="display:flex; align-items:center; gap:6px; color:#f1f5f9; font-size:12px; cursor:pointer;">
+                    <input type="radio" name="container_type" value="20ft"
+                           {% if existing.container_type == '40ft' %}{% else %}checked{% endif %}
+                           onchange="onContainerTypeChange('20ft')">
+                    20FT
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; color:#f1f5f9; font-size:12px; cursor:pointer;">
+                    <input type="radio" name="container_type" value="40ft"
+                           {% if existing.container_type == '40ft' %}checked{% endif %}
+                           onchange="onContainerTypeChange('40ft')">
+                    40FT
+                </label>
+            </div>
+        </div>
+        {% endif %}
+    </div>
 </div>
 
 <!-- ── ECDT Line Items Table ──────────────────────────────────────── -->
@@ -605,7 +671,7 @@
 
         <!-- Row 2: fee breakdown chips -->
         <div style="border-top:1px solid #1e293b; padding-top:8px;
-                    display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1.4fr; gap:6px;">
+                    display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; margin-bottom:6px;">
             <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
                 <p style="color:#64748b; font-size:10px; margin:0 0 2px;">VAT (12%)</p>
                 <p style="color:#a78bfa; font-size:12px; font-weight:700; margin:0;" id="live-vat">—</p>
@@ -623,6 +689,24 @@
                 <p style="color:#64748b; font-size:10px; margin:0 0 2px;">IPF</p>
                 <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-ipf">—</p>
             </div>
+        </div>
+
+        <!-- Row 3: port fees + total -->
+        <div style="display:grid; grid-template-columns:1fr 1fr {% if shipment.shipment_type == 'fcl' %}1fr {% endif %}1.4fr; gap:6px;">
+            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
+                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">Arrastre</p>
+                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-arrastre">₱0.00</p>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
+                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">Wharfage</p>
+                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-wharfage">₱0.00</p>
+            </div>
+            {% if shipment.shipment_type == 'fcl' %}
+            <div style="background:#1e293b; border-radius:6px; padding:6px 8px; text-align:center;">
+                <p style="color:#64748b; font-size:10px; margin:0 0 2px;">CSF (PHP)</p>
+                <p style="color:#f1f5f9; font-size:12px; font-weight:700; margin:0;" id="live-csf">₱0.00</p>
+            </div>
+            {% endif %}
             <div style="background:#172554; border-radius:6px; padding:6px 8px; text-align:center;
                         border:1px solid #1d4ed8;">
                 <p style="color:#93c5fd; font-size:10px; margin:0 0 2px; font-weight:700;
@@ -693,6 +777,32 @@
                 {% else %}—{% endif %}
             </span>
         </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
+            <span style="color:#94a3b8; font-size:12px;">Arrastre</span>
+            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
+                {% if result %}₱{{ result.arrastre|floatformat:2 }}
+                {% elif existing %}₱{{ existing.arrastre|floatformat:2 }}
+                {% else %}₱0.00{% endif %}
+            </span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
+            <span style="color:#94a3b8; font-size:12px;">Wharfage</span>
+            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
+                {% if result %}₱{{ result.wharfage|floatformat:2 }}
+                {% elif existing %}₱{{ existing.wharfage|floatformat:2 }}
+                {% else %}₱0.00{% endif %}
+            </span>
+        </div>
+        {% if shipment.shipment_type == 'fcl' %}
+        <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#0f172a; border-radius:6px;">
+            <span style="color:#94a3b8; font-size:12px;">CSF (Container Service Fee)</span>
+            <span style="color:#f1f5f9; font-weight:600; font-size:12px;">
+                {% if result %}₱{{ result.csf_php|floatformat:2 }}
+                {% elif existing %}₱{{ existing.csf_php|floatformat:2 }}
+                {% else %}₱0.00{% endif %}
+            </span>
+        </div>
+        {% endif %}
         <div style="display:flex; justify-content:space-between; padding:14px 12px;
                     background:#172554; border-radius:8px; border:2px solid #3b82f6; margin-top:4px;">
             <span style="color:#93c5fd; font-size:14px; font-weight:700;">Total Landed Cost</span>
@@ -1283,7 +1393,8 @@ function getBF(dvPhp) {
     if (dvPhp <= 60000)  return 4000;
     if (dvPhp <= 100000) return 4700;
     if (dvPhp <= 200000) return 5300;
-    return 6000;
+    // ₱5,300 + 1.25% of excess above ₱200,000
+    return 5300 + (dvPhp - 200000) * 0.0125;
 }
 function getBFTier(dvPhp) {
     if (dvPhp <= 0)      return '';
@@ -1295,7 +1406,7 @@ function getBFTier(dvPhp) {
     if (dvPhp <= 60000)  return '₱50K–60K';
     if (dvPhp <= 100000) return '₱60K–100K';
     if (dvPhp <= 200000) return '₱100K–200K';
-    return '> ₱200K';
+    return '> ₱200K (+1.25%)';
 }
 function getIPF(dvPhp) {
     if (dvPhp <= 0)      return 0;
@@ -1313,6 +1424,30 @@ function recalcAll() {
     var freight   = parseFloat(document.getElementById('total_freight').value)   || 0;
     var insurance = parseFloat(document.getElementById('total_insurance').value) || 0;
     var exchRate  = parseFloat(document.getElementById('exchange_rate').value)   || 0;
+
+    // ── Port fees ──────────────────────────────────────────────────────────────
+    var arrEl    = document.getElementById('arrastre');
+    var wharfEl  = document.getElementById('wharfage');
+    var csfUsdEl = document.getElementById('csf_usd');
+    var arrastre = arrEl   ? (parseFloat(arrEl.value)   || 0) : 0;
+    var wharfage = wharfEl ? (parseFloat(wharfEl.value) || 0) : 0;
+    var csfUsd   = csfUsdEl ? (parseFloat(csfUsdEl.value) || 0) : 0;
+    var csfPhp   = csfUsd * exchRate;
+
+    // Update CSF PHP preview
+    var csfPreview = document.getElementById('csf-php-preview');
+    if (csfPreview) {
+        csfPreview.textContent = '= ₱' + csfPhp.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' PHP';
+    }
+
+    // Update port fee live chips (always, regardless of DV PHP)
+    var _fmt = function(n) { return '₱' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+    var arrChip  = document.getElementById('live-arrastre');
+    var wharChip = document.getElementById('live-wharfage');
+    var csfChip  = document.getElementById('live-csf');
+    if (arrChip)  arrChip.textContent  = _fmt(arrastre);
+    if (wharChip) wharChip.textContent = _fmt(wharfage);
+    if (csfChip)  csfChip.textContent  = _fmt(csfPhp);
 
     // Sum total EXW
     var totalExw = 0;
@@ -1363,17 +1498,23 @@ function recalcAll() {
         var liveVat   = (totalDvPhp + totalCud) * 0.12;
         var liveBf    = getBF(totalDvPhp);
         var liveIpf   = getIPF(totalDvPhp);
-        var liveTotal = totalDvPhp + totalCud + liveVat + liveBf + 130 + liveIpf;
+        var liveTotal = totalDvPhp + totalCud + liveVat + liveBf + 130 + liveIpf
+                        + arrastre + wharfage + csfPhp;
         document.getElementById('live-vat').textContent     = fmt(liveVat);
         document.getElementById('live-bf').textContent      = fmt(liveBf);
         document.getElementById('live-bf-tier').textContent = getBFTier(totalDvPhp);
         document.getElementById('live-ipf').textContent     = fmt(liveIpf);
         document.getElementById('live-total').textContent   = fmt(liveTotal);
     } else {
-        ['live-vat','live-bf','live-ipf','live-total'].forEach(function(id) {
-            document.getElementById(id).textContent = '—';
+        ['live-vat','live-bf','live-ipf'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.textContent = '—';
         });
         document.getElementById('live-bf-tier').textContent = '';
+        // Still show partial total if port fees entered
+        var partialTotal = arrastre + wharfage + csfPhp;
+        document.getElementById('live-total').textContent =
+            partialTotal > 0 ? fmt(partialTotal) : '—';
     }
 }
 
@@ -1471,6 +1612,25 @@ function startOCR(url, docLabel) {
             document.body.style.overflow = '';
             alert('OCR request failed. Please try again.');
         });
+}
+
+// ── Container type change — suggest reference Arrastre / Wharfage / CSF ───────
+function onContainerTypeChange(type) {
+    var arrEl   = document.getElementById('arrastre');
+    var wharfEl = document.getElementById('wharfage');
+    var csfEl   = document.getElementById('csf_usd');
+
+    // Only auto-fill if currently 0 (user hasn't entered custom values yet)
+    if (type === '20ft') {
+        if (arrEl   && (parseFloat(arrEl.value)   || 0) === 0) arrEl.value   = '5496';
+        if (wharfEl && (parseFloat(wharfEl.value) || 0) === 0) wharfEl.value = '519.35';
+        if (csfEl   && (parseFloat(csfEl.value)   || 0) === 0) csfEl.value   = '5';
+    } else if (type === '40ft') {
+        if (arrEl   && (parseFloat(arrEl.value)   || 0) === 0) arrEl.value   = '12608';
+        if (wharfEl && (parseFloat(wharfEl.value) || 0) === 0) wharfEl.value = '779.05';
+        if (csfEl   && (parseFloat(csfEl.value)   || 0) === 0) csfEl.value   = '10';
+    }
+    recalcAll();
 }
 
 // ── Also recalc when exchange rate changes ────────────────────────────────────

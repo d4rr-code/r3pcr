@@ -24,7 +24,9 @@ def get_brokerage_fee(taxable_value):
     if tv <= 60000:   return Decimal('4000')
     if tv <= 100000:  return Decimal('4700')
     if tv <= 200000:  return Decimal('5300')
-    return Decimal('6000')
+    # ₱5,300 + 1.25% of excess above ₱200,000
+    excess = Decimal(str(round(tv - 200000, 2)))
+    return Decimal('5300') + round(excess * Decimal('0.0125'), 2)
 
 
 def get_ipf(taxable_value):
@@ -39,7 +41,8 @@ def get_ipf(taxable_value):
 
 # ─── Per-Item ECDT Formula ────────────────────────────────────────────────────
 
-def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate):
+def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate,
+                 arrastre=0, wharfage=0, csf_php=0):
     total_exw = sum(Decimal(str(item['exw_usd'])) for item in items_data)
     if total_exw <= 0:
         total_exw = Decimal('0')
@@ -86,7 +89,15 @@ def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate):
     brokerage_fee  = get_brokerage_fee(taxable_value)
     cds            = Decimal('130')
     ipf            = get_ipf(taxable_value)
-    total_landed_cost = round(taxable_value + customs_duties + vat + brokerage_fee + cds + ipf, 2)
+
+    arrastre_d = Decimal(str(arrastre or 0))
+    wharfage_d = Decimal(str(wharfage or 0))
+    csf_d      = Decimal(str(csf_php  or 0))
+
+    total_landed_cost = round(
+        taxable_value + customs_duties + vat + brokerage_fee + cds + ipf
+        + arrastre_d + wharfage_d + csf_d, 2
+    )
 
     summary = {
         'taxable_value':    taxable_value,
@@ -96,6 +107,9 @@ def compute_ecdt(items_data, total_freight, total_insurance, exchange_rate):
         'brokerage_fee':    brokerage_fee,
         'cds':              cds,
         'ipf':              ipf,
+        'arrastre':         arrastre_d,
+        'wharfage':         wharfage_d,
+        'csf_php':          csf_d,
         'total_landed_cost': total_landed_cost,
     }
     return computed_items, summary
@@ -343,6 +357,11 @@ def compute_shipment(request, shipment_id):
             total_freight   = Decimal(request.POST.get('total_freight',   '0') or '0')
             total_insurance = Decimal(request.POST.get('total_insurance', '0') or '0')
             exchange_rate   = Decimal(request.POST.get('exchange_rate',   default_rate) or default_rate)
+            arrastre        = Decimal(request.POST.get('arrastre',   '0') or '0')
+            wharfage        = Decimal(request.POST.get('wharfage',   '0') or '0')
+            csf_usd_val     = Decimal(request.POST.get('csf_usd',   '0') or '0')
+            container_type  = (request.POST.get('container_type', '') or '').strip()
+            csf_php_val     = csf_usd_val * exchange_rate
 
             descriptions  = request.POST.getlist('description[]')
             exw_values    = request.POST.getlist('exw_value[]')
@@ -371,7 +390,8 @@ def compute_shipment(request, shipment_id):
                 raise ValueError('no items')
 
             items, summary = compute_ecdt(
-                items_data, total_freight, total_insurance, exchange_rate
+                items_data, total_freight, total_insurance, exchange_rate,
+                arrastre=arrastre, wharfage=wharfage, csf_php=csf_php_val
             )
             result = summary
 
@@ -403,6 +423,10 @@ def compute_shipment(request, shipment_id):
                     'vat_amount':        summary['vat'],
                     'brokerage_fee':     summary['brokerage_fee'],
                     'ipf':               summary['ipf'],
+                    'arrastre':          arrastre,
+                    'wharfage':          wharfage,
+                    'csf_usd':           csf_usd_val,
+                    'container_type':    container_type,
                     'total_landed_cost': summary['total_landed_cost'],
                     'computed_by':       request.user,
                 }
@@ -702,6 +726,7 @@ def download_computation(request, shipment_id):
             elif col == 10:             cell.number_format = '0.00"%"'
 
     summary_row = 4 + len(items) + 2
+    _csf_php = float((computation.csf_usd or 0) * (computation.exchange_rate or 0))
     summaries = [
         ('Taxable Value (Sum of D/V PHP)',      computation.dutiable_value,    False),
         ('Customs Duties (Total CUD)',          computation.customs_duty,      False),
@@ -710,6 +735,9 @@ def download_computation(request, shipment_id):
         ('Brokerage Fee',                       computation.brokerage_fee,     False),
         ('Customs Documentary Stamp (CDS)',     130,                           False),
         ('Import Processing Fee (IPF)',         computation.ipf,               False),
+        ('Arrastre',                            computation.arrastre,          False),
+        ('Wharfage',                            computation.wharfage,          False),
+        ('CSF (Container Service Fee)',         _csf_php,                      False),
         ('TOTAL LANDED COST',                   computation.total_landed_cost, True),
     ]
 
