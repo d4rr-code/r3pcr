@@ -940,6 +940,7 @@
                 <col style="width:44px">  <!-- GW -->
                 <col style="width:44px">  <!-- NW -->
                 <col style="width:44px">  <!-- QTY -->
+                <col style="width:48px">  <!-- Unit -->
                 <col style="width:44px">  <!-- PKGS -->
                 <col style="width:26px">  <!-- del -->
             </colgroup>
@@ -958,6 +959,7 @@
                     <th>GW</th>
                     <th>NW</th>
                     <th>QTY</th>
+                    <th>Unit</th>
                     <th>PKGS</th>
                     <th></th>
                 </tr>
@@ -971,7 +973,6 @@
                         <input class="ecdt-input desc-input" type="text" name="description[]"
                                value="{{ item.description }}" placeholder="Item..."
                                onblur="fetchRowSuggestions(this)">
-                        <input type="hidden" name="unit[]" value="{{ item.unit|default:'' }}">
                         <input type="hidden" name="unit_price[]" value="{{ item.unit_price|default:'' }}">
                         {% if item.is_extracted %}
                         <div style="margin-top:3px; color:#38bdf8; font-size:9px; font-weight:700;">
@@ -1024,6 +1025,11 @@
                                step="1" value="{{ item.quantity|default:'' }}" placeholder="0">
                     </td>
                     <td>
+                        <input class="ecdt-input" type="text" name="unit[]"
+                               value="{{ item.unit|default:'' }}" placeholder="PCS"
+                               style="width:44px; text-transform:uppercase;">
+                    </td>
+                    <td>
                         <input class="ecdt-input" type="number" name="pkgs[]"
                                step="1" value="{{ item.pkgs|default:'' }}" placeholder="0">
                     </td>
@@ -1039,7 +1045,6 @@
                     <td style="position:relative;">
                         <input class="ecdt-input desc-input" type="text" name="description[]"
                                placeholder="Item..." onblur="fetchRowSuggestions(this)">
-                        <input type="hidden" name="unit[]" value="">
                         <input type="hidden" name="unit_price[]" value="">
                         <div class="row-hs-suggestions" style="display:none;"></div>
                     </td>
@@ -1060,6 +1065,7 @@
                     <td><input class="ecdt-input" type="number" name="gw[]" step="0.01" placeholder="0"></td>
                     <td><input class="ecdt-input" type="number" name="nw[]" step="0.01" placeholder="0"></td>
                     <td><input class="ecdt-input" type="number" name="quantity[]" step="1" placeholder="0"></td>
+                    <td><input class="ecdt-input" type="text" name="unit[]" placeholder="PCS" style="width:44px; text-transform:uppercase;"></td>
                     <td><input class="ecdt-input" type="number" name="pkgs[]" step="1" placeholder="0"></td>
                     <td>
                         <button type="button" onclick="removeRow(this)"
@@ -1857,7 +1863,7 @@ function _createHsPicker() {
 }
 
 // ── Build a new table row ─────────────────────────────────────────────────────
-// Col order: #, Desc, EXW, Freight, Ins, D/V$, D/V₱, HS, Rate%, CUD₱, GW, NW, QTY, PKGS, del
+// Col order: #, Desc, EXW, Freight, Ins, D/V$, D/V₱, HS, Rate%, CUD₱, GW, NW, QTY, Unit, PKGS, del
 function _makeRow(n, desc, exw, qty) {
     var tr = document.createElement('tr');
     tr.innerHTML =
@@ -1866,7 +1872,6 @@ function _makeRow(n, desc, exw, qty) {
             '<input class="ecdt-input desc-input" type="text" name="description[]" ' +
                 'value="' + (desc||'').replace(/"/g,'&quot;') + '" placeholder="Item..." ' +
                 'onblur="fetchRowSuggestions(this)">' +
-            '<input type="hidden" name="unit[]" value="">' +
             '<input type="hidden" name="unit_price[]" value="">' +
             '<div class="row-hs-suggestions" style="display:none;"></div>' +
         '</td>' +
@@ -1885,6 +1890,7 @@ function _makeRow(n, desc, exw, qty) {
         '<td><input class="ecdt-input" type="number" name="gw[]" step="0.01" placeholder="0"></td>' +
         '<td><input class="ecdt-input" type="number" name="nw[]" step="0.01" placeholder="0"></td>' +
         '<td><input class="ecdt-input" type="number" name="quantity[]" step="1" value="' + (qty||'') + '" placeholder="0"></td>' +
+        '<td><input class="ecdt-input" type="text" name="unit[]" placeholder="PCS" style="width:44px;text-transform:uppercase;"></td>' +
         '<td><input class="ecdt-input" type="number" name="pkgs[]" step="1" placeholder="0"></td>' +
         '<td><button type="button" onclick="removeRow(this)" ' +
              'style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 3px;">✕</button></td>';
