@@ -110,6 +110,7 @@ def compute_ecdt(items_data, exchange_rate,
             'unit':           item.get('unit', ''),
             'unit_price':     item.get('unit_price', ''),
             'hs_code_id':     item.get('hs_code_id', ''),
+            'hs_code':        item.get('hs_code', ''),
             'duty_rate':      float(duty_rate),
             'exw':            float(round(exw, 2)),
             'item_freight':   float(round(item_freight, 2)),
@@ -421,6 +422,13 @@ def compute_shipment(request, shipment_id):
             units         = _pad(units,          '')
             unit_prices   = _pad(unit_prices,    '')
 
+            # Build HS code string lookup map (id → code string)
+            valid_hs_ids = [int(h) for h in hs_code_ids if h and h.strip().isdigit()]
+            hs_code_map  = {
+                str(obj.id): obj.code
+                for obj in HSCode.objects.filter(id__in=valid_hs_ids).only('id', 'code')
+            } if valid_hs_ids else {}
+
             items_data = [
                 {
                     'description':    d.strip(),
@@ -431,6 +439,7 @@ def compute_shipment(request, shipment_id):
                     'unit':           unit,
                     'unit_price':     unit_price,
                     'hs_code_id':     h,
+                    'hs_code':        hs_code_map.get(str(h).strip(), ''),
                     'duty_rate':      dr or '0',
                     'gw':             gw,
                     'nw':             nw,
