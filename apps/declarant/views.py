@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import tempfile
+import threading
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -293,13 +294,21 @@ def process_shipment(request, shipment_id):
         messages.error(request, 'You are not assigned to this shipment.')
         return redirect('declarant:queue')
 
-    documents   = shipment.documents.all()
-    for doc in documents:
-        if doc.document_type in ('invoice', 'airway_bill', 'packing_list') and not doc.ocr_ran_at:
-            try:
-                _run_and_store_document_ocr(doc)
-            except Exception as e:
-                print(f'[OCR-AUTO] Failed for document {doc.id}: {e}')
+    documents = shipment.documents.all()
+    _pending_ocr = [
+        doc for doc in documents
+        if doc.document_type in ('invoice', 'airway_bill', 'packing_list') and not doc.ocr_ran_at
+    ]
+    if _pending_ocr:
+        def _run_ocr_background(docs):
+            for doc in docs:
+                try:
+                    _run_and_store_document_ocr(doc)
+                    print(f'[OCR-AUTO] Completed for document {doc.id} ({doc.document_type})')
+                except Exception as e:
+                    print(f'[OCR-AUTO] Failed for document {doc.id}: {e}')
+        t = threading.Thread(target=_run_ocr_background, args=(_pending_ocr,), daemon=True)
+        t.start()
 
     documents = shipment.documents.all()
     status_logs = shipment.status_logs.order_by('-changed_at')[:5]
@@ -311,13 +320,16 @@ def process_shipment(request, shipment_id):
     # OCR toast survives fetch→reload cycle (Django messages don't)
     ocr_toast = request.session.pop('ocr_toast', None)
 
+    has_pending_ocr = bool(_pending_ocr)
+
     context = {
-        'shipment':    shipment,
-        'documents':   documents,
-        'status_logs': status_logs,
-        'ocr_fields':  ocr_fields,
-        'ocr_documents': _ocr_display_documents(documents),
-        'ocr_toast':   ocr_toast,
+        'shipment':        shipment,
+        'documents':       documents,
+        'status_logs':     status_logs,
+        'ocr_fields':      ocr_fields,
+        'ocr_documents':   _ocr_display_documents(documents),
+        'ocr_toast':       ocr_toast,
+        'has_pending_ocr': has_pending_ocr,
         'manual_status_choices': Shipment.MANUAL_STATUS_CHOICES,
         'status_steps': build_status_progress(shipment.status, 'declarant'),
     }

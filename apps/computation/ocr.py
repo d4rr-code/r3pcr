@@ -83,13 +83,35 @@ def _vision_api_call(api_key, image_bytes):
         return ''
 
 
+def _extract_text_from_pdf_direct(file_path):
+    """
+    Fast path: extract embedded text directly from a text-based PDF using pypdf.
+    Returns the extracted text, or '' if pypdf is unavailable or the PDF is image-only.
+    """
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(file_path)
+        pages_text = []
+        for page in reader.pages:
+            text = page.extract_text() or ''
+            pages_text.append(text)
+        return '\n'.join(pages_text).strip()
+    except Exception as e:
+        print(f"[OCR] pypdf direct extraction failed: {e}")
+        return ''
+
+
 def extract_text_from_file(file_path):
     """
-    Extract text from a document file using Google Vision API (preferred)
-    or Tesseract OCR (fallback when GOOGLE_VISION_API_KEY is not set).
+    Extract text from a document file.
 
-    Memory-efficient: PDFs are converted and processed one page at a time
-    at 150 DPI to avoid OOM crashes on constrained hosting environments.
+    Strategy (in order):
+    1. For PDFs: try pypdf direct text extraction first (fast, lossless for digital PDFs).
+       If >= 80 chars are extracted, use that result — no image conversion needed.
+    2. Fall back to image-based OCR:
+       - Google Vision API if GOOGLE_VISION_API_KEY is set
+       - Tesseract otherwise (page-by-page at 150 DPI, --psm 3 for complex layouts)
+    3. For image files: Vision API or Tesseract directly.
     """
     import gc
     from pdf2image import pdfinfo_from_path
@@ -99,6 +121,14 @@ def extract_text_from_file(file_path):
 
     try:
         if ext == '.pdf':
+            # ── Fast path: direct text extraction from digital PDFs ──────────
+            direct_text = _extract_text_from_pdf_direct(file_path)
+            if len(direct_text.strip()) >= 80:
+                print(f"[OCR] pypdf direct: {len(direct_text)} chars extracted")
+                return direct_text
+
+            # ── Image-based OCR path (for scanned PDFs) ──────────────────────
+            print(f"[OCR] pypdf got {len(direct_text.strip())} chars — falling back to image OCR")
             poppler_path = os.getenv('POPPLER_PATH') or None
 
             # Determine page count without loading all pages into memory
@@ -113,7 +143,7 @@ def extract_text_from_file(file_path):
                 try:
                     images = convert_from_path(
                         file_path,
-                        dpi=100,
+                        dpi=150,
                         first_page=page_num,
                         last_page=page_num,
                         poppler_path=poppler_path,
@@ -130,13 +160,16 @@ def extract_text_from_file(file_path):
                         buf.close()
                     else:
                         # ── Tesseract fallback ──────────────────────────────
-                        # --psm 6 : assume single uniform text block (skip layout analysis)
-                        # --oem 1 : LSTM engine only (faster, no legacy fallback)
-                        full_text += pytesseract.image_to_string(
+                        # --psm 3 : fully automatic page segmentation (best for
+                        #           complex documents with tables and columns)
+                        # --oem 1 : LSTM engine only
+                        page_text = pytesseract.image_to_string(
                             image,
-                            config='--psm 6 --oem 1',
-                            timeout=20,
+                            config='--psm 3 --oem 1',
+                            timeout=30,
                         )
+                        print(f"[OCR] Tesseract page {page_num}: {len(page_text)} chars")
+                        full_text += page_text
 
                     # Explicitly release page memory before next iteration
                     image.close()
@@ -144,7 +177,7 @@ def extract_text_from_file(file_path):
                     gc.collect()
 
                 except Exception as page_err:
-                    print(f"OCR page {page_num} error: {page_err}")
+                    print(f"[OCR] page {page_num} error: {page_err}")
                     break
 
             return full_text
@@ -157,8 +190,8 @@ def extract_text_from_file(file_path):
                 image = Image.open(file_path)
                 text = pytesseract.image_to_string(
                     image,
-                    config='--psm 6 --oem 1',
-                    timeout=20,
+                    config='--psm 3 --oem 1',
+                    timeout=30,
                 )
                 image.close()
                 return text
@@ -166,7 +199,7 @@ def extract_text_from_file(file_path):
             return ''
 
     except Exception as e:
-        print(f"OCR extraction error: {e}")
+        print(f"[OCR] extraction error: {e}")
         return ''
 
 

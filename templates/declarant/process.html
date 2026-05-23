@@ -326,6 +326,11 @@
                                 <span class="quality-dot quality-none" title="Not yet scanned"></span>
                                 <span style="color:#94a3b8; font-size:10px;">Not yet scanned</span>
                                 {% endif %}
+                            {% elif doc.document_type in 'invoice,airway_bill,packing_list' %}
+                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%;
+                                             background:conic-gradient(#60a5fa 0%, #1e293b 60%);
+                                             animation:ocr-spin 1s linear infinite; flex-shrink:0;"></span>
+                                <span style="color:#93c5fd; font-size:10px;">Scanning…</span>
                             {% else %}
                                 <span class="quality-dot quality-none" title="Not yet scanned"></span>
                                 <span style="color:#94a3b8; font-size:10px;">Not yet scanned</span>
@@ -828,6 +833,11 @@ function switchOcrTab(btn) {
     var panel = document.getElementById(btn.dataset.tab);
     if (panel) panel.classList.add('active');
 }
+
+{% if has_pending_ocr %}
+// OCR is running in background — reload page every 15 s until all docs are scanned
+setTimeout(function() { window.location.reload(); }, 15000);
+{% endif %}
 
 function toggleRawOcr(id) {
     var el = document.getElementById(id);
