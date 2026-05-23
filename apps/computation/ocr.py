@@ -79,29 +79,61 @@ def extract_text_from_file(file_path):
     """
     Extract text from a document file using Google Vision API (preferred)
     or Tesseract OCR (fallback when GOOGLE_VISION_API_KEY is not set).
+
+    Memory-efficient: PDFs are converted and processed one page at a time
+    at 150 DPI to avoid OOM crashes on constrained hosting environments.
     """
+    import gc
+    from pdf2image import pdfinfo_from_path
+
     ext = os.path.splitext(file_path)[1].lower()
     api_key = os.getenv('GOOGLE_VISION_API_KEY', '')
 
     try:
         if ext == '.pdf':
             poppler_path = os.getenv('POPPLER_PATH') or None
-            images = convert_from_path(file_path, dpi=200, poppler_path=poppler_path)
 
-            if api_key:
-                # ── Google Vision path ──────────────────────────────────────────
-                full_text = ''
-                for image in images:
-                    buf = io.BytesIO()
-                    image.save(buf, format='JPEG')
-                    full_text += _vision_api_call(api_key, buf.getvalue()) + '\n'
-                return full_text
-            else:
-                # ── Tesseract fallback ─────────────────────────────────────────
-                full_text = ''
-                for image in images:
-                    full_text += pytesseract.image_to_string(image)
-                return full_text
+            # Determine page count without loading all pages into memory
+            try:
+                info = pdfinfo_from_path(file_path, poppler_path=poppler_path)
+                num_pages = int(info.get('Pages', 1))
+            except Exception:
+                num_pages = 10  # safe fallback
+
+            full_text = ''
+            for page_num in range(1, num_pages + 1):
+                try:
+                    images = convert_from_path(
+                        file_path,
+                        dpi=150,
+                        first_page=page_num,
+                        last_page=page_num,
+                        poppler_path=poppler_path,
+                    )
+                    if not images:
+                        break
+                    image = images[0]
+
+                    if api_key:
+                        # ── Google Vision path ──────────────────────────────
+                        buf = io.BytesIO()
+                        image.save(buf, format='JPEG', quality=85)
+                        full_text += _vision_api_call(api_key, buf.getvalue()) + '\n'
+                        buf.close()
+                    else:
+                        # ── Tesseract fallback ──────────────────────────────
+                        full_text += pytesseract.image_to_string(image)
+
+                    # Explicitly release page memory before next iteration
+                    image.close()
+                    del image, images
+                    gc.collect()
+
+                except Exception as page_err:
+                    print(f"OCR page {page_num} error: {page_err}")
+                    break
+
+            return full_text
 
         elif ext in ['.jpg', '.jpeg', '.png']:
             if api_key:
@@ -109,7 +141,9 @@ def extract_text_from_file(file_path):
                     return _vision_api_call(api_key, f.read())
             else:
                 image = Image.open(file_path)
-                return pytesseract.image_to_string(image)
+                text = pytesseract.image_to_string(image)
+                image.close()
+                return text
         else:
             return ''
 
