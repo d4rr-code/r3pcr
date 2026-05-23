@@ -168,12 +168,12 @@ class Command(BaseCommand):
             ))
 
         # ── Shipment distribution ─────────────────────────────────────────────
-        # 50 total: 15 pending, 10 in_review, 8 for_payment, 7 submitted, 6 approved, 4 rejected
+        # 50 total: 15 incoming, 10 arrived, 8 computed, 7 lodgement, 6 approved, 4 rejected
         status_plan = (
-            ['pending']     * 15 +
-            ['in_review']   * 10 +
-            ['for_payment'] * 8  +
-            ['submitted']   * 7  +
+            ['incoming']    * 15 +
+            ['arrived']     * 10 +
+            ['computed']    * 8  +
+            ['lodgement']   * 7  +
             ['approved']    * 6  +
             ['rejected']    * 4
         )
@@ -197,7 +197,7 @@ class Command(BaseCommand):
             insurance = Decimal(str(round(exw_usd * Decimal('0.005'), 2)))
 
             declarant = None
-            if status not in ('pending',):
+            if status not in ('incoming',):
                 declarant = random.choice(declarants)
 
             shipment = Shipment.objects.create(
@@ -214,11 +214,11 @@ class Command(BaseCommand):
                 declared_value=exw_usd,
                 freight_cost=freight,
                 insurance_cost=insurance,
-                boc_reference=f'BOC-{i:05d}' if status in ('submitted', 'approved', 'rejected') else None,
+                boc_reference=f'BOC-{i:05d}' if status in ('lodgement', 'approved', 'rejected') else None,
                 boc_status=(
                     'Accepted' if status == 'approved' else
                     'Rejected' if status == 'rejected' else
-                    ('Under Assessment' if status == 'submitted' else None)
+                    ('Under Assessment' if status == 'lodgement' else None)
                 ),
             )
 
@@ -226,13 +226,13 @@ class Command(BaseCommand):
             StatusLog.objects.create(
                 shipment=shipment,
                 changed_by=declarant or consignee,
-                old_status='pending',
+                old_status='incoming',
                 new_status=status,
                 notes='Seeded record',
             )
 
-            # Computation for in_review and beyond
-            if status not in ('pending',) and hs_list and declarant:
+            # Computation for arrived and beyond
+            if status not in ('incoming',) and hs_list and declarant:
                 hs = random.choice(hs_list)
                 exchange_rate = Decimal('59.1480')
                 duty_rate = hs.duty_rate

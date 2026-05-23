@@ -3,14 +3,28 @@ from apps.accounts.models import User
 
 class Shipment(models.Model):
     STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('pending', 'Pending Review'),
-        ('in_review', 'In Review'),
-        ('for_payment', 'For Payment'),
-        ('submitted', 'Submitted to BOC'),
+        ('incoming', 'Incoming'),
+        ('arrived', 'Arrived'),
+        ('computed', 'Computed'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
-        ('revised', 'For Revision'),
+        ('for_revision', 'For Revision'),
+        ('lodgement', 'Lodgement'),
+        ('ongoing', 'Ongoing'),
+        ('assessed', 'Assessed'),
+        ('paid', 'Paid'),
+        ('released', 'Released'),
+        ('billed', 'Billed'),
+    ]
+    SYSTEM_STATUS_KEYS = {'incoming', 'arrived', 'computed', 'approved', 'rejected', 'for_revision'}
+    MANUAL_STATUS_KEYS = {'lodgement', 'ongoing', 'assessed', 'paid', 'released', 'billed'}
+    MANUAL_STATUS_CHOICES = [
+        ('lodgement', 'Lodgement'),
+        ('ongoing', 'Ongoing'),
+        ('assessed', 'Assessed'),
+        ('paid', 'Paid'),
+        ('released', 'Released'),
+        ('billed', 'Billed'),
     ]
 
     SHIPMENT_TYPE_CHOICES = [
@@ -71,7 +85,7 @@ class Shipment(models.Model):
     status = models.CharField(
         max_length=20, 
         choices=STATUS_CHOICES, 
-        default='pending'
+        default='incoming'
     )
 
     # Cargo details

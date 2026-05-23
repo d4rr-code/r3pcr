@@ -23,8 +23,8 @@
             <span class="badge badge-approved" style="font-size:13px; padding:6px 16px;">✓ Approved</span>
         {% elif shipment.status == 'rejected' %}
             <span class="badge badge-rejected" style="font-size:13px; padding:6px 16px;">✗ Rejected</span>
-        {% elif shipment.status == 'in_review' %}
-            <span class="badge badge-review" style="font-size:13px; padding:6px 16px;">In Review</span>
+        {% elif shipment.status == 'arrived' %}
+            <span class="badge badge-review" style="font-size:13px; padding:6px 16px;">Arrived</span>
         {% else %}
             <span class="badge badge-pending" style="font-size:13px; padding:6px 16px;">
                 {{ shipment.get_status_display }}
@@ -229,7 +229,7 @@
         {% endif %}
 
         <!-- Payment Receipt -->
-        {% if shipment.status == 'for_payment' or shipment.payment_receipt %}
+        {% if shipment.status == 'paid' or shipment.payment_receipt %}
         <div class="card" style="border-color:{% if shipment.payment_receipt %}#22c55e40{% else %}#f59e0b40{% endif %};">
             <p class="card-title">Payment Receipt</p>
 
@@ -249,7 +249,7 @@
                     View Receipt ↗
                 </a>
             </div>
-            {% if shipment.status == 'for_payment' %}
+            {% if shipment.status == 'paid' %}
             <p style="color:#64748b; font-size:12px; margin-bottom:10px;">Upload a replacement if needed:</p>
             {% endif %}
             {% else %}
@@ -262,7 +262,7 @@
             </div>
             {% endif %}
 
-            {% if shipment.status == 'for_payment' %}
+            {% if shipment.status == 'paid' %}
             <form method="POST" enctype="multipart/form-data"
                   action="{% url 'consignee:upload_receipt' shipment.id %}">
                 {% csrf_token %}
@@ -500,7 +500,7 @@
                 {% for log in status_logs %}
                 <div style="padding:12px 20px; border-bottom:1px solid #1e293b; display:flex; gap:12px; align-items:flex-start;">
                     <div style="width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0;
-                                background:{% if log.new_status == 'approved' %}#22c55e{% elif log.new_status == 'rejected' %}#ef4444{% elif log.new_status == 'in_review' %}#3b82f6{% else %}#64748b{% endif %};">
+                                background:{% if log.new_status == 'approved' %}#22c55e{% elif log.new_status == 'rejected' %}#ef4444{% elif log.new_status == 'arrived' %}#3b82f6{% else %}#64748b{% endif %};">
                     </div>
                     <div style="flex:1;">
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">

@@ -22,12 +22,18 @@
             <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Status</label>
             <select name="status" class="form-input" style="padding:7px 12px; font-size:13px;">
                 <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
-                <option value="pending"     {% if status_filter == 'pending'     %}selected{% endif %}>Pending</option>
-                <option value="in_review"   {% if status_filter == 'in_review'   %}selected{% endif %}>In Review</option>
-                <option value="for_payment" {% if status_filter == 'for_payment' %}selected{% endif %}>For Payment</option>
-                <option value="submitted"   {% if status_filter == 'submitted'   %}selected{% endif %}>Submitted</option>
+                <option value="incoming"    {% if status_filter == 'incoming'    %}selected{% endif %}>Incoming</option>
+                <option value="arrived"     {% if status_filter == 'arrived'     %}selected{% endif %}>Arrived</option>
+                <option value="computed"    {% if status_filter == 'computed'    %}selected{% endif %}>Computed</option>
+                <option value="lodgement"   {% if status_filter == 'lodgement'   %}selected{% endif %}>Lodgement</option>
+                <option value="ongoing"     {% if status_filter == 'ongoing'     %}selected{% endif %}>Ongoing</option>
+                <option value="assessed"    {% if status_filter == 'assessed'    %}selected{% endif %}>Assessed</option>
+                <option value="paid"        {% if status_filter == 'paid'        %}selected{% endif %}>Paid</option>
+                <option value="released"    {% if status_filter == 'released'    %}selected{% endif %}>Released</option>
+                <option value="billed"      {% if status_filter == 'billed'      %}selected{% endif %}>Billed</option>
                 <option value="approved"    {% if status_filter == 'approved'    %}selected{% endif %}>Approved</option>
                 <option value="rejected"    {% if status_filter == 'rejected'    %}selected{% endif %}>Rejected</option>
+                <option value="for_revision" {% if status_filter == 'for_revision' %}selected{% endif %}>For Revision</option>
             </select>
         </div>
         <!-- Date From -->
@@ -112,14 +118,14 @@
                             <span class="badge badge-success">✓ Approved</span>
                         {% elif shipment.status == 'rejected' %}
                             <span class="badge badge-danger">✗ Rejected</span>
-                        {% elif shipment.status == 'in_review' %}
-                            <span class="badge badge-info">In Review</span>
-                        {% elif shipment.status == 'for_payment' %}
-                            <span class="badge badge-warning">For Payment</span>
-                        {% elif shipment.status == 'submitted' %}
-                            <span class="badge badge-info">Submitted to BOC</span>
+                        {% elif shipment.status == 'arrived' %}
+                            <span class="badge badge-info">Arrived</span>
+                        {% elif shipment.status == 'computed' %}
+                            <span class="badge badge-warning">Computed</span>
+                        {% elif shipment.status == 'lodgement' %}
+                            <span class="badge badge-info">Lodgement</span>
                         {% else %}
-                            <span class="badge badge-secondary">Pending</span>
+                            <span class="badge badge-secondary">{{ shipment.get_status_display }}</span>
                         {% endif %}
                     </td>
                     <td style="padding:12px 16px; color:#64748b; font-size:12px;">

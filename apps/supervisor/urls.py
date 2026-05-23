@@ -13,6 +13,7 @@ urlpatterns = [
     path('analytics/',   views.analytics,       name='analytics'),
     path('config/',      views.system_config,   name='config'),
     path('reset/<int:shipment_id>/',            views.reset_shipment,        name='reset_shipment'),
+    path('status/<int:shipment_id>/',           views.update_shipment_status, name='update_shipment_status'),
     path('delete/<int:shipment_id>/',           views.delete_shipment,       name='delete_shipment'),
     # Memos & Announcements
     path('memos/',                              views.list_memos,            name='memos'),

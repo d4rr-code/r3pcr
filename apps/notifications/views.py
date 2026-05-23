@@ -14,10 +14,6 @@ def notifications_list(request):
     elif filter_type == 'read':
         notifications = notifications.filter(is_read=True)
 
-    # Auto-mark all as read when viewing the full list
-    if filter_type == 'all':
-        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
-
     return render(request, 'notifications/list.html', {
         'notifications': notifications,
         'filter_type':   filter_type,

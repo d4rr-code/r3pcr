@@ -460,11 +460,11 @@
                                  font-size:11px; font-weight:700;
                         {% if s.status == 'approved' %}background:#052e16; color:#86efac;
                         {% elif s.status == 'rejected' %}background:#450a0a; color:#fca5a5;
-                        {% elif s.status == 'submitted' %}background:#2d1b69; color:#c4b5fd;
+                        {% elif s.status == 'lodgement' %}background:#2d1b69; color:#c4b5fd;
                         {% else %}background:#1c1917; color:#fcd34d;{% endif %}">
                         {% if s.status == 'approved' %}✔ Approved
                         {% elif s.status == 'rejected' %}✖ Rejected
-                        {% elif s.status == 'submitted' %}📬 Submitted to BOC
+                        {% elif s.status == 'lodgement' %}Lodgement
                         {% else %}💳 For Payment{% endif %}
                     </span>
                 </td>

@@ -3,8 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
-from apps.accounts.models import User
-from apps.notifications.utils import create_notification
+from apps.notifications.utils import create_notification, notify_incoming_shipment
 from .models import Feedback
 
 
@@ -44,13 +43,18 @@ def dashboard(request):
     total = shipments.count()
 
     status_counts = {
-        'pending':     shipments.filter(status='pending').count(),
-        'in_review':   shipments.filter(status='in_review').count(),
-        'for_payment': shipments.filter(status='for_payment').count(),
-        'submitted':   shipments.filter(status='submitted').count(),
-        'approved':    shipments.filter(status='approved').count(),
-        'rejected':    shipments.filter(status='rejected').count(),
-        'revised':     shipments.filter(status='revised').count(),
+        'incoming':     shipments.filter(status='incoming').count(),
+        'arrived':      shipments.filter(status='arrived').count(),
+        'computed':     shipments.filter(status='computed').count(),
+        'approved':     shipments.filter(status='approved').count(),
+        'rejected':     shipments.filter(status='rejected').count(),
+        'for_revision': shipments.filter(status='for_revision').count(),
+        'lodgement':    shipments.filter(status='lodgement').count(),
+        'ongoing':      shipments.filter(status='ongoing').count(),
+        'assessed':     shipments.filter(status='assessed').count(),
+        'paid':         shipments.filter(status='paid').count(),
+        'released':     shipments.filter(status='released').count(),
+        'billed':       shipments.filter(status='billed').count(),
     }
 
     import_breakdown = list(
@@ -115,7 +119,7 @@ def submit_shipment(request):
             urgency=urgency,
             shipment_type=shipment_type or None,
             description=description,
-            status='pending',
+            status='incoming',
         )
 
         for doc_type in ['invoice', 'packing_list', 'airway_bill']:
@@ -135,18 +139,18 @@ def submit_shipment(request):
                 file=file,
             )
 
-        declarants = User.objects.filter(role='declarant', is_active=True)
-        for declarant in declarants:
+        for declarant in []:
             create_notification(
                 recipient=declarant,
                 shipment=shipment,
                 notification_type='submission',
                 title=f'New Shipment Ready to Claim — {hawb_number}',
                 message=(
-                    f'A new shipment ({hawb_number}) is in the pending queue and '
+                    f'A new shipment ({hawb_number}) is in the incoming queue and '
                     f'available for any declarant to claim and process.'
                 ),
             )
+        notify_incoming_shipment(shipment)
 
         messages.success(
             request,
@@ -182,8 +186,8 @@ def my_submissions(request):
     shipments_list = list(shipments)
     for s in shipments_list:
         age_seconds  = (now - s.submitted_at).total_seconds()
-        s.can_cancel     = s.status == 'pending' and age_seconds <= 3600
-        s.cancel_expired = s.status == 'pending' and age_seconds > 3600
+        s.can_cancel     = s.status == 'incoming' and age_seconds <= 3600
+        s.cancel_expired = s.status == 'incoming' and age_seconds > 3600
 
     return render(request, 'consignee/my_submissions.html', {
         'shipments':     shipments_list,
@@ -263,8 +267,8 @@ def upload_receipt(request, shipment_id):
         file = request.FILES.get('payment_receipt')
         if not file:
             messages.error(request, 'Please select a file to upload.')
-        elif shipment.status != 'for_payment':
-            messages.error(request, 'Payment receipt can only be uploaded when shipment is marked For Payment.')
+        elif shipment.status != 'paid':
+            messages.error(request, 'Payment receipt can only be uploaded when shipment is marked Paid.')
         else:
             shipment.payment_receipt = file
             shipment.payment_receipt_uploaded_at = timezone.now()
@@ -337,7 +341,7 @@ def cancel_submission(request, shipment_id):
 
     if request.method == 'POST':
         age = timezone.now() - shipment.submitted_at
-        if shipment.status != 'pending':
+        if shipment.status != 'incoming':
             messages.error(request, 'Cannot cancel — this shipment is already being processed.')
         elif age.total_seconds() > 3600:
             messages.error(request, 'Cannot cancel — the 1-hour cancellation window has passed.')

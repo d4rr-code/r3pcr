@@ -1,594 +1,110 @@
 {% extends 'base.html' %}
 
-{% block title %}Analytics{% endblock %}
-{% block page_title %}Analytics{% endblock %}
+{% block title %}Supervisor Analytics{% endblock %}
+{% block page_title %}Supervisor Analytics{% endblock %}
 
 {% block content %}
 
-<!-- ─── Filter Bar ────────────────────────────────────────────────────────── -->
-<div class="card" style="margin-bottom:24px;">
-    <form method="GET" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-        <div style="flex:1; min-width:140px;">
-            <label style="color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase;
-                          letter-spacing:0.8px; display:block; margin-bottom:4px;">Date From</label>
-            <input type="date" name="date_from" value="{{ date_from }}" class="form-input"
-                   style="padding:7px 12px; font-size:13px;">
-        </div>
-        <div style="flex:1; min-width:140px;">
-            <label style="color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase;
-                          letter-spacing:0.8px; display:block; margin-bottom:4px;">Date To</label>
-            <input type="date" name="date_to" value="{{ date_to }}" class="form-input"
-                   style="padding:7px 12px; font-size:13px;">
-        </div>
-        <div style="min-width:180px;">
-            <label style="color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase;
-                          letter-spacing:0.8px; display:block; margin-bottom:4px;">Declarant</label>
-            <select name="declarant" class="form-input" style="padding:7px 12px; font-size:13px;">
-                <option value="">All Declarants</option>
-                {% for d in declarants %}
-                <option value="{{ d.username }}" {% if declarant_filter == d.username %}selected{% endif %}>
-                    {{ d.get_full_name|default:d.username }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div style="display:flex; gap:8px; align-self:flex-end;">
-            <button type="submit" class="btn btn-primary" style="font-size:12px; padding:8px 16px;">
-                Apply Filters
-            </button>
-            {% if date_from or date_to or declarant_filter %}
-            <a href="{% url 'supervisor:analytics' %}" class="btn btn-secondary"
-               style="font-size:12px; padding:8px 16px;">Clear</a>
-            {% endif %}
-        </div>
-        <div style="align-self:flex-end; margin-left:auto;">
-            <button type="button" onclick="exportAnalytics()" class="btn btn-secondary"
-                    style="font-size:12px; padding:8px 16px;">
-                📷 Export as Image
-            </button>
-        </div>
-    </form>
+<form method="GET" class="card" style="display:flex; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:18px;">
+    <div class="form-group" style="margin:0;">
+        <label class="form-label">From</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="form-input">
+    </div>
+    <div class="form-group" style="margin:0;">
+        <label class="form-label">To</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="form-input">
+    </div>
+    <div class="form-group" style="margin:0;">
+        <label class="form-label">Declarant</label>
+        <select name="declarant" class="form-input">
+            <option value="">All Declarants</option>
+            {% for declarant in declarants %}
+            <option value="{{ declarant.username }}" {% if declarant_filter == declarant.username %}selected{% endif %}>
+                {{ declarant.get_full_name|default:declarant.username }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Apply</button>
     {% if date_from or date_to or declarant_filter %}
-    <p style="font-size:12px; color:#f59e0b; margin-top:10px; margin-bottom:0;">
-        ⚠️ Showing filtered data —
-        {% if date_from %}from {{ date_from }}{% endif %}
-        {% if date_to %}to {{ date_to }}{% endif %}
-        {% if declarant_filter %}· Declarant: {{ declarant_filter }}{% endif %}
-    </p>
+    <a href="{% url 'supervisor:analytics' %}" class="btn btn-secondary">Clear</a>
     {% endif %}
+</form>
+
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:14px; margin-bottom:18px;">
+    <div class="card">
+        <p class="kpi-label">Total Shipments</p>
+        <p class="kpi-value">{{ total_shipments }}</p>
+    </div>
+    {% for row in status_rows %}
+    <div class="card">
+        <p class="kpi-label">{{ row.label }}</p>
+        <p class="kpi-value" style="color:{{ row.color }};">{{ row.count }}</p>
+        <div style="height:6px; background:#1e293b; border-radius:4px; overflow:hidden; margin-top:8px;">
+            <div style="width:{{ row.pct }}%; height:100%; background:{{ row.color }};"></div>
+        </div>
+    </div>
+    {% endfor %}
 </div>
 
-<!-- ─── Status Overview ───────────────────────────────────────────────────── -->
-<div class="card" style="margin-bottom:24px;">
-    <p class="card-title">📊 Shipment Status Breakdown
-        <span style="color:#64748b; font-weight:400; font-size:13px;">
-            — {{ total_shipments }} total
-        </span>
-    </p>
-
-    <div style="display:flex; flex-direction:column; gap:10px; max-width:700px;">
-        {% for status, count in status_data.items %}
-        {% with pct=status_pcts|default_if_none:"0" %}
-        <div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span style="color:#94a3b8; font-size:13px; text-transform:capitalize;">
-                    {{ status|cut:"_"|capfirst }}
-                    {% if status == 'in_review' %}(In Review){% endif %}
-                    {% if status == 'for_payment' %}(For Payment){% endif %}
-                </span>
-                <span style="color:#f1f5f9; font-size:13px; font-weight:600;">
-                    {{ count }}
-                    <span style="color:#64748b; font-weight:400; font-size:12px;">
-                        ({% if status == 'pending' %}{{ status_pcts.pending }}
-                         {% elif status == 'in_review' %}{{ status_pcts.in_review }}
-                         {% elif status == 'for_payment' %}{{ status_pcts.for_payment }}
-                         {% elif status == 'submitted' %}{{ status_pcts.submitted }}
-                         {% elif status == 'approved' %}{{ status_pcts.approved }}
-                         {% else %}{{ status_pcts.rejected }}{% endif %}%)
-                    </span>
-                </span>
-            </div>
-            <div style="background:#1e293b; border-radius:4px; height:8px; overflow:hidden;">
-                <div style="height:100%; border-radius:4px;
-                    width:{% if status == 'pending' %}{{ status_pcts.pending }}
-                          {% elif status == 'in_review' %}{{ status_pcts.in_review }}
-                          {% elif status == 'for_payment' %}{{ status_pcts.for_payment }}
-                          {% elif status == 'submitted' %}{{ status_pcts.submitted }}
-                          {% elif status == 'approved' %}{{ status_pcts.approved }}
-                          {% else %}{{ status_pcts.rejected }}{% endif %}%;
-                    background:{% if status == 'approved' %}#22c55e
-                               {% elif status == 'rejected' %}#ef4444
-                               {% elif status == 'in_review' %}#3b82f6
-                               {% elif status == 'for_payment' %}#f59e0b
-                               {% elif status == 'submitted' %}#8b5cf6
-                               {% else %}#475569{% endif %};">
+<div style="display:grid; grid-template-columns:minmax(260px, 420px) 1fr; gap:18px; align-items:start;">
+    <div class="card">
+        <p class="card-title">WMCDA Scoreboard</p>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+            {% for row in wmcda_scoreboard %}
+            <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <span style="color:#cbd5e1; font-size:13px;">{{ row.label }}</span>
+                    <strong style="color:#f8fafc; font-size:13px;">{{ row.count }}</strong>
+                </div>
+                <div style="height:10px; background:#1e293b; border-radius:6px; overflow:hidden;">
+                    <div style="height:100%; width:{{ row.pct }}%; background:#3b82f6;"></div>
                 </div>
             </div>
-        </div>
-        {% endwith %}
-        {% endfor %}
-    </div>
-</div>
-
-<!-- ─── WMCDA Shipping Mode Scoreboard ────────────────────────────────────── -->
-<div class="card" style="margin-bottom:24px;">
-    <p class="card-title">🚢 WMCDA Shipping Mode Scoreboard
-        <span style="color:#64748b; font-weight:400; font-size:13px;">
-            — {{ wmcda.total }} advisor{{ wmcda.total|pluralize:"y,ies" }} computed
-        </span>
-    </p>
-
-    <!-- WMCDA Explanation -->
-    <div style="background:#0f172a; border:1px solid #1e293b; border-left:3px solid #3b82f6;
-                border-radius:8px; padding:14px 16px; margin-bottom:20px;">
-        <p style="color:#94a3b8; font-size:12px; font-weight:600; margin:0 0 8px;
-                  text-transform:uppercase; letter-spacing:0.6px;">How WMCDA Works</p>
-        <p style="color:#64748b; font-size:12px; margin:0 0 10px; line-height:1.6;">
-            The <strong style="color:#94a3b8;">Weighted Multi-Criteria Decision Analysis</strong> scores each
-            shipping mode across four criteria and recommends the option with the highest combined score.
-            A score of <strong style="color:#94a3b8;">1.000</strong> is a perfect match; closer to 0 means
-            less suitable.
-        </p>
-        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
-            <div style="background:#1e293b; border-radius:6px; padding:10px; text-align:center;">
-                <div style="font-size:16px; margin-bottom:4px;">💰</div>
-                <div style="color:#f1f5f9; font-size:13px; font-weight:700;">35%</div>
-                <div style="color:#64748b; font-size:11px; margin-top:2px;">Cost</div>
-                <div style="color:#475569; font-size:10px; margin-top:2px;">Freight cost vs. cargo value</div>
-            </div>
-            <div style="background:#1e293b; border-radius:6px; padding:10px; text-align:center;">
-                <div style="font-size:16px; margin-bottom:4px;">⏱️</div>
-                <div style="color:#f1f5f9; font-size:13px; font-weight:700;">30%</div>
-                <div style="color:#64748b; font-size:11px; margin-top:2px;">Transit Time</div>
-                <div style="color:#475569; font-size:10px; margin-top:2px;">Speed vs. urgency level</div>
-            </div>
-            <div style="background:#1e293b; border-radius:6px; padding:10px; text-align:center;">
-                <div style="font-size:16px; margin-bottom:4px;">⚖️</div>
-                <div style="color:#f1f5f9; font-size:13px; font-weight:700;">20%</div>
-                <div style="color:#64748b; font-size:11px; margin-top:2px;">Weight / Volume</div>
-                <div style="color:#475569; font-size:10px; margin-top:2px;">Cargo density fit</div>
-            </div>
-            <div style="background:#1e293b; border-radius:6px; padding:10px; text-align:center;">
-                <div style="font-size:16px; margin-bottom:4px;">🛡️</div>
-                <div style="color:#f1f5f9; font-size:13px; font-weight:700;">15%</div>
-                <div style="color:#64748b; font-size:11px; margin-top:2px;">Risk</div>
-                <div style="color:#475569; font-size:10px; margin-top:2px;">Handling & distance risk</div>
-            </div>
+            {% endfor %}
         </div>
     </div>
 
-    {% if wmcda.total > 0 %}
-
-    <!-- Overall recommendation summary — 4 modes -->
-    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">
-        {% with is_top_air=wmcda.air|add:0 %}
-        <div style="background:#0f172a; border:2px solid {% if wmcda.air >= wmcda.lcl and wmcda.air >= wmcda.fcl and wmcda.air >= wmcda.land %}#3b82f6{% else %}#1e293b{% endif %};
-                    border-radius:10px; padding:14px; text-align:center;">
-            <div style="font-size:20px; margin-bottom:4px;">✈️</div>
-            <div style="font-size:20px; font-weight:800; color:#3b82f6;">{{ wmcda.air }}</div>
-            <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Recommended</div>
-            <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
-                <div style="height:100%; border-radius:4px; background:#3b82f6; width:{{ wmcda.pct_air }}%;"></div>
-            </div>
-            <div style="font-size:12px; color:#3b82f6; font-weight:700;">Air &nbsp;{{ wmcda.pct_air }}%</div>
-            <div style="font-size:11px; color:#64748b; margin-top:4px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_air }}</strong></div>
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div style="padding:18px 20px; border-bottom:1px solid #1e293b;">
+            <p class="card-title" style="margin:0;">Declarant Performance</p>
         </div>
-        {% endwith %}
-        <div style="background:#0f172a; border:2px solid {% if wmcda.lcl > wmcda.air and wmcda.lcl >= wmcda.fcl and wmcda.lcl >= wmcda.land %}#22c55e{% else %}#1e293b{% endif %};
-                    border-radius:10px; padding:14px; text-align:center;">
-            <div style="font-size:20px; margin-bottom:4px;">🚢</div>
-            <div style="font-size:20px; font-weight:800; color:#22c55e;">{{ wmcda.lcl }}</div>
-            <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Recommended</div>
-            <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
-                <div style="height:100%; border-radius:4px; background:#22c55e; width:{{ wmcda.pct_lcl }}%;"></div>
-            </div>
-            <div style="font-size:12px; color:#22c55e; font-weight:700;">LCL &nbsp;{{ wmcda.pct_lcl }}%</div>
-            <div style="font-size:11px; color:#64748b; margin-top:4px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_lcl }}</strong></div>
-        </div>
-        <div style="background:#0f172a; border:2px solid {% if wmcda.fcl > wmcda.air and wmcda.fcl > wmcda.lcl and wmcda.fcl >= wmcda.land %}#8b5cf6{% else %}#1e293b{% endif %};
-                    border-radius:10px; padding:14px; text-align:center;">
-            <div style="font-size:20px; margin-bottom:4px;">📦</div>
-            <div style="font-size:20px; font-weight:800; color:#8b5cf6;">{{ wmcda.fcl }}</div>
-            <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Recommended</div>
-            <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
-                <div style="height:100%; border-radius:4px; background:#8b5cf6; width:{{ wmcda.pct_fcl }}%;"></div>
-            </div>
-            <div style="font-size:12px; color:#8b5cf6; font-weight:700;">FCL &nbsp;{{ wmcda.pct_fcl }}%</div>
-            <div style="font-size:11px; color:#64748b; margin-top:4px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_fcl }}</strong></div>
-        </div>
-        <div style="background:#0f172a; border:2px solid {% if wmcda.land > wmcda.air and wmcda.land > wmcda.lcl and wmcda.land > wmcda.fcl %}#f59e0b{% else %}#1e293b{% endif %};
-                    border-radius:10px; padding:14px; text-align:center;">
-            <div style="font-size:20px; margin-bottom:4px;">🚛</div>
-            <div style="font-size:20px; font-weight:800; color:#f59e0b;">{{ wmcda.land }}</div>
-            <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Recommended</div>
-            <div style="background:#1e293b; border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden;">
-                <div style="height:100%; border-radius:4px; background:#f59e0b; width:{{ wmcda.pct_land }}%;"></div>
-            </div>
-            <div style="font-size:12px; color:#f59e0b; font-weight:700;">Land &nbsp;{{ wmcda.pct_land }}%</div>
-            <div style="font-size:11px; color:#64748b; margin-top:4px;">Avg score: <strong style="color:#94a3b8;">{{ wmcda.avg_land }}</strong></div>
-        </div>
-    </div>
-
-    <!-- Per shipment-type scoreboard -->
-    {% if wmcda.mode_scoreboard %}
-    <p style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase;
-              letter-spacing:0.8px; margin-bottom:10px;">Scoreboard by Declared Shipping Mode</p>
-    <div style="overflow-x:auto; border:1px solid #1e293b; border-radius:8px; margin-bottom:20px;">
         <table style="width:100%; border-collapse:collapse;">
             <thead>
                 <tr style="background:#0f172a;">
-                    <th style="padding:9px 14px; text-align:left; color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Declared Mode</th>
-                    <th style="padding:9px 14px; text-align:center; color:#64748b; font-size:11px;">Shipments</th>
-                    <th style="padding:9px 14px; text-align:center; color:#3b82f6; font-size:11px; font-weight:700;">✈ Air Score</th>
-                    <th style="padding:9px 14px; text-align:center; color:#22c55e; font-size:11px; font-weight:700;">🚢 LCL Score</th>
-                    <th style="padding:9px 14px; text-align:center; color:#8b5cf6; font-size:11px; font-weight:700;">📦 FCL Score</th>
-                    <th style="padding:9px 14px; text-align:center; color:#f59e0b; font-size:11px; font-weight:700;">🚛 Land Score</th>
-                    <th style="padding:9px 14px; text-align:center; color:#64748b; font-size:11px;">System Recommends</th>
+                    <th style="padding:11px 14px; text-align:left; color:#94a3b8; font-size:12px;">Declarant</th>
+                    <th style="padding:11px 14px; text-align:center; color:#94a3b8; font-size:12px;">Processed</th>
+                    <th style="padding:11px 14px; text-align:center; color:#94a3b8; font-size:12px;">Avg Arrived to Computed</th>
+                    <th style="padding:11px 14px; text-align:center; color:#94a3b8; font-size:12px;">Approved</th>
+                    <th style="padding:11px 14px; text-align:center; color:#94a3b8; font-size:12px;">Approval Rate</th>
                 </tr>
             </thead>
             <tbody>
-                {% for row in wmcda.mode_scoreboard %}
-                <tr style="border-top:1px solid #1e293b;"
-                    onmouseover="this.style.background='#0f172a'"
-                    onmouseout="this.style.background=''">
-                    <td style="padding:10px 14px;">
-                        <span style="font-size:18px;">{{ row.emoji }}</span>
-                        <strong style="color:#f1f5f9; font-size:13px; margin-left:8px;">{{ row.label }}</strong>
-                    </td>
-                    <td style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:13px;">
-                        {{ row.count }}
-                    </td>
-                    <td style="padding:10px 14px; text-align:center; color:#3b82f6; font-size:13px; font-weight:700;">
-                        {% if row.count %}{{ row.avg_air }}{% else %}<span style="color:#475569;">—</span>{% endif %}
-                    </td>
-                    <td style="padding:10px 14px; text-align:center; color:#22c55e; font-size:13px; font-weight:700;">
-                        {% if row.count %}{{ row.avg_lcl }}{% else %}<span style="color:#475569;">—</span>{% endif %}
-                    </td>
-                    <td style="padding:10px 14px; text-align:center; color:#8b5cf6; font-size:13px; font-weight:700;">
-                        {% if row.count %}{{ row.avg_fcl }}{% else %}<span style="color:#475569;">—</span>{% endif %}
-                    </td>
-                    <td style="padding:10px 14px; text-align:center; color:#f59e0b; font-size:13px; font-weight:700;">
-                        {% if row.count %}{{ row.avg_land }}{% else %}<span style="color:#475569;">—</span>{% endif %}
-                    </td>
-                    <td style="padding:10px 14px; text-align:center;">
-                        {% if row.top_rec %}
-                        <span style="display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700;
-                            {% if row.top_rec == 'air' %}background:#1e3a5f; color:#93c5fd;
-                            {% elif row.top_rec == 'lcl' %}background:#052e16; color:#86efac;
-                            {% elif row.top_rec == 'land' %}background:#451a03; color:#fcd34d;
-                            {% else %}background:#2d1b69; color:#c4b5fd;{% endif %}">
-                            {% if row.top_rec == 'air' %}✈ Air{% elif row.top_rec == 'lcl' %}🚢 LCL{% elif row.top_rec == 'land' %}🚛 Land{% else %}📦 FCL{% endif %}
-                            {{ row.top_rec_pct }}%
-                        </span>
-                        {% else %}
-                        <span style="color:#475569; font-size:12px;">—</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
-
-    <!-- Recent advisories table -->
-    {% if wmcda.recent %}
-    <p style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:10px;">Recent Advisories</p>
-    <div style="overflow-x:auto; border:1px solid #1e293b; border-radius:8px;">
-        <table style="width:100%; border-collapse:collapse;">
-            <thead>
-                <tr style="background:#0f172a;">
-                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">HAWB</th>
-                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600;">Declared Mode</th>
-                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600;">Computed By</th>
-                    <th style="padding:8px 12px; text-align:center; color:#64748b; font-size:11px; font-weight:600;">Recommended</th>
-                    <th style="padding:8px 12px; text-align:center; color:#3b82f6; font-size:11px; font-weight:600;">Air</th>
-                    <th style="padding:8px 12px; text-align:center; color:#22c55e; font-size:11px; font-weight:600;">LCL</th>
-                    <th style="padding:8px 12px; text-align:center; color:#8b5cf6; font-size:11px; font-weight:600;">FCL</th>
-                    <th style="padding:8px 12px; text-align:center; color:#f59e0b; font-size:11px; font-weight:600;">Land</th>
-                    <th style="padding:8px 12px; text-align:left; color:#64748b; font-size:11px; font-weight:600;">Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for adv in wmcda.recent %}
-                <tr style="border-top:1px solid #1e293b;"
-                    onmouseover="this.style.background='#0f172a'"
-                    onmouseout="this.style.background=''">
-                    <td style="padding:9px 12px; color:#3b82f6; font-size:12px; font-weight:600;">
-                        {{ adv.shipment.hawb_number }}
-                    </td>
-                    <td style="padding:9px 12px; font-size:12px; color:#94a3b8;">
-                        {% if adv.shipment.shipment_type %}
-                            {% if adv.shipment.shipment_type == 'air' %}✈️ Air
-                            {% elif adv.shipment.shipment_type == 'lcl' %}🚢 LCL
-                            {% else %}📦 FCL{% endif %}
-                        {% else %}<span style="color:#475569;">—</span>{% endif %}
-                    </td>
-                    <td style="padding:9px 12px; color:#94a3b8; font-size:12px;">
-                        {{ adv.computed_by.get_full_name|default:adv.computed_by.username }}
-                    </td>
-                    <td style="padding:9px 12px; text-align:center;">
-                        <span style="display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700;
-                            {% if adv.recommended_type == 'air' %}background:#1e3a5f; color:#93c5fd;
-                            {% elif adv.recommended_type == 'lcl' %}background:#052e16; color:#86efac;
-                            {% elif adv.recommended_type == 'land' %}background:#451a03; color:#fcd34d;
-                            {% else %}background:#2d1b69; color:#c4b5fd;{% endif %}">
-                            {% if adv.recommended_type == 'air' %}✈ Air
-                            {% elif adv.recommended_type == 'lcl' %}🚢 LCL
-                            {% elif adv.recommended_type == 'land' %}🚛 Land
-                            {% else %}📦 FCL{% endif %}
-                        </span>
-                    </td>
-                    <td style="padding:9px 12px; text-align:center; color:#3b82f6; font-size:12px; font-weight:600;">{{ adv.air_score|floatformat:3 }}</td>
-                    <td style="padding:9px 12px; text-align:center; color:#22c55e; font-size:12px; font-weight:600;">{{ adv.lcl_score|floatformat:3 }}</td>
-                    <td style="padding:9px 12px; text-align:center; color:#8b5cf6; font-size:12px; font-weight:600;">{{ adv.fcl_score|floatformat:3 }}</td>
-                    <td style="padding:9px 12px; text-align:center; color:#f59e0b; font-size:12px; font-weight:600;">
-                        {% if adv.land_score %}{{ adv.land_score|floatformat:3 }}{% else %}<span style="color:#475569;">—</span>{% endif %}
-                    </td>
-                    <td style="padding:9px 12px; color:#64748b; font-size:11px;">{{ adv.computed_at|date:"M d, Y" }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div style="text-align:center; padding:32px; color:#64748b;">
-        <div style="font-size:32px; margin-bottom:8px;">🚢</div>
-        <p>No shipping advisories computed yet.</p>
-    </div>
-    {% endif %}
-</div>
-
-<!-- ─── Processing Time Analytics ────────────────────────────────────────── -->
-<div class="card" style="margin-bottom:24px;">
-    <p class="card-title">⏱️ Processing Time
-        <span style="color:#64748b; font-weight:400; font-size:13px;">
-            — submission to approval (live)
-        </span>
-    </p>
-
-    {% if processing_stats.count > 0 %}
-
-    <!-- Key metrics row -->
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px;">
-        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
-            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Average</div>
-            <div style="font-size:28px; font-weight:800;
-                color:{% if processing_stats.avg <= 3 %}#22c55e{% elif processing_stats.avg <= 7 %}#f59e0b{% else %}#ef4444{% endif %};">
-                {{ processing_stats.avg }}
-            </div>
-            <div style="font-size:12px; color:#64748b; margin-top:2px;">days</div>
-            <div style="margin-top:8px; background:#1e293b; border-radius:4px; height:4px; overflow:hidden;">
-                <div style="height:100%; border-radius:4px; width:{% if processing_stats.avg <= 3 %}33%{% elif processing_stats.avg <= 7 %}66%{% else %}100%{% endif %};
-                    background:{% if processing_stats.avg <= 3 %}#22c55e{% elif processing_stats.avg <= 7 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
-            </div>
-        </div>
-        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
-            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Fastest</div>
-            <div style="font-size:28px; font-weight:800; color:#22c55e;">{{ processing_stats.min }}</div>
-            <div style="font-size:12px; color:#64748b; margin-top:2px;">day{{ processing_stats.min|pluralize }}</div>
-        </div>
-        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px; padding:16px; text-align:center;">
-            <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">Slowest</div>
-            <div style="font-size:28px; font-weight:800; color:#ef4444;">{{ processing_stats.max }}</div>
-            <div style="font-size:12px; color:#64748b; margin-top:2px;">day{{ processing_stats.max|pluralize }}</div>
-        </div>
-    </div>
-
-    <!-- Distribution buckets -->
-    <p style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase;
-              letter-spacing:0.8px; margin-bottom:10px;">Distribution — {{ processing_stats.count }} approved shipment{{ processing_stats.count|pluralize }}</p>
-    <div style="display:flex; flex-direction:column; gap:8px;">
-        {% with total=processing_stats.count %}
-        <div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span style="color:#22c55e; font-size:12px;">⚡ Same-day / Next-day (0–1 days)</span>
-                <span style="color:#f1f5f9; font-size:12px; font-weight:600;">{{ processing_buckets.fast }}
-                    <span style="color:#64748b; font-weight:400;">shipment{{ processing_buckets.fast|pluralize }}</span>
-                </span>
-            </div>
-            <div style="background:#1e293b; border-radius:4px; height:8px; overflow:hidden;">
-                <div style="height:100%; border-radius:4px; background:#22c55e;
-                    width:{% widthratio processing_buckets.fast total 100 %}%;"></div>
-            </div>
-        </div>
-        <div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span style="color:#3b82f6; font-size:12px;">✅ On time (2–3 days)</span>
-                <span style="color:#f1f5f9; font-size:12px; font-weight:600;">{{ processing_buckets.normal }}
-                    <span style="color:#64748b; font-weight:400;">shipment{{ processing_buckets.normal|pluralize }}</span>
-                </span>
-            </div>
-            <div style="background:#1e293b; border-radius:4px; height:8px; overflow:hidden;">
-                <div style="height:100%; border-radius:4px; background:#3b82f6;
-                    width:{% widthratio processing_buckets.normal total 100 %}%;"></div>
-            </div>
-        </div>
-        <div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span style="color:#f59e0b; font-size:12px;">⚠️ Slow (4–7 days)</span>
-                <span style="color:#f1f5f9; font-size:12px; font-weight:600;">{{ processing_buckets.slow }}
-                    <span style="color:#64748b; font-weight:400;">shipment{{ processing_buckets.slow|pluralize }}</span>
-                </span>
-            </div>
-            <div style="background:#1e293b; border-radius:4px; height:8px; overflow:hidden;">
-                <div style="height:100%; border-radius:4px; background:#f59e0b;
-                    width:{% widthratio processing_buckets.slow total 100 %}%;"></div>
-            </div>
-        </div>
-        <div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span style="color:#ef4444; font-size:12px;">🔴 Overdue (8+ days)</span>
-                <span style="color:#f1f5f9; font-size:12px; font-weight:600;">{{ processing_buckets.very_slow }}
-                    <span style="color:#64748b; font-weight:400;">shipment{{ processing_buckets.very_slow|pluralize }}</span>
-                </span>
-            </div>
-            <div style="background:#1e293b; border-radius:4px; height:8px; overflow:hidden;">
-                <div style="height:100%; border-radius:4px; background:#ef4444;
-                    width:{% widthratio processing_buckets.very_slow total 100 %}%;"></div>
-            </div>
-        </div>
-        {% endwith %}
-    </div>
-
-    {% else %}
-    <div style="text-align:center; padding:32px; color:#64748b;">
-        <div style="font-size:32px; margin-bottom:8px;">⏳</div>
-        <p>No approved shipments yet — processing time will appear once shipments are approved.</p>
-    </div>
-    {% endif %}
-</div>
-
-<!-- ─── Declarant Performance ─────────────────────────────────────────────── -->
-<div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;">
-    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
-        <p class="card-title" style="margin:0;">👤 Declarant Performance</p>
-    </div>
-    {% if declarant_data %}
-    <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse;">
-            <thead>
-                <tr style="background:#0f172a;">
-                    <th style="padding:10px 14px; text-align:left; color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Declarant</th>
-                    <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;" title="Shipments assigned to this declarant">Claimed</th>
-                    <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;" title="Moved past Pending status">Processed</th>
-                    <th style="padding:10px 14px; text-align:center; color:#3b82f6; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;" title="Currently In Review">In Review</th>
-                    <th style="padding:10px 14px; text-align:center; color:#22c55e; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Approved</th>
-                    <th style="padding:10px 14px; text-align:center; color:#ef4444; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Rejected</th>
-                    <th style="padding:10px 14px; text-align:center; color:#f59e0b; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;" title="ECDT computations run">Computed</th>
-                    <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Approval Rate</th>
-                    <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.6px;">Avg. Days</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for d in declarant_data %}
-                <tr style="border-top:1px solid #1e293b;"
-                    onmouseover="this.style.background='#1e293b'"
-                    onmouseout="this.style.background=''">
+                {% for row in declarant_data %}
+                <tr style="border-top:1px solid #1e293b;">
                     <td style="padding:12px 14px;">
-                        <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0;">{{ d.name }}</p>
-                        <p style="color:#475569; font-size:11px; margin:2px 0 0;">@{{ d.username }}</p>
+                        <p style="color:#f8fafc; font-size:13px; font-weight:600; margin:0;">{{ row.name }}</p>
+                        <p style="color:#64748b; font-size:11px; margin:3px 0 0;">{{ row.username }}</p>
                     </td>
-                    <td style="padding:12px 14px; text-align:center; color:#f1f5f9; font-size:13px; font-weight:600;">
-                        {{ d.claimed }}
+                    <td style="padding:12px 14px; text-align:center; color:#f8fafc;">{{ row.total_processed }}</td>
+                    <td style="padding:12px 14px; text-align:center; color:#f8fafc;">
+                        {% if row.avg_hours is not None %}{{ row.avg_hours }}h{% else %}&mdash;{% endif %}
                     </td>
-                    <td style="padding:12px 14px; text-align:center; color:#94a3b8; font-size:13px;">
-                        {{ d.processed }}
-                    </td>
-                    <td style="padding:12px 14px; text-align:center; color:#3b82f6; font-size:13px; font-weight:600;">
-                        {{ d.in_review }}
-                    </td>
-                    <td style="padding:12px 14px; text-align:center; color:#22c55e; font-size:13px; font-weight:600;">
-                        {{ d.approved }}
-                    </td>
-                    <td style="padding:12px 14px; text-align:center; color:#ef4444; font-size:13px; font-weight:600;">
-                        {{ d.rejected }}
-                    </td>
-                    <td style="padding:12px 14px; text-align:center; color:#f59e0b; font-size:13px; font-weight:600;">
-                        {{ d.computed }}
-                    </td>
+                    <td style="padding:12px 14px; text-align:center; color:#f8fafc;">{{ row.approved }}</td>
                     <td style="padding:12px 14px; text-align:center;">
-                        <div style="display:flex; align-items:center; gap:8px; justify-content:center;">
-                            <div style="width:60px; background:#1e293b; border-radius:4px; height:6px; overflow:hidden;">
-                                <div style="height:100%; border-radius:4px; width:{{ d.approval_rate }}%;
-                                    background:{% if d.approval_rate >= 75 %}#22c55e{% elif d.approval_rate >= 50 %}#f59e0b{% else %}#ef4444{% endif %};">
-                                </div>
-                            </div>
-                            <span style="color:{% if d.approval_rate >= 75 %}#22c55e{% elif d.approval_rate >= 50 %}#f59e0b{% else %}#ef4444{% endif %};
-                                         font-size:12px; font-weight:700; min-width:38px;">
-                                {{ d.approval_rate }}%
-                            </span>
-                        </div>
-                    </td>
-                    <td style="padding:12px 14px; text-align:center; color:#94a3b8; font-size:13px;">
-                        {% if d.avg_days != None %}{{ d.avg_days }}d
-                        {% else %}<span style="color:#475569;">—</span>{% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div style="padding:32px; text-align:center; color:#64748b;">
-        <p>No declarant data available.</p>
-    </div>
-    {% endif %}
-</div>
-
-<!-- ─── Top HS Codes ──────────────────────────────────────────────────────── -->
-{% if top_hs %}
-<div class="card" style="padding:0; overflow:hidden;">
-    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
-        <p class="card-title" style="margin:0;">📋 Top 5 Most-Used HS Codes</p>
-    </div>
-    <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse;">
-            <thead>
-                <tr style="background:#0f172a;">
-                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">#</th>
-                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">HS Code</th>
-                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Description</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Duty Rate</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Uses</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for hs in top_hs %}
-                <tr style="border-top:1px solid #1e293b;"
-                    onmouseover="this.style.background='#1e293b'"
-                    onmouseout="this.style.background=''">
-                    <td style="padding:12px 16px; color:#475569; font-size:13px;">{{ forloop.counter }}</td>
-                    <td style="padding:12px 16px; color:#3b82f6; font-size:13px; font-weight:700;">
-                        {{ hs.hs_code__code }}
-                    </td>
-                    <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
-                        {{ hs.hs_code__description|default:"—"|truncatechars:60 }}
-                    </td>
-                    <td style="padding:12px 16px; text-align:center; color:#f1f5f9; font-size:13px;">
-                        {{ hs.hs_code__duty_rate|default:"—" }}%
-                    </td>
-                    <td style="padding:12px 16px; text-align:center;">
-                        <span style="background:#1e3a5f; color:#3b82f6; font-size:12px;
-                                     font-weight:700; padding:3px 10px; border-radius:12px;">
-                            {{ hs.count }}
+                        <span class="badge {% if row.approval_rate >= 70 %}badge-success{% elif row.approval_rate > 0 %}badge-warning{% else %}badge-secondary{% endif %}">
+                            {{ row.approval_rate }}%
                         </span>
                     </td>
                 </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="padding:28px; text-align:center; color:#64748b;">No declarants found.</td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
-{% endif %}
 
-{% endblock %}
-
-{% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script>
-function exportAnalytics() {
-    var btn = document.querySelector('[onclick="exportAnalytics()"]');
-    btn.textContent = '⏳ Capturing...';
-    btn.disabled = true;
-
-    var target = document.querySelector('.main-content');
-    html2canvas(target, { backgroundColor: '#0f172a', scale: 1.5, useCORS: true })
-        .then(function(canvas) {
-            var link = document.createElement('a');
-            link.download = 'r3pcr-analytics.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-            btn.textContent = '📷 Export as Image';
-            btn.disabled = false;
-        })
-        .catch(function() {
-            alert('Export failed. Please try again.');
-            btn.textContent = '📷 Export as Image';
-            btn.disabled = false;
-        });
-}
-</script>
 {% endblock %}

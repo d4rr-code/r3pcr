@@ -141,6 +141,8 @@
            class="btn btn-secondary" style="font-size:12px;">
             ⬇ Download Excel
         </a>
+        <a href="{% url 'computation:download' shipment.id %}?format=pdf"
+           class="btn btn-secondary" style="font-size:12px;">PDF</a>
         {% endif %}
         <a href="{% url 'declarant:queue' %}" class="btn btn-secondary" style="font-size:12px;">
             ← Back to Queue
@@ -300,6 +302,8 @@
             <div style="display:flex; gap:8px;">
                 <a href="{% url 'computation:download' shipment.id %}"
                    class="btn btn-secondary" style="font-size:12px;">⬇ Excel</a>
+                <a href="{% url 'computation:download' shipment.id %}?format=pdf"
+                   class="btn btn-secondary" style="font-size:12px;">PDF</a>
                 <a href="{% url 'computation:compute' shipment.id %}"
                    class="btn btn-primary" style="font-size:12px;">Edit / Recompute</a>
             </div>
@@ -327,14 +331,14 @@
                     <span class="badge badge-success" style="font-size:14px;">✓ Approved</span>
                 {% elif shipment.status == 'rejected' %}
                     <span class="badge badge-danger" style="font-size:14px;">✗ Rejected</span>
-                {% elif shipment.status == 'in_review' %}
-                    <span class="badge badge-info" style="font-size:14px;">In Review</span>
-                {% elif shipment.status == 'for_payment' %}
-                    <span class="badge badge-warning" style="font-size:14px;">For Payment</span>
-                {% elif shipment.status == 'submitted' %}
-                    <span class="badge badge-info" style="font-size:14px;">Submitted to BOC</span>
+                {% elif shipment.status == 'arrived' %}
+                    <span class="badge badge-info" style="font-size:14px;">Arrived</span>
+                {% elif shipment.status == 'computed' %}
+                    <span class="badge badge-warning" style="font-size:14px;">Computed</span>
+                {% elif shipment.status == 'lodgement' %}
+                    <span class="badge badge-info" style="font-size:14px;">Lodgement</span>
                 {% else %}
-                    <span class="badge badge-secondary" style="font-size:14px;">Pending</span>
+                    <span class="badge badge-secondary" style="font-size:14px;">{{ shipment.get_status_display }}</span>
                 {% endif %}
             </div>
 
@@ -370,10 +374,9 @@
                     <label class="form-label">Update Status</label>
                     <select name="new_status" class="form-input">
                         <option value="">— Select new status —</option>
-                        <option value="in_review">In Review</option>
-                        <option value="for_payment">For Payment</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
+                        {% for key, label in manual_status_choices %}
+                        <option value="{{ key }}">{{ label }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="form-group">
@@ -388,7 +391,7 @@
         </div>
 
         <!-- 6.2 Deficiency Flagging -->
-        {% if shipment.status == 'in_review' or shipment.status == 'pending' %}
+        {% if shipment.status == 'arrived' or shipment.status == 'incoming' %}
         <div class="card" style="margin-bottom:16px; border:1px solid #7c3aed44;">
             <p class="card-title" style="color:#a78bfa;">⚠ Flag Document Deficiency</p>
             <p style="color:#64748b; font-size:12px; margin-bottom:12px;">
@@ -425,7 +428,7 @@
         {% endif %}
 
         <!-- Payment Confirmation -->
-        {% if shipment.status == 'for_payment' %}
+        {% if shipment.status == 'paid' %}
         <div class="card" style="margin-bottom:16px; border:1px solid #f59e0b44;">
             <p class="card-title">Payment Confirmation</p>
 
@@ -456,7 +459,7 @@
             <!-- Inline BOC Submit form -->
             <form method="POST" action="{% url 'declarant:update_status' shipment.id %}">
                 {% csrf_token %}
-                <input type="hidden" name="new_status" value="submitted">
+                <input type="hidden" name="new_status" value="lodgement">
                 <div class="form-group">
                     <label class="form-label" style="font-size:12px;">BOC Reference No. (optional)</label>
                     <input type="text" name="notes"
@@ -482,7 +485,7 @@
         {% endif %}
 
         <!-- BOC Tracking -->
-        {% if shipment.status == 'submitted' or shipment.status == 'approved' or shipment.status == 'rejected' %}
+        {% if shipment.status == 'lodgement' or shipment.status == 'ongoing' or shipment.status == 'assessed' or shipment.status == 'paid' or shipment.status == 'released' or shipment.status == 'billed' %}
         <div class="card" style="margin-bottom:16px;">
             <p class="card-title">BOC Tracking</p>
             {% if shipment.boc_reference %}

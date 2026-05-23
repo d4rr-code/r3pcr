@@ -11,6 +11,9 @@ class Notification(models.Model):
         ('payment', 'Payment Required'),
         ('approved', 'Shipment Approved'),
         ('rejected', 'Shipment Rejected'),
+        ('arrived', 'Shipment Arrived'),
+        ('computed', 'Computation Ready'),
+        ('for_revision', 'For Revision'),
         ('general', 'General'),
     ]
 

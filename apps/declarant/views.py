@@ -7,7 +7,7 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
-from apps.notifications.utils import create_notification
+from apps.notifications.utils import create_notification, notify_shipment_status_change
 
 
 # ─── Role Decorator ───────────────────────────────────────────────────────────
@@ -57,8 +57,8 @@ def dashboard(request):
     shipments = Shipment.objects.all()
     my = {'declarant': request.user}
 
-    queue_count    = shipments.filter(status='pending').count()
-    in_progress    = shipments.filter(status='in_review', **my).count()
+    queue_count    = shipments.filter(status='incoming').count()
+    in_progress    = shipments.filter(status='arrived', **my).count()
     completed      = shipments.filter(status='approved', **my).count()
     rejected_count = shipments.filter(status='rejected', **my).count()
 
@@ -72,13 +72,13 @@ def dashboard(request):
         )
         avg_processing_days = round(total_secs / len(done_qs) / 86400, 1)
 
-    # My completion rate: done / (done + in_review)
+    # My completion rate: done / (done + arrived)
     total_handled = len(done_qs) + in_progress
     completion_rate = round(len(done_qs) / total_handled * 100, 1) if total_handled > 0 else 0
 
-    # Pending queue for dashboard table (up to 20, annotated with due dates)
+    # Incoming queue for dashboard table (up to 20, annotated with due dates)
     today = timezone.localdate()
-    pending_list = list(shipments.filter(status='pending').select_related('consignee')[:20])
+    pending_list = list(shipments.filter(status='incoming').select_related('consignee')[:20])
     _annotate_due(pending_list, today)
 
     context = {
@@ -98,7 +98,7 @@ def dashboard(request):
 @login_required
 @declarant_required
 def shipment_preview(request, shipment_id):
-    """Return JSON details for the queue preview modal (pending shipments only)."""
+    """Return JSON details for the queue preview modal (incoming shipments only)."""
     shipment = get_object_or_404(Shipment, id=shipment_id)
 
     # Documents list
@@ -146,8 +146,8 @@ def shipment_preview(request, shipment_id):
 def queue_manager(request):
     today = timezone.localdate()
 
-    # Pending queue with optional filters
-    pending_qs = Shipment.objects.filter(status='pending').select_related('consignee')
+    # Incoming queue with optional filters
+    pending_qs = Shipment.objects.filter(status='incoming').select_related('consignee')
 
     urgency_filter = request.GET.get('urgency', '')
     if urgency_filter in ('standard', 'priority', 'urgent', 'rush', 'normal'):
@@ -170,15 +170,15 @@ def queue_manager(request):
     page_number  = request.GET.get('page', 1)
     pending_page = paginator.get_page(page_number)
 
-    # In-review: my claimed shipments
+    # Arrived: my claimed shipments
     in_review = Shipment.objects.filter(
-        status='in_review', declarant=request.user
+        status='arrived', declarant=request.user
     ).select_related('consignee')
 
-    # History: shipments I processed that are past the in-review stage
+    # History: shipments I processed that are past the arrived stage
     history = Shipment.objects.filter(
         declarant=request.user,
-        status__in=['for_payment', 'submitted', 'approved', 'rejected'],
+        status__in=['computed', 'approved', 'rejected', 'for_revision', 'lodgement', 'ongoing', 'assessed', 'paid', 'released', 'billed'],
     ).select_related('consignee').order_by('-updated_at')
 
     context = {
@@ -197,20 +197,28 @@ def queue_manager(request):
 @login_required
 @declarant_required
 def claim_shipment(request, shipment_id):
-    """Any active declarant may claim an unclaimed pending shipment."""
+    """Any active declarant may claim an unclaimed incoming shipment."""
     shipment = get_object_or_404(Shipment, id=shipment_id)
-    if shipment.status == 'pending':
+    if shipment.status == 'incoming':
         shipment.declarant = request.user
-        shipment.status = 'in_review'
+        shipment.status = 'arrived'
         shipment.save()
         StatusLog.objects.create(
             shipment=shipment,
             changed_by=request.user,
-            old_status='pending',
-            new_status='in_review',
+            old_status='incoming',
+            new_status='arrived',
             notes='Claimed by declarant',
         )
-        create_notification(
+        notify_shipment_status_change(
+            shipment=shipment,
+            old_status='incoming',
+            new_status='arrived',
+            changed_by=request.user,
+            notes='Claimed by declarant.',
+        )
+        if False:
+            create_notification(
             recipient=shipment.consignee,
             shipment=shipment,
             notification_type='status_update',
@@ -254,6 +262,7 @@ def process_shipment(request, shipment_id):
         'status_logs': status_logs,
         'ocr_fields':  ocr_fields,
         'ocr_toast':   ocr_toast,
+        'manual_status_choices': Shipment.MANUAL_STATUS_CHOICES,
     }
     return render(request, 'declarant/process.html', context)
 
@@ -302,7 +311,7 @@ def update_status(request, shipment_id):
     notes      = request.POST.get('notes', '').strip()
 
     # Validate status against known choices — prevents arbitrary string injection
-    valid_statuses = {key for key, _ in Shipment.STATUS_CHOICES}
+    valid_statuses = Shipment.MANUAL_STATUS_KEYS
     if not new_status or new_status not in valid_statuses:
         messages.error(request, 'Invalid status selected.')
         return redirect('declarant:process', shipment_id=shipment_id)
@@ -311,9 +320,6 @@ def update_status(request, shipment_id):
     shipment.status = new_status
 
     # Record processing timestamp when shipment reaches a terminal state
-    if new_status in ('approved', 'rejected') and not shipment.processed_at:
-        shipment.processed_at = timezone.now()
-
     shipment.save()
 
     StatusLog.objects.create(
@@ -361,14 +367,14 @@ def payment_confirmation(request, shipment_id):
             return redirect('declarant:payment', shipment_id=shipment_id)
 
         old_status = shipment.status
-        shipment.status = 'submitted'
+        shipment.status = 'lodgement'
         shipment.save()
 
         StatusLog.objects.create(
             shipment=shipment,
             changed_by=request.user,
             old_status=old_status,
-            new_status='submitted',
+            new_status='lodgement',
             notes=f'Payment confirmed. Ref: {payment_ref}. {notes}'.strip('. '),
         )
 
@@ -379,11 +385,11 @@ def payment_confirmation(request, shipment_id):
             title=f'Payment Confirmed — {shipment.hawb_number}',
             message=(
                 f'Payment confirmed (Ref: {payment_ref}). '
-                f'Your shipment has been submitted to the Bureau of Customs.'
+                f'Your shipment has been lodged with the Bureau of Customs.'
             ),
         )
 
-        messages.success(request, 'Payment confirmed. Shipment submitted to BOC.')
+        messages.success(request, 'Payment confirmed. Shipment moved to lodgement.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
     context = {'shipment': shipment}
@@ -508,12 +514,12 @@ def boc_tracking(request, shipment_id):
             notes=f'BOC {boc_status}. Ref: {boc_reference}. {notes}'.strip('. '),
         )
 
-        create_notification(
-            recipient=shipment.consignee,
+        notify_shipment_status_change(
             shipment=shipment,
-            notification_type=notif_type,
-            title=notif_title,
-            message=notif_msg,
+            old_status=old_status,
+            new_status=shipment.status,
+            changed_by=request.user,
+            notes=notif_msg,
         )
 
         messages.success(request, f'BOC status recorded: {boc_status}.')

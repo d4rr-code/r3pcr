@@ -31,19 +31,17 @@ except ImportError:
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-HS_PATTERN = re.compile(r'^\d{4}\.\d{2}\.\d{2}$')
+# Matches standard AHTN codes (XXXX.XX.XX) and Philippine extended codes
+# with a statistical suffix (XXXX.XX.XX.XXX or XXXX.XX.XX.XXXX).
+HS_PATTERN = re.compile(r'^\d{4}\.\d{2}\.\d{2}(\.\d+)?$')
 
-# Column index (0-based) of each duty-rate year inside a data row,
-# depending on whether the sheet has the standard header block (has_hdg=True)
-# or is a headerless continuation table (has_hdg=False).
-#
-# Standard header row 2:
+# Fallback column indices when dynamic detection fails.
+# Standard header layout (has_hdg=True):
 #   col: 0=Hdg  1=Code  2=Desc  3=2024a  4=2024b  5=2025  6=2026  7=2027  8=2028
-# Continuation (no header):
-#   col: 0=Code  1=Desc  2=2024a  3=2024b  4=2025  5=2026  6=2027  7=2028  8=None
+# Headerless continuation (has_hdg=False):
+#   col: 0=Code  1=Desc  2=2024a  3=2024b  4=2025  5=2026  6=2027  7=2028
 
 RATE_COLS = {
-    # (has_hdg, year_key) → column index in the data row
     (True,  '2024a'): 3,
     (True,  '2024b'): 4,
     (True,  '2025'):  5,
@@ -187,29 +185,102 @@ def _sheet_has_header(ws):
     return False
 
 
+def _find_rate_col_dynamic(ws, year_key):
+    """
+    Scan the first 6 header rows to locate which column holds the target year
+    label. Returns column index (0-based) or None if not found.
+
+    For '2024a': finds the column labelled '2024' (first half-year).
+    For '2024b': finds '2024' column + 1 (second half-year, immediately right).
+    For all other years: finds the exact year string.
+    """
+    target = '2024' if year_key in ('2024a', '2024b') else year_key
+    offset = 1 if year_key == '2024b' else 0
+    for row in ws.iter_rows(max_row=6, values_only=True):
+        for j, cell in enumerate(row):
+            if cell and str(cell).strip() == target:
+                return j + offset
+    return None
+
+
+def _detect_code_col(ws):
+    """
+    Scan up to 150 rows to find the first column that contains a valid HS code.
+    Returns the column index (0-based), or None if no HS code found.
+    """
+    for row in ws.iter_rows(max_row=150, values_only=True):
+        cells = list(row)
+        for j, cell in enumerate(cells):
+            if cell and isinstance(cell, str) and HS_PATTERN.match(cell.strip()):
+                return j
+    return None
+
+
 def extract_from_sheet(ws, year_key='2026'):
     """
     Yield dicts {code, description, duty_rate, chapter} for every valid
     HS code row in the sheet.
+
+    Uses dynamic column detection:
+    - code_col  : first column in the sheet that contains a valid HS code
+    - rate_col  : column whose header matches year_key (falls back to RATE_COLS)
+    - desc_col  : 'Description' header column, or the first non-empty text cell
+                  after the code within each row (per-row scan)
+
+    Known limitation: some PDF-exported tables have the rate values on a
+    *different row* from the HS code (PDF merged-cell artefact). Those tables
+    return 0 codes; this cannot be fixed without manual data cleaning.
     """
-    has_hdg    = _sheet_has_header(ws)
-    code_col   = 1 if has_hdg else 0
-    desc_col   = 2 if has_hdg else 1
-    rate_col   = RATE_COLS.get((has_hdg, year_key), 6 if has_hdg else 5)
+    has_hdg  = _sheet_has_header(ws)
+    code_col = _detect_code_col(ws)
+    if code_col is None:
+        return  # No valid HS codes in this sheet
+
+    # Dynamic rate column — fall back to static map if header not found
+    rate_col = _find_rate_col_dynamic(ws, year_key)
+    if rate_col is None:
+        rate_col = RATE_COLS.get((has_hdg, year_key), 6 if has_hdg else 5)
+
+    # Find description column from 'Description' header label
+    desc_col_header = None
+    for row in ws.iter_rows(max_row=6, values_only=True):
+        for j, cell in enumerate(row):
+            if cell and isinstance(cell, str) and 'Description' in str(cell):
+                desc_col_header = j
+                break
+        if desc_col_header is not None:
+            break
 
     for row in ws.iter_rows(values_only=True):
-        cells  = list(row)
-        raw    = str(cells[code_col]).strip() if len(cells) > code_col and cells[code_col] else ''
+        cells = list(row)
+        raw   = str(cells[code_col]).strip() if len(cells) > code_col and cells[code_col] else ''
 
         if not _is_hs_code(raw):
             continue
 
-        desc      = _clean_desc(cells[desc_col]) if len(cells) > desc_col else ''
-        rate      = _to_float(cells[rate_col] if len(cells) > rate_col else None)
-        chapter   = raw[:2]
+        # Try header-derived desc column first; fall back to per-row scan
+        desc = ''
+        if desc_col_header is not None and len(cells) > desc_col_header:
+            desc = _clean_desc(cells[desc_col_header])
+        if not desc:
+            # Scan up to 4 columns after code for the first text-like cell
+            for offset in range(1, 5):
+                j = code_col + offset
+                if j >= len(cells):
+                    break
+                candidate = cells[j]
+                if candidate and isinstance(candidate, str):
+                    s = candidate.strip()
+                    # Accept if it contains letters (not a pure rate number)
+                    if s and re.search(r'[A-Za-z\-]', s):
+                        desc = _clean_desc(s)
+                        break
 
         if not desc:
             continue   # skip rows with no description (header artifacts)
+
+        rate    = _to_float(cells[rate_col] if len(cells) > rate_col else None)
+        chapter = raw[:2]
 
         yield {
             'code':        raw,

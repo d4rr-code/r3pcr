@@ -394,6 +394,8 @@
         {% if existing %}
         <a href="{% url 'computation:download' shipment.id %}"
            class="btn btn-secondary" style="font-size:12px;">⬇ Excel</a>
+        <a href="{% url 'computation:download' shipment.id %}?format=pdf"
+           class="btn btn-secondary" style="font-size:12px;">PDF</a>
         {% endif %}
         <a href="{% url 'declarant:process' shipment.id %}"
            class="btn btn-secondary" style="font-size:12px;">← Back</a>
@@ -647,6 +649,24 @@
     <p class="card-title" style="margin-bottom:10px;">Parameters</p>
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
         <div>
+            <label class="form-label" style="font-size:11px;">Shipment Mode</label>
+            <select name="charge_mode" id="charge_mode" class="form-input"
+                    style="padding:6px 8px; font-size:12px;" onchange="recalcAll()">
+                <option value="lcl"
+                    {% if existing.container_type == 'lcl' or shipment.shipment_type == 'lcl' or shipment.shipment_type == 'sea' %}selected{% endif %}>
+                    LCL
+                </option>
+                <option value="fcl"
+                    {% if existing.container_type == 'fcl' or existing.container_type == '20ft' or existing.container_type == '40ft' or shipment.shipment_type == 'fcl' %}selected{% endif %}>
+                    FCL
+                </option>
+                <option value="air"
+                    {% if existing.container_type == 'air' or shipment.shipment_type == 'air' %}selected{% endif %}>
+                    Air
+                </option>
+            </select>
+        </div>
+        <div>
             <label class="form-label" style="font-size:11px;">Exchange Rate (USD→PHP)</label>
             <input type="number" name="exchange_rate" id="exchange_rate" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="0.000001"
@@ -678,9 +698,9 @@
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">Cargo Volume (CBM)</label>
-            <input type="number" name="cargo_volume" class="form-input"
+            <input type="number" name="cargo_volume" id="cargo_volume" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                   value="{{ advisory_existing.cargo_volume|default:'0' }}">
+                   value="{{ advisory_existing.cargo_volume|default:'0' }}" oninput="recalcAll()">
         </div>
     </div>
 
@@ -921,6 +941,14 @@
                         <input class="ecdt-input desc-input" type="text" name="description[]"
                                value="{{ item.description }}" placeholder="Item..."
                                onblur="fetchRowSuggestions(this)">
+                        <input type="hidden" name="unit[]" value="{{ item.unit|default:'' }}">
+                        <input type="hidden" name="unit_price[]" value="{{ item.unit_price|default:'' }}">
+                        {% if item.is_extracted %}
+                        <div style="margin-top:3px; color:#38bdf8; font-size:9px; font-weight:700;">
+                            Extracted{% if item.confidence %} · {{ item.confidence|floatformat:2 }} confidence{% endif %}
+                            {% if item.unit_price %} · Unit {{ item.unit_price }}{% endif %}
+                        </div>
+                        {% endif %}
                         <div class="row-hs-suggestions" style="display:none;"></div>
                     </td>
                     <td>
@@ -981,6 +1009,8 @@
                     <td style="position:relative;">
                         <input class="ecdt-input desc-input" type="text" name="description[]"
                                placeholder="Item..." onblur="fetchRowSuggestions(this)">
+                        <input type="hidden" name="unit[]" value="">
+                        <input type="hidden" name="unit_price[]" value="">
                         <div class="row-hs-suggestions" style="display:none;"></div>
                     </td>
                     <td><input class="ecdt-input exw-input" type="number" name="exw_value[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
@@ -1806,6 +1836,8 @@ function _makeRow(n, desc, exw, qty) {
             '<input class="ecdt-input desc-input" type="text" name="description[]" ' +
                 'value="' + (desc||'').replace(/"/g,'&quot;') + '" placeholder="Item..." ' +
                 'onblur="fetchRowSuggestions(this)">' +
+            '<input type="hidden" name="unit[]" value="">' +
+            '<input type="hidden" name="unit_price[]" value="">' +
             '<div class="row-hs-suggestions" style="display:none;"></div>' +
         '</td>' +
         '<td><input class="ecdt-input exw-input" type="number" name="exw_value[]" ' +
@@ -1906,6 +1938,14 @@ function recalcAll() {
     var csfUsd   = csfUsdEl ? (parseFloat(csfUsdEl.value) || 0) : 0;
     var bankChg  = bcEl     ? (parseFloat(bcEl.value)     || 0) : 0;
     var csfPhp   = csfUsd * exchRate;
+    var chargeMode = (document.getElementById('charge_mode') || {}).value || '';
+    var cargoVolume = parseFloat((document.getElementById('cargo_volume') || {}).value) || 0;
+    var grossWeight = parseFloat('{{ shipment.gross_weight|default:"0" }}') || 0;
+    var revenueTon = Math.max(cargoVolume, grossWeight / 1000);
+    if (chargeMode === 'lcl' && revenueTon > 0) {
+        arrastre = arrastre * revenueTon;
+        wharfage = wharfage * revenueTon;
+    }
 
     var _fmt = function(n) {
         return '₱' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
