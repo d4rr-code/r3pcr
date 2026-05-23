@@ -29,6 +29,7 @@ from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
+from apps.notifications.utils import notify_shipment_status_change
 from .models import SystemConfig, Announcement
 
 
@@ -74,8 +75,9 @@ def dashboard(request):
 
     context = {
         'total':            all_shipments.count(),
-        'pending':          all_shipments.filter(status='pending').count(),
-        'in_review':        all_shipments.filter(status='in_review').count(),
+        'incoming':         all_shipments.filter(status='incoming').count(),
+        'arrived':          all_shipments.filter(status='arrived').count(),
+        'computed':         all_shipments.filter(status='computed').count(),
         'approved':         all_shipments.filter(status='approved').count(),
         'rejected':         all_shipments.filter(status='rejected').count(),
         'recent':           shipments,
@@ -225,195 +227,99 @@ def analytics(request):
     if declarant_filter:
         shipments = shipments.filter(declarant__username=declarant_filter)
 
-    total      = shipments.count()
-    declarants = User.objects.filter(role='declarant')
-
-    # Declarant performance
-    declarant_data = []
-    for d in declarants:
-        d_ships   = shipments.filter(declarant=d)
-        claimed   = d_ships.count()                                # assigned to them
-        processed = d_ships.exclude(status__in=['pending','draft']).count()
-        approved  = d_ships.filter(status='approved').count()
-        rejected  = d_ships.filter(status='rejected').count()
-        in_review = d_ships.filter(status='in_review').count()
-        computed  = DutyComputation.objects.filter(shipment__declarant=d).count()
-        rate      = round((approved / claimed * 100), 1) if claimed > 0 else 0
-
-        approved_with_time = d_ships.filter(status='approved', processed_at__isnull=False)
-        avg_days = None
-        if approved_with_time.exists():
-            deltas = [
-                (s.processed_at - s.submitted_at).days
-                for s in approved_with_time if s.processed_at
-            ]
-            if deltas:
-                avg_days = round(sum(deltas) / len(deltas), 1)
-
-        declarant_data.append({
-            'name':          d.get_full_name() or d.username,
-            'username':      d.username,
-            'claimed':       claimed,
-            'processed':     processed,
-            'in_review':     in_review,
-            'approved':      approved,
-            'rejected':      rejected,
-            'computed':      computed,
-            'approval_rate': rate,
-            'avg_days':      avg_days,
+    total = shipments.count()
+    status_labels = dict(Shipment.STATUS_CHOICES)
+    status_colors = {
+        'incoming': '#f59e0b',
+        'arrived': '#3b82f6',
+        'computed': '#8b5cf6',
+        'approved': '#22c55e',
+        'rejected': '#ef4444',
+        'for_revision': '#f97316',
+        'lodgement': '#38bdf8',
+        'ongoing': '#64748b',
+        'assessed': '#14b8a6',
+        'paid': '#84cc16',
+        'released': '#22c55e',
+        'billed': '#a855f7',
+    }
+    status_rows = []
+    for key, label in Shipment.STATUS_CHOICES:
+        count = shipments.filter(status=key).count()
+        status_rows.append({
+            'key': key,
+            'label': label,
+            'count': count,
+            'pct': round(count / total * 100, 1) if total else 0,
+            'color': status_colors.get(key, '#475569'),
         })
 
-    # Status breakdown
-    status_counts = {
-        'pending':     shipments.filter(status='pending').count(),
-        'in_review':   shipments.filter(status='in_review').count(),
-        'for_payment': shipments.filter(status='for_payment').count(),
-        'submitted':   shipments.filter(status='submitted').count(),
-        'approved':    shipments.filter(status='approved').count(),
-        'rejected':    shipments.filter(status='rejected').count(),
-    }
-    status_pcts = {
-        k: round(v / total * 100, 1) if total > 0 else 0
-        for k, v in status_counts.items()
-    }
+    advisory_base = ShippingAdvisory.objects.filter(shipment__in=shipments)
+    wmcda_scoreboard = [
+        {
+            'key': key,
+            'label': label,
+            'count': advisory_base.filter(recommended_type=key).count(),
+        }
+        for key, label in [('lcl', 'LCL'), ('fcl', 'FCL'), ('air', 'Air Freight')]
+    ]
+    max_wmcda = max([row['count'] for row in wmcda_scoreboard] or [0])
+    for row in wmcda_scoreboard:
+        row['pct'] = round(row['count'] / max_wmcda * 100) if max_wmcda else 0
 
-    # Top 5 HS codes
-    top_hs = (
-        DutyComputation.objects
-        .filter(hs_code__isnull=False)
-        .values('hs_code__code', 'hs_code__description', 'hs_code__duty_rate')
-        .annotate(count=Count('id'))
-        .order_by('-count')[:5]
-    )
-
-    # ── WMCDA Analytics ──
-    advisories = ShippingAdvisory.objects.all()
-    total_adv  = advisories.count()
-
-    wmcda_air  = advisories.filter(recommended_type='air').count()
-    wmcda_lcl  = advisories.filter(recommended_type='lcl').count()
-    wmcda_fcl  = advisories.filter(recommended_type='fcl').count()
-    wmcda_land = advisories.filter(recommended_type='land').count()
-
-    avg_air = avg_lcl = avg_fcl = avg_land = None
-    if total_adv > 0:
-        avgs = advisories.aggregate(
-            avg_air=Avg('air_score'),
-            avg_lcl=Avg('lcl_score'),
-            avg_fcl=Avg('fcl_score'),
-            avg_land=Avg('land_score'),
+    declarants = User.objects.filter(role='declarant').order_by('first_name', 'username')
+    declarant_data = []
+    for declarant in declarants:
+        d_shipments = shipments.filter(declarant=declarant)
+        computed_logs = (
+            StatusLog.objects
+            .filter(shipment__in=d_shipments, new_status='computed')
+            .select_related('shipment')
+            .order_by('changed_at')
         )
-        avg_air  = round(float(avgs['avg_air']  or 0), 3)
-        avg_lcl  = round(float(avgs['avg_lcl']  or 0), 3)
-        avg_fcl  = round(float(avgs['avg_fcl']  or 0), 3)
-        avg_land = round(float(avgs['avg_land'] or 0), 3)
+        computed_by_shipment = {}
+        for log in computed_logs:
+            computed_by_shipment.setdefault(log.shipment_id, log)
 
-    recent_advisories = (
-        advisories
-        .select_related('shipment', 'computed_by')
-        .order_by('-computed_at')[:8]
-    )
-
-    # Scoreboard per shipment type (consignee-declared mode)
-    mode_scoreboard = []
-    for mode, label, emoji in [
-        ('air',  'Air Freight', '✈️'),
-        ('lcl',  'LCL',        '🚢'),
-        ('fcl',  'FCL',        '📦'),
-        ('land', 'Land Freight','🚛'),
-    ]:
-        mode_advs = advisories.filter(shipment__shipment_type=mode)
-        count     = mode_advs.count()
-        if count:
-            m_avgs = mode_advs.aggregate(
-                avg_air=Avg('air_score'),
-                avg_lcl=Avg('lcl_score'),
-                avg_fcl=Avg('fcl_score'),
-                avg_land=Avg('land_score'),
+        durations = []
+        for shipment_id, computed_log in computed_by_shipment.items():
+            arrived_log = (
+                StatusLog.objects
+                .filter(shipment_id=shipment_id, new_status='arrived', changed_at__lte=computed_log.changed_at)
+                .order_by('-changed_at')
+                .first()
             )
-            rec_counts = mode_advs.values('recommended_type').annotate(n=Count('id')).order_by('-n')
-            top_rec    = rec_counts[0] if rec_counts else None
-            mode_scoreboard.append({
-                'mode':    mode, 'label': label, 'emoji': emoji, 'count': count,
-                'avg_air':  round(float(m_avgs['avg_air']  or 0), 3),
-                'avg_lcl':  round(float(m_avgs['avg_lcl']  or 0), 3),
-                'avg_fcl':  round(float(m_avgs['avg_fcl']  or 0), 3),
-                'avg_land': round(float(m_avgs['avg_land'] or 0), 3),
-                'top_rec':     top_rec['recommended_type'] if top_rec else None,
-                'top_rec_pct': round(top_rec['n'] / count * 100) if top_rec else 0,
-            })
-        else:
-            mode_scoreboard.append({
-                'mode': mode, 'label': label, 'emoji': emoji, 'count': 0,
-                'avg_air': 0, 'avg_lcl': 0, 'avg_fcl': 0, 'avg_land': 0,
-                'top_rec': None, 'top_rec_pct': 0,
-            })
+            if arrived_log:
+                durations.append(computed_log.changed_at - arrived_log.changed_at)
 
-    wmcda = {
-        'total':           total_adv,
-        'air':             wmcda_air,
-        'lcl':             wmcda_lcl,
-        'fcl':             wmcda_fcl,
-        'land':            wmcda_land,
-        'avg_air':         avg_air,
-        'avg_lcl':         avg_lcl,
-        'avg_fcl':         avg_fcl,
-        'avg_land':        avg_land,
-        'pct_air':         round(wmcda_air  / total_adv * 100) if total_adv > 0 else 0,
-        'pct_lcl':         round(wmcda_lcl  / total_adv * 100) if total_adv > 0 else 0,
-        'pct_fcl':         round(wmcda_fcl  / total_adv * 100) if total_adv > 0 else 0,
-        'pct_land':        round(wmcda_land / total_adv * 100) if total_adv > 0 else 0,
-        'recent':          recent_advisories,
-        'mode_scoreboard': mode_scoreboard,
-    }
+        avg_hours = None
+        if durations:
+            avg_seconds = sum(delta.total_seconds() for delta in durations) / len(durations)
+            avg_hours = round(avg_seconds / 3600, 1)
 
-    # ── Processing Time Analytics ──
-    approved_ships = shipments.filter(status='approved', processed_at__isnull=False)
-    processing_stats = {'avg': None, 'min': None, 'max': None, 'count': 0}
-    if approved_ships.exists():
-        deltas = [
-            (s.processed_at - s.submitted_at).days
-            for s in approved_ships if s.processed_at and s.submitted_at
-        ]
-        if deltas:
-            processing_stats = {
-                'avg':   round(sum(deltas) / len(deltas), 1),
-                'min':   min(deltas),
-                'max':   max(deltas),
-                'count': len(deltas),
-            }
+        total_computed = len(computed_by_shipment)
+        approved = d_shipments.filter(status='approved').count()
+        approval_rate = round(approved / total_computed * 100, 1) if total_computed else 0
 
-    # Days-bucket distribution  (0-1 / 2-3 / 4-7 / 8+)
-    buckets = {'fast': 0, 'normal': 0, 'slow': 0, 'very_slow': 0}
-    if approved_ships.exists():
-        for s in approved_ships:
-            if s.processed_at and s.submitted_at:
-                d = (s.processed_at - s.submitted_at).days
-                if d <= 1:
-                    buckets['fast'] += 1
-                elif d <= 3:
-                    buckets['normal'] += 1
-                elif d <= 7:
-                    buckets['slow'] += 1
-                else:
-                    buckets['very_slow'] += 1
+        declarant_data.append({
+            'name': declarant.get_full_name() or declarant.username,
+            'username': declarant.username,
+            'total_processed': total_computed,
+            'avg_hours': avg_hours,
+            'approved': approved,
+            'approval_rate': approval_rate,
+        })
 
-    context = {
-        'status_data':        status_counts,
-        'status_pcts':        status_pcts,
-        'declarant_data':     declarant_data,
-        'total_shipments':    total,
-        'top_hs':             list(top_hs),
-        'wmcda':              wmcda,
-        'processing_stats':   processing_stats,
-        'processing_buckets': buckets,
-        # Filters
-        'date_from':          date_from,
-        'date_to':            date_to,
-        'declarant_filter':   declarant_filter,
-        'declarants':         declarants,
-    }
-    return render(request, 'supervisor/analytics.html', context)
+    return render(request, 'supervisor/analytics.html', {
+        'status_rows': status_rows,
+        'wmcda_scoreboard': wmcda_scoreboard,
+        'declarant_data': declarant_data,
+        'total_shipments': total,
+        'date_from': date_from,
+        'date_to': date_to,
+        'declarant_filter': declarant_filter,
+        'declarants': declarants,
+    })
 
 
 # ─── Memos & Announcements ────────────────────────────────────────────────────
@@ -548,7 +454,7 @@ def reset_shipment(request, shipment_id):
         old_status = shipment.status
         hawb       = shipment.hawb_number
 
-        shipment.status        = 'pending'
+        shipment.status        = 'incoming'
         shipment.declarant     = None
         shipment.boc_reference = None
         shipment.boc_status    = None
@@ -561,10 +467,48 @@ def reset_shipment(request, shipment_id):
             shipment=shipment,
             changed_by=request.user,
             old_status=old_status,
-            new_status='pending',
-            notes='Reset to pending by supervisor. Computation cleared.',
+            new_status='incoming',
+            notes='Reset to incoming by supervisor. Computation cleared.',
         )
-        messages.success(request, f'Shipment {hawb} reset to Pending.')
+        messages.success(request, f'Shipment {hawb} reset to Incoming.')
+    return redirect('supervisor:dashboard')
+
+
+@login_required
+@supervisor_required
+def update_shipment_status(request, shipment_id):
+    if request.method == 'POST':
+        shipment = get_object_or_404(Shipment, id=shipment_id)
+        new_status = request.POST.get('status', '').strip()
+        notes = request.POST.get('notes', '').strip()
+        allowed = {'approved', 'rejected', 'for_revision'}
+
+        if new_status not in allowed:
+            messages.error(request, 'Invalid supervisor status.')
+            return redirect('supervisor:dashboard')
+
+        old_status = shipment.status
+        shipment.status = new_status
+        if new_status in {'approved', 'rejected'} and not shipment.processed_at:
+            shipment.processed_at = timezone.now()
+        shipment.save()
+
+        StatusLog.objects.create(
+            shipment=shipment,
+            changed_by=request.user,
+            old_status=old_status,
+            new_status=new_status,
+            notes=notes or f'Supervisor marked shipment {shipment.get_status_display()}.',
+        )
+        notify_shipment_status_change(
+            shipment=shipment,
+            old_status=old_status,
+            new_status=new_status,
+            changed_by=request.user,
+            notes=notes,
+        )
+        messages.success(request, f'Shipment {shipment.hawb_number} marked {shipment.get_status_display()}.')
+
     return redirect('supervisor:dashboard')
 
 

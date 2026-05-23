@@ -292,7 +292,7 @@
         {% endif %}
 
         {% elif existing %}
-        <!-- Saved advisory -->
+        <!-- Saved advisory — score cards -->
         <div class="card">
             <p class="card-title">💾 Saved Advisory</p>
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:12px; margin-bottom:16px;">
@@ -325,11 +325,94 @@
                     {% if existing.recommended_type == 'land' %}<span style="color:#3b82f6; font-size:11px; font-weight:600;">★ RECOMMENDED</span>{% endif %}
                 </div>
             </div>
+
+            {% if explanation %}
+            <p style="color:#94a3b8; font-size:13px; margin:0 0 12px; font-style:italic;">{{ explanation }}</p>
+            {% endif %}
+
             <p style="color:#64748b; font-size:12px;">
                 Last computed {{ existing.computed_at|date:"M d, Y H:i" }}
                 by {{ existing.computed_by.get_full_name|default:existing.computed_by.username }}
             </p>
         </div>
+
+        <!-- Criterion breakdown (re-derived on load) -->
+        {% if breakdown %}
+        <div class="card" style="margin-top:16px;">
+            <p class="card-title">📊 Criterion Breakdown</p>
+            <p style="color:#64748b; font-size:12px; margin-bottom:16px;">
+                Raw score per criterion (0 = poor · 1 = best) &nbsp;·&nbsp;
+                <span style="color:#22c55e;">●</span> ≥ 0.80 &nbsp;
+                <span style="color:#f59e0b;">●</span> ≥ 0.60 &nbsp;
+                <span style="color:#ef4444;">●</span> &lt; 0.60
+            </p>
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                    <thead>
+                        <tr style="background:#0f172a;">
+                            <th style="padding:10px 14px; text-align:left; color:#94a3b8; font-size:11px;">Criterion</th>
+                            <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px;">Weight</th>
+                            <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px;">📦 LCL</th>
+                            <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px;">🚢 FCL</th>
+                            <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px;">✈️ Air</th>
+                            <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px;">🚛 Land</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for crit, weight_pct in forloop.parentloop|dictsort:"0" %}{% endfor %}
+                        <tr style="border-top:1px solid #1e293b;">
+                            <td style="padding:12px 14px; color:#f1f5f9; font-weight:500;">💰 Cost</td>
+                            <td style="padding:12px 14px; text-align:center; color:#64748b; font-size:12px;">35%</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.cost >= 0.8 %}#22c55e{% elif breakdown.lcl.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.cost|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.cost >= 0.8 %}#22c55e{% elif breakdown.fcl.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.cost|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.cost >= 0.8 %}#22c55e{% elif breakdown.air.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.cost|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.cost >= 0.8 %}#22c55e{% elif breakdown.land.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.cost|floatformat:3 }}</td>
+                        </tr>
+                        <tr style="border-top:1px solid #1e293b;">
+                            <td style="padding:12px 14px; color:#f1f5f9; font-weight:500;">⏱ Time</td>
+                            <td style="padding:12px 14px; text-align:center; color:#64748b; font-size:12px;">30%</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.time >= 0.8 %}#22c55e{% elif breakdown.lcl.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.time|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.time >= 0.8 %}#22c55e{% elif breakdown.fcl.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.time|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.time >= 0.8 %}#22c55e{% elif breakdown.air.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.time|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.time >= 0.8 %}#22c55e{% elif breakdown.land.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.time|floatformat:3 }}</td>
+                        </tr>
+                        <tr style="border-top:1px solid #1e293b;">
+                            <td style="padding:12px 14px; color:#f1f5f9; font-weight:500;">⚖️ Weight/Volume</td>
+                            <td style="padding:12px 14px; text-align:center; color:#64748b; font-size:12px;">20%</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.weight >= 0.8 %}#22c55e{% elif breakdown.lcl.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.weight|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.weight >= 0.8 %}#22c55e{% elif breakdown.fcl.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.weight|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.weight >= 0.8 %}#22c55e{% elif breakdown.air.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.weight|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.weight >= 0.8 %}#22c55e{% elif breakdown.land.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.weight|floatformat:3 }}</td>
+                        </tr>
+                        <tr style="border-top:1px solid #1e293b;">
+                            <td style="padding:12px 14px; color:#f1f5f9; font-weight:500;">🛡 Risk</td>
+                            <td style="padding:12px 14px; text-align:center; color:#64748b; font-size:12px;">15%</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.risk >= 0.8 %}#22c55e{% elif breakdown.lcl.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.risk|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.risk >= 0.8 %}#22c55e{% elif breakdown.fcl.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.risk|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.risk >= 0.8 %}#22c55e{% elif breakdown.air.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.risk|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.risk >= 0.8 %}#22c55e{% elif breakdown.land.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.risk|floatformat:3 }}</td>
+                        </tr>
+                        <tr style="border-top:2px solid #334155; background:#0f172a;">
+                            <td style="padding:12px 14px; color:#f1f5f9; font-weight:700;">Weighted Total</td>
+                            <td style="padding:12px 14px; text-align:center; color:#64748b; font-size:11px;">100%</td>
+                            <td style="padding:12px 14px; text-align:center; font-size:16px; font-weight:700; color:{% if existing.recommended_type == 'lcl' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                                {{ existing.lcl_score|floatformat:3 }}{% if existing.recommended_type == 'lcl' %}<br><span style="font-size:10px;">★ BEST</span>{% endif %}
+                            </td>
+                            <td style="padding:12px 14px; text-align:center; font-size:16px; font-weight:700; color:{% if existing.recommended_type == 'fcl' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                                {{ existing.fcl_score|floatformat:3 }}{% if existing.recommended_type == 'fcl' %}<br><span style="font-size:10px;">★ BEST</span>{% endif %}
+                            </td>
+                            <td style="padding:12px 14px; text-align:center; font-size:16px; font-weight:700; color:{% if existing.recommended_type == 'air' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                                {{ existing.air_score|floatformat:3 }}{% if existing.recommended_type == 'air' %}<br><span style="font-size:10px;">★ BEST</span>{% endif %}
+                            </td>
+                            <td style="padding:12px 14px; text-align:center; font-size:16px; font-weight:700; color:{% if existing.recommended_type == 'land' %}#3b82f6{% else %}#94a3b8{% endif %};">
+                                {{ existing.land_score|floatformat:3 }}{% if existing.recommended_type == 'land' %}<br><span style="font-size:10px;">★ BEST</span>{% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
 
         {% else %}
         <!-- Empty state -->
@@ -340,6 +423,68 @@
             <p style="font-size:12px; margin-top:8px;">
                 WMCDA scores LCL, FCL, Air Freight, and Land Freight across cost, time, weight/volume, and risk criteria.
             </p>
+        </div>
+        {% endif %}
+
+        {% if wmcda_history %}
+        <!-- ── Historical Advisory Pattern ─────────────────────────────────── -->
+        <div class="card" style="margin-top:16px;">
+            <p class="card-title">📈 Historical Pattern — {{ wmcda_history.ship_type }}</p>
+            <p style="color:#94a3b8; font-size:13px; margin:0 0 16px;">
+                In <strong style="color:#f1f5f9;">{{ wmcda_history.total }}</strong>
+                previous {{ wmcda_history.ship_type }} shipment{{ wmcda_history.total|pluralize }},
+                <strong style="color:#22c55e;">{{ wmcda_history.mode_label }}</strong>
+                was the top recommendation
+                <strong style="color:#f1f5f9;">{{ wmcda_history.top_pct }}%</strong> of the time.
+            </p>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px;">
+                {% for mode, emoji, label in "air,✈️,Air Freight|lcl,📦,LCL|fcl,🚢,FCL|land,🚛,Land Freight"|split_pipe %}
+                {% endfor %}
+                <div style="border-radius:8px; padding:12px; text-align:center;
+                            background:{% if wmcda_history.top_mode == 'air' %}#172554{% else %}#0f172a{% endif %};
+                            border:1px solid {% if wmcda_history.top_mode == 'air' %}#2563eb{% else %}#1e293b{% endif %};">
+                    <p style="font-size:18px; margin:0 0 4px;">✈️</p>
+                    <p style="color:#94a3b8; font-size:11px; margin:0 0 4px;">Air Freight</p>
+                    <p style="font-size:20px; font-weight:700; margin:0;
+                              color:{% if wmcda_history.top_mode == 'air' %}#3b82f6{% else %}#475569{% endif %};">
+                        {{ wmcda_history.counts.air }}
+                    </p>
+                    <p style="color:#64748b; font-size:10px; margin:2px 0 0;">times</p>
+                </div>
+                <div style="border-radius:8px; padding:12px; text-align:center;
+                            background:{% if wmcda_history.top_mode == 'lcl' %}#172554{% else %}#0f172a{% endif %};
+                            border:1px solid {% if wmcda_history.top_mode == 'lcl' %}#2563eb{% else %}#1e293b{% endif %};">
+                    <p style="font-size:18px; margin:0 0 4px;">📦</p>
+                    <p style="color:#94a3b8; font-size:11px; margin:0 0 4px;">LCL</p>
+                    <p style="font-size:20px; font-weight:700; margin:0;
+                              color:{% if wmcda_history.top_mode == 'lcl' %}#3b82f6{% else %}#475569{% endif %};">
+                        {{ wmcda_history.counts.lcl }}
+                    </p>
+                    <p style="color:#64748b; font-size:10px; margin:2px 0 0;">times</p>
+                </div>
+                <div style="border-radius:8px; padding:12px; text-align:center;
+                            background:{% if wmcda_history.top_mode == 'fcl' %}#172554{% else %}#0f172a{% endif %};
+                            border:1px solid {% if wmcda_history.top_mode == 'fcl' %}#2563eb{% else %}#1e293b{% endif %};">
+                    <p style="font-size:18px; margin:0 0 4px;">🚢</p>
+                    <p style="color:#94a3b8; font-size:11px; margin:0 0 4px;">FCL</p>
+                    <p style="font-size:20px; font-weight:700; margin:0;
+                              color:{% if wmcda_history.top_mode == 'fcl' %}#3b82f6{% else %}#475569{% endif %};">
+                        {{ wmcda_history.counts.fcl }}
+                    </p>
+                    <p style="color:#64748b; font-size:10px; margin:2px 0 0;">times</p>
+                </div>
+                <div style="border-radius:8px; padding:12px; text-align:center;
+                            background:{% if wmcda_history.top_mode == 'land' %}#172554{% else %}#0f172a{% endif %};
+                            border:1px solid {% if wmcda_history.top_mode == 'land' %}#2563eb{% else %}#1e293b{% endif %};">
+                    <p style="font-size:18px; margin:0 0 4px;">🚛</p>
+                    <p style="color:#94a3b8; font-size:11px; margin:0 0 4px;">Land Freight</p>
+                    <p style="font-size:20px; font-weight:700; margin:0;
+                              color:{% if wmcda_history.top_mode == 'land' %}#3b82f6{% else %}#475569{% endif %};">
+                        {{ wmcda_history.counts.land }}
+                    </p>
+                    <p style="color:#64748b; font-size:10px; margin:2px 0 0;">times</p>
+                </div>
+            </div>
         </div>
         {% endif %}
 

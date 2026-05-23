@@ -8,8 +8,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Q, Count
-from apps.shipments.models import Shipment, ShipmentDocument, HSCode, ShipmentHSCode
+from django.utils import timezone
+from apps.shipments.models import Shipment, ShipmentDocument, HSCode, ShipmentHSCode, StatusLog
 from apps.supervisor.models import SystemConfig
+from apps.notifications.utils import notify_shipment_status_change
 from .models import DutyComputation, ShippingAdvisory
 from .ocr import process_document
 
@@ -39,6 +41,28 @@ def get_ipf(taxable_value):
     if tv <= 500000: return Decimal('1000')
     if tv <= 750000: return Decimal('1500')
     return Decimal('2000')
+
+
+def normalize_charge_mode(value, shipment_type=''):
+    value = (value or shipment_type or '').strip().lower()
+    if value in {'fcl', 'lcl', 'air'}:
+        return value
+    if value == 'sea':
+        return 'lcl'
+    return 'air' if shipment_type == 'air' else 'lcl'
+
+
+def apply_transport_charges(charge_mode, arrastre, wharfage, gross_weight=0, volume_cbm=0):
+    arrastre = Decimal(str(arrastre or 0))
+    wharfage = Decimal(str(wharfage or 0))
+    gross_weight = Decimal(str(gross_weight or 0))
+    volume_cbm = Decimal(str(volume_cbm or 0))
+    revenue_ton = max(volume_cbm, gross_weight / Decimal('1000'))
+
+    if charge_mode == 'lcl' and revenue_ton > 0:
+        return round(arrastre * revenue_ton, 2), round(wharfage * revenue_ton, 2), revenue_ton
+
+    return arrastre, wharfage, revenue_ton
 
 
 # ─── Per-Item ECDT Formula ────────────────────────────────────────────────────
@@ -73,6 +97,8 @@ def compute_ecdt(items_data, exchange_rate,
             'no':             i + 1,
             'description':    item.get('description', ''),
             'quantity':       item.get('quantity', ''),
+            'unit':           item.get('unit', ''),
+            'unit_price':     item.get('unit_price', ''),
             'hs_code_id':     item.get('hs_code_id', ''),
             'duty_rate':      float(duty_rate),
             'exw':            float(round(exw, 2)),
@@ -143,11 +169,15 @@ _OCR_FIELD_PRIORITY = {
     'hawb_number':       ['airway_bill'],
     'invoice_number':    ['invoice'],
     'invoice_date':      ['invoice'],
+    'shipper_name':      ['invoice', 'airway_bill'],
+    'country_of_origin': ['invoice'],
     'hs_code':           ['invoice', 'airway_bill'],
     'flight_number':     ['airway_bill'],
     'flight_date':       ['airway_bill'],
     'port_loading':      ['airway_bill'],
     'port_discharge':    ['airway_bill'],
+    'port_origin':       ['airway_bill'],
+    'port_destination':  ['airway_bill'],
     'origin':            ['airway_bill', 'invoice'],
     'destination':       ['airway_bill', 'invoice'],
     'consignee_name':    ['invoice'],
@@ -155,6 +185,9 @@ _OCR_FIELD_PRIORITY = {
     'currency':          ['invoice'],
     'net_weight':        ['packing_list'],
     'num_packages':      ['packing_list'],
+    'total_gross_weight':['airway_bill', 'packing_list'],
+    'number_of_pieces':  ['airway_bill', 'packing_list'],
+    'bol_number':        ['airway_bill'],
 }
 
 _DOC_LABEL = {
@@ -275,6 +308,8 @@ def ocr_extract_all(request, shipment_id):
                 tmp.write(doc.file.read())
                 doc.file.close()
                 tmp_path = tmp.name
+            if False:
+                pass
             try:
                 print(f'[OCR-ALL] Processing {doc_type}: {doc.file.name}')
                 fields, raw_text = process_document(tmp_path, doc_type)
@@ -375,6 +410,14 @@ def compute_shipment(request, shipment_id):
             csf_usd_val     = Decimal(request.POST.get('csf_usd',   '0') or '0')
             bank_charges    = Decimal(request.POST.get('bank_charges', '0') or '0')
             container_type  = (request.POST.get('container_type', '') or '').strip()
+            charge_mode     = normalize_charge_mode(request.POST.get('charge_mode'), shipment.shipment_type)
+            cargo_volume    = Decimal(request.POST.get('cargo_volume', '0') or '0')
+            gross_weight    = Decimal(str(shipment.gross_weight or 0))
+            arrastre, wharfage, revenue_ton = apply_transport_charges(
+                charge_mode, arrastre, wharfage,
+                gross_weight=gross_weight,
+                volume_cbm=cargo_volume,
+            )
             csf_php_val     = csf_usd_val * exchange_rate
 
             descriptions  = request.POST.getlist('description[]')
@@ -382,6 +425,8 @@ def compute_shipment(request, shipment_id):
             freights_list = request.POST.getlist('item_freight[]')
             ins_list      = request.POST.getlist('item_insurance[]')
             quantities    = request.POST.getlist('quantity[]')
+            units         = request.POST.getlist('unit[]')
+            unit_prices   = request.POST.getlist('unit_price[]')
             hs_code_ids   = request.POST.getlist('hs_code_id[]')
             duty_rates    = request.POST.getlist('item_duty_rate[]')
             gws           = request.POST.getlist('gw[]')
@@ -400,6 +445,8 @@ def compute_shipment(request, shipment_id):
             nws           = _pad(nws,            '')
             pkgs_list     = _pad(pkgs_list,      '')
             quantities    = _pad(quantities,     '')
+            units         = _pad(units,          '')
+            unit_prices   = _pad(unit_prices,    '')
 
             items_data = [
                 {
@@ -408,15 +455,17 @@ def compute_shipment(request, shipment_id):
                     'freight_usd':    f  or '0',
                     'insurance_usd':  ins or '0',
                     'quantity':       q,
+                    'unit':           unit,
+                    'unit_price':     unit_price,
                     'hs_code_id':     h,
                     'duty_rate':      dr or '0',
                     'gw':             gw,
                     'nw':             nw,
                     'pkgs':           pk,
                 }
-                for d, e, f, ins, q, h, dr, gw, nw, pk
+                for d, e, f, ins, q, unit, unit_price, h, dr, gw, nw, pk
                 in zip(descriptions, exw_values, freights_list, ins_list,
-                       quantities, hs_code_ids, duty_rates, gws, nws, pkgs_list)
+                       quantities, units, unit_prices, hs_code_ids, duty_rates, gws, nws, pkgs_list)
                 if e and float(e) > 0
             ]
             if not items_data:
@@ -466,11 +515,32 @@ def compute_shipment(request, shipment_id):
                     'arrastre':          arrastre,
                     'wharfage':          wharfage,
                     'csf_usd':           csf_usd_val,
-                    'container_type':    container_type,
+                    'container_type':    container_type or charge_mode,
                     'total_landed_cost': summary['total_landed_cost'],
                     'computed_by':       request.user,
                 }
             )
+
+            if shipment.status == 'arrived':
+                old_status = shipment.status
+                shipment.status = 'computed'
+                if not shipment.processed_at:
+                    shipment.processed_at = timezone.now()
+                shipment.save(update_fields=['status', 'processed_at', 'updated_at'])
+                StatusLog.objects.create(
+                    shipment=shipment,
+                    changed_by=request.user,
+                    old_status=old_status,
+                    new_status='computed',
+                    notes='Duties and taxes computation completed.',
+                )
+                notify_shipment_status_change(
+                    shipment=shipment,
+                    old_status=old_status,
+                    new_status='computed',
+                    changed_by=request.user,
+                    notes='Duties and taxes computation completed.',
+                )
 
             # ── Auto-run WMCDA alongside ECDT ──────────────────────────────────
             try:
@@ -525,17 +595,8 @@ def compute_shipment(request, shipment_id):
             except Exception as wmcda_err:
                 print(f'WMCDA auto-compute error: {wmcda_err}')
 
-            # ── Notify consignee ───────────────────────────────────────────────
-            try:
-                from apps.notifications.utils import create_notification
-                create_notification(
-                    recipient=shipment.consignee, shipment=shipment,
-                    notification_type='computation',
-                    title=f'Computation Complete — {shipment.hawb_number}',
-                    message=f'Estimated Total Landed Cost: ₱{summary["total_landed_cost"]:,.2f}',
-                )
-            except Exception:
-                pass
+            # Consignee notification is sent by notify_shipment_status_change above
+            # when the status transitions to 'computed'. No duplicate needed here.
 
             messages.success(request, 'Computation & shipping analysis saved!')
 
@@ -581,8 +642,10 @@ def compute_shipment(request, shipment_id):
                     {
                         'no':             i,
                         'description':    it.get('description', ''),
-                        'exw':            it.get('total_value', ''),
+                        'exw':            it.get('total_value', '') or '',
                         'quantity':       it.get('quantity', '') or '1',
+                        'unit':           it.get('unit', ''),
+                        'unit_price':     it.get('unit_price', ''),
                         'hs_code_id':     '',
                         'duty_rate':      0,
                         'dv_php':         None,
@@ -591,6 +654,11 @@ def compute_shipment(request, shipment_id):
                         'item_insurance': None,
                         'other_charges':  None,
                         'dv_usd':         None,
+                        'gw':             it.get('gross_weight', ''),
+                        'nw':             it.get('net_weight', ''),
+                        'pkgs':           it.get('num_packages', ''),
+                        'is_extracted':   True,
+                        'confidence':     it.get('confidence', 0.0),
                     }
                     for i, it in enumerate(_raw_items, 1)
                 ]
@@ -603,10 +671,13 @@ def compute_shipment(request, shipment_id):
                     'no': 1, 'description': _val('description'),
                     'exw': _val('declared_value'),
                     'quantity': _val('total_quantity') or '1',
+                    'unit': '', 'unit_price': '',
                     'hs_code_id': '', 'duty_rate': 0,
                     'dv_php': None, 'cud': None,
                     'item_freight': None, 'item_insurance': None,
                     'other_charges': None, 'dv_usd': None,
+                    'is_extracted': True,
+                    'confidence': _ocr_flds.get('description', {}).get('confidence', 0.0) if isinstance(_ocr_flds.get('description', {}), dict) else 0.0,
                 }]
 
         # Historical on load
@@ -700,253 +771,239 @@ def compute_shipment(request, shipment_id):
     return render(request, 'computation/compute.html', context)
 
 
-# ─── Excel Download ───────────────────────────────────────────────────────────
+# ─── HS Code Suggestion Engine ───────────────────────────────────────────────
 
-@login_required
-def download_computation(request, shipment_id):
-    try:
-        from openpyxl import Workbook
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    except ImportError:
-        messages.error(request, 'openpyxl not installed. Run: pip install openpyxl')
-        return redirect('declarant:process', shipment_id=shipment_id)
+def _can_download_computation(user, shipment):
+    is_assigned_declarant = user.role == 'declarant' and shipment.declarant == user
+    is_consignee = user.role == 'consignee' and shipment.consignee == user
+    is_supervisor = user.role == 'supervisor'
+    return is_assigned_declarant or is_consignee or is_supervisor
 
-    shipment    = get_object_or_404(Shipment, id=shipment_id)
 
-    # Allow: assigned declarant, the shipment's consignee, or any supervisor
-    is_assigned_declarant = request.user.role == 'declarant' and shipment.declarant == request.user
-    is_consignee          = request.user.role == 'consignee' and shipment.consignee == request.user
-    is_supervisor         = request.user.role == 'supervisor'
-    if not (is_assigned_declarant or is_consignee or is_supervisor):
-        messages.error(request, 'Access denied.')
-        return redirect('accounts:login')
+def _num(value):
+    return float(value or 0)
 
-    computation = get_object_or_404(DutyComputation, shipment=shipment)
-    items       = computation.get_items()
 
+def _resolve_report_items(computation):
+    items = computation.get_items()
+    hs_ids = [item.get('hs_code_id') for item in items if item.get('hs_code_id')]
+    hs_map = {str(hs.id): hs for hs in HSCode.objects.filter(id__in=hs_ids)}
+    report_items = []
+    for item in items:
+        hs = hs_map.get(str(item.get('hs_code_id'))) or computation.hs_code
+        report_items.append({
+            'description': item.get('description', ''),
+            'quantity': item.get('quantity', ''),
+            'unit': item.get('unit', ''),
+            'hs_code': hs.code if hs else '',
+            'duty_rate': _num(item.get('duty_rate', computation.duty_rate)),
+            'dutiable_value': _num(item.get('dv_php')),
+            'cud': _num(item.get('cud')),
+            'unit_price': item.get('unit_price', ''),
+        })
+    return report_items
+
+
+def _summary_rows(computation):
+    csf_php = (computation.csf_usd or 0) * (computation.exchange_rate or 0)
+    boc_total = (computation.customs_duty or 0) + (computation.vat_amount or 0) + Decimal('130') + (computation.ipf or 0)
+    return [
+        ('Dutiable Value', computation.dutiable_value or 0),
+        ('Bank Charges', computation.bank_charges or 0),
+        ('Customs Duties', computation.customs_duty or 0),
+        ('Brokerage Fee', computation.brokerage_fee or 0),
+        ('Arrastre', computation.arrastre or 0),
+        ('Wharfage', computation.wharfage or 0),
+        ('Container Service Fee', csf_php),
+        ('Customs Documentary Stamp', Decimal('130')),
+        ('Import Processing Fee', computation.ipf or 0),
+        ('Total Landed Cost', computation.total_landed_cost or 0),
+        ('VAT', computation.vat_amount or 0),
+        ('BOC Payable', boc_total),
+    ]
+
+
+def _download_excel_report(shipment, computation):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
 
     wb = Workbook()
-    ws = wb.active
-    ws.title = 'ECDT Summary'
+    ws_details = wb.active
+    ws_details.title = 'Shipment Details'
+    ws_items = wb.create_sheet('Line Items')
+    ws_summary = wb.create_sheet('ECDT Summary')
 
-    # ── Styles (light theme — white bg, dark text, print-friendly) ──────────────
-    hdr_fill  = PatternFill('solid', fgColor='1E3A5F')   # navy  — table headers (white text)
-    sum_fill  = PatternFill('solid', fgColor='F8FAFC')   # very light gray — summary rows
-    tlc_fill  = PatternFill('solid', fgColor='DBEAFE')   # light blue — TLC highlight
-    boc_fill  = PatternFill('solid', fgColor='F0F9FF')   # lightest blue — BOC box rows
-    title_f   = Font(bold=True, color='1E3A5F', size=14)
-    sub_f     = Font(color='475569', size=9)
-    hdr_f     = Font(bold=True, color='FFFFFF', size=10)
-    lbl_f     = Font(color='475569', size=10)
-    val_f     = Font(color='0F172A', size=10)
-    tlc_f     = Font(bold=True, color='1E40AF', size=12)
-    boc_lbl_f = Font(color='1E3A5F', size=10)
-    boc_val_f = Font(bold=True, color='0F172A', size=10)
-    sig_f     = Font(color='475569', size=9)
-    note_f    = Font(color='64748B', italic=True, size=8)
-
-    thin_s  = Side(style='thin',   color='CBD5E1')
-    thk_s   = Side(style='medium', color='1E3A5F')
-    brd     = Border(left=thin_s, right=thin_s, top=thin_s, bottom=thin_s)
-    boc_brd = Border(left=thk_s,  right=thk_s,  top=thk_s,  bottom=thk_s)
-
-    _c  = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    _r  = Alignment(horizontal='right',  vertical='center')
-    _l  = Alignment(horizontal='left',   vertical='center')
-
-    # ── Column widths A–N ─────────────────────────────────────────────────────
-    for i, w in enumerate([5, 36, 12, 12, 12, 12, 14, 14, 8, 14, 8, 8, 6, 6], 1):
-        ws.column_dimensions[get_column_letter(i)].width = w
-
-    # ── Data helpers ──────────────────────────────────────────────────────────
-    _cn      = shipment.consignee
-    _co_name = _cn.company_name or _cn.get_full_name() or _cn.username
-    _mode    = shipment.get_shipment_type_display() if shipment.shipment_type else '—'
-    _import  = shipment.get_import_type_display()
-    _date_s  = shipment.submitted_at.strftime('%b %d, %Y') if shipment.submitted_at else '—'
-    _csf_php = float((computation.csf_usd or 0) * (computation.exchange_rate or 0))
-    _bank    = float(computation.bank_charges or 0)
-    _prep_by = (
-        computation.computed_by.get_full_name() or computation.computed_by.username
-    ) if computation.computed_by else '—'
-
-    # ── Row 1: Title ──────────────────────────────────────────────────────────
-    ws.merge_cells('A1:N1')
-    ws['A1'] = 'R3-PCR — ECDT Pre-Clearance Computation Summary'
-    ws['A1'].font = title_f
-    ws['A1'].alignment = _c
-    ws.row_dimensions[1].height = 22
-
-    # ── Row 2: Subtitle ───────────────────────────────────────────────────────
-    ws.merge_cells('A2:N2')
-    ws['A2'] = (
-        f'Shipment Ref: {shipment.hawb_number}'
-        f'  |  Consignee: {_co_name}'
-        f'  |  Rate: ₱{float(computation.exchange_rate):.4f}'
-        f'  |  Mode: {_mode}'
-        f'  |  Import: {_import}'
-        f'  |  Date: {_date_s}'
+    header_fill = PatternFill('solid', fgColor='1E3A5F')
+    header_font = Font(bold=True, color='FFFFFF')
+    title_font = Font(bold=True, size=14, color='1E3A5F')
+    bold = Font(bold=True)
+    border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1'),
     )
-    ws['A2'].font = sub_f
-    ws['A2'].alignment = _c
-    ws.row_dimensions[2].height = 14
+    money_format = '#,##0.00'
 
-    # ── Row 3: blank gap ──────────────────────────────────────────────────────
-    ws.row_dimensions[3].height = 6
+    consignee = shipment.consignee.company_name or shipment.consignee.get_full_name() or shipment.consignee.username
+    declarant = shipment.declarant.get_full_name() or shipment.declarant.username if shipment.declarant else ''
+    prepared = computation.computed_by.get_full_name() or computation.computed_by.username if computation.computed_by else ''
 
-    # ── Row 4: Table headers ──────────────────────────────────────────────────
-    HDR = 4
-    for col, h in enumerate([
-        '#', 'Description', 'EXW/FOB\n(USD)', 'Freight\n(USD)',
-        'Insurance\n(USD)', 'D/V\n(USD)', 'D/V\n(PHP)',
-        'HS Code', 'Rate %', 'CUD\n(PHP)', 'GW\n(kg)', 'NW\n(kg)', 'QTY', 'PKGS',
-    ], 1):
-        cell = ws.cell(row=HDR, column=col, value=h)
-        cell.font = hdr_f; cell.fill = hdr_fill
-        cell.border = brd; cell.alignment = _c
-    ws.row_dimensions[HDR].height = 32
+    ws_details['A1'] = 'RTripleJ Customs Brokerage'
+    ws_details['A1'].font = title_font
+    ws_details['A2'] = 'ECDT Computation Sheet'
+    detail_rows = [
+        ('HAWB / BOL', shipment.hawb_number),
+        ('Consignee', consignee),
+        ('Declarant', declarant),
+        ('Date', computation.computed_at.strftime('%Y-%m-%d') if computation.computed_at else ''),
+        ('Shipment Mode', computation.container_type or shipment.shipment_type or ''),
+        ('Import Type', shipment.get_import_type_display()),
+        ('Exchange Rate', _num(computation.exchange_rate)),
+        ('Prepared By', prepared),
+    ]
+    for row, (label, value) in enumerate(detail_rows, 4):
+        ws_details.cell(row=row, column=1, value=label).font = bold
+        ws_details.cell(row=row, column=2, value=value)
+    ws_details.column_dimensions['A'].width = 22
+    ws_details.column_dimensions['B'].width = 38
 
-    # ── Line items ────────────────────────────────────────────────────────────
-    tot = dict(exw=0.0, fr=0.0, ins=0.0, dvusd=0.0, dvphp=0.0, cud=0.0)
-
-    for i, item in enumerate(items, 1):
-        row = HDR + i
-        hs_d = item.get('hs_code_id', '')
-        if hs_d:
-            try:
-                from apps.shipments.models import HSCode as _HSCode
-                hs_d = _HSCode.objects.get(id=hs_d).code
-            except Exception:
-                hs_d = str(hs_d)
-        else:
-            hs_d = computation.hs_code.code if computation.hs_code else '—'
-
-        row_data = [
-            i,
-            item.get('description', ''),
-            float(item.get('exw',            0) or 0),
-            float(item.get('item_freight',   0) or 0),
-            float(item.get('item_insurance', 0) or 0),
-            float(item.get('dv_usd',         0) or 0),
-            float(item.get('dv_php',         0) or 0),
-            hs_d,
-            float(item.get('duty_rate', float(computation.duty_rate)) or 0),
-            float(item.get('cud',            0) or 0),
-            item.get('gw',       '') or '',
-            item.get('nw',       '') or '',
-            item.get('quantity', '') or '',
-            item.get('pkgs',     '') or '',
+    item_headers = ['Description', 'Quantity', 'Unit', 'HS Code', 'Duty Rate', 'Dutiable Value', 'CUD per Item']
+    for col, label in enumerate(item_headers, 1):
+        cell = ws_items.cell(row=1, column=col, value=label)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = border
+    for row, item in enumerate(_resolve_report_items(computation), 2):
+        values = [
+            item['description'], item['quantity'], item['unit'], item['hs_code'],
+            item['duty_rate'], item['dutiable_value'], item['cud'],
         ]
+        for col, value in enumerate(values, 1):
+            cell = ws_items.cell(row=row, column=col, value=value)
+            cell.border = border
+            if col in (6, 7):
+                cell.number_format = money_format
+            if col == 5:
+                cell.number_format = '0.00"%"'
+    for col, width in enumerate([42, 12, 12, 18, 12, 18, 18], 1):
+        ws_items.column_dimensions[get_column_letter(col)].width = width
 
-        tot['exw']   += row_data[2];  tot['fr']    += row_data[3]
-        tot['ins']   += row_data[4];  tot['dvusd'] += row_data[5]
-        tot['dvphp'] += row_data[6];  tot['cud']   += row_data[9]
+    ws_summary['A1'] = 'ECDT Summary'
+    ws_summary['A1'].font = title_font
+    ws_summary['A3'] = 'Charge'
+    ws_summary['B3'] = 'Amount'
+    for cell in ws_summary[3]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border
+    for row, (label, value) in enumerate(_summary_rows(computation), 4):
+        ws_summary.cell(row=row, column=1, value=label).border = border
+        amount_cell = ws_summary.cell(row=row, column=2, value=_num(value))
+        amount_cell.border = border
+        amount_cell.number_format = money_format
+        if label in {'Total Landed Cost', 'BOC Payable'}:
+            ws_summary.cell(row=row, column=1).font = bold
+            amount_cell.font = bold
+    ws_summary.column_dimensions['A'].width = 30
+    ws_summary.column_dimensions['B'].width = 18
 
-        for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=row, column=col, value=val)
-            cell.border = brd; cell.font = Font(color='0F172A', size=10)
-            cell.alignment = _r if col > 2 else _l
-            if col in (3, 4, 5, 6): cell.number_format = '#,##0.00'
-            elif col in (7, 10):    cell.number_format = '#,##0.00'
-            elif col == 9:          cell.number_format = '0.00"%"'
-
-    # ── Summary section ───────────────────────────────────────────────────────
-    SR = HDR + len(items) + 2   # two-row gap after items
-
-    _boc_total = (
-        float(computation.customs_duty or 0) +
-        float(computation.vat_amount   or 0) +
-        130.0 +
-        float(computation.ipf          or 0)
-    )
-
-    # Section headers
-    ws.cell(row=SR - 1, column=9,  value='ECDT SUMMARY').font = Font(bold=True, color='FFFFFF', size=10)
-    ws.cell(row=SR - 1, column=12, value='SUMMARY').font      = Font(bold=True, color='60A5FA', size=10)
-
-    left_rows = [
-        ('Taxable Value (Sum D/V PHP)', float(computation.dutiable_value    or 0), False),
-        ('Bank Charges',                _bank,                                     False),
-        ('Customs Duties (Total CUD)',  float(computation.customs_duty      or 0), False),
-        ('Brokerage Fee',               float(computation.brokerage_fee     or 0), False),
-        ('Arrastre',                    float(computation.arrastre          or 0), False),
-        ('Wharfage',                    float(computation.wharfage          or 0), False),
-    ]
-    if _csf_php:
-        left_rows.append(('CSF (Container Service Fee)', _csf_php, False))
-    left_rows += [
-        ('Customs Documentary Stamp (CDS)', 130.0,                                False),
-        ('Import Processing Fee (IPF)',  float(computation.ipf               or 0), False),
-        ('TOTAL LANDED COST',            float(computation.total_landed_cost  or 0), True),
-        ('VAT (12% of Total Landed Cost)', float(computation.vat_amount      or 0), False),
-    ]
-
-    right_rows = [
-        ('CUD',   float(computation.customs_duty or 0), False),
-        ('VAT',   float(computation.vat_amount   or 0), False),
-        ('CDS',   130.0,                               False),
-        ('IPF',   float(computation.ipf          or 0), False),
-        ('TOTAL', _boc_total,                          True),
-    ]
-
-    # Left summary: label col I, value col K
-    for r_off, (lbl, val, is_total) in enumerate(left_rows):
-        r = SR + r_off
-        lc = ws.cell(row=r, column=9,  value=lbl)
-        vc = ws.cell(row=r, column=11, value=float(val))
-        lc.border = vc.border = brd
-        vc.number_format = '₱#,##0.00'; vc.alignment = _r
-        if is_total:
-            lc.font = vc.font = tlc_f
-            lc.fill = vc.fill = tlc_fill
-        else:
-            lc.font = lbl_f; lc.fill = sum_fill
-            vc.font = val_f; vc.fill = sum_fill
-
-    # Right summary (BOC box): label col L, value col N
-    for r_off, (lbl, val, is_total) in enumerate(right_rows):
-        r = SR + r_off
-        lc = ws.cell(row=r, column=12, value=lbl)
-        vc = ws.cell(row=r, column=14, value=float(val))
-        lc.border = vc.border = boc_brd
-        vc.number_format = '₱#,##0.00'; vc.alignment = _r
-        if is_total:
-            lc.font = vc.font = tlc_f
-            lc.fill = vc.fill = tlc_fill
-        else:
-            lc.font = boc_lbl_f; lc.fill = boc_fill
-            vc.font = boc_val_f; vc.fill = boc_fill
-
-    # ── Disclaimer + signature ────────────────────────────────────────────────
-    NOTE = SR + max(len(left_rows), len(right_rows)) + 2
-    ws.merge_cells(f'A{NOTE}:N{NOTE}')
-    ws[f'A{NOTE}'] = (
-        'ESTIMATED COMPUTATION ONLY. Final assessment will be based on BOC/Customs findings. '
-        'Generated by R3-PCR Pre-Clearance DSS.'
-    )
-    ws[f'A{NOTE}'].font = note_f
-
-    SIGR = NOTE + 2
-    ws.cell(row=SIGR, column=9,  value='Prepared By:').font = sig_f
-    ws.cell(row=SIGR, column=9).alignment = _l
-    ws.merge_cells(start_row=SIGR, start_column=10, end_row=SIGR, end_column=11)
-    ws.cell(row=SIGR, column=10, value=_prep_by).font = Font(color='94A3B8', size=9, italic=True)
-    ws.cell(row=SIGR, column=10).alignment = _l
-    ws.cell(row=SIGR, column=13, value='Conforme:').font = sig_f
-    ws.cell(row=SIGR, column=13).alignment = _l
-
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    response['Content-Disposition'] = (
-        f'attachment; filename=ECDT_{shipment.hawb_number}.xlsx'
-    )
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=ECDT_{shipment.hawb_number}.xlsx'
     wb.save(response)
     return response
 
 
-# ─── HS Code Suggestion Engine ───────────────────────────────────────────────
+def _download_pdf_report(request, shipment, computation):
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    except ImportError:
+        messages.error(request, 'PDF export requires reportlab. Install project requirements, then try again.')
+        return redirect('declarant:process', shipment_id=shipment.id)
+
+    buffer = tempfile.SpooledTemporaryFile()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=0.45 * inch, leftMargin=0.45 * inch)
+    styles = getSampleStyleSheet()
+    story = [
+        Paragraph('RTripleJ Customs Brokerage', styles['Title']),
+        Paragraph('ECDT Computation Sheet', styles['Heading2']),
+        Spacer(1, 10),
+    ]
+
+    consignee = shipment.consignee.company_name or shipment.consignee.get_full_name() or shipment.consignee.username
+    declarant = shipment.declarant.get_full_name() or shipment.declarant.username if shipment.declarant else ''
+    details = [
+        ['HAWB / BOL', shipment.hawb_number, 'Consignee', consignee],
+        ['Declarant', declarant, 'Date', computation.computed_at.strftime('%Y-%m-%d') if computation.computed_at else ''],
+        ['Shipment Mode', computation.container_type or shipment.shipment_type or '', 'Exchange Rate', f'{_num(computation.exchange_rate):,.4f}'],
+    ]
+    detail_table = Table(details, colWidths=[1.1 * inch, 2.0 * inch, 1.1 * inch, 2.3 * inch])
+    detail_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 0.25, colors.lightgrey),
+        ('BACKGROUND', (0, 0), (0, -1), colors.whitesmoke),
+        ('BACKGROUND', (2, 0), (2, -1), colors.whitesmoke),
+    ]))
+    story.extend([detail_table, Spacer(1, 12)])
+
+    item_data = [['Description', 'Qty', 'Unit', 'HS Code', 'Duty %', 'D/V PHP', 'CUD']]
+    for item in _resolve_report_items(computation):
+        item_data.append([
+            Paragraph(item['description'] or '', styles['BodyText']),
+            item['quantity'], item['unit'], item['hs_code'],
+            f"{item['duty_rate']:,.2f}", f"{item['dutiable_value']:,.2f}", f"{item['cud']:,.2f}",
+        ])
+    item_table = Table(item_data, colWidths=[2.25 * inch, 0.5 * inch, 0.5 * inch, 0.9 * inch, 0.6 * inch, 0.9 * inch, 0.9 * inch])
+    item_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A5F')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 0.25, colors.lightgrey),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (4, 1), (-1, -1), 'RIGHT'),
+    ]))
+    story.extend([Paragraph('Line Items', styles['Heading3']), item_table, Spacer(1, 12)])
+
+    summary_data = [['Charge', 'Amount']]
+    for label, value in _summary_rows(computation):
+        summary_data.append([label, f"{_num(value):,.2f}"])
+    summary_table = Table(summary_data, colWidths=[3.0 * inch, 1.5 * inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A5F')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 0.25, colors.lightgrey),
+        ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
+    ]))
+    story.extend([Paragraph('ECDT Summary', styles['Heading3']), summary_table])
+
+    doc.build(story)
+    buffer.seek(0)
+    response = HttpResponse(buffer.read(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename=ECDT_{shipment.hawb_number}.pdf'
+    return response
+
+
+@login_required
+def download_computation(request, shipment_id):
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    if not _can_download_computation(request.user, shipment):
+        messages.error(request, 'Access denied.')
+        return redirect('accounts:login')
+
+    computation = get_object_or_404(DutyComputation, shipment=shipment)
+    if request.GET.get('format') == 'pdf':
+        return _download_pdf_report(request, shipment, computation)
+    return _download_excel_report(shipment, computation)
+
 
 _HS_STOPWORDS = {
     'the','and','for','with','from','this','that','are','all','per',
@@ -1218,6 +1275,15 @@ def shipping_advisory(request, shipment_id):
         auto_value    = float(existing.declared_value)
         auto_urgency  = existing.urgency_level
         auto_distance = float(existing.distance_km)
+
+        # Re-derive breakdown and explanation from saved inputs so the criterion
+        # table is visible on every page load, not just immediately after a POST.
+        try:
+            scores, result, breakdown, explanation = compute_wmcda(
+                auto_weight, auto_volume, auto_value, auto_urgency, auto_distance
+            )
+        except Exception:
+            pass
     else:
         # Pull weight from shipment model field
         auto_weight = float(shipment.gross_weight) if shipment.gross_weight else 0.0
@@ -1304,16 +1370,49 @@ def shipping_advisory(request, shipment_id):
         except Exception as e:
             messages.error(request, f'Error: {e}')
 
+    # ── Historical advisory counts (same shipment type as this shipment) ───────
+    wmcda_history = None
+    if shipment.shipment_type:
+        from collections import Counter
+        past = list(
+            ShippingAdvisory.objects
+            .filter(
+                shipment__shipment_type=shipment.shipment_type,
+                recommended_type__isnull=False,
+            )
+            .exclude(shipment=shipment)
+            .values_list('recommended_type', flat=True)
+        )
+        if past:
+            counts   = Counter(past)
+            top_mode = counts.most_common(1)[0]
+            pct      = round(top_mode[1] / len(past) * 100)
+            _label_map = {
+                'air':  'Air Freight',
+                'lcl':  'LCL',
+                'fcl':  'FCL',
+                'land': 'Land Freight',
+            }
+            wmcda_history = {
+                'total':      len(past),
+                'top_mode':   top_mode[0],
+                'top_pct':    pct,
+                'mode_label': _label_map.get(top_mode[0], top_mode[0].upper()),
+                'ship_type':  shipment.get_shipment_type_display(),
+                'counts':     {k: counts.get(k, 0) for k in ('air', 'lcl', 'fcl', 'land')},
+            }
+
     context = {
-        'shipment':      shipment,
-        'existing':      existing,
-        'result':        result,
-        'scores':        scores,
-        'breakdown':     breakdown,
-        'explanation':   explanation,
-        'auto_data':     auto_data,
-        'auto_sources':  auto_sources,
+        'shipment':       shipment,
+        'existing':       existing,
+        'result':         result,
+        'scores':         scores,
+        'breakdown':      breakdown,
+        'explanation':    explanation,
+        'auto_data':      auto_data,
+        'auto_sources':   auto_sources,
         'missing_fields': missing_fields,
+        'wmcda_history':  wmcda_history,
     }
     return render(request, 'computation/advisory.html', context)
 
