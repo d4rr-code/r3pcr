@@ -105,7 +105,7 @@ def extract_text_from_file(file_path):
                 try:
                     images = convert_from_path(
                         file_path,
-                        dpi=150,
+                        dpi=100,
                         first_page=page_num,
                         last_page=page_num,
                         poppler_path=poppler_path,
@@ -122,7 +122,13 @@ def extract_text_from_file(file_path):
                         buf.close()
                     else:
                         # ── Tesseract fallback ──────────────────────────────
-                        full_text += pytesseract.image_to_string(image)
+                        # --psm 6 : assume single uniform text block (skip layout analysis)
+                        # --oem 1 : LSTM engine only (faster, no legacy fallback)
+                        full_text += pytesseract.image_to_string(
+                            image,
+                            config='--psm 6 --oem 1',
+                            timeout=20,
+                        )
 
                     # Explicitly release page memory before next iteration
                     image.close()
@@ -141,7 +147,11 @@ def extract_text_from_file(file_path):
                     return _vision_api_call(api_key, f.read())
             else:
                 image = Image.open(file_path)
-                text = pytesseract.image_to_string(image)
+                text = pytesseract.image_to_string(
+                    image,
+                    config='--psm 6 --oem 1',
+                    timeout=20,
+                )
                 image.close()
                 return text
         else:
