@@ -1,5 +1,7 @@
 import datetime
 import json
+import os
+import tempfile
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -7,7 +9,9 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
+from apps.shipments.status_progress import build_status_progress
 from apps.notifications.utils import create_notification, notify_shipment_status_change
+from apps.computation.ocr import process_document
 
 
 # ─── Role Decorator ───────────────────────────────────────────────────────────
@@ -47,6 +51,49 @@ def _annotate_due(shipments, today):
             s.due_color = 'orange'
         else:
             s.due_color = 'green'
+
+
+def _run_and_store_document_ocr(doc):
+    ext = os.path.splitext(doc.file.name)[1] or '.pdf'
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+        doc.file.open('rb')
+        tmp.write(doc.file.read())
+        doc.file.close()
+        tmp_path = tmp.name
+    try:
+        fields, raw_text, quality = process_document(tmp_path, doc.document_type)
+        doc.ocr_text = raw_text or ''
+        doc.ocr_fields_json = json.dumps(fields or {}, default=str)
+        doc.ocr_quality = quality
+        doc.ocr_ran_at = timezone.now()
+        doc.save(update_fields=['ocr_text', 'ocr_fields_json', 'ocr_quality', 'ocr_ran_at'])
+        return fields or {}, raw_text or '', quality
+    finally:
+        os.unlink(tmp_path)
+
+
+def _ocr_display_documents(documents):
+    display = []
+    for doc in documents:
+        fields = []
+        if doc.ocr_fields_json:
+            try:
+                data = json.loads(doc.ocr_fields_json)
+            except (TypeError, ValueError):
+                data = {}
+            for key, field in data.items():
+                if key.startswith('__'):
+                    continue
+                value = field.get('value') if isinstance(field, dict) else field
+                confidence = field.get('confidence', 0) if isinstance(field, dict) else 0
+                if value:
+                    fields.append({
+                        'name': key.replace('_', ' ').title(),
+                        'value': value,
+                        'confidence': float(confidence or 0),
+                    })
+        display.append({'doc': doc, 'fields': fields})
+    return display
 
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -247,6 +294,14 @@ def process_shipment(request, shipment_id):
         return redirect('declarant:queue')
 
     documents   = shipment.documents.all()
+    for doc in documents:
+        if doc.document_type in ('invoice', 'airway_bill', 'packing_list') and not doc.ocr_ran_at:
+            try:
+                _run_and_store_document_ocr(doc)
+            except Exception as e:
+                print(f'[OCR-AUTO] Failed for document {doc.id}: {e}')
+
+    documents = shipment.documents.all()
     status_logs = shipment.status_logs.order_by('-changed_at')[:5]
 
     ocr_fields = None
@@ -261,8 +316,10 @@ def process_shipment(request, shipment_id):
         'documents':   documents,
         'status_logs': status_logs,
         'ocr_fields':  ocr_fields,
+        'ocr_documents': _ocr_display_documents(documents),
         'ocr_toast':   ocr_toast,
         'manual_status_choices': Shipment.MANUAL_STATUS_CHOICES,
+        'status_steps': build_status_progress(shipment.status, 'declarant'),
     }
     return render(request, 'declarant/process.html', context)
 

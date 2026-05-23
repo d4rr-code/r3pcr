@@ -143,6 +143,31 @@
 .ecdt-table td.calc.dvphp { color: #60a5fa; font-weight: 600; }
 .ecdt-table td.calc.cud   { color: #fbbf24; font-weight: 600; }
 .ecdt-table tr:hover td { background: #0d1929; }
+.ecdt-table-shell.fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    background: #020617;
+    display: flex;
+    flex-direction: column;
+}
+.ecdt-table-shell.fullscreen .ecdt-table-scroll {
+    flex: 1;
+    overflow: auto !important;
+}
+.ecdt-exit-fullscreen {
+    display: none;
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 9999;
+}
+.ecdt-table-shell.fullscreen .ecdt-exit-fullscreen {
+    display: inline-flex;
+}
 .ecdt-input {
     background: #1e293b;
     border: 1px solid #334155;
@@ -881,7 +906,7 @@
 {% endif %}
 
 <!-- ── ECDT Line Items Table (Excel CDT column order) ─────────────── -->
-<div class="card" style="margin-bottom:14px; padding:0; overflow:hidden;">
+<div class="card ecdt-table-shell" id="ecdt-table-shell" style="margin-bottom:14px; padding:0; overflow:hidden;">
     <div style="padding:10px 14px; background:#0f172a; border-bottom:1px solid #1e293b;
                 display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <p class="card-title" style="margin:0; font-size:13px;">ECDT Line Items</p>
@@ -889,12 +914,17 @@
             <p style="color:#475569; font-size:10px; margin:0;">
                 D/V = EXW + Freight + Insurance
             </p>
+            <button type="button" class="btn btn-secondary" onclick="toggleLineItemsFullscreen()"
+                    style="font-size:11px; padding:4px 10px;">Expand</button>
             <button type="button" class="btn btn-secondary" onclick="addRow()"
                     style="font-size:11px; padding:4px 10px;">+ Row</button>
         </div>
     </div>
 
-    <div style="overflow-x:auto;">
+    <button type="button" class="btn btn-secondary ecdt-exit-fullscreen" onclick="toggleLineItemsFullscreen()">
+        Exit Full Screen
+    </button>
+    <div class="ecdt-table-scroll" style="overflow-x:auto;">
         <table class="ecdt-table" id="ecdt-table">
             <colgroup>
                 <col style="width:26px">  <!-- # -->
@@ -2068,6 +2098,13 @@ function addRow() {
     var n = tbody.rows.length + 1;
     tbody.appendChild(_makeRow(n, '', '', ''));
     recalcAll();
+}
+
+function toggleLineItemsFullscreen() {
+    var shell = document.getElementById('ecdt-table-shell');
+    if (!shell) return;
+    shell.classList.toggle('fullscreen');
+    document.body.style.overflow = shell.classList.contains('fullscreen') ? 'hidden' : '';
 }
 
 function removeRow(btn) {

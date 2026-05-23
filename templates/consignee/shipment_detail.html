@@ -3,6 +3,23 @@
 {% block title %}Shipment — {{ shipment.hawb_number }}{% endblock %}
 {% block page_title %}Shipment Details{% endblock %}
 
+{% block extra_css %}
+<style>
+.status-alert { border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12px; font-weight:700; }
+.status-alert.revision { background:#422006; color:#fbbf24; border:1px solid #92400e; }
+.status-alert.rejected { background:#450a0a; color:#fca5a5; border:1px solid #991b1b; }
+.status-progress { display:grid; grid-template-columns:repeat(10, minmax(68px, 1fr)); gap:8px; overflow-x:auto; }
+.status-step { position:relative; min-width:68px; display:flex; flex-direction:column; align-items:center; gap:6px; color:#64748b; font-size:10px; text-align:center; }
+.status-step:before { content:""; position:absolute; top:6px; left:-50%; width:100%; height:2px; background:#334155; }
+.status-step:first-child:before { display:none; }
+.status-step.completed:before, .status-step.current:before { background:#2563eb; }
+.progress-dot { width:9px; height:9px; border-radius:999px; background:#334155; border:1px solid #475569; position:relative; z-index:1; }
+.status-step.completed .progress-dot { background:#22c55e; border-color:#22c55e; }
+.status-step.current .progress-dot { background:#3b82f6; border-color:#93c5fd; box-shadow:0 0 12px #3b82f6; }
+.status-step.current span { color:#f1f5f9; font-weight:800; }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <!-- Back + Header -->
@@ -19,18 +36,6 @@
         </p>
     </div>
     <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
-        {% if shipment.status == 'approved' %}
-            <span class="badge badge-approved" style="font-size:13px; padding:6px 16px;">✓ Approved</span>
-        {% elif shipment.status == 'rejected' %}
-            <span class="badge badge-rejected" style="font-size:13px; padding:6px 16px;">✗ Rejected</span>
-        {% elif shipment.status == 'arrived' %}
-            <span class="badge badge-review" style="font-size:13px; padding:6px 16px;">Arrived</span>
-        {% else %}
-            <span class="badge badge-pending" style="font-size:13px; padding:6px 16px;">
-                {{ shipment.get_status_display }}
-            </span>
-        {% endif %}
-
         {% if shipment.status in 'approved,rejected' %}
             {% if shipment.feedback %}
                 <span style="font-size:12px; color:#64748b; padding:6px 12px; background:#1e293b;
@@ -48,6 +53,22 @@
                 </a>
             {% endif %}
         {% endif %}
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+    {% if shipment.status == 'for_revision' %}
+    <div class="status-alert revision">Warning: Returned for Revision</div>
+    {% elif shipment.status == 'rejected' %}
+    <div class="status-alert rejected">Error: Rejected</div>
+    {% endif %}
+    <div class="status-progress">
+        {% for step in status_steps %}
+        <div class="status-step {{ step.state }}">
+            <span class="progress-dot"></span>
+            <span>{{ step.label }}</span>
+        </div>
+        {% endfor %}
     </div>
 </div>
 

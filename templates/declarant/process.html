@@ -58,6 +58,114 @@
 .conf-medium { background: #f59e0b; }
 .conf-low    { background: #ef4444; }
 .conf-none   { background: #475569; }
+.quality-dot,
+.progress-dot,
+.field-confidence-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    display: inline-block;
+    flex-shrink: 0;
+}
+.quality-good { background:#22c55e; box-shadow:0 0 8px #22c55e55; }
+.quality-low { background:#f59e0b; box-shadow:0 0 8px #f59e0b55; }
+.quality-poor { background:#ef4444; box-shadow:0 0 8px #ef444455; }
+.quality-none { background:#64748b; }
+.status-alert {
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    font-weight: 700;
+}
+.status-alert.revision { background:#422006; color:#fbbf24; border:1px solid #92400e; }
+.status-alert.rejected { background:#450a0a; color:#fca5a5; border:1px solid #991b1b; }
+.status-progress {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(64px, 1fr));
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+.status-step {
+    position: relative;
+    min-width: 64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: #64748b;
+    font-size: 10px;
+    text-align: center;
+}
+.status-step:before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: -50%;
+    width: 100%;
+    height: 2px;
+    background: #334155;
+    z-index: 0;
+}
+.status-step:first-child:before { display:none; }
+.status-step.completed:before,
+.status-step.current:before { background:#2563eb; }
+.progress-dot { position:relative; z-index:1; background:#334155; border:1px solid #475569; }
+.status-step.completed .progress-dot { background:#22c55e; border-color:#22c55e; }
+.status-step.current .progress-dot { background:#3b82f6; border-color:#93c5fd; box-shadow:0 0 12px #3b82f6; }
+.status-step.current span { color:#f1f5f9; font-weight:800; }
+.ocr-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+.ocr-tab-btn {
+    border:1px solid #334155;
+    background:#0f172a;
+    color:#94a3b8;
+    border-radius:6px;
+    padding:6px 10px;
+    cursor:pointer;
+    font-size:11px;
+}
+.ocr-tab-btn.active { background:#1d4ed8; color:#fff; border-color:#3b82f6; }
+.ocr-tab-panel { display:none; }
+.ocr-tab-panel.active { display:block; }
+.raw-ocr-text {
+    display:none;
+    white-space:pre-wrap;
+    max-height:260px;
+    overflow:auto;
+    background:#020617;
+    border:1px solid #1e293b;
+    border-radius:8px;
+    color:#cbd5e1;
+    padding:10px;
+    font-size:11px;
+}
+.hs-row-confirmed { background:#052e16 !important; }
+.doc-fullscreen-modal {
+    display:none;
+    position:fixed;
+    inset:0;
+    z-index:10000;
+    background:rgba(2,6,23,.94);
+    padding:24px;
+}
+.doc-fullscreen-modal.open { display:flex; flex-direction:column; gap:12px; }
+.doc-fullscreen-body {
+    flex:1;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.doc-fullscreen-body iframe,
+.doc-fullscreen-body img {
+    width:100%;
+    height:100%;
+    max-width:1200px;
+    object-fit:contain;
+    border:0;
+    background:#fff;
+}
 
 /* ── OCR Timer Overlay ───────────────────────────────────────────── */
 @keyframes ocr-spin {
@@ -98,6 +206,15 @@
     <p style="color:#475569; font-size:11px; margin-top:4px;">
         This may take 10–30 seconds depending on document size.
     </p>
+</div>
+
+<div id="doc-fullscreen-modal" class="doc-fullscreen-modal">
+    <div style="display:flex; align-items:center; gap:12px;">
+        <p id="doc-fullscreen-title" style="color:#f1f5f9; font-size:14px; font-weight:700; margin:0;"></p>
+        <button type="button" class="btn btn-secondary" style="margin-left:auto; font-size:12px;"
+                onclick="closeDocFullscreen()">X</button>
+    </div>
+    <div id="doc-fullscreen-body" class="doc-fullscreen-body"></div>
 </div>
 
 {% if ocr_toast %}
@@ -183,7 +300,8 @@
             </div>
             {% if documents %}
             <div style="display:flex; flex-direction:column; gap:10px;">
-                {% for doc in documents %}
+                {% for item in ocr_documents %}
+                {% with doc=item.doc %}
                 <div style="display:flex; align-items:center; gap:10px; padding:10px 12px;
                             background:#0f172a; border-radius:6px; border:1px solid #1e293b;">
                     <span style="font-size:18px;">
@@ -193,23 +311,130 @@
                         {% else %}📎{% endif %}
                     </span>
                     <div style="flex:1; min-width:0;">
-                        <p style="color:#f1f5f9; font-size:13px; margin:0; font-weight:500;">
-                            {{ doc.get_document_type_display }}
+                        <p style="color:#f1f5f9; font-size:13px; margin:0; font-weight:500; display:flex; align-items:center; gap:7px;">
+                            {% if doc.ocr_ran_at %}
+                                {% if doc.ocr_quality == 'good' %}
+                                <span class="quality-dot quality-good" title="Good"></span>
+                                <span style="color:#86efac; font-size:10px;">Good</span>
+                                {% elif doc.ocr_quality == 'low' %}
+                                <span class="quality-dot quality-low" title="Low Quality"></span>
+                                <span style="color:#fbbf24; font-size:10px;">Low Quality</span>
+                                {% elif doc.ocr_quality == 'poor' %}
+                                <span class="quality-dot quality-poor" title="Illegible"></span>
+                                <span style="color:#fca5a5; font-size:10px;">Illegible</span>
+                                {% else %}
+                                <span class="quality-dot quality-none" title="Not yet scanned"></span>
+                                <span style="color:#94a3b8; font-size:10px;">Not yet scanned</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="quality-dot quality-none" title="Not yet scanned"></span>
+                                <span style="color:#94a3b8; font-size:10px;">Not yet scanned</span>
+                            {% endif %}
+                            <span>{{ doc.get_document_type_display }}</span>
                         </p>
                         <p style="color:#64748b; font-size:11px; margin:2px 0 0;">
                             Uploaded {{ doc.uploaded_at|date:"M d, Y" }}
+                            {% if doc.ocr_ran_at %} · OCR {{ doc.ocr_quality|title }}{% endif %}
                         </p>
+                        {% if doc.ocr_quality == 'poor' %}
+                        <p style="color:#fca5a5; font-size:11px; margin:5px 0 0;">
+                            Poor quality scan — ask consignee to re-upload a clearer document.
+                        </p>
+                        {% endif %}
                     </div>
                     <button onclick="loadDoc('{{ doc.file.url }}', '{{ doc.get_document_type_display }}')"
                             class="btn btn-secondary" style="font-size:11px; padding:5px 10px; flex-shrink:0;">
                         View
                     </button>
+                    <button onclick="openDocFullscreen('{{ doc.file.url }}', '{{ doc.get_document_type_display }}')"
+                            class="btn btn-secondary" style="font-size:11px; padding:5px 10px; flex-shrink:0;">
+                        Full Screen
+                    </button>
                 </div>
+                {% endwith %}
                 {% endfor %}
             </div>
             {% else %}
             <p style="color:#64748b; font-size:13px;">No documents attached.</p>
             {% endif %}
+        </div>
+
+        <!-- Persisted OCR Results Summary -->
+        {% if ocr_documents %}
+        <div class="card" style="margin-top:16px;">
+            <p class="card-title">Extracted Document Contents</p>
+            <div class="ocr-tabs">
+                {% for item in ocr_documents %}
+                {% if item.doc.ocr_ran_at %}
+                <button type="button" class="ocr-tab-btn {% if forloop.first %}active{% endif %}"
+                        data-tab="ocr-tab-{{ item.doc.id }}" onclick="switchOcrTab(this)">
+                    {% if item.doc.document_type == 'invoice' %}CI
+                    {% elif item.doc.document_type == 'packing_list' %}PL
+                    {% elif item.doc.document_type == 'airway_bill' %}HAWB/BOL
+                    {% else %}{{ item.doc.get_document_type_display }}{% endif %}
+                </button>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% for item in ocr_documents %}
+            {% if item.doc.ocr_ran_at %}
+            <div id="ocr-tab-{{ item.doc.id }}" class="ocr-tab-panel {% if forloop.first %}active{% endif %}">
+                {% if item.fields %}
+                <div style="display:grid; grid-template-columns:160px 1fr; gap:8px 12px; margin-bottom:12px;">
+                    {% for field in item.fields %}
+                    <div style="display:flex; align-items:center; gap:7px; color:#94a3b8; font-size:12px;">
+                        <span class="field-confidence-dot
+                            {% if field.confidence >= 0.85 %}quality-good
+                            {% elif field.confidence >= 0.70 %}quality-low
+                            {% else %}quality-poor{% endif %}">
+                        </span>
+                        {{ field.name }}
+                    </div>
+                    <div style="color:#f1f5f9; font-size:12px; overflow-wrap:anywhere;">{{ field.value }}</div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p style="color:#64748b; font-size:12px;">No structured fields extracted.</p>
+                {% endif %}
+                <button type="button" class="btn btn-secondary" style="font-size:11px; padding:5px 10px;"
+                        onclick="toggleRawOcr('raw-ocr-{{ item.doc.id }}')">
+                    Show Raw Text
+                </button>
+                <pre id="raw-ocr-{{ item.doc.id }}" class="raw-ocr-text">{{ item.doc.ocr_text }}</pre>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- HS Recommendations -->
+        <div class="card" style="margin-top:16px;">
+            <p class="card-title">HS Code Recommendations</p>
+            <div style="display:flex; gap:8px; margin-bottom:10px;">
+                <input type="text" id="hs-rec-search" class="form-input"
+                       placeholder="Search HS code or description..."
+                       style="font-size:12px;" onkeyup="filterHsRecommendations()">
+                <button type="button" class="btn btn-secondary" style="font-size:12px; white-space:nowrap;"
+                        onclick="fetchHsRecommendations(true)">
+                    Search Tariff Database
+                </button>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr style="background:#0f172a; border-bottom:1px solid #334155;">
+                            <th style="text-align:left; padding:8px; color:#64748b;">HS Code</th>
+                            <th style="text-align:left; padding:8px; color:#64748b;">Description</th>
+                            <th style="text-align:right; padding:8px; color:#64748b;">MFN Duty Rate</th>
+                            <th style="text-align:left; padding:8px; color:#64748b;">Source</th>
+                            <th style="text-align:right; padding:8px; color:#64748b;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hs-rec-body">
+                        <tr><td colspan="5" style="padding:12px; color:#64748b;">Loading recommendations...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <!-- OCR Extracted Fields -->
@@ -326,20 +551,18 @@
         <!-- Current Status -->
         <div class="card" style="margin-bottom:16px;">
             <p class="card-title">Current Status</p>
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
-                {% if shipment.status == 'approved' %}
-                    <span class="badge badge-success" style="font-size:14px;">✓ Approved</span>
-                {% elif shipment.status == 'rejected' %}
-                    <span class="badge badge-danger" style="font-size:14px;">✗ Rejected</span>
-                {% elif shipment.status == 'arrived' %}
-                    <span class="badge badge-info" style="font-size:14px;">Arrived</span>
-                {% elif shipment.status == 'computed' %}
-                    <span class="badge badge-warning" style="font-size:14px;">Computed</span>
-                {% elif shipment.status == 'lodgement' %}
-                    <span class="badge badge-info" style="font-size:14px;">Lodgement</span>
-                {% else %}
-                    <span class="badge badge-secondary" style="font-size:14px;">{{ shipment.get_status_display }}</span>
-                {% endif %}
+            {% if shipment.status == 'for_revision' %}
+            <div class="status-alert revision">Warning: Returned for Revision</div>
+            {% elif shipment.status == 'rejected' %}
+            <div class="status-alert rejected">Error: Rejected</div>
+            {% endif %}
+            <div class="status-progress" style="margin-bottom:16px;">
+                {% for step in status_steps %}
+                <div class="status-step {{ step.state }}">
+                    <span class="progress-dot"></span>
+                    <span>{{ step.label }}</span>
+                </div>
+                {% endfor %}
             </div>
 
             {% if shipment.shipment_type == 'sea' %}
@@ -570,6 +793,121 @@ function loadDoc(url, label) {
 }
 
 // ─── OCR Timer ───────────────────────────────────────────────────────────────
+function openDocFullscreen(url, label) {
+    var modal = document.getElementById('doc-fullscreen-modal');
+    var body = document.getElementById('doc-fullscreen-body');
+    var title = document.getElementById('doc-fullscreen-title');
+    var ext = url.split('?')[0].toLowerCase();
+    title.textContent = label;
+    if (ext.endsWith('.pdf')) {
+        body.innerHTML = '<iframe src="' + url + '" allow="fullscreen"></iframe>';
+    } else if (/\.(jpe?g|png|gif|webp)$/.test(ext)) {
+        body.innerHTML = '<img src="' + url + '" alt="' + label.replace(/"/g, '&quot;') + '">';
+    } else {
+        body.innerHTML = '<a href="' + url + '" target="_blank" class="btn btn-primary">Open / Download</a>';
+    }
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeDocFullscreen() {
+    var modal = document.getElementById('doc-fullscreen-modal');
+    document.getElementById('doc-fullscreen-body').innerHTML = '';
+    modal.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDocFullscreen();
+});
+
+function switchOcrTab(btn) {
+    document.querySelectorAll('.ocr-tab-btn').forEach(function(el) { el.classList.remove('active'); });
+    document.querySelectorAll('.ocr-tab-panel').forEach(function(el) { el.classList.remove('active'); });
+    btn.classList.add('active');
+    var panel = document.getElementById(btn.dataset.tab);
+    if (panel) panel.classList.add('active');
+}
+
+function toggleRawOcr(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+
+function getCsrfToken() {
+    var input = document.querySelector('[name=csrfmiddlewaretoken]');
+    return input ? input.value : '';
+}
+
+var hsRecommendations = [];
+
+function renderHsRecommendations(rows) {
+    hsRecommendations = rows || [];
+    var body = document.getElementById('hs-rec-body');
+    if (!body) return;
+    if (!hsRecommendations.length) {
+        body.innerHTML = '<tr><td colspan="5" style="padding:12px; color:#64748b;">No HS code recommendations found.</td></tr>';
+        return;
+    }
+    body.innerHTML = hsRecommendations.map(function(row) {
+        var sourceLabel = row.source === 'document' ? 'From Document' : 'Suggested';
+        return '<tr data-search="' + (row.code + ' ' + row.description).replace(/"/g, '&quot;').toLowerCase() + '">' +
+            '<td style="padding:8px; color:#93c5fd; white-space:nowrap;">' + row.code + '</td>' +
+            '<td style="padding:8px; color:#cbd5e1;">' + row.description + '</td>' +
+            '<td style="padding:8px; color:#f1f5f9; text-align:right;">' + Number(row.duty_rate || 0).toFixed(2) + '%</td>' +
+            '<td style="padding:8px; color:#94a3b8;">' + sourceLabel + '</td>' +
+            '<td style="padding:8px; text-align:right;">' +
+                '<button type="button" class="btn btn-secondary" style="font-size:11px; padding:4px 9px;" ' +
+                'onclick="confirmHsRecommendation(this, ' + row.id + ', \'' + row.code.replace(/'/g, "\\'") + '\')">Confirm</button>' +
+            '</td>' +
+        '</tr>';
+    }).join('');
+    filterHsRecommendations();
+}
+
+function fetchHsRecommendations(useQuery) {
+    var q = document.getElementById('hs-rec-search').value.trim();
+    var url = "{% url 'computation:hs_suggestions' shipment.id %}";
+    if (useQuery && q) url += '?q=' + encodeURIComponent(q);
+    fetch(url, { credentials: 'same-origin' })
+        .then(function(resp) { return resp.json(); })
+        .then(renderHsRecommendations)
+        .catch(function() {
+            document.getElementById('hs-rec-body').innerHTML =
+                '<tr><td colspan="5" style="padding:12px; color:#ef4444;">Could not load recommendations.</td></tr>';
+        });
+}
+
+function filterHsRecommendations() {
+    var q = document.getElementById('hs-rec-search').value.trim().toLowerCase();
+    document.querySelectorAll('#hs-rec-body tr[data-search]').forEach(function(row) {
+        row.style.display = !q || row.dataset.search.indexOf(q) >= 0 ? '' : 'none';
+    });
+}
+
+function confirmHsRecommendation(btn, id, code) {
+    fetch("{% url 'computation:confirm_hs_code' shipment.id %}", {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+        body: JSON.stringify({id: id, code: code})
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        if (!data.ok) throw new Error(data.error || 'Could not confirm HS code.');
+        var row = btn.closest('tr');
+        row.classList.add('hs-row-confirmed');
+        btn.textContent = 'Confirmed';
+        btn.disabled = true;
+    })
+    .catch(function(err) { alert(err.message); });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    fetchHsRecommendations(false);
+});
+
 var _ocrTimer = null;
 
 function startOCR(url, docLabel) {

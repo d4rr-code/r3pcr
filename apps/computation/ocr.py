@@ -15,6 +15,14 @@ def _w(value, conf=0.85):
     return {'value': '', 'confidence': 0.0}
 
 
+def assess_quality(text):
+    if not text or len(text.strip()) < 100:
+        return "poor"
+    elif len(text.strip()) < 300:
+        return "low"
+    return "good"
+
+
 def _clean_text(value):
     return ' '.join(str(value or '').replace('\n', ' ').split())
 
@@ -831,8 +839,9 @@ def extract_fields_from_packing_list(text):
 
 def process_document(file_path, document_type):
     text = extract_text_from_file(file_path)
+    quality = assess_quality(text)
     if not text:
-        return None, "Could not extract text from document"
+        return {}, "Could not extract text from document", quality
 
     if document_type == 'invoice':
         fields = extract_fields_from_invoice(text)
@@ -843,4 +852,4 @@ def process_document(file_path, document_type):
     else:
         fields = {}
 
-    return fields, text
+    return fields, text, quality

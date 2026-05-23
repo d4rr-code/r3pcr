@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Q, Count
 from django.utils import timezone
+from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, HSCode, ShipmentHSCode, StatusLog
 from apps.supervisor.models import SystemConfig
 from apps.notifications.utils import notify_shipment_status_change
@@ -63,6 +64,14 @@ def apply_transport_charges(charge_mode, arrastre, wharfage, gross_weight=0, vol
         return round(arrastre * revenue_ton, 2), round(wharfage * revenue_ton, 2), revenue_ton
 
     return arrastre, wharfage, revenue_ton
+
+
+def _store_document_ocr(doc, fields, raw_text, quality):
+    doc.ocr_text = raw_text or ''
+    doc.ocr_fields_json = json.dumps(fields or {}, default=str)
+    doc.ocr_quality = quality
+    doc.ocr_ran_at = timezone.now()
+    doc.save(update_fields=['ocr_text', 'ocr_fields_json', 'ocr_quality', 'ocr_ran_at'])
 
 
 # ─── Per-Item ECDT Formula ────────────────────────────────────────────────────
@@ -249,7 +258,8 @@ def ocr_extract(request, shipment_id, doc_id):
             tmp_path = tmp.name
         try:
             print(f'[OCR] Starting: {doc.file.name} | type={doc.document_type}')
-            fields, raw_text = process_document(tmp_path, doc.document_type)
+            fields, raw_text, quality = process_document(tmp_path, doc.document_type)
+            _store_document_ocr(doc, fields, raw_text, quality)
             print(f'[OCR] Raw text length: {len(raw_text) if raw_text else 0} chars')
             print(f'[OCR] Fields returned: {list(fields.keys()) if fields else None}')
 
@@ -312,7 +322,8 @@ def ocr_extract_all(request, shipment_id):
                 pass
             try:
                 print(f'[OCR-ALL] Processing {doc_type}: {doc.file.name}')
-                fields, raw_text = process_document(tmp_path, doc_type)
+                fields, raw_text, quality = process_document(tmp_path, doc_type)
+                _store_document_ocr(doc, fields, raw_text, quality)
                 if fields:
                     items = fields.pop('__items__', [])
                     results[doc_type] = {'fields': fields, 'items': items}
@@ -1064,6 +1075,120 @@ def suggest_hs_codes(text, top_n=5):
 
 
 # ─── HS Code Suggest (AJAX) ───────────────────────────────────────────────────
+
+def _hs_payload(hs, source):
+    return {
+        'id': hs.id,
+        'code': hs.code,
+        'description': hs.description,
+        'duty_rate': float(hs.duty_rate),
+        'source': source,
+    }
+
+
+def _invoice_ocr_description(shipment):
+    doc = shipment.documents.filter(document_type='invoice', ocr_ran_at__isnull=False).order_by('-ocr_ran_at').first()
+    if not doc:
+        return '', ''
+
+    description_parts = []
+    if doc.ocr_fields_json:
+        try:
+            fields = json.loads(doc.ocr_fields_json)
+        except (TypeError, ValueError):
+            fields = {}
+        desc = fields.get('description')
+        if isinstance(desc, dict) and desc.get('value'):
+            description_parts.append(str(desc['value']))
+        items = fields.get('__items__')
+        if isinstance(items, list):
+            for item in items:
+                if item.get('description'):
+                    description_parts.append(str(item['description']))
+    return ' '.join(description_parts).strip(), doc.ocr_text or ''
+
+
+@login_required
+def hs_suggestions(request, shipment_id):
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    if request.user.role != 'declarant' or shipment.declarant != request.user:
+        return JsonResponse({'error': 'Access denied.'}, status=403)
+
+    q = request.GET.get('q', '').strip()
+    if q:
+        results = HSCode.objects.filter(
+            Q(code__icontains=q) | Q(description__icontains=q),
+            is_active=True,
+        )[:10]
+        return JsonResponse([_hs_payload(hs, 'suggested') for hs in results], safe=False)
+
+    description, raw_text = _invoice_ocr_description(shipment)
+    rows = []
+    seen = set()
+
+    direct_codes = re.findall(r'\b\d{4}(?:\.\d{2}){1,3}\b|\b\d{6,10}\b', raw_text or '')
+    for code in direct_codes:
+        hs = HSCode.objects.filter(Q(code=code) | Q(code__icontains=code), is_active=True).first()
+        if hs and hs.id not in seen:
+            rows.append(_hs_payload(hs, 'document'))
+            seen.add(hs.id)
+        if len(rows) >= 5:
+            return JsonResponse(rows, safe=False)
+
+    words = [
+        word for word in re.findall(r'[A-Za-z]{3,}', description.lower())
+        if word not in _HS_STOPWORDS
+    ]
+    scored = {}
+    for word in words:
+        for hs in HSCode.objects.filter(description__icontains=word, is_active=True)[:80]:
+            scored.setdefault(hs.id, [hs, 0])
+            scored[hs.id][1] += 1
+
+    for hs, _score in sorted(scored.values(), key=lambda item: item[1], reverse=True):
+        if hs.id in seen:
+            continue
+        rows.append(_hs_payload(hs, 'suggested'))
+        seen.add(hs.id)
+        if len(rows) >= 5:
+            break
+
+    return JsonResponse(rows, safe=False)
+
+
+@login_required
+def confirm_hs_code(request, shipment_id):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST required.'}, status=405)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    if request.user.role != 'declarant' or shipment.declarant != request.user:
+        return JsonResponse({'ok': False, 'error': 'Access denied.'}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except (TypeError, ValueError):
+        payload = request.POST
+    hs_code_value = str(payload.get('code') or '').strip()
+    hs_code_id = payload.get('id')
+    hs_qs = HSCode.objects.filter(is_active=True)
+    hs = hs_qs.filter(id=hs_code_id).first() if hs_code_id else None
+    if not hs and hs_code_value:
+        hs = hs_qs.filter(code=hs_code_value).first()
+    if not hs:
+        return JsonResponse({'ok': False, 'error': 'HS code not found.'}, status=404)
+
+    rel, _created = ShipmentHSCode.objects.get_or_create(
+        shipment=shipment,
+        hs_code=hs,
+        defaults={'is_suggested': True, 'is_confirmed': True},
+    )
+    if not rel.is_confirmed:
+        rel.is_confirmed = True
+        rel.is_suggested = True
+        rel.save(update_fields=['is_confirmed', 'is_suggested'])
+    return JsonResponse({'ok': True})
+
 
 @login_required
 def hs_code_suggest(request):

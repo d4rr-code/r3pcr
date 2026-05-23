@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
+from apps.shipments.status_progress import build_status_progress
 from apps.notifications.utils import create_notification, notify_incoming_shipment
 from .models import Feedback
 
@@ -253,6 +254,7 @@ def shipment_detail(request, shipment_id):
         'declared_score':    declared_score,
         'declared_breakdown': declared_breakdown,
         'declared_rating':   declared_rating,
+        'status_steps':      build_status_progress(shipment.status, 'consignee'),
     }
     return render(request, 'consignee/shipment_detail.html', context)
 

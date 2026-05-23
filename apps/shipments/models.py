@@ -156,6 +156,10 @@ class ShipmentDocument(models.Model):
     )
     file = models.FileField(upload_to='shipment_documents/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    ocr_text = models.TextField(blank=True, null=True)
+    ocr_fields_json = models.TextField(blank=True, null=True)
+    ocr_quality = models.CharField(max_length=10, blank=True, null=True)
+    ocr_ran_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.document_type} - {self.shipment.hawb_number}"
