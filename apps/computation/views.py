@@ -1,12 +1,14 @@
 import json
 import os
+import re
 import tempfile
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import HttpResponse
-from apps.shipments.models import Shipment, ShipmentDocument, HSCode
+from django.http import HttpResponse, JsonResponse
+from django.db.models import Q, Count
+from apps.shipments.models import Shipment, ShipmentDocument, HSCode, ShipmentHSCode
 from apps.supervisor.models import SystemConfig
 from .models import DutyComputation, ShippingAdvisory
 from .ocr import process_document
@@ -632,6 +634,30 @@ def compute_shipment(request, shipment_id):
     ocr_fields = request.session.get('ocr_fields', {}) if request.session.get('ocr_shipment_id') == shipment_id else {}
     ocr_items  = request.session.get('ocr_items',  []) if request.session.get('ocr_shipment_id') == shipment_id else []
 
+    # ── HS Code Suggestions (rule-based + historical) ──────────────────────────
+    # Collect the richest available description text in priority order:
+    # 1. shipment.description, 2. OCR item descriptions, 3. saved item descriptions
+    hs_suggestions = []
+    _suggest_parts = []
+    if shipment.description:
+        _suggest_parts.append(shipment.description)
+    for _it in (ocr_items or [])[:3]:
+        if _it.get('description'):
+            _suggest_parts.append(_it['description'])
+    if not _suggest_parts and existing:
+        for _it in (existing.get_items() or [])[:3]:
+            if _it.get('description'):
+                _suggest_parts.append(_it['description'])
+    _combined = ' '.join(_suggest_parts).strip()
+    if _combined:
+        hs_suggestions = suggest_hs_codes(_combined, top_n=5)
+        # Persist as is_suggested records for tracking & historical learning
+        for _hs in hs_suggestions:
+            ShipmentHSCode.objects.get_or_create(
+                shipment=shipment, hs_code=_hs,
+                defaults={'is_suggested': True, 'is_confirmed': False}
+            )
+
     # ── Declared mode focused breakdown ──────────────────────────────────────────
     declared_score     = None
     declared_breakdown = None
@@ -669,6 +695,7 @@ def compute_shipment(request, shipment_id):
         'declared_score':     declared_score,
         'declared_breakdown': declared_breakdown,
         'declared_rating':    declared_rating,
+        'hs_suggestions':     hs_suggestions,
     }
     return render(request, 'computation/compute.html', context)
 
@@ -917,6 +944,90 @@ def download_computation(request, shipment_id):
     )
     wb.save(response)
     return response
+
+
+# ─── HS Code Suggestion Engine ───────────────────────────────────────────────
+
+_HS_STOPWORDS = {
+    'the','and','for','with','from','this','that','are','all','per',
+    'each','pcs','set','unit','nos','lot','item','items','qty','piece',
+    'pieces','new','used','other','various','type','types','model','grade',
+    'size','kind','made','part','parts','product','products','goods',
+}
+
+def suggest_hs_codes(text, top_n=5):
+    """
+    Two-layer HS code recommendation engine.
+
+    Layer 1 (Rule-based): keyword overlap between the input text and every
+    active HSCode.description in the database. Each matching keyword adds +1
+    to the score.
+
+    Layer 2 (Historical): previously confirmed ShipmentHSCode assignments
+    each contribute +0.5 to the score for that HS code, so codes the
+    declarants have confirmed before rise to the top over time.
+
+    Returns up to top_n HSCode objects, ranked highest first.
+    """
+    if not text or not text.strip():
+        return []
+
+    keywords = [
+        w for w in re.findall(r'[a-zA-Z]{3,}', text.lower())
+        if w not in _HS_STOPWORDS
+    ]
+    if not keywords:
+        return []
+
+    # Layer 1 — keyword overlap
+    scored = []
+    for hs in HSCode.objects.filter(is_active=True):
+        hs_words = set(re.findall(r'[a-zA-Z]{3,}', hs.description.lower()))
+        hits = sum(1 for kw in keywords if kw in hs_words)
+        if hits > 0:
+            scored.append([hs, float(hits)])
+
+    if not scored:
+        return []
+
+    # Layer 2 — historical boost from confirmed past assignments
+    hist = dict(
+        ShipmentHSCode.objects
+        .filter(is_confirmed=True)
+        .values('hs_code_id')
+        .annotate(n=Count('id'))
+        .values_list('hs_code_id', 'n')
+    )
+    if hist:
+        for entry in scored:
+            entry[1] += hist.get(entry[0].id, 0) * 0.5
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return [hs for hs, _ in scored[:top_n]]
+
+
+# ─── HS Code Suggest (AJAX) ───────────────────────────────────────────────────
+
+@login_required
+def hs_code_suggest(request):
+    """
+    AJAX endpoint for per-row live suggestions.
+    GET ?q=<description_text>&limit=<n>
+    Returns JSON: { suggestions: [{id, code, desc, rate, chapter}, ...] }
+    """
+    q     = request.GET.get('q', '').strip()
+    limit = min(int(request.GET.get('limit', 5) or 5), 10)
+    data  = [
+        {
+            'id':      hs.id,
+            'code':    hs.code,
+            'desc':    hs.description[:80],
+            'rate':    float(hs.duty_rate),
+            'chapter': hs.chapter or '',
+        }
+        for hs in suggest_hs_codes(q, top_n=limit)
+    ]
+    return JsonResponse({'suggestions': data})
 
 
 # ─── HS Code Search ───────────────────────────────────────────────────────────

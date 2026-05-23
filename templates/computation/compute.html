@@ -268,6 +268,33 @@
     position: sticky;
     top: 0;
 }
+/* ── HS Suggestion Chips ─────────────────────────────────────────────────── */
+.hs-suggestion-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: #0f172a;
+    border: 1px solid #1e3a5f;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    max-width: 360px;
+}
+.hs-suggestion-chip:hover { border-color: #3b82f6; background: #0d1929; }
+.row-hs-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 500;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    padding: 6px 8px;
+    margin-top: 2px;
+}
 /* ── Summary two-col layout ──────────────────────────────────────────────── */
 .ecdt-summary-grid {
     display: grid;
@@ -792,6 +819,47 @@
     </div>
 </div>
 
+<!-- ── HS Code Suggestions (auto-generated from description) ──────── -->
+{% if hs_suggestions %}
+<div class="card" style="margin-bottom:14px; padding:12px 14px;" id="hs-suggestion-panel">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <div>
+            <p class="card-title" style="margin:0 0 2px; font-size:12px;">
+                💡 Suggested HS Codes
+                <span style="color:#475569; font-size:10px; font-weight:400; margin-left:6px;">
+                    — based on shipment description
+                </span>
+            </p>
+            <p style="color:#475569; font-size:10px; margin:0;">
+                Click a chip to apply it to the next empty HS Code cell in the table
+            </p>
+        </div>
+        <button type="button"
+                onclick="document.getElementById('hs-suggestion-panel').style.display='none'"
+                style="background:none; border:none; color:#475569; cursor:pointer;
+                       font-size:16px; padding:2px 4px; line-height:1;" title="Dismiss">✕</button>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        {% for hs in hs_suggestions %}
+        <div class="hs-suggestion-chip"
+             onclick="applyHsSuggestionToNextEmpty({{ hs.id }}, '{{ hs.code|escapejs }}', {{ hs.duty_rate }})"
+             title="{{ hs.description }}">
+            <span style="font-size:11px; font-weight:700; color:#3b82f6; white-space:nowrap;">{{ hs.code }}</span>
+            <span style="font-size:10px; color:#94a3b8; overflow:hidden; text-overflow:ellipsis;
+                         white-space:nowrap; max-width:180px;">{{ hs.description|truncatechars:48 }}</span>
+            <span style="font-size:10px; font-weight:700; color:#f59e0b; background:#422006;
+                         padding:1px 5px; border-radius:4px; white-space:nowrap;
+                         flex-shrink:0;">{{ hs.duty_rate }}%</span>
+        </div>
+        {% endfor %}
+    </div>
+    <p style="color:#334155; font-size:9px; margin:8px 0 0;">
+        Scores computed from keyword matching against AHTN 2022 tariff descriptions
+        + historical confirmation frequency. Declarant must verify before computing.
+    </p>
+</div>
+{% endif %}
+
 <!-- ── ECDT Line Items Table (Excel CDT column order) ─────────────── -->
 <div class="card" style="margin-bottom:14px; padding:0; overflow:hidden;">
     <div style="padding:10px 14px; background:#0f172a; border-bottom:1px solid #1e293b;
@@ -849,9 +917,11 @@
                 {% for item in items %}
                 <tr>
                     <td style="color:#64748b; font-size:11px;">{{ item.no }}</td>
-                    <td>
-                        <input class="ecdt-input" type="text" name="description[]"
-                               value="{{ item.description }}" placeholder="Item...">
+                    <td style="position:relative;">
+                        <input class="ecdt-input desc-input" type="text" name="description[]"
+                               value="{{ item.description }}" placeholder="Item..."
+                               onblur="fetchRowSuggestions(this)">
+                        <div class="row-hs-suggestions" style="display:none;"></div>
                     </td>
                     <td>
                         <input class="ecdt-input exw-input" type="number" name="exw_value[]"
@@ -908,7 +978,11 @@
                 {% else %}
                 <tr>
                     <td style="color:#64748b; font-size:11px;">1</td>
-                    <td><input class="ecdt-input" type="text" name="description[]" placeholder="Item..."></td>
+                    <td style="position:relative;">
+                        <input class="ecdt-input desc-input" type="text" name="description[]"
+                               placeholder="Item..." onblur="fetchRowSuggestions(this)">
+                        <div class="row-hs-suggestions" style="display:none;"></div>
+                    </td>
                     <td><input class="ecdt-input exw-input" type="number" name="exw_value[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
                     <td><input class="ecdt-input freight-input" type="number" name="item_freight[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
                     <td><input class="ecdt-input freight-input" type="number" name="item_insurance[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
@@ -1728,8 +1802,12 @@ function _makeRow(n, desc, exw, qty) {
     var tr = document.createElement('tr');
     tr.innerHTML =
         '<td style="color:#64748b;font-size:11px;">' + n + '</td>' +
-        '<td><input class="ecdt-input" type="text" name="description[]" ' +
-             'value="' + (desc||'').replace(/"/g,'&quot;') + '" placeholder="Item..."></td>' +
+        '<td style="position:relative;">' +
+            '<input class="ecdt-input desc-input" type="text" name="description[]" ' +
+                'value="' + (desc||'').replace(/"/g,'&quot;') + '" placeholder="Item..." ' +
+                'onblur="fetchRowSuggestions(this)">' +
+            '<div class="row-hs-suggestions" style="display:none;"></div>' +
+        '</td>' +
         '<td><input class="ecdt-input exw-input" type="number" name="exw_value[]" ' +
              'step="0.01" value="' + (exw||'') + '" placeholder="0.00" oninput="recalcAll()"></td>' +
         '<td><input class="ecdt-input freight-input" type="number" name="item_freight[]" ' +
@@ -2044,6 +2122,101 @@ function onContainerTypeChange(type) {
 
 // ── Recalc when exchange rate changes ─────────────────────────────────────────
 document.getElementById('exchange_rate').addEventListener('input', recalcAll);
+
+// ── HS Suggestion helpers ─────────────────────────────────────────────────────
+
+/**
+ * Apply a shipment-level suggestion chip to the first empty HS picker in the table.
+ * If all rows already have an HS code, applies to the last row.
+ */
+function applyHsSuggestionToNextEmpty(id, code, rate) {
+    var pickers = document.querySelectorAll('#ecdt-body .hs-picker');
+    var target  = null;
+    for (var i = 0; i < pickers.length; i++) {
+        var hid = pickers[i].querySelector('input[name="hs_code_id[]"]');
+        if (hid && !hid.value) { target = pickers[i]; break; }
+    }
+    if (!target && pickers.length > 0) target = pickers[pickers.length - 1];
+    if (target) _selectHsItem(target, String(id), code, rate);
+}
+
+/**
+ * Called onblur from a description input.
+ * Fetches the top-3 suggestions for that row's description via AJAX
+ * and renders them as mini chips under the cell.
+ * Skips if the row already has an HS code selected.
+ */
+function fetchRowSuggestions(descInput) {
+    var q = (descInput.value || '').trim();
+    if (q.length < 4) return;
+
+    var td         = descInput.parentElement;
+    var suggestDiv = td.querySelector('.row-hs-suggestions');
+    if (!suggestDiv) return;
+
+    // Skip if the row already has an HS code
+    var tr = td.closest('tr');
+    if (tr) {
+        var hid = tr.querySelector('input[name="hs_code_id[]"]');
+        if (hid && hid.value) return;
+    }
+
+    fetch('/computation/hs-suggest/?q=' + encodeURIComponent(q) + '&limit=3', {
+        credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.suggestions || !data.suggestions.length) return;
+
+        var html = '<p style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;' +
+                   'letter-spacing:0.5px;margin:0 0 5px;">💡 Suggestions</p>';
+        data.suggestions.forEach(function(s) {
+            html += '<div class="hs-suggestion-chip" style="margin-bottom:4px;width:100%;max-width:100%;" ' +
+                    'onmousedown="event.preventDefault();applyRowSuggestion(this,' +
+                        s.id + ',\'' + s.code.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',' + s.rate + ')">' +
+                    '<span style="font-size:10px;font-weight:700;color:#3b82f6;white-space:nowrap;">' + s.code + '</span>' +
+                    '<span style="font-size:9px;color:#94a3b8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + s.desc + '</span>' +
+                    '<span style="font-size:9px;font-weight:700;color:#f59e0b;background:#422006;padding:1px 4px;border-radius:3px;flex-shrink:0;">' + s.rate + '%</span>' +
+                    '</div>';
+        });
+
+        suggestDiv.innerHTML = html;
+        suggestDiv.style.display = 'block';
+
+        // Close on outside click
+        setTimeout(function() {
+            function closeSug(e) {
+                if (!td.contains(e.target)) {
+                    suggestDiv.style.display = 'none';
+                    document.removeEventListener('click', closeSug);
+                }
+            }
+            document.addEventListener('click', closeSug);
+        }, 100);
+    })
+    .catch(function() {}); // silently swallow errors
+}
+
+/** Apply a per-row suggestion chip, then hide the row suggestions. */
+function applyRowSuggestion(chip, id, code, rate) {
+    var td         = chip.closest('td');
+    var suggestDiv = td ? td.querySelector('.row-hs-suggestions') : null;
+    if (suggestDiv) suggestDiv.style.display = 'none';
+    var tr = td ? td.closest('tr') : null;
+    if (tr) {
+        var picker = tr.querySelector('.hs-picker');
+        if (picker) _selectHsItem(picker, String(id), code, rate);
+    }
+}
+
+// Trigger per-row suggestions for any pre-filled description rows (e.g. from OCR)
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('#ecdt-body .desc-input').forEach(function(inp) {
+        if (inp.value && inp.value.trim().length >= 4) {
+            fetchRowSuggestions(inp);
+        }
+    });
+});
 
 // Initial calc + init HS pickers
 recalcAll();
