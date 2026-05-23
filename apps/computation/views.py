@@ -2,6 +2,7 @@ import json
 import os
 import re
 import tempfile
+import threading
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -289,97 +290,58 @@ def ocr_extract(request, shipment_id, doc_id):
 
 @login_required
 def ocr_extract_all(request, shipment_id):
-    """Run OCR on every invoice/airway_bill/packing_list document at once,
-    then merge results into a single unified field set stored in the session."""
+    """Run OCR on every invoice/airway_bill/packing_list document at once.
+    Starts in a background thread and redirects immediately so the page
+    doesn't block. The process page auto-refreshes until results appear."""
     shipment = get_object_or_404(Shipment, id=shipment_id)
 
     if request.user.role != 'declarant' or shipment.declarant != request.user:
         messages.error(request, 'Access denied.')
         return redirect('declarant:queue')
 
-    documents = shipment.documents.filter(
+    documents = list(shipment.documents.filter(
         document_type__in=['invoice', 'airway_bill', 'packing_list']
-    )
-    if not documents.exists():
+    ))
+    if not documents:
         request.session['ocr_toast'] = ('warning', 'No supported documents uploaded yet.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
-    results  = {}   # { doc_type: { 'fields': {...}, 'items': [...] } }
-    failed   = []
-    n_fields = 0
-
-    for doc in documents:
-        doc_type = doc.document_type
-        # If multiple docs of same type, last one wins (edge case)
-        try:
-            ext = os.path.splitext(doc.file.name)[1] or '.pdf'
-            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-                doc.file.open('rb')
-                tmp.write(doc.file.read())
-                doc.file.close()
-                tmp_path = tmp.name
-            if False:
-                pass
+    def _run_all(docs):
+        for doc in docs:
+            doc_type = doc.document_type
             try:
-                print(f'[OCR-ALL] Processing {doc_type}: {doc.file.name}')
-                fields, raw_text, quality = process_document(tmp_path, doc_type)
-                _store_document_ocr(doc, fields, raw_text, quality)
-                if fields:
-                    items = fields.pop('__items__', [])
-                    results[doc_type] = {'fields': fields, 'items': items}
-                    found = sum(1 for v in fields.values()
+                ext = os.path.splitext(doc.file.name)[1] or '.pdf'
+                with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                    doc.file.open('rb')
+                    tmp.write(doc.file.read())
+                    doc.file.close()
+                    tmp_path = tmp.name
+                try:
+                    print(f'[OCR-ALL] Processing {doc_type}: {doc.file.name}')
+                    fields, raw_text, quality = process_document(tmp_path, doc_type)
+                    _store_document_ocr(doc, fields, raw_text, quality)
+                    found = sum(1 for v in (fields or {}).values()
                                 if isinstance(v, dict) and v.get('value'))
-                    n_fields += found
-                    print(f'[OCR-ALL] {doc_type}: {found} fields, {len(items)} items')
-                else:
-                    print(f'[OCR-ALL] {doc_type}: no fields extracted')
-            finally:
-                os.unlink(tmp_path)
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            failed.append(_DOC_LABEL.get(doc_type, doc_type))
-            print(f'[OCR-ALL] Failed on {doc_type}: {e}')
+                    print(f'[OCR-ALL] {doc_type}: quality={quality}, {found} fields, '
+                          f'{len(raw_text or "")} chars')
+                finally:
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                print(f'[OCR-ALL] Failed on {doc_type}: {e}')
 
-    if results:
-        merged = merge_ocr_results(results)
+    t = threading.Thread(target=_run_all, args=(documents,), daemon=True)
+    t.start()
 
-        # Best items list: invoice first, packing list as fallback
-        best_items = (
-            results.get('invoice',      {}).get('items') or
-            results.get('packing_list', {}).get('items') or
-            []
-        )
-
-        # Persist in session
-        request.session['ocr_results']     = results          # per-doc (for debugging / future use)
-        request.session['ocr_merged']      = merged           # merged with source tags
-        request.session['ocr_fields']      = merged           # backward-compat key used by compute page
-        request.session['ocr_items']       = best_items
-        request.session['ocr_shipment_id'] = shipment_id
-
-        n_docs  = len(results)
-        n_items = len(best_items)
-        msg = (
-            f'OCR complete — {n_docs} document{"s" if n_docs != 1 else ""} scanned, '
-            f'{n_fields} field{"s" if n_fields != 1 else ""} extracted'
-        )
-        if n_items:
-            msg += f', {n_items} line item{"s" if n_items != 1 else ""} detected'
-        if failed:
-            msg += f'. Could not read: {", ".join(failed)}'
-        request.session['ocr_toast'] = ('success', msg)
-    else:
-        request.session['ocr_toast'] = (
-            'warning',
-            'OCR ran but could not extract any fields. '
-            'Check document quality or fill in values manually.'
-        )
-
-    # Redirect back to process page (default) or compute page
-    next_page = request.GET.get('next', 'process')
-    if next_page == 'compute':
-        return redirect(f'/computation/compute/{shipment_id}/?ocr=1')
+    request.session['ocr_toast'] = (
+        'info',
+        f'Scanning {len(documents)} document{"s" if len(documents) != 1 else ""}… '
+        'Results will appear automatically in a few seconds.'
+    )
     return redirect('declarant:process', shipment_id=shipment_id)
 
 

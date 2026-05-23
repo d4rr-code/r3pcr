@@ -219,12 +219,12 @@
 
 {% if ocr_toast %}
 <div style="position:fixed; top:16px; right:16px; z-index:9999; max-width:380px;
-            background:{% if ocr_toast.0 == 'success' %}#052e16{% elif ocr_toast.0 == 'warning' %}#2d1b00{% else %}#2d0a0a{% endif %};
-            border:1px solid {% if ocr_toast.0 == 'success' %}#22c55e{% elif ocr_toast.0 == 'warning' %}#f59e0b{% else %}#ef4444{% endif %};
+            background:{% if ocr_toast.0 == 'success' %}#052e16{% elif ocr_toast.0 == 'warning' %}#2d1b00{% elif ocr_toast.0 == 'info' %}#0c1a2e{% else %}#2d0a0a{% endif %};
+            border:1px solid {% if ocr_toast.0 == 'success' %}#22c55e{% elif ocr_toast.0 == 'warning' %}#f59e0b{% elif ocr_toast.0 == 'info' %}#3b82f6{% else %}#ef4444{% endif %};
             border-radius:8px; padding:12px 16px; display:flex; align-items:flex-start; gap:10px;"
      id="ocr-toast">
     <span style="font-size:16px; flex-shrink:0;">
-        {% if ocr_toast.0 == 'success' %}✅{% elif ocr_toast.0 == 'warning' %}⚠️{% else %}❌{% endif %}
+        {% if ocr_toast.0 == 'success' %}✅{% elif ocr_toast.0 == 'warning' %}⚠️{% elif ocr_toast.0 == 'info' %}🔄{% else %}❌{% endif %}
     </span>
     <p style="color:#f1f5f9; font-size:13px; margin:0; line-height:1.4;">{{ ocr_toast.1 }}</p>
     <button onclick="document.getElementById('ocr-toast').remove()"

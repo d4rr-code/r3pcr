@@ -1,5 +1,5 @@
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 from pdf2image import convert_from_path
 import re
 import os
@@ -16,9 +16,14 @@ def _w(value, conf=0.85):
 
 
 def assess_quality(text):
-    if not text or len(text.strip()) < 100:
+    if not text:
         return "poor"
-    elif len(text.strip()) < 300:
+    cleaned = text.strip()
+    alnum_count = len(re.findall(r'[A-Za-z0-9]', cleaned))
+    word_count = len(re.findall(r'[A-Za-z]{3,}', cleaned))
+    if len(cleaned) < 100 or alnum_count < 50 or word_count < 8:
+        return "poor"
+    elif len(cleaned) < 300 or word_count < 30:
         return "low"
     return "good"
 
@@ -81,6 +86,100 @@ def _vision_api_call(api_key, image_bytes):
     except Exception as e:
         print(f"Vision API request error: {e}")
         return ''
+
+
+def _preprocess_image_for_ocr(image):
+    """
+    Normalize scanned document images before Tesseract.
+    Upscaling, grayscale, autocontrast, light sharpening and thresholding help
+    the common phone-scan cases: faint text, shadows, and low resolution.
+    """
+    image = image.convert('RGB')
+    max_side = max(image.size)
+    if max_side < 2200:
+        scale = 2200 / max_side
+        image = image.resize(
+            (int(image.width * scale), int(image.height * scale)),
+            Image.Resampling.LANCZOS,
+        )
+    gray = ImageOps.grayscale(image)
+    gray = ImageOps.autocontrast(gray)
+    gray = ImageEnhance.Contrast(gray).enhance(1.6)
+    gray = gray.filter(ImageFilter.SHARPEN)
+    threshold = 180
+    return gray.point(lambda px: 255 if px > threshold else 0, mode='1')
+
+
+def _tesseract_confidence(image, config):
+    try:
+        data = pytesseract.image_to_data(
+            image,
+            config=config,
+            output_type=pytesseract.Output.DICT,
+        )
+        confs = []
+        for value in data.get('conf', []):
+            try:
+                score = float(value)
+            except (TypeError, ValueError):
+                continue
+            if score >= 0:
+                confs.append(score)
+        if confs:
+            return sum(confs) / len(confs)
+    except Exception as e:
+        print(f"[OCR] Tesseract confidence check failed: {e}")
+    return 0
+
+
+def _tesseract_image_to_text(image):
+    original = image.convert('RGB')
+    processed = _preprocess_image_for_ocr(original)
+    variants = [
+        ('processed-psm6', processed, '--psm 6'),
+        ('processed-psm4', processed, '--psm 4'),
+        ('processed-psm3', processed, '--psm 3'),
+        ('original-psm3', original, '--psm 3'),
+    ]
+    best_text = ''
+    best_score = -1
+    for label, candidate, config in variants:
+        try:
+            text = pytesseract.image_to_string(candidate, config=config)
+            confidence = _tesseract_confidence(candidate, config)
+            useful_chars = len(re.findall(r'[A-Za-z0-9]', text or ''))
+            score = useful_chars + confidence * 4
+            print(f"[OCR] Tesseract {label}: {len(text or '')} chars, conf {confidence:.1f}")
+            if score > best_score:
+                best_score = score
+                best_text = text or ''
+        except Exception as e:
+            print(f"[OCR] Tesseract {label} failed: {e}")
+    try:
+        processed.close()
+    except Exception:
+        pass
+    try:
+        original.close()
+    except Exception:
+        pass
+    return best_text
+
+
+def _image_to_text(image, api_key=''):
+    if api_key:
+        try:
+            buf = io.BytesIO()
+            image.convert('RGB').save(buf, format='JPEG', quality=92)
+            vision_text = _vision_api_call(api_key, buf.getvalue())
+            buf.close()
+            if assess_quality(vision_text) != 'poor':
+                print(f"[OCR] Vision accepted: {len(vision_text)} chars")
+                return vision_text
+            print("[OCR] Vision output poor/empty; falling back to Tesseract")
+        except Exception as e:
+            print(f"[OCR] Vision path failed; falling back to Tesseract: {e}")
+    return _tesseract_image_to_text(image)
 
 
 def _extract_text_from_pdf_direct(file_path):
@@ -160,13 +259,15 @@ def extract_text_from_file(file_path):
                         buf.close()
                     else:
                         # ── Tesseract fallback ──────────────────────────────
-                        # --psm 3 : fully automatic page segmentation (best for
-                        #           complex documents with tables and columns)
-                        # --oem 1 : LSTM engine only
+                        # --psm 3 : fully automatic page segmentation — handles
+                        #           tables, columns and mixed layouts correctly
+                        # No --oem flag: use default engine (OEM 3) which tries
+                        #   LSTM then falls back to legacy for compatibility
+                        # No timeout: let Tesseract finish naturally; killing it
+                        #   early causes empty results
                         page_text = pytesseract.image_to_string(
                             image,
-                            config='--psm 3 --oem 1',
-                            timeout=30,
+                            config='--psm 3',
                         )
                         print(f"[OCR] Tesseract page {page_num}: {len(page_text)} chars")
                         full_text += page_text
@@ -188,11 +289,7 @@ def extract_text_from_file(file_path):
                     return _vision_api_call(api_key, f.read())
             else:
                 image = Image.open(file_path)
-                text = pytesseract.image_to_string(
-                    image,
-                    config='--psm 3 --oem 1',
-                    timeout=30,
-                )
+                text = pytesseract.image_to_string(image, config='--psm 3')
                 image.close()
                 return text
         else:
