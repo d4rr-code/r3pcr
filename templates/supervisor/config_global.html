@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Global Parameters{% endblock %}
+{% block page_title %}Global Parameters{% endblock %}
+{% block content %}
+
+<!-- Breadcrumb -->
+<p style="color:#64748b; font-size:13px; margin-bottom:24px;">
+    <a href="{% url 'supervisor:config' %}" style="color:#3b82f6; text-decoration:none;">System Config</a>
+    <span style="margin:0 8px;">›</span>
+    <span style="color:#94a3b8;">Global Parameters</span>
+</p>
+
+<div style="max-width:520px;">
+    <div class="card" style="padding:32px;">
+
+        <p style="color:#94a3b8; font-size:13px; margin:0 0 28px; line-height:1.6;">
+            These values are used in all duty computations across every shipment.
+            Changes take effect immediately on the next computation.
+        </p>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <!-- Exchange Rate -->
+            <div style="margin-bottom:24px;">
+                <label style="display:block; color:#f1f5f9; font-size:14px; font-weight:600; margin-bottom:8px;">
+                    Exchange Rate
+                    <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:6px;">USD → PHP</span>
+                </label>
+                <div style="position:relative;">
+                    <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%);
+                                 color:#64748b; font-size:14px; pointer-events:none;">₱</span>
+                    <input type="number" name="exchange_rate" step="0.0001" min="1" max="999.9999"
+                           value="{{ config.exchange_rate }}"
+                           class="form-input" style="padding-left:32px;"
+                           required>
+                </div>
+                {% if config_meta.exchange_rate %}
+                <p style="color:#475569; font-size:11px; margin:6px 0 0;">
+                    Last updated
+                    {% if config_meta.exchange_rate.updated_by %}
+                        by <span style="color:#64748b;">{{ config_meta.exchange_rate.updated_by.username }}</span>
+                    {% endif %}
+                    {% if config_meta.exchange_rate.updated_at %}
+                        on <span style="color:#64748b;">{{ config_meta.exchange_rate.updated_at|date:"M d, Y H:i" }}</span>
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- VAT Rate -->
+            <div style="margin-bottom:32px;">
+                <label style="display:block; color:#f1f5f9; font-size:14px; font-weight:600; margin-bottom:8px;">
+                    VAT Rate
+                    <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:6px;">applied to dutiable value</span>
+                </label>
+                <div style="position:relative;">
+                    <input type="number" name="vat_rate" step="0.01" min="0" max="100"
+                           value="{{ config.vat_rate }}"
+                           class="form-input" style="padding-right:36px;"
+                           required>
+                    <span style="position:absolute; right:14px; top:50%; transform:translateY(-50%);
+                                 color:#64748b; font-size:14px; pointer-events:none;">%</span>
+                </div>
+                {% if config_meta.vat_rate %}
+                <p style="color:#475569; font-size:11px; margin:6px 0 0;">
+                    Last updated
+                    {% if config_meta.vat_rate.updated_by %}
+                        by <span style="color:#64748b;">{{ config_meta.vat_rate.updated_by.username }}</span>
+                    {% endif %}
+                    {% if config_meta.vat_rate.updated_at %}
+                        on <span style="color:#64748b;">{{ config_meta.vat_rate.updated_at|date:"M d, Y H:i" }}</span>
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+
+            <div style="display:flex; gap:12px;">
+                <button type="submit" class="btn btn-primary" style="padding:10px 28px;">
+                    Save Changes
+                </button>
+                <a href="{% url 'supervisor:config' %}" class="btn btn-secondary" style="padding:10px 20px;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}

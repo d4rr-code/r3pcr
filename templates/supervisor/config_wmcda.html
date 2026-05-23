@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}WMCDA Criterion Weights{% endblock %}
+{% block page_title %}WMCDA Criterion Weights{% endblock %}
+{% block content %}
+
+<!-- Breadcrumb -->
+<p style="color:#64748b; font-size:13px; margin-bottom:24px;">
+    <a href="{% url 'supervisor:config' %}" style="color:#8b5cf6; text-decoration:none;">System Config</a>
+    <span style="margin:0 8px;">›</span>
+    <span style="color:#94a3b8;">WMCDA Criterion Weights</span>
+</p>
+
+<div style="max-width:560px;">
+    <div class="card" style="padding:32px;">
+
+        <p style="color:#94a3b8; font-size:13px; margin:0 0 8px; line-height:1.6;">
+            These weights control the shipping advisory algorithm. Each shipment is
+            scored across four criteria — the weights determine how much each criterion
+            influences the recommendation.
+        </p>
+        <p style="color:#475569; font-size:12px; margin:0 0 28px;">
+            Weights must add up to exactly <strong style="color:#f1f5f9;">100%</strong>.
+        </p>
+
+        <form method="POST" id="wmcda-form">
+            {% csrf_token %}
+
+            {% with weights=config %}
+
+            <!-- Cost Weight -->
+            <div style="margin-bottom:22px;">
+                <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
+                    <label style="color:#f1f5f9; font-size:14px; font-weight:600;">
+                        Cost
+                        <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:4px;">shipping + insurance cost</span>
+                    </label>
+                    <span id="val-cost" style="color:#8b5cf6; font-size:16px; font-weight:700; min-width:44px; text-align:right;">{{ weights.wmcda_w_cost }}%</span>
+                </div>
+                <input type="range" name="wmcda_w_cost" id="slider-cost"
+                       min="0" max="100" value="{{ weights.wmcda_w_cost }}"
+                       oninput="updateWmcda()"
+                       style="width:100%; accent-color:#8b5cf6; height:6px; cursor:pointer;">
+                {% if config_meta.wmcda_w_cost %}
+                <p style="color:#475569; font-size:11px; margin:4px 0 0;">
+                    Last updated
+                    {% if config_meta.wmcda_w_cost.updated_by %}by <span style="color:#64748b;">{{ config_meta.wmcda_w_cost.updated_by.username }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_cost.updated_at %}on <span style="color:#64748b;">{{ config_meta.wmcda_w_cost.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Time Weight -->
+            <div style="margin-bottom:22px;">
+                <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
+                    <label style="color:#f1f5f9; font-size:14px; font-weight:600;">
+                        Time
+                        <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:4px;">transit time</span>
+                    </label>
+                    <span id="val-time" style="color:#f59e0b; font-size:16px; font-weight:700; min-width:44px; text-align:right;">{{ weights.wmcda_w_time }}%</span>
+                </div>
+                <input type="range" name="wmcda_w_time" id="slider-time"
+                       min="0" max="100" value="{{ weights.wmcda_w_time }}"
+                       oninput="updateWmcda()"
+                       style="width:100%; accent-color:#f59e0b; height:6px; cursor:pointer;">
+                {% if config_meta.wmcda_w_time %}
+                <p style="color:#475569; font-size:11px; margin:4px 0 0;">
+                    Last updated
+                    {% if config_meta.wmcda_w_time.updated_by %}by <span style="color:#64748b;">{{ config_meta.wmcda_w_time.updated_by.username }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_time.updated_at %}on <span style="color:#64748b;">{{ config_meta.wmcda_w_time.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Weight/Volume Weight -->
+            <div style="margin-bottom:22px;">
+                <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
+                    <label style="color:#f1f5f9; font-size:14px; font-weight:600;">
+                        Weight / Volume
+                        <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:4px;">cargo size suitability</span>
+                    </label>
+                    <span id="val-weight" style="color:#38bdf8; font-size:16px; font-weight:700; min-width:44px; text-align:right;">{{ weights.wmcda_w_weight }}%</span>
+                </div>
+                <input type="range" name="wmcda_w_weight" id="slider-weight"
+                       min="0" max="100" value="{{ weights.wmcda_w_weight }}"
+                       oninput="updateWmcda()"
+                       style="width:100%; accent-color:#38bdf8; height:6px; cursor:pointer;">
+                {% if config_meta.wmcda_w_weight %}
+                <p style="color:#475569; font-size:11px; margin:4px 0 0;">
+                    Last updated
+                    {% if config_meta.wmcda_w_weight.updated_by %}by <span style="color:#64748b;">{{ config_meta.wmcda_w_weight.updated_by.username }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_weight.updated_at %}on <span style="color:#64748b;">{{ config_meta.wmcda_w_weight.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Risk Weight -->
+            <div style="margin-bottom:28px;">
+                <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
+                    <label style="color:#f1f5f9; font-size:14px; font-weight:600;">
+                        Risk
+                        <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:4px;">cargo damage / loss risk</span>
+                    </label>
+                    <span id="val-risk" style="color:#f87171; font-size:16px; font-weight:700; min-width:44px; text-align:right;">{{ weights.wmcda_w_risk }}%</span>
+                </div>
+                <input type="range" name="wmcda_w_risk" id="slider-risk"
+                       min="0" max="100" value="{{ weights.wmcda_w_risk }}"
+                       oninput="updateWmcda()"
+                       style="width:100%; accent-color:#f87171; height:6px; cursor:pointer;">
+                {% if config_meta.wmcda_w_risk %}
+                <p style="color:#475569; font-size:11px; margin:4px 0 0;">
+                    Last updated
+                    {% if config_meta.wmcda_w_risk.updated_by %}by <span style="color:#64748b;">{{ config_meta.wmcda_w_risk.updated_by.username }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_risk.updated_at %}on <span style="color:#64748b;">{{ config_meta.wmcda_w_risk.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
+                </p>
+                {% endif %}
+            </div>
+
+            {% endwith %}
+
+            <!-- Live Sum Display -->
+            <div id="sum-display" style="margin-bottom:24px; padding:14px 18px;
+                                          border-radius:8px; border:1px solid #1e293b;
+                                          display:flex; align-items:center; justify-content:space-between;
+                                          background:#0f172a;">
+                <span style="color:#94a3b8; font-size:13px;">Total Weight</span>
+                <span id="sum-value" style="font-size:22px; font-weight:700;">100%</span>
+            </div>
+
+            <div style="display:flex; gap:12px;">
+                <button type="submit" id="save-btn" class="btn btn-primary" style="padding:10px 28px;">
+                    Save Changes
+                </button>
+                <a href="{% url 'supervisor:config' %}" class="btn btn-secondary" style="padding:10px 20px;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updateWmcda() {
+    var cost   = parseInt(document.getElementById('slider-cost').value)   || 0;
+    var time   = parseInt(document.getElementById('slider-time').value)   || 0;
+    var weight = parseInt(document.getElementById('slider-weight').value) || 0;
+    var risk   = parseInt(document.getElementById('slider-risk').value)   || 0;
+    var total  = cost + time + weight + risk;
+
+    document.getElementById('val-cost').textContent   = cost   + '%';
+    document.getElementById('val-time').textContent   = time   + '%';
+    document.getElementById('val-weight').textContent = weight + '%';
+    document.getElementById('val-risk').textContent   = risk   + '%';
+
+    var sumEl  = document.getElementById('sum-value');
+    var dispEl = document.getElementById('sum-display');
+    var btn    = document.getElementById('save-btn');
+
+    sumEl.textContent = total + '%';
+
+    if (total === 100) {
+        sumEl.style.color  = '#22c55e';
+        dispEl.style.borderColor = '#166534';
+        dispEl.style.background  = '#052e16';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+    } else {
+        sumEl.style.color  = total > 100 ? '#ef4444' : '#f59e0b';
+        dispEl.style.borderColor = total > 100 ? '#7f1d1d' : '#78350f';
+        dispEl.style.background  = total > 100 ? '#1c0a0a' : '#1c1200';
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+    }
+}
+
+/* Run on page load to set initial colours */
+updateWmcda();
+</script>
+
+{% endblock %}

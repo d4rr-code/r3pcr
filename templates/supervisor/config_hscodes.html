@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}HS Code Duty Rates{% endblock %}
+{% block page_title %}HS Code Duty Rates{% endblock %}
+{% block content %}
+
+<!-- Breadcrumb -->
+<p style="color:#64748b; font-size:13px; margin-bottom:8px;">
+    <a href="{% url 'supervisor:config' %}" style="color:#22c55e; text-decoration:none;">System Config</a>
+    <span style="margin:0 8px;">›</span>
+    <span style="color:#94a3b8;">HS Code Duty Rates</span>
+</p>
+<p style="color:#64748b; font-size:13px; margin-bottom:28px;">
+    Browse by HS Section to update duty rates. Select a section to see its chapters and HS codes.
+</p>
+
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px;">
+    {% for section in sections %}
+    <a href="{% url 'supervisor:config_hscodes_section' section.num %}" style="text-decoration:none;">
+        <div class="card" style="padding:22px 20px; cursor:pointer; border:1px solid #1e293b;
+                                  transition:border-color .2s, transform .15s;"
+             onmouseover="this.style.borderColor='#22c55e'; this.style.transform='translateY(-2px)'"
+             onmouseout="this.style.borderColor='#1e293b'; this.style.transform='translateY(0)'">
+            <div style="display:flex; align-items:flex-start; gap:14px;">
+                <div style="flex-shrink:0; width:44px; height:44px; border-radius:8px;
+                             background:#052e1633; border:1px solid #166534;
+                             display:flex; align-items:center; justify-content:center;">
+                    <span style="color:#22c55e; font-size:13px; font-weight:800;">{{ section.roman }}</span>
+                </div>
+                <div style="flex:1; min-width:0;">
+                    <p style="color:#f1f5f9; font-size:14px; font-weight:700; margin:0 0 4px;
+                               white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                       title="{{ section.title }}">
+                        {{ section.title }}
+                    </p>
+                    <div style="display:flex; gap:12px; margin-top:6px;">
+                        <span style="color:#64748b; font-size:11px;">
+                            {{ section.total_chapters }} chapter{{ section.total_chapters|pluralize }}
+                        </span>
+                        {% if section.total_codes %}
+                        <span style="color:#22c55e; font-size:11px;">
+                            {{ section.total_codes }} HS code{{ section.total_codes|pluralize }}
+                        </span>
+                        {% else %}
+                        <span style="color:#374151; font-size:11px;">no codes loaded</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <span style="color:#22c55e; font-size:16px; flex-shrink:0; margin-top:4px;">›</span>
+            </div>
+        </div>
+    </a>
+    {% empty %}
+    <p style="color:#64748b; font-size:14px;">No sections found.</p>
+    {% endfor %}
+</div>
+
+{% endblock %}

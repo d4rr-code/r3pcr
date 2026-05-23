@@ -222,7 +222,7 @@ def extract_text_from_file(file_path):
         if ext == '.pdf':
             # ── Fast path: direct text extraction from digital PDFs ──────────
             direct_text = _extract_text_from_pdf_direct(file_path)
-            if len(direct_text.strip()) >= 80:
+            if assess_quality(direct_text) != 'poor':
                 print(f"[OCR] pypdf direct: {len(direct_text)} chars extracted")
                 return direct_text
 
@@ -242,7 +242,7 @@ def extract_text_from_file(file_path):
                 try:
                     images = convert_from_path(
                         file_path,
-                        dpi=150,
+                        dpi=300,
                         first_page=page_num,
                         last_page=page_num,
                         poppler_path=poppler_path,
