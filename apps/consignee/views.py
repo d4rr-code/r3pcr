@@ -111,6 +111,19 @@ def submit_shipment(request):
         shipment_type = request.POST.get('shipment_type', '').strip()
         description   = request.POST.get('description', '').strip()
 
+        # Optional shipment values — consignee-provided, unverified
+        def _decimal_or_none(key):
+            v = request.POST.get(key, '').strip()
+            try:
+                return float(v) if v else None
+            except ValueError:
+                return None
+
+        declared_value = _decimal_or_none('declared_value')
+        freight_cost   = _decimal_or_none('freight_cost')
+        insurance_cost = _decimal_or_none('insurance_cost')
+        quantity       = _decimal_or_none('quantity')
+
         hawb_number = generate_hawb()
 
         shipment = Shipment.objects.create(
@@ -121,6 +134,10 @@ def submit_shipment(request):
             shipment_type=shipment_type or None,
             description=description,
             status='incoming',
+            declared_value=declared_value,
+            freight_cost=freight_cost,
+            insurance_cost=insurance_cost,
+            quantity=quantity,
         )
 
         for doc_type in ['invoice', 'packing_list', 'airway_bill']:

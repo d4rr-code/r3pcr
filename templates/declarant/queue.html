@@ -625,8 +625,9 @@ function showPreview(btn) {
                     '<tbody>' + rows + '</tbody></table>';
             } else {
                 itemsEl.innerHTML =
-                    '<p style="color:#475569; font-size:12px; margin:0; font-style:italic;">' +
-                    'No line items yet — available after ECDT computation.</p>';
+                    '<p style="color:#475569; font-size:12px; margin:0;">' +
+                    '📋 Line items will be classified by you in the Computation Tool. ' +
+                    'HS code classification and duty rates require customs expertise and are filled during ECDT.</p>';
             }
 
             // Update docs section with linked list

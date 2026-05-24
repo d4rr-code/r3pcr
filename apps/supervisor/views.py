@@ -194,6 +194,28 @@ def dashboard(request):
             'approval_rate': approval_rate,
         })
 
+    # ── Consignee Approval Rate ──────────────────────────────────────────────────
+    # Denominator: shipments that have had a computation presented (reached 'computed')
+    # Numerator: shipments where consignee actually approved (status log new_status='approved')
+    total_computed_presented = (
+        StatusLog.objects
+        .filter(new_status='computed')
+        .values('shipment_id')
+        .distinct()
+        .count()
+    )
+    total_consignee_approved = (
+        StatusLog.objects
+        .filter(new_status='approved')
+        .values('shipment_id')
+        .distinct()
+        .count()
+    )
+    consignee_approval_rate = (
+        round(total_consignee_approved / total_computed_presented * 100, 1)
+        if total_computed_presented else 0
+    )
+
     context = {
         # summary KPIs
         'total':            total,
@@ -205,6 +227,10 @@ def dashboard(request):
         'total_users':      User.objects.count(),
         'total_consignees': User.objects.filter(role='consignee').count(),
         'total_declarants': User.objects.filter(role='declarant').count(),
+        # consignee approval analytics
+        'total_computed_presented':  total_computed_presented,
+        'total_consignee_approved':  total_consignee_approved,
+        'consignee_approval_rate':   consignee_approval_rate,
         # analytics
         'status_rows':      status_rows,
         'wmcda_scoreboard': wmcda_scoreboard,

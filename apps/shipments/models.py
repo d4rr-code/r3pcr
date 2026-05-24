@@ -44,12 +44,19 @@ class Shipment(models.Model):
     ]
 
     IMPORT_TYPE_CHOICES = [
-        ('commercial',  'Commercial'),
-        ('personal',    'Personal Effects'),
-        ('balik_bayan', 'Balik Bayan'),
-        ('courier',     'Courier'),
-        ('sample',      'Sample / Free of Charge'),
-        ('diplomatic',  'Diplomatic'),
+        # ── CMTA / BOC-based classifications ──────────────────────────────
+        ('commercial',    'Commercial / Trade Goods'),
+        ('personal',      'Personal Effects & Household Goods'),
+        ('balikbayan',    'Balikbayan Box (RA 10021)'),
+        ('samples',       'Samples / No Commercial Value'),
+        ('machinery',     'Machinery & Equipment (Capital Goods)'),
+        ('raw_materials', 'Raw Materials & Inputs'),
+        ('ecommerce',     'Online Purchase / E-Commerce'),
+        # ── legacy keys — kept for existing records ────────────────────────
+        ('balik_bayan',   'Balik Bayan'),
+        ('courier',       'Courier'),
+        ('sample',        'Sample / Free of Charge'),
+        ('diplomatic',    'Diplomatic'),
     ]
 
     # Core fields

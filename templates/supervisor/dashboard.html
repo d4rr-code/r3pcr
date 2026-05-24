@@ -43,6 +43,16 @@
         <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Declarants</p>
         <p style="color:#94a3b8; font-size:28px; font-weight:700; margin:0;">{{ total_declarants }}</p>
     </div>
+    <div class="card" style="text-align:center; padding:18px 12px; border-color:{% if consignee_approval_rate >= 70 %}#166534{% elif consignee_approval_rate > 0 %}#78350f{% else %}#334155{% endif %};">
+        <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">CDT Approval Rate</p>
+        <p style="font-size:28px; font-weight:700; margin:0;
+                  color:{% if consignee_approval_rate >= 70 %}#22c55e{% elif consignee_approval_rate > 0 %}#f59e0b{% else %}#64748b{% endif %};">
+            {{ consignee_approval_rate }}%
+        </p>
+        <p style="color:#475569; font-size:10px; margin:4px 0 0;">
+            {{ total_consignee_approved }} / {{ total_computed_presented }} presented
+        </p>
+    </div>
 </div>
 
 <!-- ─── Analytics Row ─────────────────────────────────────────────────────── -->

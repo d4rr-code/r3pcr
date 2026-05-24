@@ -729,6 +729,14 @@ def compute_shipment(request, shipment_id):
             else:
                 declared_rating = 'Poor'
 
+    # Pre-fill freight / insurance from consignee-provided values when no existing computation
+    if existing:
+        prefill_freight   = float(existing.total_freight   or 0)
+        prefill_insurance = float(existing.total_insurance or 0)
+    else:
+        prefill_freight   = float(shipment.freight_cost   or 0)
+        prefill_insurance = float(shipment.insurance_cost or 0)
+
     context = {
         'shipment':           shipment,
         'hs_codes':           hs_codes,
@@ -749,6 +757,8 @@ def compute_shipment(request, shipment_id):
         'declared_breakdown': declared_breakdown,
         'declared_rating':    declared_rating,
         'hs_suggestions':     hs_suggestions,
+        'prefill_freight':    prefill_freight,
+        'prefill_insurance':  prefill_insurance,
     }
     return render(request, 'computation/compute.html', context)
 

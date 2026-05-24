@@ -704,7 +704,7 @@
             </label>
             <input type="number" name="total_freight" id="total_freight" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                   value="{{ existing.total_freight|default:'0' }}" oninput="distributeFreight()">
+                   value="{{ prefill_freight|default:'0' }}" oninput="distributeFreight()">
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">
@@ -713,7 +713,7 @@
             </label>
             <input type="number" name="total_insurance" id="total_insurance" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                   value="{{ existing.total_insurance|default:'0' }}" oninput="distributeFreight()">
+                   value="{{ prefill_insurance|default:'0' }}" oninput="distributeFreight()">
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">Bank Charges (PHP)</label>
