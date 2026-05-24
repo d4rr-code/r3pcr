@@ -471,6 +471,14 @@ def _ecdt_xlsx(request, shipment, computation, advisory):
         ws.cell(row=r, column=ci).border = navy_top
     r += 1
 
+    # disclaimer
+    ws.merge_cells(f'A{r}:H{r}')
+    xcell(ws, r, 1,
+          'ESTIMATED COMPUTATION ONLY. FINAL ASSESSMENT WILL BE BASED ON CUSTOMS FINDINGS.',
+          bold=True, italic=True, color='92400E', bg='FEF9C3', align=al_c, size=9)
+    ws.row_dimensions[r].height = 16
+    r += 1
+
     # info block
     for label, val in _info_block(shipment, computation, request):
         ws.merge_cells(f'A{r}:B{r}')
@@ -732,6 +740,29 @@ def _ecdt_pdf(request, shipment, computation, advisory):
     story.append(Paragraph('ECDT &amp; WMCDA Computation Sheet', p_subtitle))
     story.append(HRFlowable(width='100%', thickness=2, color=NAVY,
                              spaceAfter=6, spaceBefore=0))
+
+    # disclaimer banner
+    AMBER_BG = colors.HexColor('#FEF9C3')
+    AMBER_TX = colors.HexColor('#92400E')
+    disclaimer_tbl = Table(
+        [[Paragraph(
+            '<b><i>⚠ ESTIMATED COMPUTATION ONLY. '
+            'FINAL ASSESSMENT WILL BE BASED ON CUSTOMS FINDINGS.</i></b>',
+            ps('disc', fontSize=8, fontName='Helvetica-BoldOblique',
+               textColor=AMBER_TX, alignment=TA_CENTER),
+        )]],
+        colWidths=[W],
+    )
+    disclaimer_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), AMBER_BG),
+        ('BOX',           (0, 0), (-1, -1), 0.75, colors.HexColor('#FCD34D')),
+        ('TOPPADDING',    (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 8),
+    ]))
+    story.append(disclaimer_tbl)
+    story.append(Spacer(1, 8))
 
     # info table
     info_rows = [
