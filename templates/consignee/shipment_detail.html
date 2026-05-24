@@ -109,28 +109,34 @@
 <!-- Approve Computation Banner -->
 {% if shipment.status == 'computed' and computation %}
 <div style="background:#0d2237; border:2px solid #2563eb; border-radius:10px;
-            padding:16px 20px; margin-bottom:20px;
-            display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-    <div style="flex:1; min-width:0;">
-        <p style="color:#93c5fd; font-size:13px; font-weight:700; margin:0 0 3px;">
-            ✅ Computation Ready for Your Approval
-        </p>
-        <p style="color:#64748b; font-size:12px; margin:0;">
-            Review the Duties and Tax Computation below. Once you approve, your shipment will proceed to customs lodgement.
-        </p>
+            padding:18px 22px; margin-bottom:20px;">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:0;">
+            <p style="color:#93c5fd; font-size:14px; font-weight:700; margin:0 0 6px;">
+                📋 Computation Ready for Your Approval
+            </p>
+            <p style="color:#94a3b8; font-size:12px; margin:0 0 4px;">
+                Review the <strong style="color:#e2e8f0;">Duties and Tax Computation</strong> below.
+            </p>
+            <p style="color:#64748b; font-size:12px; margin:0; line-height:1.5;">
+                Once you approve, your shipment will proceed to customs lodgement.
+                Check back on this page from time to time to track your shipment status
+                until it reaches <strong style="color:#22c55e;">Billed / Complete</strong>.
+            </p>
+        </div>
+        <form method="POST" action="{% url 'consignee:approve_computation' shipment.id %}" style="flex-shrink:0;">
+            {% csrf_token %}
+            <button type="submit"
+                    style="background:#1d4ed8; color:#fff; border:1px solid #3b82f6; border-radius:8px;
+                           padding:11px 32px; font-size:13px; font-weight:700; cursor:pointer;
+                           white-space:nowrap;"
+                    onmouseover="this.style.background='#1e40af'"
+                    onmouseout="this.style.background='#1d4ed8'"
+                    onclick="return confirm('Approve the computation and proceed to customs lodgement?')">
+                Approve →
+            </button>
+        </form>
     </div>
-    <form method="POST" action="{% url 'consignee:approve_computation' shipment.id %}">
-        {% csrf_token %}
-        <button type="submit"
-                style="background:#1d4ed8; color:#fff; border:1px solid #2563eb; border-radius:8px;
-                       padding:10px 28px; font-size:13px; font-weight:700; cursor:pointer;
-                       white-space:nowrap; transition:background .2s;"
-                onmouseover="this.style.background='#1e40af'"
-                onmouseout="this.style.background='#1d4ed8'"
-                onclick="return confirm('Approve the computation and proceed to customs lodgement?')">
-            Approve →
-        </button>
-    </form>
 </div>
 {% endif %}
 
@@ -210,7 +216,17 @@
 <!-- ── Row 2: Duties and Tax Computation (full-width) ─────────────────── -->
 {% if computation %}
 <div class="card" style="margin-bottom:20px;">
-    <p class="card-title">Duties and Tax Computation</p>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <p class="card-title" style="margin:0;">Duties and Tax Computation</p>
+        <a href="{% url 'consignee:download_computation' shipment.id %}"
+           style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
+                  color:#22c55e; text-decoration:none; padding:6px 14px;
+                  border:1px solid #166534; border-radius:6px; background:#052e16;"
+           onmouseover="this.style.background='#14532d'"
+           onmouseout="this.style.background='#052e16'">
+            ⬇ Download Excel
+        </a>
+    </div>
 
     <!-- 3 key numbers -->
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:18px;">

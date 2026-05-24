@@ -361,6 +361,247 @@ def approve_computation(request, shipment_id):
     return redirect('consignee:shipment_detail', shipment_id=shipment_id)
 
 
+# ─── Download Computation Results ────────────────────────────────────────────
+
+@login_required
+def download_computation(request, shipment_id):
+    """Download ECDT + WMCDA results as Excel (.xlsx)."""
+    import io
+    from decimal import Decimal
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+
+    shipment    = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+    computation = getattr(shipment, 'computation', None)
+    advisory    = getattr(shipment, 'shipping_advisory', None)
+
+    wb = openpyxl.Workbook()
+
+    # ── Styles ────────────────────────────────────────────────────────────────
+    hdr_fill   = PatternFill('solid', fgColor='0F172A')
+    sub_fill   = PatternFill('solid', fgColor='1E293B')
+    grn_fill   = PatternFill('solid', fgColor='052E16')
+    blu_fill   = PatternFill('solid', fgColor='172554')
+    hdr_font   = Font(bold=True, color='22C55E', size=11)
+    sub_font   = Font(bold=True, color='94A3B8', size=10)
+    val_font   = Font(color='F1F5F9', size=10)
+    grn_font   = Font(bold=True, color='22C55E', size=12)
+    blu_font   = Font(bold=True, color='3B82F6', size=11)
+    title_font = Font(bold=True, color='F1F5F9', size=13)
+    thin_side  = Side(style='thin', color='334155')
+    thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+    center     = Alignment(horizontal='center', vertical='center')
+    right_a    = Alignment(horizontal='right',  vertical='center')
+    left_a     = Alignment(horizontal='left',   vertical='center')
+
+    def styled(ws, row, col, value, font=None, fill=None, align=None, border=None, num_fmt=None):
+        cell = ws.cell(row=row, column=col, value=value)
+        if font:   cell.font      = font
+        if fill:   cell.fill      = fill
+        if align:  cell.alignment = align
+        if border: cell.border    = border
+        if num_fmt: cell.number_format = num_fmt
+        return cell
+
+    # ════════════════════════════════════════════════════════════════════════
+    # Sheet 1: ECDT Summary
+    # ════════════════════════════════════════════════════════════════════════
+    ws = wb.active
+    ws.title = 'ECDT Summary'
+    ws.sheet_view.showGridLines = False
+
+    # Column widths
+    for col, w in enumerate([28, 16, 16, 18, 10, 18, 18, 20], start=1):
+        ws.column_dimensions[get_column_letter(col)].width = w
+
+    r = 1
+    # Title block
+    ws.merge_cells(f'A{r}:H{r}')
+    styled(ws, r, 1, 'ECDT — DUTIES AND TAX COMPUTATION REPORT',
+           font=Font(bold=True, color='22C55E', size=14), fill=hdr_fill, align=center)
+    ws.row_dimensions[r].height = 24
+    r += 1
+    ws.merge_cells(f'A{r}:H{r}')
+    styled(ws, r, 1, f'Shipment:  {shipment.hawb_number}   |   Consignee: {request.user.get_full_name() or request.user.username}',
+           font=Font(color='94A3B8', size=10), fill=hdr_fill, align=center)
+    r += 1
+    if computation:
+        ws.merge_cells(f'A{r}:H{r}')
+        styled(ws, r, 1,
+               f'Computed: {computation.computed_at.strftime("%b %d, %Y %I:%M %p")}   |   '
+               f'Exchange Rate: ₱{computation.exchange_rate}',
+               font=Font(color='64748B', size=9), fill=hdr_fill, align=center)
+    r += 2
+
+    if computation:
+        # ── Item Breakdown ────────────────────────────────────────────────
+        for col, label in enumerate(
+            ['DESCRIPTION', 'QTY / UNIT', 'EXW (USD)', 'HS CODE', 'DUTY %', 'D/V (₱)', 'CUD (₱)'], start=1
+        ):
+            styled(ws, r, col, label, font=sub_font, fill=sub_fill, align=center, border=thin_border)
+        ws.row_dimensions[r].height = 18
+        r += 1
+
+        items = computation.get_items()
+        for it in items:
+            qty_unit = str(it.get('quantity', ''))
+            if it.get('unit'):
+                qty_unit += f" {it.get('unit')}"
+            row_data = [
+                it.get('description', ''),
+                qty_unit,
+                float(it.get('exw', 0) or 0),
+                it.get('hs_code', '—') or '—',
+                f"{float(it.get('duty_rate', 0) or 0):.2f}%",
+                float(it.get('dv_php', 0) or 0),
+                float(it.get('cud', 0) or 0),
+            ]
+            for col, val in enumerate(row_data, start=1):
+                cell = ws.cell(row=r, column=col, value=val)
+                cell.font   = val_font
+                cell.fill   = PatternFill('solid', fgColor='0C1420')
+                cell.border = thin_border
+                cell.alignment = right_a if col > 2 else left_a
+                if col in (3, 6, 7):
+                    cell.number_format = '#,##0.00'
+            r += 1
+        r += 1
+
+        # ── Fee Breakdown ─────────────────────────────────────────────────
+        ws.merge_cells(f'A{r}:F{r}')
+        styled(ws, r, 1, 'FEE BREAKDOWN', font=sub_font, fill=sub_fill, align=left_a)
+        r += 1
+
+        def fee_row(label, amount, font=None, fill=None):
+            nonlocal r
+            ws.merge_cells(f'A{r}:F{r}')
+            styled(ws, r, 1, label,
+                   font=font or Font(color='94A3B8', size=10), fill=fill or PatternFill('solid', fgColor='0F172A'),
+                   align=left_a)
+            cell = ws.cell(row=r, column=7, value=float(amount or 0))
+            cell.font   = font or val_font
+            cell.fill   = fill or PatternFill('solid', fgColor='0F172A')
+            cell.number_format = '₱#,##0.00'
+            cell.alignment = right_a
+            r += 1
+
+        fee_row('Customs Duty (CUD)',          computation.customs_duty)
+        fee_row('VAT (12%)',                   computation.vat_amount)
+        fee_row('Import Processing Fee (IPF)', computation.ipf)
+        fee_row('Documentary Stamp (CDS)',     130)
+
+        # BOC Total
+        ws.merge_cells(f'A{r}:F{r}')
+        styled(ws, r, 1, 'BOC Total', font=blu_font, fill=blu_fill, align=left_a)
+        cell = ws.cell(row=r, column=7, value=float(computation.boc_payable or 0))
+        cell.font = blu_font; cell.fill = blu_fill
+        cell.number_format = '₱#,##0.00'; cell.alignment = right_a
+        r += 1
+
+        fee_row('Brokerage Fee', computation.brokerage_fee)
+        if computation.arrastre:    fee_row('Arrastre',              computation.arrastre)
+        if computation.wharfage:    fee_row('Wharfage',              computation.wharfage)
+        if computation.bank_charges: fee_row('Bank Charges',         computation.bank_charges)
+        if computation.csf_php:     fee_row('Container Service Fee', computation.csf_php)
+
+        # Total Landed Cost
+        ws.merge_cells(f'A{r}:F{r}')
+        styled(ws, r, 1, 'TOTAL LANDED COST', font=grn_font, fill=grn_fill, align=left_a)
+        cell = ws.cell(row=r, column=7, value=float(computation.total_landed_cost or 0))
+        cell.font = grn_font; cell.fill = grn_fill
+        cell.number_format = '₱#,##0.00'; cell.alignment = right_a
+        ws.row_dimensions[r].height = 20
+        r += 1
+    else:
+        ws.merge_cells('A5:H5')
+        styled(ws, 5, 1, 'No computation on file for this shipment.',
+               font=Font(color='64748B', size=11), align=center)
+
+    # ════════════════════════════════════════════════════════════════════════
+    # Sheet 2: WMCDA Advisory
+    # ════════════════════════════════════════════════════════════════════════
+    ws2 = wb.create_sheet('WMCDA Advisory')
+    ws2.sheet_view.showGridLines = False
+    for col, w in enumerate([30, 20, 20], start=1):
+        ws2.column_dimensions[get_column_letter(col)].width = w
+
+    r2 = 1
+    ws2.merge_cells(f'A{r2}:C{r2}')
+    styled(ws2, r2, 1, 'WMCDA — SHIPPING MODE ADVISORY',
+           font=Font(bold=True, color='22C55E', size=14), fill=hdr_fill, align=center)
+    ws2.row_dimensions[r2].height = 24
+    r2 += 2
+
+    if advisory:
+        # Declared mode
+        ws2.merge_cells(f'A{r2}:C{r2}')
+        styled(ws2, r2, 1, f'Your Declared Mode: {shipment.get_shipment_type_display() if shipment.shipment_type else "—"}',
+               font=Font(bold=True, color='F1F5F9', size=11), fill=sub_fill, align=left_a)
+        r2 += 1
+
+        # Scores table
+        for col, hdr in enumerate(['Mode', 'Score', 'Recommendation'], start=1):
+            styled(ws2, r2, col, hdr, font=sub_font, fill=sub_fill, align=center, border=thin_border)
+        r2 += 1
+
+        mode_scores = [
+            ('Air Freight', advisory.air_score),
+            ('LCL — Less Container Load', advisory.lcl_score),
+            ('FCL — Full Container Load', advisory.fcl_score),
+            ('Land Freight', advisory.land_score),
+        ]
+        mode_keys = {'Air Freight': 'air', 'LCL — Less Container Load': 'lcl',
+                     'FCL — Full Container Load': 'fcl', 'Land Freight': 'land'}
+
+        for mode_label, score in sorted(mode_scores, key=lambda x: (x[1] or 0), reverse=True):
+            is_rec  = (mode_keys.get(mode_label) == advisory.recommended_type)
+            tag     = '★ RECOMMENDED' if is_rec else ''
+            f_color = '22C55E' if is_rec else 'F1F5F9'
+            bg      = '052E16' if is_rec else '0F172A'
+            row_fill = PatternFill('solid', fgColor=bg)
+            row_font = Font(bold=is_rec, color=f_color, size=10)
+            for col, val in enumerate([mode_label, f'{float(score or 0):.4f}', tag], start=1):
+                cell = ws2.cell(row=r2, column=col, value=val)
+                cell.font = row_font; cell.fill = row_fill
+                cell.border = thin_border
+                cell.alignment = center if col > 1 else left_a
+            r2 += 1
+
+        r2 += 1
+        # Declarant's recommendation
+        if advisory.declarant_recommendation:
+            ws2.merge_cells(f'A{r2}:C{r2}')
+            styled(ws2, r2, 1,
+                   f"Declarant's Recommendation: {advisory.declarant_recommendation.upper()}",
+                   font=Font(bold=True, color='93C5FD', size=11), fill=blu_fill, align=left_a)
+            r2 += 1
+        if advisory.declarant_note:
+            ws2.merge_cells(f'A{r2}:C{r2}')
+            styled(ws2, r2, 1, f'Note: "{advisory.declarant_note}"',
+                   font=Font(italic=True, color='94A3B8', size=10),
+                   fill=PatternFill('solid', fgColor='0D2237'), align=left_a)
+            ws2.row_dimensions[r2].height = 30
+            ws2.cell(row=r2, column=1).alignment = Alignment(
+                horizontal='left', vertical='center', wrap_text=True)
+    else:
+        ws2.merge_cells('A3:C3')
+        styled(ws2, 3, 1, 'No WMCDA advisory on file.', font=Font(color='64748B', size=11), align=center)
+
+    # ── Serve file ────────────────────────────────────────────────────────────
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"R3PCR_{shipment.hawb_number}_ECDT_WMCDA.xlsx"
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
 # ─── Cancel Submission ────────────────────────────────────────────────────────
 
 @login_required

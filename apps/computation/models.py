@@ -94,9 +94,25 @@ class DutyComputation(models.Model):
 
     def get_items(self):
         import json
-        if self.items_json:
-            return json.loads(self.items_json)
-        return []
+        if not self.items_json:
+            return []
+        items = json.loads(self.items_json)
+        # Back-fill hs_code string for records saved before the lookup was added
+        ids_needed = [
+            int(it['hs_code_id'])
+            for it in items
+            if it.get('hs_code_id') and not it.get('hs_code')
+            and str(it.get('hs_code_id', '')).lstrip('-').isdigit()
+        ]
+        if ids_needed:
+            code_map = {
+                obj.id: obj.code
+                for obj in HSCode.objects.filter(id__in=ids_needed).only('id', 'code')
+            }
+            for it in items:
+                if it.get('hs_code_id') and not it.get('hs_code'):
+                    it['hs_code'] = code_map.get(int(it['hs_code_id']), '')
+        return items
 
 
 class ShippingAdvisory(models.Model):

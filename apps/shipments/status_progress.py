@@ -13,16 +13,16 @@ PROGRESS_STATUS_KEYS = [
 
 ROLE_STATUS_LABELS = {
     'consignee': {
-        'incoming': 'Submitted',
-        'arrived': 'Processing',
-        'computed': 'Under Review',
-        'approved': 'Approved',
-        'lodgement': 'Filed with Customs',
-        'ongoing': 'Under Assessment',
-        'assessed': 'Duties Assessed',
-        'paid': 'Payment Confirmed',
-        'released': 'Goods Released',
-        'billed': 'Complete',
+        'incoming':  'Submitted',
+        'arrived':   'Arrived',
+        'computed':  'Computed',
+        'approved':  'Approved',
+        'lodgement': 'Lodgement',
+        'ongoing':   'Ongoing',
+        'assessed':  'Assessed',
+        'paid':      'Paid',
+        'released':  'Released',
+        'billed':    'Billed',
     },
     'declarant': {
         'incoming': 'Incoming',
