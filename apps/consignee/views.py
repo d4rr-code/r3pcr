@@ -701,8 +701,8 @@ def _ecdt_pdf(request, shipment, computation, advisory):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
-        leftMargin=2*cm, rightMargin=2*cm,
-        topMargin=2*cm, bottomMargin=2*cm,
+        leftMargin=1.5*cm, rightMargin=1.5*cm,
+        topMargin=1*cm, bottomMargin=1.5*cm,
     )
     W = doc.width
 
