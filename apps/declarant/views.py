@@ -12,7 +12,7 @@ from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
 from apps.notifications.utils import create_notification, notify_shipment_status_change
-from apps.computation.ocr import process_document
+from apps.computation.ocr import process_document, _extract_line_items
 
 
 # ─── Role Decorator ───────────────────────────────────────────────────────────
@@ -319,19 +319,28 @@ def process_shipment(request, shipment_id):
     _priority_doc_types = ['invoice', 'packing_list', 'airway_bill']
     _docs_by_type = {}
     for _d in documents:
-        if _d.document_type in _priority_doc_types and _d.ocr_ran_at and _d.ocr_fields_json:
+        if _d.document_type in _priority_doc_types and _d.ocr_ran_at and (
+            _d.ocr_fields_json or getattr(_d, 'ocr_text', None)
+        ):
             _docs_by_type.setdefault(_d.document_type, []).append(_d)
     for _doc_type in _priority_doc_types:
         for _doc in _docs_by_type.get(_doc_type, []):
-            try:
-                _ocr_data = json.loads(_doc.ocr_fields_json)
-                for _item in _ocr_data.get('__items__', []):
-                    _desc = (_item.get('description') or '').strip()
-                    if _desc and _desc not in _seen_ocr_desc:
-                        _seen_ocr_desc.add(_desc)
-                        ocr_items_from_docs.append(dict(_item, source_doc=_doc_type))
-            except (TypeError, ValueError):
-                pass
+            _items_from_json = []
+            if _doc.ocr_fields_json:
+                try:
+                    _ocr_data = json.loads(_doc.ocr_fields_json)
+                    _items_from_json = _ocr_data.get('__items__', [])
+                except (TypeError, ValueError):
+                    pass
+            # Fallback: re-run improved extraction on stored OCR text when
+            # the previously-stored __items__ list is empty (old or failed run)
+            if not _items_from_json and getattr(_doc, 'ocr_text', None):
+                _items_from_json = _extract_line_items(_doc.ocr_text)
+            for _item in _items_from_json:
+                _desc = (_item.get('description') or '').strip()
+                if _desc and _desc not in _seen_ocr_desc:
+                    _seen_ocr_desc.add(_desc)
+                    ocr_items_from_docs.append(dict(_item, source_doc=_doc_type))
 
     ocr_fields = None
     if request.session.get('ocr_shipment_id') == shipment_id:

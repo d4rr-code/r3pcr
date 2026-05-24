@@ -303,8 +303,14 @@ def extract_text_from_file(file_path):
 def _extract_line_items(text):
     """
     Extract individual line-item rows from commercial invoice / packing list text.
-    Handles real invoice formats where rows may be prefixed with a row number
-    (e.g. "1 PRODUCT NAME 100 PCS 29.61 2,368.60").
+
+    Handles real-world invoice formats including:
+      - Currency-prefixed amounts  (US$3.00, USD 29.61, EUR 5.00, $10, €5)
+      - Embedded HS codes mid-line (4911 1010, 3923.90.90, 6402 99 00)
+      - Country codes between HS and qty  (HK, CN, US)
+      - Standard invoice lines (desc qty unit_price total)
+      - Packing list lines    (desc qty gross_wt net_wt pkgs)
+      - Qty-only lines        (desc qty total)
 
     Returns a list of dicts: [{description, quantity, unit, unit_price, total_value}, ...]
     Returns [] only when no reliable item rows are found.
@@ -325,17 +331,43 @@ def _extract_line_items(text):
         'warranty', 'incoterm', 'delivery', 'order', 'contract', 'ref',
     }
 
-    money = r'[\d,]+(?:\.\d+)?'
-    units = r'(?:PCS|PIECES|UNITS?|CTN|CTNS?|SET|SETS|ROLLS?|BOX|BOXES|KG|KGS|EA|PAIR|PAIRS)'
-    invoice_line_pat = re.compile(
-        rf'^(?:\d+\s+)?(.+?)\s+(\d+(?:\.\d+)?)\s*({units})?\s+({money})\s+({money})\s*$',
-        re.IGNORECASE
+    # ── Building-block sub-patterns ───────────────────────────────────────────
+    # Money: optional currency prefix, digits with commas, optional decimals
+    _M = r'(?:US\$|USD\s*|EUR\s*|PHP\s*|HKD\s*|CNY\s*|\$|€)?[\d,]+(?:\.\d{1,4})?'
+    # Unit of measure
+    _U = r'(?:PCS|PIECES|UNITS?|CTN|CTNS?|SET|SETS|ROLLS?|BOX(?:ES)?|KGS?|KG|EA|PAIRS?|PC|NOS?|LOTS?|PKGS?|PKG|BAGS?|BDL|BDLS?|PK|BTL|BTLS?)'
+    # HS code: 4 digits then 1–3 groups of 2 digits separated by optional space or dot
+    _HS = r'\d{4}(?:[\s.]?\d{2}){1,3}'
+    # 2-letter country / origin code (appears between HS and qty in some invoices)
+    _CC = r'[A-Z]{2}'
+
+    # ── Pattern A ─ line with embedded HS code (and optional country code) ───
+    # e.g. "THE PENINSULA GROUP MAGAZINE 2025  4911 1010  HK  625  US$3.00  US$1,875.00"
+    pat_A = re.compile(
+        rf'^(?:\d+[\s.)]+)?(.+?)\s+(?:{_HS})\s+(?:{_CC}\s+)?(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s*$',
+        re.IGNORECASE,
     )
-    packing_line_pat = re.compile(
-        rf'^(?:\d+\s+)?(.+?)\s+(\d+(?:\.\d+)?)\s*({units})?\s+({money})\s+({money})\s+(\d+)\s*$',
-        re.IGNORECASE
+
+    # ── Pattern B ─ standard invoice line (no HS, no country code) ───────────
+    # e.g. "1 PLASTIC BOTTLE 500ML  100  PCS  2.50  250.00"
+    pat_B = re.compile(
+        rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s*$',
+        re.IGNORECASE,
     )
-    total_only_pat = re.compile(r'^(.+?)\s+([\d,]+\.\d{2})\s*$')
+
+    # ── Pattern C ─ packing list (desc qty unit gross_wt net_wt pkgs) ────────
+    # e.g. "NASAL SPRAY 200  PCS  15.00  12.00  10"
+    pat_C = re.compile(
+        rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s+(\d+)\s*$',
+        re.IGNORECASE,
+    )
+
+    # ── Pattern D ─ qty-only line (desc qty [unit] total, no unit price) ─────
+    # e.g. "SAMPLE ITEM  50  PCS  1,250.00"
+    pat_D = re.compile(
+        rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d{{1,8}})\s*({_U})?\s+({_M})\s*$',
+        re.IGNORECASE,
+    )
 
     items = []
     for raw_line in text.splitlines():
@@ -343,100 +375,107 @@ def _extract_line_items(text):
         if not line or len(line) < 10:
             continue
         low = line.lower()
-        # Skip lines containing summary / header keywords
         if any(w in low for w in SKIP_WORDS):
             continue
 
-        packing_match = packing_line_pat.match(line)
-        invoice_match = invoice_line_pat.match(line)
-        total_match = total_only_pat.match(line)
+        matched_pattern = None
+        desc_raw = qty = unit = unit_price_str = amount_str = ''
+        gross_weight = net_weight = packages = ''
+        confidence = 0.70
 
-        unit = ''
-        unit_price = ''
-        gross_weight = ''
-        net_weight = ''
-        packages = ''
-
-        if packing_match:
-            desc_raw = packing_match.group(1).strip()
-            qty = packing_match.group(2)
-            unit = packing_match.group(3) or ''
-            gross_weight = _clean_number(packing_match.group(4))
-            net_weight = _clean_number(packing_match.group(5))
-            packages = _clean_number(packing_match.group(6))
-            amount_str = ''
-        elif invoice_match:
-            desc_raw = invoice_match.group(1).strip()
-            qty = invoice_match.group(2)
-            unit = invoice_match.group(3) or ''
-            unit_price = _clean_number(invoice_match.group(4))
-            amount_str = invoice_match.group(5)
-        elif total_match:
-            desc_raw = total_match.group(1).strip()
-            qty = ''
-            amount_str = total_match.group(2)
+        # Try patterns in specificity order: A (most specific) → D (least)
+        m = pat_A.match(line)
+        if m:
+            desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
+            unit_price_str, amount_str = m.group(4), m.group(5)
+            matched_pattern, confidence = 'A', 0.90
         else:
+            m = pat_C.match(line)
+            if m:
+                desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
+                gross_weight = _clean_number(m.group(4))
+                net_weight   = _clean_number(m.group(5))
+                packages     = _clean_number(m.group(6))
+                matched_pattern, confidence = 'C', 0.80
+            else:
+                m = pat_B.match(line)
+                if m:
+                    desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
+                    unit_price_str, amount_str = m.group(4), m.group(5)
+                    matched_pattern, confidence = 'B', 0.80
+                else:
+                    m = pat_D.match(line)
+                    if m:
+                        desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
+                        amount_str = m.group(4)
+                        matched_pattern, confidence = 'D', 0.65
+
+        if not matched_pattern:
             continue
 
-        # Must contain at least one real English word (≥3 letters)
+        # Description must contain at least one word of ≥3 letters
         if not re.search(r'[A-Za-z]{3,}', desc_raw):
             continue
 
-        # Strip leading row number — invoices often prefix rows with "1 ", "2 ", etc.
-        desc_part = re.sub(r'^\d+\s+', '', desc_raw).strip()
-        if len(desc_part) < 4:
-            continue
-        if not re.search(r'[A-Za-z]{3,}', desc_part):
+        # Strip leading row number
+        desc_part = re.sub(r'^\d+[\s.)]+', '', desc_raw).strip()
+        if len(desc_part) < 4 or not re.search(r'[A-Za-z]{3,}', desc_part):
             continue
 
-        # Skip if description is now a known skip keyword
         if any(w in desc_part.lower() for w in SKIP_WORDS):
             continue
 
+        # Parse amount — strip currency prefix before converting to float
         amount = ''
         if amount_str:
+            raw_amt = re.sub(r'^(?:US\$|USD\s*|EUR\s*|PHP\s*|HKD\s*|CNY\s*|\$|€)', '', amount_str.strip())
             try:
-                amount = float(amount_str.replace(',', ''))
+                amount = float(raw_amt.replace(',', ''))
             except (ValueError, TypeError):
-                continue
-            # Skip very small amounts (likely unit prices, not line totals)
-            if amount < 1.00:
+                if matched_pattern not in ('C',):   # packing list doesn't need amount
+                    continue
+            if isinstance(amount, float) and amount < 0.01:
                 continue
 
-        # Extract quantity from "(NNN PCS)" / "(NNN PIECES)" patterns in description
+        # Parse unit price
+        unit_price = ''
+        if unit_price_str:
+            raw_up = re.sub(r'^(?:US\$|USD\s*|EUR\s*|PHP\s*|HKD\s*|CNY\s*|\$|€)', '', unit_price_str.strip())
+            unit_price = _clean_number(raw_up)
+
+        # Qty fallback — look for "(NNN PCS)" style in description
         if not qty:
-            qty_match = re.search(
-                r'\((\d+)\s*(?:PCS|PIECES|UNITS?|CTN|CTNS?|SET|SETS|ROLLS?|BOX|BOXES)\)',
-                desc_part, re.IGNORECASE
+            qty_m = re.search(
+                r'\((\d+)\s*(?:PCS|PIECES|UNITS?|CTN|CTNS?|SET|SETS|ROLLS?|BOX(?:ES)?|KGS?)\)',
+                desc_part, re.IGNORECASE,
             )
-            if qty_match:
-                qty = qty_match.group(1)
+            if qty_m:
+                qty = qty_m.group(1)
         if not qty:
-            # Try to pick up a standalone number just before the final amount on the line
             qty_inline = re.search(r'\s(\d+)\s+[\d,]+\.\d{2}\s*$', line)
             if qty_inline:
                 qty = qty_inline.group(1)
 
         items.append({
-            'description': desc_part[:200],   # cap at 200 chars
-            'quantity':    qty,
-            'unit':        unit.upper(),
-            'unit_price':  unit_price,
-            'total_value': amount,
+            'description':  desc_part[:200],
+            'quantity':     qty,
+            'unit':         unit.upper(),
+            'unit_price':   unit_price,
+            'total_value':  amount,
             'gross_weight': gross_weight,
-            'net_weight': net_weight,
+            'net_weight':   net_weight,
             'num_packages': packages,
-            'source': 'ocr',
-            'confidence': 0.80 if invoice_match or packing_match else 0.65,
+            'source':       'ocr',
+            'confidence':   confidence,
         })
 
     if not items:
         return []
 
-    # Drop trailing item if its value ≈ sum of all preceding items (slipped-through subtotal)
+    # Drop trailing item if its total ≈ sum of all preceding items (subtotal slipped through)
     if len(items) >= 2:
         preceding_sum = sum(float(it['total_value'] or 0) for it in items[:-1])
-        last_value = float(items[-1].get('total_value') or 0)
+        last_value    = float(items[-1].get('total_value') or 0)
         if preceding_sum > 0 and last_value and abs(last_value - preceding_sum) / preceding_sum < 0.01:
             items = items[:-1]
 

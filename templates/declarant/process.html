@@ -413,7 +413,6 @@
         {% endif %}
 
         <!-- ─── OCR Item Review Panel ─────────────────────────────────────────── -->
-        {% if ocr_items_from_docs %}
         <div class="card" style="margin-top:16px; border:1px solid #1d4ed855;">
             <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
                 <p class="card-title" style="margin:0;">📋 OCR Extracted Line Items</p>
@@ -427,14 +426,27 @@
                      — ECDT will be set to this mode
                 </span>
                 <span style="font-size:11px; color:#64748b; margin-left:auto;">
-                    {{ ocr_items_from_docs|length }} item{{ ocr_items_from_docs|length|pluralize }} found
+                    {% if ocr_items_from_docs %}
+                        {{ ocr_items_from_docs|length }} item{{ ocr_items_from_docs|length|pluralize }} found
+                    {% else %}
+                        No items auto-extracted
+                    {% endif %}
                 </span>
             </div>
+            {% if ocr_items_from_docs %}
             <p style="color:#64748b; font-size:12px; margin-bottom:14px; line-height:1.5;">
                 Review and confirm the items below. Adjust descriptions, quantities, or select the correct
                 HS code for each row, then click <strong style="color:#f1f5f9;">Confirm &amp; Load to ECDT</strong>
                 to pre-fill the computation workspace.
             </p>
+            {% else %}
+            <p style="color:#64748b; font-size:12px; margin-bottom:14px; line-height:1.5;">
+                No items were automatically extracted from the attached documents.
+                Use <strong style="color:#f1f5f9;">+ Add Row</strong> to enter items manually,
+                then click <strong style="color:#f1f5f9;">Confirm &amp; Load to ECDT</strong>
+                to pre-fill the computation workspace.
+            </p>
+            {% endif %}
             <form id="ocr-items-confirm-form" method="POST"
                   action="{% url 'declarant:save_ocr_items' shipment.id %}">
                 {% csrf_token %}
@@ -451,7 +463,15 @@
                                 <th style="text-align:center; padding:8px 6px; color:#64748b; width:40px;"></th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="ocr-items-tbody">
+                            {% if not ocr_items_from_docs %}
+                            <tr id="ocr-empty-row">
+                                <td colspan="7" style="padding:18px 12px; text-align:center;
+                                    color:#475569; font-size:12px; font-style:italic;">
+                                    No items extracted — add rows manually using the button below.
+                                </td>
+                            </tr>
+                            {% endif %}
                             {% for item in ocr_items_from_docs %}
                             <tr style="border-bottom:1px solid #1e293b;" data-row="{{ forloop.counter0 }}">
                                 <td style="padding:6px 6px; color:#475569; font-size:11px; text-align:center;">
@@ -532,7 +552,6 @@
                 </div>
             </form>
         </div>
-        {% endif %}
 
         <!-- HS Recommendations -->
         <div class="card" style="margin-top:16px;">
@@ -1084,12 +1103,28 @@ function ocrInitRow(row) {
 
 function ocrRemoveRow(btn) {
     btn.closest('tr').remove();
+    // If no data rows remain, show the empty-state placeholder
+    var tbody = document.querySelector('#ocr-items-tbody');
+    if (!tbody) return;
+    var dataRows = tbody.querySelectorAll('tr:not(#ocr-empty-row)');
+    if (dataRows.length === 0) {
+        var emptyRow = document.getElementById('ocr-empty-row');
+        if (!emptyRow) {
+            emptyRow = document.createElement('tr');
+            emptyRow.id = 'ocr-empty-row';
+            emptyRow.innerHTML = '<td colspan="7" style="padding:18px 12px;text-align:center;color:#475569;font-size:12px;font-style:italic;">No items extracted — add rows manually using the button below.</td>';
+            tbody.appendChild(emptyRow);
+        }
+    }
 }
 
 function ocrAddRow() {
-    var tbody = document.querySelector('#ocr-items-table tbody');
+    var tbody = document.querySelector('#ocr-items-tbody');
     if (!tbody) return;
-    var rowIdx = tbody.children.length + 1;
+    // Hide the empty-state row if present
+    var emptyRow = document.getElementById('ocr-empty-row');
+    if (emptyRow) emptyRow.remove();
+    var rowIdx = tbody.querySelectorAll('tr').length + 1;
     var tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid #1e293b';
     tr.innerHTML =
@@ -1114,7 +1149,7 @@ function ocrAddRow() {
 
 document.addEventListener('DOMContentLoaded', function() {
     // Init per-item HS dropdowns for OCR review panel
-    document.querySelectorAll('#ocr-items-table tbody tr').forEach(ocrInitRow);
+    document.querySelectorAll('#ocr-items-tbody tr:not(#ocr-empty-row)').forEach(ocrInitRow);
 
     fetchHsRecommendations(false);
 });
