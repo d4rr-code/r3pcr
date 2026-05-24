@@ -218,14 +218,24 @@
 <div class="card" style="margin-bottom:20px;">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
         <p class="card-title" style="margin:0;">Duties and Tax Computation</p>
-        <a href="{% url 'consignee:download_computation' shipment.id %}"
-           style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
-                  color:#22c55e; text-decoration:none; padding:6px 14px;
-                  border:1px solid #166534; border-radius:6px; background:#052e16;"
-           onmouseover="this.style.background='#14532d'"
-           onmouseout="this.style.background='#052e16'">
-            ⬇ Download Excel
-        </a>
+        <div style="display:flex; gap:8px;">
+            <a href="{% url 'consignee:download_computation' shipment.id %}?fmt=pdf"
+               style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600;
+                      color:#1e3a6e; text-decoration:none; padding:6px 14px;
+                      border:1px solid #1e3a6e; border-radius:6px; background:#eff6ff;"
+               onmouseover="this.style.background='#dbeafe'"
+               onmouseout="this.style.background='#eff6ff'">
+                ⬇ PDF
+            </a>
+            <a href="{% url 'consignee:download_computation' shipment.id %}?fmt=xlsx"
+               style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600;
+                      color:#15803d; text-decoration:none; padding:6px 14px;
+                      border:1px solid #166534; border-radius:6px; background:#f0fdf4;"
+               onmouseover="this.style.background='#dcfce7'"
+               onmouseout="this.style.background='#f0fdf4'">
+                ⬇ Excel
+            </a>
+        </div>
     </div>
 
     <!-- 3 key numbers -->

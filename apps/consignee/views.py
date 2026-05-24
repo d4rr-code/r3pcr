@@ -365,231 +365,293 @@ def approve_computation(request, shipment_id):
 
 @login_required
 def download_computation(request, shipment_id):
-    """Download ECDT + WMCDA results as Excel (.xlsx)."""
+    """Download ECDT + WMCDA results as PDF (default) or Excel (.xlsx).
+    Use ?fmt=xlsx for Excel, ?fmt=pdf (or omit) for PDF."""
+    shipment    = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+    computation = getattr(shipment, 'computation', None)
+    advisory    = getattr(shipment, 'shipping_advisory', None)
+    fmt = request.GET.get('fmt', 'pdf').lower()
+    if fmt == 'xlsx':
+        return _ecdt_xlsx(request, shipment, computation, advisory)
+    return _ecdt_pdf(request, shipment, computation, advisory)
+
+
+# ── helpers shared by both generators ────────────────────────────────────────
+
+def _info_block(shipment, computation, request):
+    """Return a list of (label, value) info rows for the document header."""
+    date_str  = computation.computed_at.strftime('%B %d, %Y') if computation else '—'
+    exrate    = f'PHP {float(computation.exchange_rate):,.4f}' if computation else '—'
+    mode_str  = shipment.get_shipment_type_display() if shipment.shipment_type else '—'
+    cname     = request.user.get_full_name() or request.user.username
+    decl_name = '—'
+    if computation and computation.computed_by:
+        decl_name = (
+            computation.computed_by.get_full_name()
+            or computation.computed_by.username
+        )
+    return [
+        ('HAWB / BOL No.',  shipment.hawb_number),
+        ('Consignee',       cname),
+        ('Declarant',       decl_name),
+        ('Date Computed',   date_str),
+        ('Shipment Mode',   mode_str),
+        ('Exchange Rate',   exrate),
+    ]
+
+
+# ── Excel generator (light / navy theme) ─────────────────────────────────────
+
+def _ecdt_xlsx(request, shipment, computation, advisory):
     import io
-    from decimal import Decimal
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
     from django.http import HttpResponse
 
-    shipment    = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
-    computation = getattr(shipment, 'computation', None)
-    advisory    = getattr(shipment, 'shipping_advisory', None)
+    NAVY    = '1E3A6E'
+    WHITE   = 'FFFFFF'
+    LGRAY   = 'F0F4F8'
+    DGRAY   = '374151'
+    MGRAY   = '9CA3AF'
+    GREEN_D = '15803D'
+    LGREEN  = 'DCFCE7'
+    LBLUE   = 'EFF6FF'
+    DBLUE   = '1E40AF'
+
+    def xfill(c):
+        return PatternFill('solid', fgColor=c)
+
+    def xborder(color='CBD5E1', weight='thin'):
+        s = Side(style=weight, color=color)
+        return Border(left=s, right=s, top=s, bottom=s)
+
+    al_l = Alignment(horizontal='left',   vertical='center', indent=1)
+    al_r = Alignment(horizontal='right',  vertical='center')
+    al_c = Alignment(horizontal='center', vertical='center')
+
+    def xcell(ws, row, col, value,
+              bold=False, italic=False, color=DGRAY, bg=WHITE,
+              align=None, brd=None, size=10, num_fmt=None):
+        c = ws.cell(row=row, column=col, value=value)
+        c.font = Font(bold=bold, italic=italic, color=color, size=size, name='Calibri')
+        c.fill = xfill(bg)
+        if align:   c.alignment  = align
+        if brd:     c.border     = brd
+        if num_fmt: c.number_format = num_fmt
+        return c
+
+    thin = xborder()
+    med  = xborder('94A3B8', 'medium')
 
     wb = openpyxl.Workbook()
 
-    # ── Styles ────────────────────────────────────────────────────────────────
-    hdr_fill   = PatternFill('solid', fgColor='0F172A')
-    sub_fill   = PatternFill('solid', fgColor='1E293B')
-    grn_fill   = PatternFill('solid', fgColor='052E16')
-    blu_fill   = PatternFill('solid', fgColor='172554')
-    hdr_font   = Font(bold=True, color='22C55E', size=11)
-    sub_font   = Font(bold=True, color='94A3B8', size=10)
-    val_font   = Font(color='F1F5F9', size=10)
-    grn_font   = Font(bold=True, color='22C55E', size=12)
-    blu_font   = Font(bold=True, color='3B82F6', size=11)
-    title_font = Font(bold=True, color='F1F5F9', size=13)
-    thin_side  = Side(style='thin', color='334155')
-    thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
-    center     = Alignment(horizontal='center', vertical='center')
-    right_a    = Alignment(horizontal='right',  vertical='center')
-    left_a     = Alignment(horizontal='left',   vertical='center')
-
-    def styled(ws, row, col, value, font=None, fill=None, align=None, border=None, num_fmt=None):
-        cell = ws.cell(row=row, column=col, value=value)
-        if font:   cell.font      = font
-        if fill:   cell.fill      = fill
-        if align:  cell.alignment = align
-        if border: cell.border    = border
-        if num_fmt: cell.number_format = num_fmt
-        return cell
-
-    # ════════════════════════════════════════════════════════════════════════
-    # Sheet 1: ECDT Summary
-    # ════════════════════════════════════════════════════════════════════════
+    # ══ Sheet 1 — ECDT ════════════════════════════════════════════════════════
     ws = wb.active
     ws.title = 'ECDT Summary'
     ws.sheet_view.showGridLines = False
-
-    # Column widths
-    for col, w in enumerate([28, 16, 16, 18, 10, 18, 18, 20], start=1):
-        ws.column_dimensions[get_column_letter(col)].width = w
+    NC = 8
+    for ci, w in enumerate([28, 8, 8, 14, 8, 16, 16, 18], start=1):
+        ws.column_dimensions[get_column_letter(ci)].width = w
 
     r = 1
-    # Title block
     ws.merge_cells(f'A{r}:H{r}')
-    styled(ws, r, 1, 'ECDT — DUTIES AND TAX COMPUTATION REPORT',
-           font=Font(bold=True, color='22C55E', size=14), fill=hdr_fill, align=center)
-    ws.row_dimensions[r].height = 24
+    xcell(ws, r, 1, 'RTripleJ Customs Brokerage',
+          bold=True, color=NAVY, bg=WHITE, align=al_c, size=16)
+    ws.row_dimensions[r].height = 30
     r += 1
     ws.merge_cells(f'A{r}:H{r}')
-    styled(ws, r, 1, f'Shipment:  {shipment.hawb_number}   |   Consignee: {request.user.get_full_name() or request.user.username}',
-           font=Font(color='94A3B8', size=10), fill=hdr_fill, align=center)
+    xcell(ws, r, 1, 'ECDT & WMCDA Computation Sheet',
+          bold=True, color=NAVY, bg=WHITE, align=al_c, size=11)
+    ws.row_dimensions[r].height = 18
     r += 1
-    if computation:
-        ws.merge_cells(f'A{r}:H{r}')
-        styled(ws, r, 1,
-               f'Computed: {computation.computed_at.strftime("%b %d, %Y %I:%M %p")}   |   '
-               f'Exchange Rate: ₱{computation.exchange_rate}',
-               font=Font(color='64748B', size=9), fill=hdr_fill, align=center)
-    r += 2
+    # navy rule
+    navy_top = Border(top=Side(style='medium', color=NAVY))
+    for ci in range(1, NC + 1):
+        ws.cell(row=r, column=ci).border = navy_top
+    r += 1
+
+    # info block
+    for label, val in _info_block(shipment, computation, request):
+        ws.merge_cells(f'A{r}:B{r}')
+        xcell(ws, r, 1, label, bold=True, color=MGRAY, bg=LGRAY, align=al_l, brd=thin, size=9)
+        ws.merge_cells(f'C{r}:H{r}')
+        xcell(ws, r, 3, val,   color=DGRAY, bg=WHITE, align=al_l, brd=thin, size=10)
+        ws.row_dimensions[r].height = 16
+        r += 1
+
+    r += 1  # spacer
 
     if computation:
-        # ── Item Breakdown ────────────────────────────────────────────────
-        for col, label in enumerate(
-            ['DESCRIPTION', 'QTY / UNIT', 'EXW (USD)', 'HS CODE', 'DUTY %', 'D/V (₱)', 'CUD (₱)'], start=1
-        ):
-            styled(ws, r, col, label, font=sub_font, fill=sub_fill, align=center, border=thin_border)
+        items = computation.get_items()
+
+        # items table
+        hdrs = ['DESCRIPTION', 'QTY', 'UNIT', 'HS CODE', 'DUTY %',
+                'D/V (PHP)', 'CUD (PHP)', 'EXW (USD)']
+        for ci, h in enumerate(hdrs, start=1):
+            xcell(ws, r, ci, h, bold=True, color=WHITE, bg=NAVY,
+                  align=al_c, brd=thin, size=10)
+        ws.row_dimensions[r].height = 20
+        r += 1
+
+        for idx, it in enumerate(items):
+            row_bg = WHITE if idx % 2 == 0 else LGRAY
+            vals = [
+                it.get('description', ''),
+                it.get('quantity', ''),
+                it.get('unit', ''),
+                it.get('hs_code', '') or '—',
+                float(it.get('duty_rate', 0) or 0),
+                float(it.get('dv_php',    0) or 0),
+                float(it.get('cud',       0) or 0),
+                float(it.get('exw',       0) or 0),
+            ]
+            for ci, v in enumerate(vals, start=1):
+                al  = al_c if ci in (2, 3, 4, 5) else (al_r if ci > 4 else al_l)
+                nfm = '0.00' if ci == 5 else ('#,##0.00' if ci in (6, 7, 8) else None)
+                xcell(ws, r, ci, v, color=DGRAY, bg=row_bg,
+                      align=al, brd=thin, size=10, num_fmt=nfm)
+            r += 1
+
+        r += 1  # spacer
+
+        # fee summary header
+        ws.merge_cells(f'A{r}:F{r}')
+        xcell(ws, r, 1, 'CHARGE',       bold=True, color=WHITE, bg=NAVY,
+              align=al_l, brd=thin, size=10)
+        ws.merge_cells(f'G{r}:H{r}')
+        xcell(ws, r, 7, 'AMOUNT (PHP)', bold=True, color=WHITE, bg=NAVY,
+              align=al_r, brd=thin, size=10)
+        ws.row_dimensions[r].height = 20
+        r += 1
+
+        def xfee(label, amount, bold=False, color=DGRAY, bg=WHITE):
+            nonlocal r
+            ws.merge_cells(f'A{r}:F{r}')
+            xcell(ws, r, 1, label, bold=bold, color=color, bg=bg,
+                  align=al_l, brd=thin, size=10)
+            ws.merge_cells(f'G{r}:H{r}')
+            xcell(ws, r, 7, float(amount or 0), bold=bold, color=color, bg=bg,
+                  align=al_r, brd=thin, size=10, num_fmt='#,##0.00')
+            r += 1
+
+        xfee('Customs Duty (CUD)',          computation.customs_duty)
+        xfee('Value Added Tax — 12% (VAT)', computation.vat_amount)
+        xfee('Import Processing Fee (IPF)', computation.ipf)
+        xfee('Documentary Stamp (CDS)',     130, bg=LGRAY)
+
+        # BOC Payable
+        ws.merge_cells(f'A{r}:F{r}')
+        xcell(ws, r, 1, 'BOC Payable  (CUD + VAT + IPF + CDS)',
+              bold=True, color=DBLUE, bg=LBLUE, align=al_l, brd=thin, size=10)
+        ws.merge_cells(f'G{r}:H{r}')
+        xcell(ws, r, 7, float(computation.boc_payable or 0),
+              bold=True, color=DBLUE, bg=LBLUE, align=al_r, brd=thin,
+              size=10, num_fmt='#,##0.00')
         ws.row_dimensions[r].height = 18
         r += 1
 
-        items = computation.get_items()
-        for it in items:
-            qty_unit = str(it.get('quantity', ''))
-            if it.get('unit'):
-                qty_unit += f" {it.get('unit')}"
-            row_data = [
-                it.get('description', ''),
-                qty_unit,
-                float(it.get('exw', 0) or 0),
-                it.get('hs_code', '—') or '—',
-                f"{float(it.get('duty_rate', 0) or 0):.2f}%",
-                float(it.get('dv_php', 0) or 0),
-                float(it.get('cud', 0) or 0),
-            ]
-            for col, val in enumerate(row_data, start=1):
-                cell = ws.cell(row=r, column=col, value=val)
-                cell.font   = val_font
-                cell.fill   = PatternFill('solid', fgColor='0C1420')
-                cell.border = thin_border
-                cell.alignment = right_a if col > 2 else left_a
-                if col in (3, 6, 7):
-                    cell.number_format = '#,##0.00'
-            r += 1
-        r += 1
-
-        # ── Fee Breakdown ─────────────────────────────────────────────────
-        ws.merge_cells(f'A{r}:F{r}')
-        styled(ws, r, 1, 'FEE BREAKDOWN', font=sub_font, fill=sub_fill, align=left_a)
-        r += 1
-
-        def fee_row(label, amount, font=None, fill=None):
-            nonlocal r
-            ws.merge_cells(f'A{r}:F{r}')
-            styled(ws, r, 1, label,
-                   font=font or Font(color='94A3B8', size=10), fill=fill or PatternFill('solid', fgColor='0F172A'),
-                   align=left_a)
-            cell = ws.cell(row=r, column=7, value=float(amount or 0))
-            cell.font   = font or val_font
-            cell.fill   = fill or PatternFill('solid', fgColor='0F172A')
-            cell.number_format = '₱#,##0.00'
-            cell.alignment = right_a
-            r += 1
-
-        fee_row('Customs Duty (CUD)',          computation.customs_duty)
-        fee_row('VAT (12%)',                   computation.vat_amount)
-        fee_row('Import Processing Fee (IPF)', computation.ipf)
-        fee_row('Documentary Stamp (CDS)',     130)
-
-        # BOC Total
-        ws.merge_cells(f'A{r}:F{r}')
-        styled(ws, r, 1, 'BOC Total', font=blu_font, fill=blu_fill, align=left_a)
-        cell = ws.cell(row=r, column=7, value=float(computation.boc_payable or 0))
-        cell.font = blu_font; cell.fill = blu_fill
-        cell.number_format = '₱#,##0.00'; cell.alignment = right_a
-        r += 1
-
-        fee_row('Brokerage Fee', computation.brokerage_fee)
-        if computation.arrastre:    fee_row('Arrastre',              computation.arrastre)
-        if computation.wharfage:    fee_row('Wharfage',              computation.wharfage)
-        if computation.bank_charges: fee_row('Bank Charges',         computation.bank_charges)
-        if computation.csf_php:     fee_row('Container Service Fee', computation.csf_php)
+        xfee('Brokerage Fee', computation.brokerage_fee)
+        if computation.arrastre:      xfee('Arrastre',              computation.arrastre)
+        if computation.wharfage:      xfee('Wharfage',              computation.wharfage)
+        if computation.bank_charges:  xfee('Bank Charges',          computation.bank_charges)
+        if computation.csf_php:       xfee('Container Service Fee', computation.csf_php)
 
         # Total Landed Cost
         ws.merge_cells(f'A{r}:F{r}')
-        styled(ws, r, 1, 'TOTAL LANDED COST', font=grn_font, fill=grn_fill, align=left_a)
-        cell = ws.cell(row=r, column=7, value=float(computation.total_landed_cost or 0))
-        cell.font = grn_font; cell.fill = grn_fill
-        cell.number_format = '₱#,##0.00'; cell.alignment = right_a
-        ws.row_dimensions[r].height = 20
+        xcell(ws, r, 1, 'TOTAL LANDED COST',
+              bold=True, color=GREEN_D, bg=LGREEN, align=al_l, brd=med, size=11)
+        ws.merge_cells(f'G{r}:H{r}')
+        xcell(ws, r, 7, float(computation.total_landed_cost or 0),
+              bold=True, color=GREEN_D, bg=LGREEN, align=al_r, brd=med,
+              size=11, num_fmt='#,##0.00')
+        ws.row_dimensions[r].height = 22
         r += 1
-    else:
-        ws.merge_cells('A5:H5')
-        styled(ws, 5, 1, 'No computation on file for this shipment.',
-               font=Font(color='64748B', size=11), align=center)
 
-    # ════════════════════════════════════════════════════════════════════════
-    # Sheet 2: WMCDA Advisory
-    # ════════════════════════════════════════════════════════════════════════
+    else:
+        ws.merge_cells(f'A{r}:H{r}')
+        xcell(ws, r, 1, 'No computation on file for this shipment.',
+              color=MGRAY, bg=WHITE, align=al_c, size=10)
+
+    # ══ Sheet 2 — WMCDA ═══════════════════════════════════════════════════════
     ws2 = wb.create_sheet('WMCDA Advisory')
     ws2.sheet_view.showGridLines = False
-    for col, w in enumerate([30, 20, 20], start=1):
-        ws2.column_dimensions[get_column_letter(col)].width = w
+    for ci, w in enumerate([32, 14, 18], start=1):
+        ws2.column_dimensions[get_column_letter(ci)].width = w
 
     r2 = 1
     ws2.merge_cells(f'A{r2}:C{r2}')
-    styled(ws2, r2, 1, 'WMCDA — SHIPPING MODE ADVISORY',
-           font=Font(bold=True, color='22C55E', size=14), fill=hdr_fill, align=center)
-    ws2.row_dimensions[r2].height = 24
+    xcell(ws2, r2, 1, 'RTripleJ Customs Brokerage',
+          bold=True, color=NAVY, bg=WHITE, align=al_c, size=16)
+    ws2.row_dimensions[r2].height = 30
+    r2 += 1
+    ws2.merge_cells(f'A{r2}:C{r2}')
+    xcell(ws2, r2, 1, 'WMCDA — Shipping Mode Advisory',
+          bold=True, color=NAVY, bg=WHITE, align=al_c, size=11)
+    ws2.row_dimensions[r2].height = 18
     r2 += 2
 
     if advisory:
-        # Declared mode
         ws2.merge_cells(f'A{r2}:C{r2}')
-        styled(ws2, r2, 1, f'Your Declared Mode: {shipment.get_shipment_type_display() if shipment.shipment_type else "—"}',
-               font=Font(bold=True, color='F1F5F9', size=11), fill=sub_fill, align=left_a)
+        xcell(ws2, r2, 1,
+              f'Declared Mode: '
+              f'{shipment.get_shipment_type_display() if shipment.shipment_type else "—"}',
+              bold=True, color=NAVY, bg=LGRAY, align=al_l, size=10)
         r2 += 1
 
-        # Scores table
-        for col, hdr in enumerate(['Mode', 'Score', 'Recommendation'], start=1):
-            styled(ws2, r2, col, hdr, font=sub_font, fill=sub_fill, align=center, border=thin_border)
+        for ci, h in enumerate(['MODE', 'SCORE', 'RESULT'], start=1):
+            xcell(ws2, r2, ci, h, bold=True, color=WHITE, bg=NAVY,
+                  align=al_c, brd=thin, size=10)
+        ws2.row_dimensions[r2].height = 20
         r2 += 1
 
         mode_scores = [
-            ('Air Freight', advisory.air_score),
-            ('LCL — Less Container Load', advisory.lcl_score),
-            ('FCL — Full Container Load', advisory.fcl_score),
-            ('Land Freight', advisory.land_score),
+            ('Air Freight',               'air',  advisory.air_score),
+            ('LCL (Less Container Load)', 'lcl',  advisory.lcl_score),
+            ('FCL (Full Container Load)', 'fcl',  advisory.fcl_score),
+            ('Land Freight',              'land', advisory.land_score),
         ]
-        mode_keys = {'Air Freight': 'air', 'LCL — Less Container Load': 'lcl',
-                     'FCL — Full Container Load': 'fcl', 'Land Freight': 'land'}
-
-        for mode_label, score in sorted(mode_scores, key=lambda x: (x[1] or 0), reverse=True):
-            is_rec  = (mode_keys.get(mode_label) == advisory.recommended_type)
-            tag     = '★ RECOMMENDED' if is_rec else ''
-            f_color = '22C55E' if is_rec else 'F1F5F9'
-            bg      = '052E16' if is_rec else '0F172A'
-            row_fill = PatternFill('solid', fgColor=bg)
-            row_font = Font(bold=is_rec, color=f_color, size=10)
-            for col, val in enumerate([mode_label, f'{float(score or 0):.4f}', tag], start=1):
-                cell = ws2.cell(row=r2, column=col, value=val)
-                cell.font = row_font; cell.fill = row_fill
-                cell.border = thin_border
-                cell.alignment = center if col > 1 else left_a
+        for mode_label, key, score in sorted(
+            mode_scores, key=lambda x: (x[2] or 0), reverse=True
+        ):
+            is_rec = (key == advisory.recommended_type)
+            bg     = LGREEN if is_rec else (WHITE if r2 % 2 == 0 else LGRAY)
+            tag    = '★ Recommended' if is_rec else ''
+            fc     = GREEN_D if is_rec else DGRAY
+            xcell(ws2, r2, 1, mode_label,
+                  bold=is_rec, color=fc, bg=bg, align=al_l, brd=thin, size=10)
+            c2 = ws2.cell(row=r2, column=2, value=float(score or 0))
+            c2.font = Font(bold=is_rec, color=fc, size=10, name='Calibri')
+            c2.fill = xfill(bg)
+            c2.number_format = '0.0000'
+            c2.alignment = al_c
+            c2.border = thin
+            xcell(ws2, r2, 3, tag,
+                  bold=is_rec, color=fc, bg=bg, align=al_c, brd=thin, size=10)
             r2 += 1
 
         r2 += 1
-        # Declarant's recommendation
         if advisory.declarant_recommendation:
             ws2.merge_cells(f'A{r2}:C{r2}')
-            styled(ws2, r2, 1,
-                   f"Declarant's Recommendation: {advisory.declarant_recommendation.upper()}",
-                   font=Font(bold=True, color='93C5FD', size=11), fill=blu_fill, align=left_a)
+            xcell(ws2, r2, 1,
+                  f"Declarant's Recommendation: "
+                  f"{advisory.declarant_recommendation.upper()}",
+                  bold=True, color=DBLUE, bg=LBLUE, align=al_l, size=11)
             r2 += 1
         if advisory.declarant_note:
             ws2.merge_cells(f'A{r2}:C{r2}')
-            styled(ws2, r2, 1, f'Note: "{advisory.declarant_note}"',
-                   font=Font(italic=True, color='94A3B8', size=10),
-                   fill=PatternFill('solid', fgColor='0D2237'), align=left_a)
-            ws2.row_dimensions[r2].height = 30
-            ws2.cell(row=r2, column=1).alignment = Alignment(
+            cn = ws2.cell(row=r2, column=1,
+                          value=f'Note: "{advisory.declarant_note}"')
+            cn.font = Font(italic=True, color=MGRAY, size=10, name='Calibri')
+            cn.fill = xfill(LGRAY)
+            cn.alignment = Alignment(
                 horizontal='left', vertical='center', wrap_text=True)
+            ws2.row_dimensions[r2].height = 36
     else:
-        ws2.merge_cells('A3:C3')
-        styled(ws2, 3, 1, 'No WMCDA advisory on file.', font=Font(color='64748B', size=11), align=center)
+        ws2.merge_cells('A5:C5')
+        xcell(ws2, 5, 1, 'No WMCDA advisory on file.',
+              color=MGRAY, bg=WHITE, align=al_c, size=10)
 
-    # ── Serve file ────────────────────────────────────────────────────────────
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -598,6 +660,292 @@ def download_computation(request, shipment_id):
         buf.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+# ── PDF generator (light / navy theme) ───────────────────────────────────────
+
+def _ecdt_pdf(request, shipment, computation, advisory):
+    import io
+    from django.http import HttpResponse
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.platypus import (
+        SimpleDocTemplate, Table, TableStyle,
+        Paragraph, Spacer, HRFlowable,
+    )
+
+    NAVY   = colors.HexColor('#1E3A6E')
+    WHITE  = colors.white
+    LGRAY  = colors.HexColor('#F0F4F8')
+    DGRAY  = colors.HexColor('#374151')
+    MGRAY  = colors.HexColor('#9CA3AF')
+    GREEN  = colors.HexColor('#15803D')
+    LGREEN = colors.HexColor('#DCFCE7')
+    LBLUE  = colors.HexColor('#EFF6FF')
+    DBLUE  = colors.HexColor('#1E40AF')
+    BORDER = colors.HexColor('#CBD5E1')
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=2*cm, rightMargin=2*cm,
+        topMargin=2*cm, bottomMargin=2*cm,
+    )
+    W = doc.width
+
+    def ps(name, **kw):
+        return ParagraphStyle(name, **kw)
+
+    p_company  = ps('co', fontSize=18, fontName='Helvetica-Bold',
+                    textColor=NAVY, alignment=TA_CENTER, spaceAfter=2)
+    p_subtitle = ps('su', fontSize=11, fontName='Helvetica-Bold',
+                    textColor=NAVY, alignment=TA_CENTER, spaceAfter=6)
+    p_section  = ps('se', fontSize=9,  fontName='Helvetica-Bold',
+                    textColor=WHITE, backColor=NAVY, alignment=TA_LEFT,
+                    leftIndent=4, leading=16, spaceAfter=2, spaceBefore=8)
+    p_lbl      = ps('lb', fontSize=9, fontName='Helvetica-Bold',  textColor=MGRAY)
+    p_val      = ps('vl', fontSize=9, fontName='Helvetica',       textColor=DGRAY)
+    p_note     = ps('nt', fontSize=7, fontName='Helvetica-Oblique',
+                    textColor=MGRAY, alignment=TA_CENTER)
+
+    def hdr8(align=TA_LEFT):
+        return ps(f'h8{align}', fontSize=8, fontName='Helvetica-Bold',
+                  textColor=WHITE, alignment=align)
+
+    def body8(align=TA_LEFT, bold=False, color=None):
+        fn = 'Helvetica-Bold' if bold else 'Helvetica'
+        return ps(f'bd8{align}{bold}', fontSize=8, fontName=fn,
+                  textColor=color or DGRAY, alignment=align)
+
+    def php(v):
+        return f'₱{float(v or 0):,.2f}'
+
+    story = []
+
+    # header
+    story.append(Paragraph('RTripleJ Customs Brokerage', p_company))
+    story.append(Paragraph('ECDT &amp; WMCDA Computation Sheet', p_subtitle))
+    story.append(HRFlowable(width='100%', thickness=2, color=NAVY,
+                             spaceAfter=6, spaceBefore=0))
+
+    # info table
+    info_rows = [
+        [Paragraph(f'<b>{k}</b>', p_lbl), Paragraph(v, p_val)]
+        for k, v in _info_block(shipment, computation, request)
+    ]
+    info_tbl = Table(info_rows, colWidths=[W * 0.28, W * 0.72])
+    info_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (0, -1), LGRAY),
+        ('BACKGROUND',    (1, 0), (1, -1), WHITE),
+        ('GRID',          (0, 0), (-1, -1), 0.5, BORDER),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
+    ]))
+    story.append(info_tbl)
+    story.append(Spacer(1, 10))
+
+    if computation:
+        items = computation.get_items()
+
+        # ── line items ────────────────────────────────────────────────────────
+        story.append(Paragraph('LINE ITEMS', p_section))
+        story.append(Spacer(1, 1))
+
+        cw = [W*0.27, W*0.11, W*0.10, W*0.08, W*0.14, W*0.15, W*0.15]
+        item_rows = [[
+            Paragraph('<b>DESCRIPTION</b>', hdr8(TA_LEFT)),
+            Paragraph('<b>QTY / UNIT</b>',  hdr8(TA_CENTER)),
+            Paragraph('<b>HS CODE</b>',      hdr8(TA_CENTER)),
+            Paragraph('<b>DUTY %</b>',       hdr8(TA_RIGHT)),
+            Paragraph('<b>D/V (PHP)</b>',    hdr8(TA_RIGHT)),
+            Paragraph('<b>CUD (PHP)</b>',    hdr8(TA_RIGHT)),
+            Paragraph('<b>EXW (USD)</b>',    hdr8(TA_RIGHT)),
+        ]]
+        for it in items:
+            qty_unit = str(it.get('quantity', ''))
+            if it.get('unit'):
+                qty_unit += f" {it.get('unit')}"
+            item_rows.append([
+                Paragraph(it.get('description', ''),              body8(TA_LEFT)),
+                Paragraph(qty_unit.strip(),                        body8(TA_CENTER)),
+                Paragraph(it.get('hs_code') or '—',               body8(TA_CENTER)),
+                Paragraph(f"{float(it.get('duty_rate',0) or 0):.2f}%", body8(TA_RIGHT)),
+                Paragraph(f"{float(it.get('dv_php', 0) or 0):,.2f}",   body8(TA_RIGHT)),
+                Paragraph(f"{float(it.get('cud',    0) or 0):,.2f}",   body8(TA_RIGHT)),
+                Paragraph(f"{float(it.get('exw',    0) or 0):,.2f}",   body8(TA_RIGHT)),
+            ])
+
+        item_tbl = Table(item_rows, colWidths=cw, repeatRows=1)
+        item_style = [
+            ('BACKGROUND',    (0, 0), (-1, 0), NAVY),
+            ('GRID',          (0, 0), (-1, -1), 0.5, BORDER),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
+        ]
+        for i in range(1, len(item_rows)):
+            item_style.append((
+                'BACKGROUND', (0, i), (-1, i),
+                WHITE if i % 2 == 1 else LGRAY,
+            ))
+        item_tbl.setStyle(TableStyle(item_style))
+        story.append(item_tbl)
+        story.append(Spacer(1, 10))
+
+        # ── fee summary ───────────────────────────────────────────────────────
+        story.append(Paragraph('DUTIES &amp; FEES SUMMARY', p_section))
+        story.append(Spacer(1, 1))
+
+        fee_rows = [[
+            Paragraph('<b>CHARGE</b>',       hdr8(TA_LEFT)),
+            Paragraph('<b>AMOUNT (PHP)</b>', hdr8(TA_RIGHT)),
+        ]]
+
+        def pfee(label, amount, bold=False, lc=None, ac=None):
+            fn  = 'Helvetica-Bold' if bold else 'Helvetica'
+            fee_rows.append([
+                Paragraph(label, ps(f'fl{len(fee_rows)}',
+                          fontSize=9, fontName=fn, textColor=lc or DGRAY)),
+                Paragraph(php(amount), ps(f'fa{len(fee_rows)}',
+                          fontSize=9, fontName=fn,
+                          textColor=ac or DGRAY, alignment=TA_RIGHT)),
+            ])
+
+        pfee('Customs Duty (CUD)',             computation.customs_duty)
+        pfee('Value Added Tax — 12% (VAT)',    computation.vat_amount)
+        pfee('Import Processing Fee (IPF)',    computation.ipf)
+        pfee('Documentary Stamp (CDS)',        130)
+        boc_idx = len(fee_rows)
+        pfee('BOC Payable  (CUD + VAT + IPF + CDS)',
+             computation.boc_payable, bold=True, lc=DBLUE, ac=DBLUE)
+        pfee('Brokerage Fee', computation.brokerage_fee)
+        if computation.arrastre:      pfee('Arrastre',              computation.arrastre)
+        if computation.wharfage:      pfee('Wharfage',              computation.wharfage)
+        if computation.bank_charges:  pfee('Bank Charges',          computation.bank_charges)
+        if computation.csf_php:       pfee('Container Service Fee', computation.csf_php)
+        tlc_idx = len(fee_rows)
+        fee_rows.append([
+            Paragraph('<b>TOTAL LANDED COST</b>',
+                      ps('tll', fontSize=10, fontName='Helvetica-Bold', textColor=GREEN)),
+            Paragraph(php(computation.total_landed_cost),
+                      ps('tlr', fontSize=10, fontName='Helvetica-Bold',
+                         textColor=GREEN, alignment=TA_RIGHT)),
+        ])
+
+        fee_tbl = Table(fee_rows, colWidths=[W * 0.65, W * 0.35])
+        fee_style = [
+            ('BACKGROUND',    (0, 0),       (-1, 0),       NAVY),
+            ('GRID',          (0, 0),       (-1, -1),      0.5, BORDER),
+            ('VALIGN',        (0, 0),       (-1, -1),      'MIDDLE'),
+            ('TOPPADDING',    (0, 0),       (-1, -1),      4),
+            ('BOTTOMPADDING', (0, 0),       (-1, -1),      4),
+            ('LEFTPADDING',   (0, 0),       (-1, -1),      6),
+            ('RIGHTPADDING',  (0, 0),       (-1, -1),      6),
+            ('BACKGROUND',    (0, boc_idx), (-1, boc_idx), LBLUE),
+            ('LINEABOVE',     (0, boc_idx), (-1, boc_idx), 1.5, DBLUE),
+            ('LINEBELOW',     (0, boc_idx), (-1, boc_idx), 1.5, DBLUE),
+            ('BACKGROUND',    (0, tlc_idx), (-1, tlc_idx), LGREEN),
+            ('LINEABOVE',     (0, tlc_idx), (-1, tlc_idx), 1.5, GREEN),
+            ('LINEBELOW',     (0, tlc_idx), (-1, tlc_idx), 1.5, GREEN),
+        ]
+        for i in range(1, len(fee_rows)):
+            if i not in (boc_idx, tlc_idx):
+                fee_style.append((
+                    'BACKGROUND', (0, i), (-1, i),
+                    WHITE if i % 2 == 1 else LGRAY,
+                ))
+        fee_tbl.setStyle(TableStyle(fee_style))
+        story.append(fee_tbl)
+        story.append(Spacer(1, 12))
+
+    # ── WMCDA ─────────────────────────────────────────────────────────────────
+    if advisory:
+        story.append(Paragraph('WMCDA — SHIPPING MODE ADVISORY', p_section))
+        story.append(Spacer(1, 1))
+
+        mode_scores = [
+            ('Air Freight',               'air',  advisory.air_score),
+            ('LCL (Less Container Load)', 'lcl',  advisory.lcl_score),
+            ('FCL (Full Container Load)', 'fcl',  advisory.fcl_score),
+            ('Land Freight',              'land', advisory.land_score),
+        ]
+        adv_rows = [[
+            Paragraph('<b>MODE</b>',   hdr8(TA_LEFT)),
+            Paragraph('<b>SCORE</b>',  hdr8(TA_CENTER)),
+            Paragraph('<b>RESULT</b>', hdr8(TA_CENTER)),
+        ]]
+        adv_bgs = []
+        for i, (label, key, score) in enumerate(
+            sorted(mode_scores, key=lambda x: (x[2] or 0), reverse=True), start=1
+        ):
+            is_rec = (key == advisory.recommended_type)
+            mc = GREEN if is_rec else DGRAY
+            mf = 'Helvetica-Bold' if is_rec else 'Helvetica'
+            tag = '★ Recommended' if is_rec else ''
+            adv_rows.append([
+                Paragraph(label, ps(f'am{i}', fontSize=8, fontName=mf, textColor=mc)),
+                Paragraph(f'{float(score or 0):.4f}',
+                          ps(f'as{i}', fontSize=8, fontName=mf,
+                             textColor=mc, alignment=TA_CENTER)),
+                Paragraph(tag,
+                          ps(f'at{i}', fontSize=8, fontName=mf,
+                             textColor=mc, alignment=TA_CENTER)),
+            ])
+            adv_bgs.append((i, LGREEN if is_rec else (WHITE if i % 2 == 1 else LGRAY)))
+
+        adv_tbl = Table(adv_rows, colWidths=[W*0.50, W*0.20, W*0.30], repeatRows=1)
+        adv_sty = [
+            ('BACKGROUND',    (0, 0), (-1, 0), NAVY),
+            ('GRID',          (0, 0), (-1, -1), 0.5, BORDER),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING',    (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
+        ]
+        for row_i, bg in adv_bgs:
+            adv_sty.append(('BACKGROUND', (0, row_i), (-1, row_i), bg))
+        adv_tbl.setStyle(TableStyle(adv_sty))
+        story.append(adv_tbl)
+        story.append(Spacer(1, 6))
+
+        if advisory.declarant_recommendation:
+            story.append(Paragraph(
+                f"<b>Declarant&#8217;s Recommendation:</b> "
+                f"{advisory.declarant_recommendation.upper()}",
+                ps('dr', fontSize=9, fontName='Helvetica-Bold', textColor=DBLUE),
+            ))
+        if advisory.declarant_note:
+            story.append(Spacer(1, 2))
+            story.append(Paragraph(
+                f'<i>Note: &ldquo;{advisory.declarant_note}&rdquo;</i>',
+                ps('dn', fontSize=8, fontName='Helvetica-Oblique', textColor=MGRAY),
+            ))
+        story.append(Spacer(1, 10))
+
+    # footer
+    story.append(HRFlowable(width='100%', thickness=1, color=NAVY,
+                             spaceBefore=4, spaceAfter=4))
+    story.append(Paragraph(
+        f'Generated by R3-PCR · RTripleJ Customs Brokerage '
+        f'· {shipment.hawb_number}',
+        p_note,
+    ))
+
+    doc.build(story)
+    buf.seek(0)
+    filename = f"R3PCR_{shipment.hawb_number}_ECDT_WMCDA.pdf"
+    response = HttpResponse(buf.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
