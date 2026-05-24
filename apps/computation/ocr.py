@@ -323,6 +323,9 @@ def _extract_line_items(text):
         # logistics / charges
         'freight', 'insurance', 'shipping', 'handling', 'tax', 'vat', 'charges',
         'surcharge', 'customs', 'duty', 'fee', 'commission',
+        # contact / header lines  ← NEW
+        'tel', 'tel.', 'fax', 'fax.', 'email', 'e-mail', 'phone', 'mobile',
+        'hotline', 'website', 'www.', 'address', 'addr.',
         # document / header words
         'invoice', 'description', 'item', 'qty', 'quantity', 'unit', 'price',
         'amount', 'no.', 'number', 'date', 'currency', 'terms', 'payment',
@@ -378,6 +381,11 @@ def _extract_line_items(text):
         if any(w in low for w in SKIP_WORDS):
             continue
 
+        # Skip phone / fax / address lines even when keyword appears mid-line
+        # Patterns: +63, (63-2), (+63), (+1-), international dial codes, @-signs
+        if re.search(r'(?:\+\d{1,3}[\s\-.]|\(\d{2,4}\)[\s\-]\d|\b\d{3}[-.\s]\d{4}\b|@\w+\.\w)', line):
+            continue
+
         matched_pattern = None
         desc_raw = qty = unit = unit_price_str = amount_str = ''
         gross_weight = net_weight = packages = ''
@@ -423,6 +431,16 @@ def _extract_line_items(text):
             continue
 
         if any(w in desc_part.lower() for w in SKIP_WORDS):
+            continue
+
+        # Reject qty that looks like a full HS code (8–10 consecutive digits) —
+        # means Pattern B caught an embedded HS code instead of a real quantity
+        if qty and re.match(r'^\d{8,10}$', qty.replace(' ', '').replace('.', '')):
+            continue
+
+        # Skip address-style descriptions: e.g. "1-15 Some Street" or
+        # OCR fragments that start with a hyphenated number range
+        if re.match(r'^\d+[-/]\d+', desc_part):
             continue
 
         # Parse amount — strip currency prefix before converting to float
