@@ -55,27 +55,35 @@ def login_view(request):
             OTP.objects.create(user=user, code=otp_code)
             request.session['pre_auth_user_id'] = user.id
 
-            _send_mail_async(
-                subject='R3-PCR Login OTP',
-                message=f'Your OTP code is: {otp_code}\nExpires in 10 minutes.',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=f'''
-                    <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;">
-                        <h2 style="color:#3b82f6;">R3-PCR System</h2>
-                        <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
-                        <p>Your OTP code is:</p>
-                        <h1 style="color:#3b82f6;letter-spacing:8px;">{otp_code}</h1>
-                        <p>Expires in <strong>10 minutes</strong>.</p>
-                        <p style="color:#94a3b8;font-size:12px;">
-                            If you did not request this, ignore this email.
-                        </p>
-                    </div>
-                ''',
-                log_tag=f'login OTP for {user.username}',
-            )
+            if settings.DEBUG:
+                # Local development: skip email, print OTP to console
+                print(f'\n{"="*40}')
+                print(f'[DEV OTP] User: {user.username}')
+                print(f'[DEV OTP] Code: {otp_code}')
+                print(f'{"="*40}\n')
+                messages.info(request, f'[DEV] OTP printed to console (email skipped in DEBUG mode).')
+            else:
+                _send_mail_async(
+                    subject='R3-PCR Login OTP',
+                    message=f'Your OTP code is: {otp_code}\nExpires in 10 minutes.',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    html_message=f'''
+                        <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;">
+                            <h2 style="color:#3b82f6;">R3-PCR System</h2>
+                            <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
+                            <p>Your OTP code is:</p>
+                            <h1 style="color:#3b82f6;letter-spacing:8px;">{otp_code}</h1>
+                            <p>Expires in <strong>10 minutes</strong>.</p>
+                            <p style="color:#94a3b8;font-size:12px;">
+                                If you did not request this, ignore this email.
+                            </p>
+                        </div>
+                    ''',
+                    log_tag=f'login OTP for {user.username}',
+                )
+                messages.success(request, 'OTP sent to your email.')
 
-            messages.success(request, 'OTP sent to your email.')
             return redirect('accounts:verify_otp')
         else:
             messages.error(request, 'Invalid username or password.')

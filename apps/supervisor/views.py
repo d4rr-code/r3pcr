@@ -80,171 +80,8 @@ def supervisor_required(view_func):
 @login_required
 @supervisor_required
 def dashboard(request):
-    all_shipments = Shipment.objects.all()
-
-    q         = request.GET.get('q', '').strip()
-    status_f  = request.GET.get('status', '').strip()
-    date_from = request.GET.get('date_from', '').strip()
-    date_to   = request.GET.get('date_to', '').strip()
-
-    shipments = all_shipments.order_by('-submitted_at')
-    if q:
-        shipments = shipments.filter(
-            hawb_number__icontains=q
-        ) | all_shipments.filter(
-            consignee__first_name__icontains=q
-        ) | all_shipments.filter(
-            consignee__last_name__icontains=q
-        ) | all_shipments.filter(
-            consignee__username__icontains=q
-        )
-        shipments = shipments.order_by('-submitted_at')
-    if status_f:
-        shipments = shipments.filter(status=status_f)
-    if date_from:
-        shipments = shipments.filter(submitted_at__date__gte=date_from)
-    if date_to:
-        shipments = shipments.filter(submitted_at__date__lte=date_to)
-
-    total = all_shipments.count()
-
-    # ── Status breakdown for bar chart ───────────────────────────────────────
-    _status_colors = {
-        'incoming':    '#f59e0b', 'arrived':  '#3b82f6', 'computed': '#8b5cf6',
-        'approved':    '#22c55e', 'rejected': '#ef4444', 'for_revision': '#f97316',
-        'lodgement':   '#38bdf8', 'ongoing':  '#64748b', 'assessed': '#14b8a6',
-        'paid':        '#84cc16', 'released': '#22d3ee', 'billed':   '#a855f7',
-    }
-    status_rows = []
-    max_count = 0
-    for key, label in Shipment.STATUS_CHOICES:
-        count = all_shipments.filter(status=key).count()
-        if count > max_count:
-            max_count = count
-        status_rows.append({
-            'key': key, 'label': label, 'count': count,
-            'pct': round(count / total * 100, 1) if total else 0,
-            'color': _status_colors.get(key, '#475569'),
-        })
-    for row in status_rows:
-        row['bar_pct'] = round(row['count'] / max_count * 100) if max_count else 0
-
-    # ── WMCDA Scoreboard ─────────────────────────────────────────────────────
-    advisory_qs = ShippingAdvisory.objects.all()
-    _wmcda_meta = [
-        ('air',  'Air Freight', '#f59e0b', '✈️'),
-        ('lcl',  'LCL Sea',     '#38bdf8', '🚢'),
-        ('fcl',  'FCL Sea',     '#8b5cf6', '📦'),
-        ('land', 'Land Freight','#22c55e', '🚛'),
-    ]
-    wmcda_total = advisory_qs.filter(recommended_type__isnull=False).count()
-    wmcda_scoreboard = []
-    for key, label, color, icon in _wmcda_meta:
-        count = advisory_qs.filter(recommended_type=key).count()
-        pct   = round(count / wmcda_total * 100, 1) if wmcda_total else 0
-        agg   = advisory_qs.aggregate(
-            avg=Avg(f'{key}_score')
-        )
-        avg_score = round(float(agg['avg'] or 0) * 100, 1)
-        wmcda_scoreboard.append({
-            'key': key, 'label': label, 'color': color, 'icon': icon,
-            'count': count, 'pct': pct, 'avg_score': avg_score,
-        })
-    wmcda_scoreboard.sort(key=lambda x: x['count'], reverse=True)
-    wmcda_max = wmcda_scoreboard[0]['count'] if wmcda_scoreboard else 1
-
-    # ── Declarant Performance ────────────────────────────────────────────────
-    declarants = User.objects.filter(role='declarant').order_by('first_name', 'username')
-    declarant_data = []
-    for declarant in declarants:
-        d_ships = all_shipments.filter(declarant=declarant)
-        computed_logs = (
-            StatusLog.objects
-            .filter(shipment__in=d_ships, new_status='computed')
-            .select_related('shipment').order_by('changed_at')
-        )
-        computed_map = {}
-        for log in computed_logs:
-            computed_map.setdefault(log.shipment_id, log)
-
-        durations = []
-        for sid, c_log in computed_map.items():
-            a_log = (
-                StatusLog.objects
-                .filter(shipment_id=sid, new_status='arrived',
-                        changed_at__lte=c_log.changed_at)
-                .order_by('-changed_at').first()
-            )
-            if a_log:
-                durations.append(c_log.changed_at - a_log.changed_at)
-
-        avg_hours = None
-        if durations:
-            avg_hours = round(sum(d.total_seconds() for d in durations) / len(durations) / 3600, 1)
-
-        total_computed = len(computed_map)
-        approved = d_ships.filter(status='approved').count()
-        approval_rate = round(approved / total_computed * 100, 1) if total_computed else 0
-        declarant_data.append({
-            'name': declarant.get_full_name() or declarant.username,
-            'username': declarant.username,
-            'total_processed': total_computed,
-            'avg_hours': avg_hours,
-            'approved': approved,
-            'approval_rate': approval_rate,
-        })
-
-    # ── Consignee Approval Rate ──────────────────────────────────────────────────
-    # Denominator: shipments that have had a computation presented (reached 'computed')
-    # Numerator: shipments where consignee actually approved (status log new_status='approved')
-    total_computed_presented = (
-        StatusLog.objects
-        .filter(new_status='computed')
-        .values('shipment_id')
-        .distinct()
-        .count()
-    )
-    total_consignee_approved = (
-        StatusLog.objects
-        .filter(new_status='approved')
-        .values('shipment_id')
-        .distinct()
-        .count()
-    )
-    consignee_approval_rate = (
-        round(total_consignee_approved / total_computed_presented * 100, 1)
-        if total_computed_presented else 0
-    )
-
-    context = {
-        # summary KPIs
-        'total':            total,
-        'incoming':         all_shipments.filter(status='incoming').count(),
-        'arrived':          all_shipments.filter(status='arrived').count(),
-        'computed':         all_shipments.filter(status='computed').count(),
-        'approved':         all_shipments.filter(status='approved').count(),
-        'rejected':         all_shipments.filter(status='rejected').count(),
-        'total_users':      User.objects.count(),
-        'total_consignees': User.objects.filter(role='consignee').count(),
-        'total_declarants': User.objects.filter(role='declarant').count(),
-        # consignee approval analytics
-        'total_computed_presented':  total_computed_presented,
-        'total_consignee_approved':  total_consignee_approved,
-        'consignee_approval_rate':   consignee_approval_rate,
-        # analytics
-        'status_rows':      status_rows,
-        'wmcda_scoreboard': wmcda_scoreboard,
-        'wmcda_max':        wmcda_max,
-        'wmcda_total':      wmcda_total,
-        'declarant_data':   declarant_data,
-        # shipment table
-        'recent':    shipments,
-        'q':         q,
-        'status_f':  status_f,
-        'date_from': date_from,
-        'date_to':   date_to,
-    }
-    return render(request, 'supervisor/dashboard.html', context)
+    """Redirect to the unified analytics/command-centre page."""
+    return redirect('supervisor:analytics')
 
 
 # ─── User Management ─────────────────────────────────────────────────────────
@@ -363,117 +200,289 @@ def toggle_user(request, user_id):
     return redirect('supervisor:users')
 
 
-# ─── Analytics ────────────────────────────────────────────────────────────────
+# ─── Analytics (merged command centre) ───────────────────────────────────────
 
 @login_required
 @supervisor_required
 def analytics(request):
-    # ── Filters ──────────────────────────────────────────────────────────────
-    date_from      = request.GET.get('date_from', '').strip()
-    date_to        = request.GET.get('date_to', '').strip()
+    all_shipments = Shipment.objects.all()
+
+    # ── Chart/KPI filters (date range + declarant) ────────────────────────────
+    date_from        = request.GET.get('date_from', '').strip()
+    date_to          = request.GET.get('date_to', '').strip()
     declarant_filter = request.GET.get('declarant', '').strip()
 
-    shipments = Shipment.objects.all()
-
+    chart_qs = all_shipments
     if date_from:
-        shipments = shipments.filter(submitted_at__date__gte=date_from)
+        chart_qs = chart_qs.filter(submitted_at__date__gte=date_from)
     if date_to:
-        shipments = shipments.filter(submitted_at__date__lte=date_to)
+        chart_qs = chart_qs.filter(submitted_at__date__lte=date_to)
     if declarant_filter:
-        shipments = shipments.filter(declarant__username=declarant_filter)
+        chart_qs = chart_qs.filter(declarant__username=declarant_filter)
 
-    total = shipments.count()
-    status_labels = dict(Shipment.STATUS_CHOICES)
-    status_colors = {
-        'incoming': '#f59e0b',
-        'arrived': '#3b82f6',
-        'computed': '#8b5cf6',
-        'approved': '#22c55e',
-        'rejected': '#ef4444',
-        'for_revision': '#f97316',
-        'lodgement': '#38bdf8',
-        'ongoing': '#64748b',
-        'assessed': '#14b8a6',
-        'paid': '#84cc16',
-        'released': '#22c55e',
-        'billed': '#a855f7',
+    chart_total = chart_qs.count()
+
+    # ── Shipment table filters (search + status + date) ───────────────────────
+    q        = request.GET.get('q', '').strip()
+    status_f = request.GET.get('status_f', '').strip()
+
+    table_qs = all_shipments.order_by('-submitted_at')
+    if q:
+        table_qs = (
+            all_shipments.filter(hawb_number__icontains=q)
+            | all_shipments.filter(consignee__first_name__icontains=q)
+            | all_shipments.filter(consignee__last_name__icontains=q)
+            | all_shipments.filter(consignee__username__icontains=q)
+        ).order_by('-submitted_at')
+    if status_f:
+        table_qs = table_qs.filter(status=status_f)
+    if date_from:
+        table_qs = table_qs.filter(submitted_at__date__gte=date_from)
+    if date_to:
+        table_qs = table_qs.filter(submitted_at__date__lte=date_to)
+
+    # ── KPI strip (always all-time) ───────────────────────────────────────────
+    total_all = all_shipments.count()
+    total_computed_presented = (
+        StatusLog.objects.filter(new_status='computed')
+        .values('shipment_id').distinct().count()
+    )
+    total_consignee_approved = (
+        StatusLog.objects.filter(new_status='approved')
+        .values('shipment_id').distinct().count()
+    )
+    consignee_approval_rate = (
+        round(total_consignee_approved / total_computed_presented * 100, 1)
+        if total_computed_presented else 0
+    )
+
+    # ── Status breakdown bar chart (respects chart filters) ───────────────────
+    _status_colors = {
+        'incoming':    '#f59e0b', 'arrived':    '#3b82f6', 'computed':    '#8b5cf6',
+        'approved':    '#22c55e', 'rejected':   '#ef4444', 'for_revision':'#f97316',
+        'lodgement':   '#38bdf8', 'ongoing':    '#64748b', 'assessed':    '#14b8a6',
+        'paid':        '#84cc16', 'released':   '#22d3ee', 'billed':      '#a855f7',
     }
     status_rows = []
     for key, label in Shipment.STATUS_CHOICES:
-        count = shipments.filter(status=key).count()
+        count = chart_qs.filter(status=key).count()
         status_rows.append({
-            'key': key,
-            'label': label,
-            'count': count,
-            'pct': round(count / total * 100, 1) if total else 0,
-            'color': status_colors.get(key, '#475569'),
+            'key': key, 'label': label, 'count': count,
+            'pct': round(count / chart_total * 100, 1) if chart_total else 0,
+            'color': _status_colors.get(key, '#475569'),
         })
-
-    advisory_base = ShippingAdvisory.objects.filter(shipment__in=shipments)
-    wmcda_scoreboard = [
-        {
-            'key': key,
-            'label': label,
-            'count': advisory_base.filter(recommended_type=key).count(),
-        }
-        for key, label in [('lcl', 'LCL'), ('fcl', 'FCL'), ('air', 'Air Freight')]
+    # Pipeline order (workflow sequence) — all 12 statuses
+    _pipeline_order = [
+        'incoming', 'arrived', 'computed', 'for_revision', 'rejected',
+        'approved', 'lodgement', 'ongoing', 'assessed', 'paid', 'released', 'billed',
     ]
-    max_wmcda = max([row['count'] for row in wmcda_scoreboard] or [0])
-    for row in wmcda_scoreboard:
-        row['pct'] = round(row['count'] / max_wmcda * 100) if max_wmcda else 0
+    _status_map = {r['key']: r for r in status_rows}
+    pipeline_rows = [_status_map[k] for k in _pipeline_order if k in _status_map]
+    # bar_pct relative to max for stacked bar tooltip (not used for width — CSS does that)
+    max_status = max((r['count'] for r in pipeline_rows), default=1) or 1
+    for row in pipeline_rows:
+        row['bar_pct'] = round(row['count'] / max_status * 100) if max_status > 0 else 0
+    # Keep sorted version for any legacy references
+    status_rows_sorted = sorted(pipeline_rows, key=lambda r: r['count'], reverse=True)
 
+    # Add icon + subtitle to each pipeline row for the Status Overview cards
+    _status_meta = {
+        'incoming':     {'icon': '📥', 'subtitle': 'Awaits Declarant Assignment'},
+        'arrived':      {'icon': '📦', 'subtitle': 'Awaits ECDT Processing'},
+        'computed':     {'icon': '🧮', 'subtitle': 'Awaits Consignee Approval'},
+        'for_revision': {'icon': '🔄', 'subtitle': 'Returned for Revision'},
+        'rejected':     {'icon': '❌', 'subtitle': 'Rejected by Consignee'},
+        'approved':     {'icon': '✅', 'subtitle': 'Proceeding to Lodgement'},
+        'lodgement':    {'icon': '📋', 'subtitle': 'Filed with BOC'},
+        'ongoing':      {'icon': '⚙️',  'subtitle': 'Lined Up for Final Assessment'},
+        'assessed':     {'icon': '📊', 'subtitle': 'Awaits Payment of D/T'},
+        'paid':         {'icon': '💳', 'subtitle': 'Awaits CNTR Discharge & Delivery'},
+        'released':     {'icon': '🚚', 'subtitle': 'Awaits Final Billing'},
+        'billed':       {'icon': '🏁', 'subtitle': 'Shipment Fully Processed End-to-End'},
+    }
+    for row in pipeline_rows:
+        meta = _status_meta.get(row['key'], {})
+        row['icon']     = meta.get('icon', '●')
+        row['subtitle'] = meta.get('subtitle', '')
+
+    # ── WMCDA Scoreboard (respects chart filters) ─────────────────────────────
+    _wmcda_meta = [
+        ('air',  'Air Freight',  '#f59e0b', '✈️'),
+        ('lcl',  'LCL Sea',      '#38bdf8', '🚢'),
+        ('fcl',  'FCL Sea',      '#8b5cf6', '📦'),
+    ]
+    advisory_qs = ShippingAdvisory.objects.filter(shipment__in=chart_qs)
+    wmcda_total = advisory_qs.filter(recommended_type__isnull=False).count()
+    wmcda_scoreboard = []
+    for key, label, color, icon in _wmcda_meta:
+        count     = advisory_qs.filter(recommended_type=key).count()
+        pct       = round(count / wmcda_total * 100, 1) if wmcda_total else 0
+        avg_score = round(
+            float(advisory_qs.aggregate(avg=Avg(f'{key}_score'))['avg'] or 0) * 100, 1
+        )
+        wmcda_scoreboard.append({
+            'key': key, 'label': label, 'color': color, 'icon': icon,
+            'count': count, 'pct': pct, 'avg_score': avg_score,
+        })
+    wmcda_scoreboard.sort(key=lambda x: x['count'], reverse=True)
+    # Assign rank badges
+    rank_labels = ['🥇 1st', '🥈 2nd', '🥉 3rd', '4th']
+    for i, row in enumerate(wmcda_scoreboard):
+        row['rank'] = rank_labels[i] if i < len(rank_labels) else f'{i+1}th'
+    wmcda_max = wmcda_scoreboard[0]['count'] if wmcda_scoreboard else 1
+
+    # ── Declarant Performance (respects chart filters) ────────────────────────
     declarants = User.objects.filter(role='declarant').order_by('first_name', 'username')
     declarant_data = []
-    for declarant in declarants:
-        d_shipments = shipments.filter(declarant=declarant)
+    for dec in declarants:
+        d_ships = chart_qs.filter(declarant=dec)
         computed_logs = (
             StatusLog.objects
-            .filter(shipment__in=d_shipments, new_status='computed')
-            .select_related('shipment')
-            .order_by('changed_at')
+            .filter(shipment__in=d_ships, new_status='computed')
+            .select_related('shipment').order_by('changed_at')
         )
-        computed_by_shipment = {}
+        computed_map = {}
         for log in computed_logs:
-            computed_by_shipment.setdefault(log.shipment_id, log)
+            computed_map.setdefault(log.shipment_id, log)
 
         durations = []
-        for shipment_id, computed_log in computed_by_shipment.items():
-            arrived_log = (
+        for sid, c_log in computed_map.items():
+            a_log = (
                 StatusLog.objects
-                .filter(shipment_id=shipment_id, new_status='arrived', changed_at__lte=computed_log.changed_at)
-                .order_by('-changed_at')
-                .first()
+                .filter(shipment_id=sid, new_status='arrived',
+                        changed_at__lte=c_log.changed_at)
+                .order_by('-changed_at').first()
             )
-            if arrived_log:
-                durations.append(computed_log.changed_at - arrived_log.changed_at)
+            if a_log:
+                durations.append(c_log.changed_at - a_log.changed_at)
 
+        total_comp       = len(computed_map)
+        # ECDT approved by consignee (total StatusLog events)
+        ecdt_approved    = StatusLog.objects.filter(
+            shipment__in=d_ships, new_status='approved'
+        ).count()
+        # Total revision/rejection events by consignee
+        revised_rejected = StatusLog.objects.filter(
+            shipment__in=d_ships, new_status__in=['for_revision', 'rejected']
+        ).count()
         avg_hours = None
         if durations:
-            avg_seconds = sum(delta.total_seconds() for delta in durations) / len(durations)
-            avg_hours = round(avg_seconds / 3600, 1)
-
-        total_computed = len(computed_by_shipment)
-        approved = d_shipments.filter(status='approved').count()
-        approval_rate = round(approved / total_computed * 100, 1) if total_computed else 0
-
+            avg_hours = round(
+                sum(d.total_seconds() for d in durations) / len(durations) / 3600, 1
+            )
         declarant_data.append({
-            'name': declarant.get_full_name() or declarant.username,
-            'username': declarant.username,
-            'total_processed': total_computed,
-            'avg_hours': avg_hours,
-            'approved': approved,
-            'approval_rate': approval_rate,
+            'name':             dec.get_full_name() or dec.username,
+            'username':         dec.username,
+            'total_processed':  total_comp,
+            'avg_hours':        avg_hours,
+            'ecdt_approved':    ecdt_approved,
+            'revised_rejected': revised_rejected,
+            'approval_rate':    round(ecdt_approved / total_comp * 100, 1) if total_comp else 0,
         })
 
     return render(request, 'supervisor/analytics.html', {
-        'status_rows': status_rows,
-        'wmcda_scoreboard': wmcda_scoreboard,
-        'declarant_data': declarant_data,
-        'total_shipments': total,
-        'date_from': date_from,
-        'date_to': date_to,
-        'declarant_filter': declarant_filter,
-        'declarants': declarants,
+        # KPI strip
+        'total_all':                  total_all,
+        'total_incoming':             all_shipments.filter(status='incoming').count(),
+        'total_arrived':              all_shipments.filter(status='arrived').count(),
+        'total_computed':             all_shipments.filter(status='computed').count(),
+        'total_approved':             all_shipments.filter(status='approved').count(),
+        'total_rejected':             all_shipments.filter(status='rejected').count(),
+        'total_users':                User.objects.count(),
+        'total_consignees':           User.objects.filter(role='consignee').count(),
+        'total_declarants':           User.objects.filter(role='declarant').count(),
+        'consignee_approval_rate':    consignee_approval_rate,
+        'total_computed_presented':   total_computed_presented,
+        'total_consignee_approved':   total_consignee_approved,
+        # chart data
+        'chart_total':        chart_total,
+        'status_rows':        status_rows_sorted,
+        'wmcda_scoreboard':   wmcda_scoreboard,
+        'wmcda_max':          wmcda_max,
+        'wmcda_total':        wmcda_total,
+        'declarant_data':     declarant_data,
+        # filters
+        'date_from':          date_from,
+        'date_to':            date_to,
+        'declarant_filter':   declarant_filter,
+        'declarants':         declarants,
+        # chart data
+        'pipeline_rows':      pipeline_rows,
+        # shipment table
+        'recent':    table_qs,
+        'q':         q,
+        'status_f':  status_f,
+    })
+
+
+# ─── Live Status Counts (AJAX) ───────────────────────────────────────────────
+
+@login_required
+@supervisor_required
+def analytics_status_counts(request):
+    from django.http import JsonResponse
+    qs = Shipment.objects.all()
+    total = qs.count()
+    counts = {}
+    max_count = 0
+    for key, label in Shipment.STATUS_CHOICES:
+        c = qs.filter(status=key).count()
+        counts[key] = {'count': c, 'label': label}
+        if c > max_count:
+            max_count = c
+    return JsonResponse({'counts': counts, 'total': total, 'max_count': max_count})
+
+
+# ─── Supervisor Shipment Detail (read-only) ───────────────────────────────────
+
+@login_required
+@supervisor_required
+def shipment_detail(request, shipment_id):
+    from apps.shipments.status_progress import build_status_progress, CONSIGNEE_STATUS_SUBLABELS
+    shipment    = get_object_or_404(Shipment, id=shipment_id)
+    advisory    = getattr(shipment, 'shipping_advisory', None)
+    computation = getattr(shipment, 'computation', None)
+    status_logs = shipment.status_logs.order_by('-changed_at')
+    sad_document = shipment.documents.filter(document_type='sad').first()
+    current_sublabel = CONSIGNEE_STATUS_SUBLABELS.get(shipment.status, '')
+
+    explanation = wmcda_scores = wmcda_breakdown = None
+    declared_score = declared_breakdown = declared_rating = None
+
+    if advisory:
+        try:
+            from apps.computation.views import compute_wmcda
+            wmcda_scores, _, wmcda_breakdown, explanation = compute_wmcda(
+                float(advisory.gross_weight), float(advisory.cargo_volume),
+                float(advisory.declared_value), advisory.urgency_level,
+                float(advisory.distance_km),
+            )
+            if wmcda_scores and shipment.shipment_type:
+                declared_score = wmcda_scores.get(shipment.shipment_type)
+                if wmcda_breakdown:
+                    declared_breakdown = wmcda_breakdown.get(shipment.shipment_type)
+                if declared_score is not None:
+                    if declared_score >= 0.80:   declared_rating = 'Excellent'
+                    elif declared_score >= 0.65: declared_rating = 'Good'
+                    elif declared_score >= 0.50: declared_rating = 'Fair'
+                    else:                        declared_rating = 'Poor'
+        except Exception:
+            pass
+
+    return render(request, 'supervisor/shipment_detail.html', {
+        'shipment':           shipment,
+        'advisory':           advisory,
+        'computation':        computation,
+        'status_logs':        status_logs,
+        'explanation':        explanation,
+        'wmcda_scores':       wmcda_scores,
+        'wmcda_breakdown':    wmcda_breakdown,
+        'declared_score':     declared_score,
+        'declared_breakdown': declared_breakdown,
+        'declared_rating':    declared_rating,
+        'status_steps':       build_status_progress(shipment.status, 'consignee'),
+        'sad_document':       sad_document,
+        'current_sublabel':   current_sublabel,
     })
 
 
@@ -529,10 +538,30 @@ def toggle_memo(request, memo_id):
 
 # ─── System Configuration ────────────────────────────────────────────────────
 
+_CURRENCY_KEYS = ['rate_USD', 'rate_EUR', 'rate_JPY', 'rate_HKD', 'rate_CNY', 'rate_GBP', 'rate_SGD']
+
+_CURRENCY_META = [
+    {'key': 'rate_USD', 'code': 'USD', 'name': 'US Dollar',       'symbol': '$',   'flag': '🇺🇸'},
+    {'key': 'rate_EUR', 'code': 'EUR', 'name': 'Euro',             'symbol': '€',   'flag': '🇪🇺'},
+    {'key': 'rate_JPY', 'code': 'JPY', 'name': 'Japanese Yen',     'symbol': '¥',   'flag': '🇯🇵'},
+    {'key': 'rate_HKD', 'code': 'HKD', 'name': 'Hong Kong Dollar', 'symbol': 'HK$', 'flag': '🇭🇰'},
+    {'key': 'rate_CNY', 'code': 'CNY', 'name': 'Chinese Yuan',     'symbol': '¥',   'flag': '🇨🇳'},
+    {'key': 'rate_GBP', 'code': 'GBP', 'name': 'British Pound',    'symbol': '£',   'flag': '🇬🇧'},
+    {'key': 'rate_SGD', 'code': 'SGD', 'name': 'Singapore Dollar', 'symbol': 'S$',  'flag': '🇸🇬'},
+]
+
+
 def _get_config():
     from types import SimpleNamespace
     defaults = {
-        'exchange_rate':  '59.1480',
+        'exchange_rate':  '59.1480',   # Legacy USD→PHP key (kept for backward compat)
+        'rate_USD':       '59.1480',
+        'rate_EUR':       '65.0000',
+        'rate_JPY':       '0.3900',
+        'rate_HKD':       '7.5700',
+        'rate_CNY':       '8.1500',
+        'rate_GBP':       '74.5000',
+        'rate_SGD':       '43.8000',
         'vat_rate':       '12.00',
         'wmcda_w_cost':   '35',
         'wmcda_w_time':   '30',
@@ -561,18 +590,79 @@ def config_home(request):
 @login_required
 @supervisor_required
 def config_global(request):
-    config = _get_config()
-    meta   = _config_meta(['exchange_rate', 'vat_rate'])
+    config   = _get_config()
+    all_keys = _CURRENCY_KEYS + ['exchange_rate', 'vat_rate']
+    meta     = _config_meta(all_keys)
+
     if request.method == 'POST':
-        for key in ('exchange_rate', 'vat_rate'):
+        for key in _CURRENCY_KEYS + ['vat_rate']:
             val = request.POST.get(key, '').strip()
             if val:
                 SystemConfig.objects.update_or_create(
                     key=key, defaults={'value': val, 'updated_by': request.user}
                 )
+        # Keep legacy exchange_rate in sync with rate_USD
+        usd_val = request.POST.get('rate_USD', '').strip()
+        if usd_val:
+            SystemConfig.objects.update_or_create(
+                key='exchange_rate', defaults={'value': usd_val, 'updated_by': request.user}
+            )
         messages.success(request, 'Global parameters saved.')
         return redirect('supervisor:config_global')
-    return render(request, 'supervisor/config_global.html', {'config': config, 'config_meta': meta})
+
+    # Build currency rows for template
+    currency_rows = []
+    for row in _CURRENCY_META:
+        currency_rows.append({
+            **row,
+            'value': getattr(config, row['key'], '0.0000'),
+            'meta':  meta.get(row['key']),
+        })
+
+    return render(request, 'supervisor/config_global.html', {
+        'config':        config,
+        'config_meta':   meta,
+        'currency_rows': currency_rows,
+    })
+
+
+@login_required
+@supervisor_required
+def fetch_exchange_rates(request):
+    """Fetch live PHP-based rates from Frankfurter API and save to SystemConfig."""
+    from django.http import JsonResponse
+    import json, urllib.request as urequest
+
+    try:
+        url = 'https://api.frankfurter.app/latest?from=PHP&to=USD,EUR,JPY,HKD,CNY,GBP,SGD'
+        with urequest.urlopen(url, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+
+        rates_raw = data.get('rates', {})
+        saved = {}
+        _code_to_key = {c['code']: c['key'] for c in _CURRENCY_META}
+
+        for code, rate_key in _code_to_key.items():
+            php_per_foreign = rates_raw.get(code)
+            if php_per_foreign:
+                # Frankfurter: 1 PHP = X foreign → invert to: 1 foreign = Y PHP
+                rate_val = round(1.0 / float(php_per_foreign), 4)
+                SystemConfig.objects.update_or_create(
+                    key=rate_key,
+                    defaults={'value': str(rate_val), 'updated_by': request.user},
+                )
+                saved[code] = rate_val
+
+        # Keep legacy exchange_rate in sync with USD
+        if 'USD' in saved:
+            SystemConfig.objects.update_or_create(
+                key='exchange_rate',
+                defaults={'value': str(saved['USD']), 'updated_by': request.user},
+            )
+
+        return JsonResponse({'ok': True, 'rates': saved})
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=500)
 
 
 @login_required

@@ -1,110 +1,456 @@
 {% extends 'base.html' %}
-
-{% block title %}Supervisor Analytics{% endblock %}
-{% block page_title %}Supervisor Analytics{% endblock %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
 
-<form method="GET" class="card" style="display:flex; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:18px;">
-    <div class="form-group" style="margin:0;">
-        <label class="form-label">From</label>
-        <input type="date" name="date_from" value="{{ date_from }}" class="form-input">
+<!-- ─── KPI Strip ──────────────────────────────────────────────────────────── -->
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:10px; margin-bottom:20px;">
+    <div class="card" style="text-align:center; padding:16px 10px;">
+        <p style="color:#64748b; font-size:10px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.07em;">Total</p>
+        <p style="color:#f1f5f9; font-size:26px; font-weight:700; margin:0;">{{ total_all }}</p>
     </div>
-    <div class="form-group" style="margin:0;">
-        <label class="form-label">To</label>
-        <input type="date" name="date_to" value="{{ date_to }}" class="form-input">
+    <div class="card" style="text-align:center; padding:16px 10px;">
+        <p style="color:#64748b; font-size:10px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.07em;">Incoming</p>
+        <p style="color:#f59e0b; font-size:26px; font-weight:700; margin:0;">{{ total_incoming }}</p>
     </div>
-    <div class="form-group" style="margin:0;">
-        <label class="form-label">Declarant</label>
-        <select name="declarant" class="form-input">
+    <div class="card" style="text-align:center; padding:16px 10px;">
+        <p style="color:#64748b; font-size:10px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.07em;">Arrived</p>
+        <p style="color:#3b82f6; font-size:26px; font-weight:700; margin:0;">{{ total_arrived }}</p>
+    </div>
+    <div class="card" style="text-align:center; padding:16px 10px;">
+        <p style="color:#64748b; font-size:10px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.07em;">Computed</p>
+        <p style="color:#8b5cf6; font-size:26px; font-weight:700; margin:0;">{{ total_computed }}</p>
+    </div>
+    <div class="card" style="text-align:center; padding:16px 10px;">
+        <p style="color:#64748b; font-size:10px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.07em;">Approved</p>
+        <p style="color:#22c55e; font-size:26px; font-weight:700; margin:0;">{{ total_approved }}</p>
+    </div>
+    <div class="card" style="text-align:center; padding:16px 10px;">
+        <p style="color:#64748b; font-size:10px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.07em;">Rejected</p>
+        <p style="color:#ef4444; font-size:26px; font-weight:700; margin:0;">{{ total_rejected }}</p>
+    </div>
+    <div class="card" style="text-align:center; padding:16px 10px;">
+        <p style="color:#64748b; font-size:10px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.07em;">Users</p>
+        <p style="color:#a78bfa; font-size:26px; font-weight:700; margin:0;">{{ total_users }}</p>
+    </div>
+    <div class="card" style="text-align:center; padding:16px 10px;">
+        <p style="color:#64748b; font-size:10px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.07em;">Consignees</p>
+        <p style="color:#94a3b8; font-size:26px; font-weight:700; margin:0;">{{ total_consignees }}</p>
+    </div>
+    <div class="card" style="text-align:center; padding:16px 10px;">
+        <p style="color:#64748b; font-size:10px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.07em;">Declarants</p>
+        <p style="color:#94a3b8; font-size:26px; font-weight:700; margin:0;">{{ total_declarants }}</p>
+    </div>
+    <div class="card" style="text-align:center; padding:16px 10px;
+         border-color:{% if consignee_approval_rate >= 70 %}#166534{% elif consignee_approval_rate > 0 %}#78350f{% else %}#334155{% endif %};">
+        <p style="color:#64748b; font-size:10px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.07em;">CDT Rate</p>
+        <p style="font-size:26px; font-weight:700; margin:0;
+           color:{% if consignee_approval_rate >= 70 %}#22c55e{% elif consignee_approval_rate > 0 %}#f59e0b{% else %}#64748b{% endif %};">
+            {{ consignee_approval_rate }}%
+        </p>
+        <p style="color:#475569; font-size:10px; margin:3px 0 0;">{{ total_consignee_approved }}/{{ total_computed_presented }}</p>
+    </div>
+</div>
+
+<!-- ─── Chart Filters ──────────────────────────────────────────────────────── -->
+<form method="GET" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:18px;">
+    <!-- preserve table filters -->
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    {% if status_f %}<input type="hidden" name="status_f" value="{{ status_f }}">{% endif %}
+    <div>
+        <label style="color:#64748b; font-size:11px; display:block; margin-bottom:3px;">Chart From</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="form-input" style="font-size:12px; padding:6px 10px;">
+    </div>
+    <div>
+        <label style="color:#64748b; font-size:11px; display:block; margin-bottom:3px;">Chart To</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="form-input" style="font-size:12px; padding:6px 10px;">
+    </div>
+    <div>
+        <label style="color:#64748b; font-size:11px; display:block; margin-bottom:3px;">Declarant</label>
+        <select name="declarant" class="form-input" style="font-size:12px; padding:6px 10px;">
             <option value="">All Declarants</option>
-            {% for declarant in declarants %}
-            <option value="{{ declarant.username }}" {% if declarant_filter == declarant.username %}selected{% endif %}>
-                {{ declarant.get_full_name|default:declarant.username }}
+            {% for d in declarants %}
+            <option value="{{ d.username }}" {% if declarant_filter == d.username %}selected{% endif %}>
+                {{ d.get_full_name|default:d.username }}
             </option>
             {% endfor %}
         </select>
     </div>
-    <button type="submit" class="btn btn-primary">Apply</button>
+    <button type="submit" class="btn btn-primary" style="font-size:12px; padding:7px 16px;">Apply</button>
     {% if date_from or date_to or declarant_filter %}
-    <a href="{% url 'supervisor:analytics' %}" class="btn btn-secondary">Clear</a>
+    <a href="{% url 'supervisor:analytics' %}" class="btn btn-secondary" style="font-size:12px; padding:7px 14px;">Clear</a>
+    {% endif %}
+    {% if date_from or date_to or declarant_filter %}
+    <span style="color:#64748b; font-size:11px; align-self:center;">
+        Showing {{ chart_total }} shipment{{ chart_total|pluralize }} in range
+    </span>
     {% endif %}
 </form>
 
-<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:14px; margin-bottom:18px;">
-    <div class="card">
-        <p class="kpi-label">Total Shipments</p>
-        <p class="kpi-value">{{ total_shipments }}</p>
-    </div>
-    {% for row in status_rows %}
-    <div class="card">
-        <p class="kpi-label">{{ row.label }}</p>
-        <p class="kpi-value" style="color:{{ row.color }};">{{ row.count }}</p>
-        <div style="height:6px; background:#1e293b; border-radius:4px; overflow:hidden; margin-top:8px;">
-            <div style="width:{{ row.pct }}%; height:100%; background:{{ row.color }};"></div>
-        </div>
-    </div>
-    {% endfor %}
-</div>
+<!-- ─── Charts Row ─────────────────────────────────────────────────────────── -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:20px;">
 
-<div style="display:grid; grid-template-columns:minmax(260px, 420px) 1fr; gap:18px; align-items:start;">
-    <div class="card">
-        <p class="card-title">WMCDA Scoreboard</p>
-        <div style="display:flex; flex-direction:column; gap:14px;">
-            {% for row in wmcda_scoreboard %}
-            <div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="color:#cbd5e1; font-size:13px;">{{ row.label }}</span>
-                    <strong style="color:#f8fafc; font-size:13px;">{{ row.count }}</strong>
+    <!-- ── Status Overview ───────────────────────────────────────────────────── -->
+    <div class="card" style="padding:24px;">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:4px;">
+            <p class="card-title" style="margin:0;">Status Overview</p>
+            <span style="font-size:11px; color:#475569;">{{ chart_total }} shipment{{ chart_total|pluralize }} total</span>
+        </div>
+        <p style="color:#475569; font-size:11px; margin:0 0 16px;">All statuses — from intake to fully processed</p>
+
+        <!-- 3-column stat cards for all 12 statuses -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:18px;">
+            {% for row in pipeline_rows %}
+            <div style="display:flex; align-items:center; gap:8px; padding:9px 10px;
+                        background:{% if row.key == 'billed' and row.count > 0 %}linear-gradient(135deg,#1a1203,#0c1420){% else %}#0c1420{% endif %};
+                        border-radius:8px;
+                        border:1px solid {% if row.count > 0 %}{{ row.color }}44{% else %}#1a2234{% endif %};">
+                <!-- Icon circle -->
+                <div style="width:30px; height:30px; border-radius:50%; flex-shrink:0;
+                            background:{% if row.count > 0 %}{{ row.color }}1a{% else %}#0f172a{% endif %};
+                            border:1px solid {% if row.count > 0 %}{{ row.color }}33{% else %}#1e293b{% endif %};
+                            display:flex; align-items:center; justify-content:center;
+                            font-size:13px; line-height:1;">{{ row.icon }}</div>
+                <!-- Name + subtitle -->
+                <div style="flex:1; min-width:0; overflow:hidden;">
+                    <p style="color:{% if row.count > 0 %}#e2e8f0{% else %}#2d3f55{% endif %};
+                              font-size:11px; font-weight:700; margin:0; line-height:1.2;
+                              white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        {{ row.label }}
+                    </p>
+                    <p style="color:{% if row.count > 0 %}#3d5068{% else %}#1a2a3a{% endif %};
+                              font-size:9px; margin:2px 0 0; line-height:1.2;
+                              white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        {{ row.subtitle }}
+                    </p>
                 </div>
-                <div style="height:10px; background:#1e293b; border-radius:6px; overflow:hidden;">
-                    <div style="height:100%; width:{{ row.pct }}%; background:#3b82f6;"></div>
-                </div>
+                <!-- Count -->
+                <span style="font-size:{% if row.count > 0 %}19px{% else %}15px{% endif %};
+                             font-weight:800; flex-shrink:0; line-height:1;
+                             color:{% if row.count > 0 %}{% if row.key == 'billed' %}#fbbf24{% else %}{{ row.color }}{% endif %}{% else %}#1a2234{% endif %};">
+                    {{ row.count }}
+                </span>
             </div>
             {% endfor %}
         </div>
+
+        <!-- Stacked Distribution Bar -->
+        {% if chart_total > 0 %}
+        <div style="height:10px; display:flex; border-radius:6px; overflow:hidden; background:#1e293b; margin-bottom:10px;">
+            {% for row in pipeline_rows %}
+            {% if row.count > 0 %}
+            <div style="width:{{ row.pct }}%; background:{% if row.key == 'billed' %}#fbbf24{% else %}{{ row.color }}{% endif %};
+                        height:100%; min-width:3px;" title="{{ row.label }}: {{ row.count }}"></div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px 12px;">
+            {% for row in pipeline_rows %}
+            {% if row.count > 0 %}
+            <div style="display:flex; align-items:center; gap:4px;">
+                <div style="width:7px; height:7px; border-radius:50%;
+                            background:{% if row.key == 'billed' %}#fbbf24{% else %}{{ row.color }}{% endif %};
+                            flex-shrink:0;"></div>
+                <span style="font-size:10px; color:#64748b;">{{ row.label }}</span>
+                <span style="font-size:10px; font-weight:700;
+                             color:{% if row.key == 'billed' %}#fbbf24{% else %}{{ row.color }}{% endif %};">{{ row.count }}</span>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% for row in pipeline_rows %}
+        {% if row.key == 'billed' and row.count > 0 %}
+        <p style="color:#a16207; font-size:10px; margin:10px 0 0; border-top:1px solid #1e293b; padding-top:8px;">
+            🎉 {{ row.count }} shipment{{ row.count|pluralize }} fully processed end-to-end
+        </p>
+        {% endif %}
+        {% endfor %}
+        {% else %}
+        <div style="text-align:center; padding:8px 0;">
+            <div style="height:10px; border-radius:6px; background:#1e293b; margin-bottom:10px;"></div>
+            <p style="color:#334155; font-size:12px; margin:0;">No shipments in this range.</p>
+        </div>
+        {% endif %}
     </div>
 
-    <div class="card" style="padding:0; overflow:hidden;">
-        <div style="padding:18px 20px; border-bottom:1px solid #1e293b;">
-            <p class="card-title" style="margin:0;">Declarant Performance</p>
+    <!-- ── WMCDA Scoreboard ─────────────────────────────────────────────────── -->
+    <div class="card" style="padding:24px;">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px;">
+            <p class="card-title" style="margin:0;">WMCDA Shipping Advisory</p>
+            {% if wmcda_total %}
+            <span style="color:#475569; font-size:11px;">{{ wmcda_total }} recommendation{{ wmcda_total|pluralize }}</span>
+            {% endif %}
         </div>
+        <p style="color:#475569; font-size:11px; margin:0 0 18px;">Ranked by times recommended</p>
+
+        {% if wmcda_total %}
+        <div style="display:flex; flex-direction:column; gap:12px;">
+            {% for row in wmcda_scoreboard %}
+            <div style="background:{% if forloop.first %}#0f2240{% else %}#0c1520{% endif %};
+                        border:1px solid {% if forloop.first %}{{ row.color }}55{% else %}#1e293b{% endif %};
+                        border-radius:10px; padding:14px 16px;">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                    <!-- Rank + Icon -->
+                    <span style="font-size:{% if forloop.first %}22px{% else %}17px{% endif %};">{{ row.icon }}</span>
+                    <div style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span style="color:{{ row.color }}; font-size:{% if forloop.first %}14px{% else %}13px{% endif %};
+                                         font-weight:{% if forloop.first %}700{% else %}600{% endif %};">
+                                {{ row.label }}
+                            </span>
+                            <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px;
+                                         background:{{ row.color }}22; color:{{ row.color }}; letter-spacing:.04em;">
+                                {{ row.rank }}
+                            </span>
+                            {% if forloop.first and row.count > 0 %}
+                            <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px;
+                                         background:#fef08a22; border:1px solid #fef08a44; color:#fef08a; letter-spacing:.04em;">
+                                TOP PICK
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <!-- Count + % -->
+                    <div style="text-align:right; flex-shrink:0;">
+                        <span style="color:{{ row.color }}; font-size:{% if forloop.first %}20px{% else %}16px{% endif %};
+                                     font-weight:700;">{{ row.count }}</span>
+                        <span style="color:#475569; font-size:11px; display:block;">{{ row.pct }}% of total</span>
+                    </div>
+                </div>
+                <!-- Bar -->
+                <div style="height:{% if forloop.first %}10px{% else %}6px{% endif %}; background:#0f172a;
+                            border-radius:6px; overflow:hidden; margin-bottom:{% if row.avg_score %}8px{% else %}0{% endif %};">
+                    <div class="wmcda-bar" style="height:100%; background:{{ row.color }}; border-radius:6px;
+                                                   transition:width .5s ease;"
+                         data-count="{{ row.count }}" data-max="{{ wmcda_max }}"></div>
+                </div>
+                <!-- Avg score -->
+                {% if row.avg_score %}
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="color:#475569; font-size:10px; flex-shrink:0;">Avg weighted score</span>
+                    <div style="flex:1; height:4px; background:#0f172a; border-radius:2px; overflow:hidden;">
+                        <div style="height:100%; width:{{ row.avg_score }}%; background:{{ row.color }}55; border-radius:2px;"></div>
+                    </div>
+                    <span style="color:#64748b; font-size:11px; font-weight:600; flex-shrink:0;">{{ row.avg_score }}%</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#475569; font-size:13px; text-align:center; padding:30px 0;">No shipping advisory data yet.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- ─── Declarant Performance ──────────────────────────────────────────────── -->
+<div class="card" style="padding:0; overflow:hidden; margin-bottom:20px;">
+    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
+        <p class="card-title" style="margin:0;">Declarant Performance</p>
+        <p style="color:#475569; font-size:11px; margin:4px 0 0;">Processing speed and approval rate per declarant</p>
+    </div>
+    <div style="overflow-x:auto;">
         <table style="width:100%; border-collapse:collapse;">
             <thead>
-                <tr style="background:#0f172a;">
-                    <th style="padding:11px 14px; text-align:left; color:#94a3b8; font-size:12px;">Declarant</th>
-                    <th style="padding:11px 14px; text-align:center; color:#94a3b8; font-size:12px;">Processed</th>
-                    <th style="padding:11px 14px; text-align:center; color:#94a3b8; font-size:12px;">Avg Arrived to Computed</th>
-                    <th style="padding:11px 14px; text-align:center; color:#94a3b8; font-size:12px;">Approved</th>
-                    <th style="padding:11px 14px; text-align:center; color:#94a3b8; font-size:12px;">Approval Rate</th>
+                <tr style="background:#0a1628;">
+                    <th style="padding:10px 16px; text-align:left; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Declarant</th>
+                    <th style="padding:10px 16px; text-align:center; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Processed</th>
+                    <th style="padding:10px 16px; text-align:center; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Avg Arrived → Computed</th>
+                    <th style="padding:10px 16px; text-align:center; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">ECDT Approved</th>
+                    <th style="padding:10px 16px; text-align:center; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Revised / Rejected</th>
+                    <th style="padding:10px 16px; text-align:center; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Approval Rate</th>
+                    <th style="padding:10px 16px; text-align:center; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Speed Rating</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in declarant_data %}
-                <tr style="border-top:1px solid #1e293b;">
-                    <td style="padding:12px 14px;">
+                <tr style="border-top:1px solid #1e293b;"
+                    onmouseover="this.style.background='#111827'"
+                    onmouseout="this.style.background=''">
+                    <td style="padding:12px 16px;">
                         <p style="color:#f8fafc; font-size:13px; font-weight:600; margin:0;">{{ row.name }}</p>
-                        <p style="color:#64748b; font-size:11px; margin:3px 0 0;">{{ row.username }}</p>
+                        <p style="color:#475569; font-size:11px; margin:2px 0 0;">@{{ row.username }}</p>
                     </td>
-                    <td style="padding:12px 14px; text-align:center; color:#f8fafc;">{{ row.total_processed }}</td>
-                    <td style="padding:12px 14px; text-align:center; color:#f8fafc;">
-                        {% if row.avg_hours is not None %}{{ row.avg_hours }}h{% else %}&mdash;{% endif %}
+                    <td style="padding:12px 16px; text-align:center; color:#f1f5f9; font-size:15px; font-weight:600;">
+                        {{ row.total_processed }}
                     </td>
-                    <td style="padding:12px 14px; text-align:center; color:#f8fafc;">{{ row.approved }}</td>
-                    <td style="padding:12px 14px; text-align:center;">
-                        <span class="badge {% if row.approval_rate >= 70 %}badge-success{% elif row.approval_rate > 0 %}badge-warning{% else %}badge-secondary{% endif %}">
+                    <td style="padding:12px 16px; text-align:center;">
+                        {% if row.avg_hours is not None %}
+                        <span style="font-size:13px; font-weight:600;
+                              color:{% if row.avg_hours <= 4 %}#22c55e{% elif row.avg_hours <= 12 %}#f59e0b{% else %}#ef4444{% endif %};">
+                            {{ row.avg_hours }}h
+                        </span>
+                        {% else %}
+                        <span style="color:#334155;">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:12px 16px; text-align:center;">
+                        <span style="color:#22c55e; font-size:14px; font-weight:700;">{{ row.ecdt_approved }}</span>
+                    </td>
+                    <td style="padding:12px 16px; text-align:center;">
+                        {% if row.revised_rejected > 0 %}
+                        <span style="color:#f97316; font-size:14px; font-weight:700;">{{ row.revised_rejected }}</span>
+                        {% else %}
+                        <span style="color:#334155; font-size:14px;">0</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:12px 16px; text-align:center;">
+                        <span class="badge {% if row.approval_rate >= 70 %}badge-success{% elif row.approval_rate > 0 %}badge-warning{% else %}badge-secondary{% endif %}"
+                              style="font-size:12px;">
                             {{ row.approval_rate }}%
                         </span>
+                    </td>
+                    <td style="padding:12px 16px; text-align:center;">
+                        {% if row.avg_hours is not None %}
+                            {% if row.avg_hours <= 4 %}
+                            <span style="color:#22c55e; font-size:11px; font-weight:600;">⚡ Fast</span>
+                            {% elif row.avg_hours <= 12 %}
+                            <span style="color:#f59e0b; font-size:11px; font-weight:600;">🕐 Moderate</span>
+                            {% else %}
+                            <span style="color:#ef4444; font-size:11px; font-weight:600;">⚠️ Slow</span>
+                            {% endif %}
+                        {% else %}
+                        <span style="color:#334155; font-size:11px;">No data</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" style="padding:28px; text-align:center; color:#64748b;">No declarants found.</td>
+                    <td colspan="7" style="padding:32px; text-align:center; color:#475569; font-size:13px;">
+                        No declarants found.
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<!-- ─── All Shipments Table ────────────────────────────────────────────────── -->
+<div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
+                display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <div>
+            <p class="card-title" style="margin:0;">All Shipments
+                {% if recent.count %}
+                <span style="color:#64748b; font-weight:400; font-size:13px;">— {{ recent.count }} result{{ recent.count|pluralize }}</span>
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Search + filter bar -->
+    <form method="GET" style="padding:12px 20px; background:#0c1420; border-bottom:1px solid #1e293b;
+                               display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        <!-- preserve chart filters -->
+        {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+        {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+        {% if declarant_filter %}<input type="hidden" name="declarant" value="{{ declarant_filter }}">{% endif %}
+
+        <div style="flex:1; min-width:180px;">
+            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:3px;">Search</label>
+            <input type="text" name="q" value="{{ q }}" class="form-input"
+                   style="padding:7px 12px; font-size:12px;"
+                   placeholder="Ref No. or Consignee name…">
+        </div>
+        <div style="min-width:150px;">
+            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:3px;">Status</label>
+            <select name="status_f" class="form-input" style="padding:7px 12px; font-size:12px;">
+                <option value="">All Statuses</option>
+                {% for key, label in recent.model.STATUS_CHOICES %}
+                <option value="{{ key }}" {% if status_f == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex; gap:8px; align-self:flex-end;">
+            <button type="submit" class="btn btn-primary" style="font-size:12px; padding:7px 14px;">Search</button>
+            {% if q or status_f %}
+            <a href="{% url 'supervisor:analytics' %}{% if date_from or date_to or declarant_filter %}?{% if date_from %}date_from={{ date_from }}&{% endif %}{% if date_to %}date_to={{ date_to }}&{% endif %}{% if declarant_filter %}declarant={{ declarant_filter }}{% endif %}{% endif %}"
+               class="btn btn-secondary" style="font-size:12px; padding:7px 14px;">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if recent %}
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#0a1628;">
+                    <th style="padding:10px 16px; text-align:left; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Shipment Ref.</th>
+                    <th style="padding:10px 16px; text-align:left; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Consignee</th>
+                    <th style="padding:10px 16px; text-align:left; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Declarant</th>
+                    <th style="padding:10px 16px; text-align:left; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Status</th>
+                    <th style="padding:10px 16px; text-align:left; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Submitted</th>
+                    <th style="padding:10px 16px; text-align:center; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in recent %}
+                <tr style="border-top:1px solid #1e293b;"
+                    onmouseover="this.style.background='#111827'"
+                    onmouseout="this.style.background=''">
+                    <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:600;">
+                        {{ s.hawb_number }}
+                    </td>
+                    <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                        {{ s.consignee.get_full_name|default:s.consignee.username }}
+                    </td>
+                    <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                        {% if s.declarant %}{{ s.declarant.get_full_name|default:s.declarant.username }}{% else %}&mdash;{% endif %}
+                    </td>
+                    <td style="padding:12px 16px;">
+                        {% if s.status == 'approved' %}<span class="badge badge-success">Approved</span>
+                        {% elif s.status == 'rejected' %}<span class="badge badge-danger">Rejected</span>
+                        {% elif s.status == 'arrived' %}<span class="badge badge-info">Arrived</span>
+                        {% elif s.status == 'computed' %}<span class="badge badge-warning">Computed</span>
+                        {% elif s.status == 'for_revision' %}<span class="badge badge-warning">For Revision</span>
+                        {% elif s.status == 'lodgement' %}<span class="badge badge-info">Lodgement</span>
+                        {% else %}<span class="badge badge-secondary">{{ s.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:12px 16px; color:#64748b; font-size:12px;">
+                        {{ s.submitted_at|date:"M d, Y" }}
+                        <span style="color:#334155; display:block; font-size:11px;">
+                            {{ s.submitted_at|date:"g:i A" }}
+                        </span>
+                    </td>
+                    <td style="padding:12px 16px; text-align:center;">
+                        <div style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">
+                            <a href="{% url 'supervisor:shipment_detail' s.id %}"
+                               class="btn btn-secondary" style="font-size:11px; padding:4px 10px;">View</a>
+                            <form method="POST" action="{% url 'supervisor:reset_shipment' s.id %}"
+                                  onsubmit="return confirm('Reset {{ s.hawb_number }} to Incoming? This clears the declarant and any computation.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-warning" style="font-size:11px; padding:4px 10px;">Reset</button>
+                            </form>
+                            <form method="POST" action="{% url 'supervisor:delete_shipment' s.id %}"
+                                  onsubmit="return confirm('PERMANENTLY DELETE {{ s.hawb_number }}? This cannot be undone.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger" style="font-size:11px; padding:4px 10px;">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="padding:40px; text-align:center; color:#64748b;">
+        <p style="font-size:14px; margin:0;">No shipments found.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+/* Fix WMCDA bar widths */
+document.querySelectorAll('.wmcda-bar').forEach(function(bar) {
+    var count = parseInt(bar.dataset.count || 0);
+    var max   = parseInt(bar.dataset.max || 1);
+    bar.style.width = (max > 0 ? Math.round(count / max * 100) : 0) + '%';
+});
+</script>
 
 {% endblock %}

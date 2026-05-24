@@ -10,82 +10,179 @@
     <span style="color:#94a3b8;">Global Parameters</span>
 </p>
 
-<div style="max-width:520px;">
-    <div class="card" style="padding:32px;">
+<form method="POST" style="max-width:680px;">
+    {% csrf_token %}
 
-        <p style="color:#94a3b8; font-size:13px; margin:0 0 28px; line-height:1.6;">
-            These values are used in all duty computations across every shipment.
-            Changes take effect immediately on the next computation.
+    <!-- ── Exchange Rates ──────────────────────────────────────────────────── -->
+    <div class="card" style="padding:28px; margin-bottom:20px;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between;
+                    flex-wrap:wrap; gap:12px; margin-bottom:6px;">
+            <div>
+                <p class="card-title" style="margin:0;">Exchange Rates</p>
+                <p style="color:#64748b; font-size:12px; margin:4px 0 0;">
+                    1 foreign currency → PHP &nbsp;·&nbsp; Used in all duty computations
+                </p>
+            </div>
+            <button type="button" id="btn-fetch-rates"
+                    style="background:#0f2240; color:#60a5fa;
+                           border:1px solid #3b82f655; border-radius:6px;
+                           padding:8px 16px; font-size:12px; font-weight:600;
+                           cursor:pointer; display:flex; align-items:center; gap:6px;
+                           white-space:nowrap;">
+                <span id="fetch-icon">🔄</span> Fetch All Live Rates
+            </button>
+        </div>
+        <p style="color:#334155; font-size:11px; margin:0 0 20px;">
+            Rates sourced from
+            <a href="https://www.frankfurter.app/" target="_blank"
+               style="color:#475569; text-decoration:none;">Frankfurter API</a>
+            (free, no key required). Each rate can be manually overridden below.
         </p>
 
-        <form method="POST">
-            {% csrf_token %}
+        <div id="fetch-status" style="display:none; margin-bottom:12px;
+             font-size:12px; padding:8px 12px; border-radius:6px;"></div>
 
-            <!-- Exchange Rate -->
-            <div style="margin-bottom:24px;">
-                <label style="display:block; color:#f1f5f9; font-size:14px; font-weight:600; margin-bottom:8px;">
-                    Exchange Rate
-                    <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:6px;">USD → PHP</span>
-                </label>
-                <div style="position:relative;">
-                    <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%);
-                                 color:#64748b; font-size:14px; pointer-events:none;">₱</span>
-                    <input type="number" name="exchange_rate" step="0.0001" min="1" max="999.9999"
-                           value="{{ config.exchange_rate }}"
-                           class="form-input" style="padding-left:32px;"
-                           required>
+        <!-- Currency rows -->
+        <div>
+            {% for row in currency_rows %}
+            <div style="display:flex; align-items:center; gap:14px;
+                        padding:11px 0; border-bottom:1px solid #1e293b;">
+                <!-- Flag + code -->
+                <div style="width:52px; flex-shrink:0; text-align:center;">
+                    <span style="font-size:22px; line-height:1; display:block;">{{ row.flag }}</span>
+                    <span style="color:#64748b; font-size:11px; font-weight:700;
+                                 letter-spacing:.06em;">{{ row.code }}</span>
                 </div>
-                {% if config_meta.exchange_rate %}
-                <p style="color:#475569; font-size:11px; margin:6px 0 0;">
-                    Last updated
-                    {% if config_meta.exchange_rate.updated_by %}
-                        by <span style="color:#64748b;">{{ config_meta.exchange_rate.updated_by.username }}</span>
+                <!-- Currency name + last-updated -->
+                <div style="flex:1; min-width:0;">
+                    <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0; line-height:1.3;">
+                        {{ row.name }}
+                    </p>
+                    {% if row.meta and row.meta.updated_at %}
+                    <p style="color:#334155; font-size:10px; margin:2px 0 0;">
+                        Updated {{ row.meta.updated_at|date:"M d, Y H:i" }}
+                        {% if row.meta.updated_by %}&nbsp;by {{ row.meta.updated_by.username }}{% endif %}
+                    </p>
+                    {% else %}
+                    <p style="color:#1e293b; font-size:10px; margin:2px 0 0;">Never updated</p>
                     {% endif %}
-                    {% if config_meta.exchange_rate.updated_at %}
-                        on <span style="color:#64748b;">{{ config_meta.exchange_rate.updated_at|date:"M d, Y H:i" }}</span>
-                    {% endif %}
-                </p>
-                {% endif %}
-            </div>
-
-            <!-- VAT Rate -->
-            <div style="margin-bottom:32px;">
-                <label style="display:block; color:#f1f5f9; font-size:14px; font-weight:600; margin-bottom:8px;">
-                    VAT Rate
-                    <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:6px;">applied to dutiable value</span>
-                </label>
-                <div style="position:relative;">
-                    <input type="number" name="vat_rate" step="0.01" min="0" max="100"
-                           value="{{ config.vat_rate }}"
-                           class="form-input" style="padding-right:36px;"
-                           required>
-                    <span style="position:absolute; right:14px; top:50%; transform:translateY(-50%);
-                                 color:#64748b; font-size:14px; pointer-events:none;">%</span>
                 </div>
-                {% if config_meta.vat_rate %}
-                <p style="color:#475569; font-size:11px; margin:6px 0 0;">
-                    Last updated
-                    {% if config_meta.vat_rate.updated_by %}
-                        by <span style="color:#64748b;">{{ config_meta.vat_rate.updated_by.username }}</span>
-                    {% endif %}
-                    {% if config_meta.vat_rate.updated_at %}
-                        on <span style="color:#64748b;">{{ config_meta.vat_rate.updated_at|date:"M d, Y H:i" }}</span>
-                    {% endif %}
-                </p>
-                {% endif %}
+                <!-- Rate input -->
+                <div style="width:170px; flex-shrink:0;">
+                    <div style="position:relative;">
+                        <span style="position:absolute; left:11px; top:50%;
+                                     transform:translateY(-50%); color:#64748b;
+                                     font-size:13px; pointer-events:none;">₱</span>
+                        <input type="number" name="{{ row.key }}" step="0.0001" min="0.0001"
+                               value="{{ row.value }}" id="input-{{ row.code }}"
+                               class="form-input"
+                               style="padding-left:26px; padding-right:10px;
+                                      text-align:right; font-size:13px; font-weight:600;"
+                               required>
+                    </div>
+                    <p style="color:#334155; font-size:10px; text-align:right; margin:3px 0 0;">
+                        per 1 {{ row.symbol }}
+                    </p>
+                </div>
             </div>
-
-            <div style="display:flex; gap:12px;">
-                <button type="submit" class="btn btn-primary" style="padding:10px 28px;">
-                    Save Changes
-                </button>
-                <a href="{% url 'supervisor:config' %}" class="btn btn-secondary" style="padding:10px 20px;">
-                    Cancel
-                </a>
-            </div>
-        </form>
-
+            {% endfor %}
+        </div>
     </div>
-</div>
+
+    <!-- ── VAT Rate ────────────────────────────────────────────────────────── -->
+    <div class="card" style="padding:28px; margin-bottom:24px;">
+        <p class="card-title" style="margin:0 0 4px;">VAT Rate</p>
+        <p style="color:#64748b; font-size:12px; margin:0 0 20px;">
+            Applied to dutiable value on every computation.
+        </p>
+        <div style="max-width:200px;">
+            <div style="position:relative;">
+                <input type="number" name="vat_rate" step="0.01" min="0" max="100"
+                       value="{{ config.vat_rate }}"
+                       class="form-input" style="padding-right:36px; font-size:14px;"
+                       required>
+                <span style="position:absolute; right:14px; top:50%; transform:translateY(-50%);
+                             color:#64748b; font-size:14px; pointer-events:none;">%</span>
+            </div>
+            {% if config_meta.vat_rate and config_meta.vat_rate.updated_at %}
+            <p style="color:#475569; font-size:11px; margin:6px 0 0;">
+                Updated {{ config_meta.vat_rate.updated_at|date:"M d, Y H:i" }}
+                {% if config_meta.vat_rate.updated_by %}&nbsp;by {{ config_meta.vat_rate.updated_by.username }}{% endif %}
+            </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Buttons -->
+    <div style="display:flex; gap:12px;">
+        <button type="submit" class="btn btn-primary" style="padding:10px 28px;">
+            Save Changes
+        </button>
+        <a href="{% url 'supervisor:config' %}" class="btn btn-secondary" style="padding:10px 20px;">
+            Cancel
+        </a>
+    </div>
+</form>
+
+<script>
+document.getElementById('btn-fetch-rates').addEventListener('click', function () {
+    var btn    = this;
+    var icon   = document.getElementById('fetch-icon');
+    var status = document.getElementById('fetch-status');
+
+    btn.disabled    = true;
+    btn.style.opacity = '0.6';
+    icon.textContent  = '⏳';
+    status.style.display = 'none';
+
+    fetch('{% url "supervisor:fetch_exchange_rates" %}', {
+        method : 'POST',
+        headers: {
+            'X-CSRFToken'  : '{{ csrf_token }}',
+            'Content-Type' : 'application/json',
+        },
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.ok) {
+            var rates = data.rates;
+            ['USD','EUR','JPY','HKD','CNY','GBP','SGD'].forEach(function (code) {
+                var el = document.getElementById('input-' + code);
+                if (el && rates[code] !== undefined) el.value = rates[code];
+            });
+            icon.textContent    = '✅';
+            btn.style.color     = '#22c55e';
+            status.style.display   = 'block';
+            status.style.background = '#052e16';
+            status.style.color      = '#4ade80';
+            status.style.border     = '1px solid #166534';
+            status.textContent = '✓ Live rates fetched successfully — review and click Save Changes to apply.';
+        } else {
+            icon.textContent = '❌';
+            status.style.display   = 'block';
+            status.style.background = '#2d0a0a';
+            status.style.color      = '#f87171';
+            status.style.border     = '1px solid #7f1d1d';
+            status.textContent = '✗ Failed to fetch rates: ' + (data.error || 'unknown error');
+        }
+    })
+    .catch(function (e) {
+        icon.textContent = '❌';
+        status.style.display   = 'block';
+        status.style.background = '#2d0a0a';
+        status.style.color      = '#f87171';
+        status.style.border     = '1px solid #7f1d1d';
+        status.textContent = '✗ Network error: ' + e;
+    })
+    .finally(function () {
+        btn.disabled      = false;
+        btn.style.opacity = '1';
+        setTimeout(function () {
+            icon.textContent = '🔄';
+            btn.style.color  = '';
+        }, 4000);
+    });
+});
+</script>
 
 {% endblock %}

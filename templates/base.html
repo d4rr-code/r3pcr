@@ -116,13 +116,9 @@
                 </a>
 
             {% elif user.role == 'supervisor' %}
-                <a href="/supervisor/dashboard/" class="nav-item">
+                <a href="{% url 'supervisor:analytics' %}" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-dashboard"/></svg>
                     <span class="nav-text">Dashboard</span>
-                </a>
-                <a href="/supervisor/analytics/" class="nav-item">
-                    <svg class="nav-icon"><use href="#icon-analytics"/></svg>
-                    <span class="nav-text">Analytics</span>
                 </a>
                 <a href="/supervisor/users/" class="nav-item">
                     <svg class="nav-icon"><use href="#icon-users"/></svg>

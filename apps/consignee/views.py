@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
-from apps.notifications.utils import create_notification, notify_incoming_shipment
+from apps.notifications.utils import create_notification, notify_incoming_shipment, notify_shipment_status_change
 from .models import Feedback
 
 
@@ -360,7 +360,7 @@ def submit_feedback(request, shipment_id):
     return render(request, 'consignee/feedback.html', {'shipment': shipment})
 
 
-# ─── Approve Computation ─────────────────────────────────────────────────────
+# ─── Approve / Revise / Reject Computation ───────────────────────────────────
 
 @login_required
 def approve_computation(request, shipment_id):
@@ -381,7 +381,77 @@ def approve_computation(request, shipment_id):
                 new_status='approved',
                 notes='Consignee approved the computation.',
             )
+            notify_shipment_status_change(
+                shipment=shipment,
+                old_status=old_status,
+                new_status='approved',
+                changed_by=request.user,
+            )
             messages.success(request, 'Computation approved. Your shipment will proceed to customs lodgement.')
+
+    return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+
+@login_required
+def revise_computation(request, shipment_id):
+    """Consignee requests revision — sends status back to for_revision."""
+    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+
+    if request.method == 'POST':
+        if shipment.status != 'computed':
+            messages.error(request, 'This shipment is not awaiting your review.')
+        else:
+            notes    = request.POST.get('notes', '').strip()
+            old_status = shipment.status
+            shipment.status = 'for_revision'
+            shipment.save()
+            StatusLog.objects.create(
+                shipment=shipment,
+                changed_by=request.user,
+                old_status=old_status,
+                new_status='for_revision',
+                notes=notes or 'Consignee requested revision of the computation.',
+            )
+            notify_shipment_status_change(
+                shipment=shipment,
+                old_status=old_status,
+                new_status='for_revision',
+                changed_by=request.user,
+                notes=notes,
+            )
+            messages.warning(request, 'Revision requested. The declarant will be notified.')
+
+    return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+
+@login_required
+def reject_computation(request, shipment_id):
+    """Consignee rejects the computation entirely."""
+    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+
+    if request.method == 'POST':
+        if shipment.status != 'computed':
+            messages.error(request, 'This shipment is not awaiting your review.')
+        else:
+            notes    = request.POST.get('notes', '').strip()
+            old_status = shipment.status
+            shipment.status = 'rejected'
+            shipment.save()
+            StatusLog.objects.create(
+                shipment=shipment,
+                changed_by=request.user,
+                old_status=old_status,
+                new_status='rejected',
+                notes=notes or 'Consignee rejected the computation.',
+            )
+            notify_shipment_status_change(
+                shipment=shipment,
+                old_status=old_status,
+                new_status='rejected',
+                changed_by=request.user,
+                notes=notes,
+            )
+            messages.error(request, 'Computation rejected.')
 
     return redirect('consignee:shipment_detail', shipment_id=shipment_id)
 

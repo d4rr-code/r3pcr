@@ -11,5 +11,7 @@ urlpatterns = [
     path('cancel/<int:shipment_id>/',         views.cancel_submission,  name='cancel'),
     path('shipment/<int:shipment_id>/feedback/',       views.submit_feedback,     name='feedback'),
     path('shipment/<int:shipment_id>/approve/',   views.approve_computation,  name='approve_computation'),
+    path('shipment/<int:shipment_id>/revise/',    views.revise_computation,   name='revise_computation'),
+    path('shipment/<int:shipment_id>/reject/',    views.reject_computation,   name='reject_computation'),
     path('shipment/<int:shipment_id>/download/',  views.download_computation, name='download_computation'),
 ]

@@ -14,6 +14,7 @@ class Notification(models.Model):
         ('arrived', 'Shipment Arrived'),
         ('computed', 'Computation Ready'),
         ('for_revision', 'For Revision'),
+        ('billed', 'Shipment Billed'),
         ('general', 'General'),
     ]
 

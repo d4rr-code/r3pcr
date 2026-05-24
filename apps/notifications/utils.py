@@ -76,33 +76,11 @@ def notify_shipment_status_change(shipment, old_status, new_status, changed_by=N
             message=base_message,
         )
 
-    if new_status == 'computed':
-        supervisors = User.objects.filter(role='supervisor', is_active=True)
-        for supervisor in supervisors:
-            create_notification(
-                recipient=supervisor,
-                shipment=shipment,
-                notification_type='computed',
-                title=f'Computation Ready - {shipment.hawb_number}',
-                message=(
-                    f'Shipment {shipment.hawb_number} has been computed and is ready '
-                    f'for supervisor review.'
-                ),
-            )
-            send_transition_email(
-                recipient=supervisor,
-                shipment=shipment,
-                subject=f'R3-PCR: Computation Ready - {shipment.hawb_number}',
-                message=(
-                    f'Shipment {shipment.hawb_number} has been computed and is ready '
-                    f'for supervisor review.'
-                ),
-            )
-
+    # Notify declarant when consignee revises or rejects
     if (
         new_status in {'rejected', 'for_revision'}
         and shipment.declarant
-        and getattr(changed_by, 'role', None) == 'supervisor'
+        and getattr(changed_by, 'role', None) == 'consignee'
     ):
         create_notification(
             recipient=shipment.declarant,
@@ -114,6 +92,35 @@ def notify_shipment_status_change(shipment, old_status, new_status, changed_by=N
                 f'{notes or ""}'
             ).strip(),
         )
+
+    # Notify supervisors when consignee approves the ECDT
+    if new_status == 'approved':
+        supervisors = User.objects.filter(role='supervisor', is_active=True)
+        for supervisor in supervisors:
+            create_notification(
+                recipient=supervisor,
+                shipment=shipment,
+                notification_type='approved',
+                title=f'ECDT Approved - {shipment.hawb_number}',
+                message=(
+                    f'Shipment {shipment.hawb_number} ECDT has been approved by the consignee '
+                    f'and is proceeding to lodgement.'
+                ),
+            )
+
+    # Notify supervisors when shipment is fully processed (billed)
+    if new_status == 'billed':
+        supervisors = User.objects.filter(role='supervisor', is_active=True)
+        for supervisor in supervisors:
+            create_notification(
+                recipient=supervisor,
+                shipment=shipment,
+                notification_type='billed',
+                title=f'Shipment Fully Processed - {shipment.hawb_number}',
+                message=(
+                    f'Shipment {shipment.hawb_number} has been fully processed end-to-end.'
+                ),
+            )
 
     if new_status in {'approved', 'rejected', 'computed'}:
         email_recipient = shipment.consignee
