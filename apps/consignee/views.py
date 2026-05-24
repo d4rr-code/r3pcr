@@ -243,6 +243,12 @@ def shipment_detail(request, shipment_id):
         except Exception:
             pass
 
+    sad_document = shipment.documents.filter(document_type='sad').first()
+
+    # Current step sublabel for the status description box
+    from apps.shipments.status_progress import CONSIGNEE_STATUS_SUBLABELS
+    current_sublabel = CONSIGNEE_STATUS_SUBLABELS.get(shipment.status, '')
+
     context = {
         'shipment':          shipment,
         'advisory':          advisory,
@@ -255,6 +261,8 @@ def shipment_detail(request, shipment_id):
         'declared_breakdown': declared_breakdown,
         'declared_rating':   declared_rating,
         'status_steps':      build_status_progress(shipment.status, 'consignee'),
+        'sad_document':      sad_document,
+        'current_sublabel':  current_sublabel,
     }
     return render(request, 'consignee/shipment_detail.html', context)
 

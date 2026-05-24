@@ -322,6 +322,10 @@ def process_shipment(request, shipment_id):
 
     has_pending_ocr = bool(_pending_ocr)
 
+    from apps.supervisor.models import SystemConfig
+    vasp_url     = SystemConfig.get('vasp_url', 'https://ictsi-vasp.com.ph')
+    sad_document = shipment.documents.filter(document_type='sad').first()
+
     context = {
         'shipment':        shipment,
         'documents':       documents,
@@ -331,7 +335,9 @@ def process_shipment(request, shipment_id):
         'ocr_toast':       ocr_toast,
         'has_pending_ocr': has_pending_ocr,
         'manual_status_choices': Shipment.MANUAL_STATUS_CHOICES,
-        'status_steps': build_status_progress(shipment.status, 'declarant'),
+        'status_steps':    build_status_progress(shipment.status, 'declarant'),
+        'vasp_url':        vasp_url,
+        'sad_document':    sad_document,
     }
     return render(request, 'declarant/process.html', context)
 
@@ -415,54 +421,59 @@ def update_status(request, shipment_id):
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
-# ─── Payment Confirmation ─────────────────────────────────────────────────────
+# ─── Payment Confirmation (legacy — redirects to process page) ───────────────
 
 @login_required
 @declarant_required
 def payment_confirmation(request, shipment_id):
-    shipment = get_object_or_404(Shipment, id=shipment_id)
+    """Payment happens outside the system. Declarant uses update_status to mark paid."""
+    return redirect('declarant:process', shipment_id=shipment_id)
 
-    # Only the assigned declarant may confirm payment
+
+# ─── Upload SAD Document ──────────────────────────────────────────────────────
+
+@login_required
+@declarant_required
+def upload_sad(request, shipment_id):
+    """Declarant uploads the Single Administrative Document at assessed stage."""
+    if request.method != 'POST':
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
     if shipment.declarant != request.user:
         messages.error(request, 'You are not assigned to this shipment.')
         return redirect('declarant:queue')
 
-    if request.method == 'POST':
-        payment_ref = request.POST.get('payment_reference', '').strip()
-        notes       = request.POST.get('notes', '').strip()
-
-        if not payment_ref:
-            messages.error(request, 'Payment reference is required.')
-            return redirect('declarant:payment', shipment_id=shipment_id)
-
-        old_status = shipment.status
-        shipment.status = 'lodgement'
-        shipment.save()
-
-        StatusLog.objects.create(
-            shipment=shipment,
-            changed_by=request.user,
-            old_status=old_status,
-            new_status='lodgement',
-            notes=f'Payment confirmed. Ref: {payment_ref}. {notes}'.strip('. '),
-        )
-
-        create_notification(
-            recipient=shipment.consignee,
-            shipment=shipment,
-            notification_type='payment',
-            title=f'Payment Confirmed — {shipment.hawb_number}',
-            message=(
-                f'Payment confirmed (Ref: {payment_ref}). '
-                f'Your shipment has been lodged with the Bureau of Customs.'
-            ),
-        )
-
-        messages.success(request, 'Payment confirmed. Shipment moved to lodgement.')
+    if shipment.status not in ('assessed', 'paid', 'released', 'billed'):
+        messages.error(request, 'SAD can only be uploaded once shipment is assessed.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
-    context = {'shipment': shipment}
-    return render(request, 'declarant/payment.html', context)
+    file = request.FILES.get('sad_file')
+    if not file:
+        messages.error(request, 'Please select a file to upload.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    # Replace any existing SAD document
+    shipment.documents.filter(document_type='sad').delete()
+    ShipmentDocument.objects.create(
+        shipment=shipment,
+        document_type='sad',
+        file=file,
+    )
+
+    create_notification(
+        recipient=shipment.consignee,
+        shipment=shipment,
+        notification_type='status_update',
+        title=f'SAD Document Available — {shipment.hawb_number}',
+        message=(
+            'The Single Administrative Document (SAD) has been uploaded by your declarant. '
+            'Please check your shipment details for the official BOC assessment amount.'
+        ),
+    )
+
+    messages.success(request, 'SAD document uploaded. The consignee has been notified.')
+    return redirect('declarant:process', shipment_id=shipment_id)
 
 
 # ─── Flag Document Deficiency ────────────────────────────────────────────────

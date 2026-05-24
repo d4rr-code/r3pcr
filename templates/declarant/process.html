@@ -655,60 +655,57 @@
         </div>
         {% endif %}
 
-        <!-- Payment Confirmation -->
-        {% if shipment.status == 'paid' %}
-        <div class="card" style="margin-bottom:16px; border:1px solid #f59e0b44;">
-            <p class="card-title">Payment Confirmation</p>
-
-            {% if shipment.payment_receipt %}
-            <!-- Receipt has been uploaded — show it + submit to BOC -->
-            <div style="background:#052e16; border:1px solid #166534; border-radius:8px;
-                        padding:10px 14px; margin-bottom:14px;">
-                <p style="color:#86efac; font-size:12px; font-weight:600; margin:0 0 4px;">
-                    Payment receipt uploaded by consignee
-                </p>
-                <p style="color:#64748b; font-size:11px; margin:0;">
-                    {{ shipment.payment_receipt_uploaded_at|date:"M d, Y H:i" }}
-                </p>
-            </div>
-
-            <div style="display:flex; gap:8px; margin-bottom:14px;">
-                <button type="button"
-                        onclick="loadDoc('{{ shipment.payment_receipt.url }}', 'Payment Receipt')"
-                        class="btn btn-secondary" style="font-size:12px; flex:1; text-align:center;">
-                    View Receipt
-                </button>
-                <a href="{{ shipment.payment_receipt.url }}" target="_blank"
-                   class="btn btn-secondary" style="font-size:12px; flex-shrink:0;">
-                    ↗
-                </a>
-            </div>
-
-            <!-- Inline BOC Submit form -->
-            <form method="POST" action="{% url 'declarant:update_status' shipment.id %}">
-                {% csrf_token %}
-                <input type="hidden" name="new_status" value="lodgement">
-                <div class="form-group">
-                    <label class="form-label" style="font-size:12px;">BOC Reference No. (optional)</label>
-                    <input type="text" name="notes"
-                           class="form-input" style="font-size:13px;"
-                           placeholder="e.g. BOC-2026-00123">
-                </div>
-                <button type="submit" class="btn btn-success" style="width:100%;">
-                    Confirm Receipt &amp; Submit to BOC
-                </button>
-            </form>
-
-            {% else %}
-            <!-- Receipt not yet uploaded -->
-            <p style="color:#94a3b8; font-size:12px; margin-bottom:12px;">
-                Waiting for consignee to upload payment receipt. You will be notified once uploaded.
+        <!-- VASP / Etrade Link (lodgement) -->
+        {% if shipment.status == 'lodgement' %}
+        <div class="card" style="margin-bottom:16px; border:1px solid #2563eb44;">
+            <p class="card-title" style="margin-bottom:10px;">BOC Filing — VASP</p>
+            <p style="color:#94a3b8; font-size:12px; margin-bottom:12px; line-height:1.5;">
+                Proceed to the VASP / Etrade portal to file the entry with the Bureau of Customs.
             </p>
-            <a href="{% url 'declarant:payment' shipment.id %}"
-               class="btn btn-warning" style="width:100%; text-align:center;">
-                Payment Details →
+            <a href="{{ vasp_url }}" target="_blank" rel="noopener noreferrer"
+               class="btn btn-primary" style="width:100%; text-align:center; display:block;">
+                Open VASP / Etrade →
             </a>
+        </div>
+        {% endif %}
+
+        <!-- SAD Upload (assessed and beyond) -->
+        {% if shipment.status == 'assessed' or shipment.status == 'paid' or shipment.status == 'released' or shipment.status == 'billed' %}
+        <div class="card" style="margin-bottom:16px; border:1px solid #f59e0b44;">
+            <p class="card-title" style="margin-bottom:10px;">SAD Document</p>
+
+            {% if sad_document %}
+            <div style="background:#0f172a; border:1px solid #166534; border-radius:8px;
+                        padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:18px;">📄</span>
+                <div style="flex:1;">
+                    <p style="color:#22c55e; font-size:12px; font-weight:600; margin:0;">SAD Uploaded</p>
+                    <p style="color:#64748b; font-size:11px; margin:2px 0 0;">{{ sad_document.uploaded_at|date:"M d, Y H:i" }}</p>
+                </div>
+                <a href="{{ sad_document.file.url }}" target="_blank"
+                   class="btn btn-secondary" style="font-size:11px; padding:5px 10px; flex-shrink:0;">View ↗</a>
+            </div>
+            <p style="color:#64748b; font-size:11px; margin-bottom:8px;">Replace SAD document:</p>
+            {% else %}
+            <p style="color:#fbbf24; font-size:12px; margin-bottom:10px; font-weight:600;">
+                ⚠ SAD not yet uploaded. Upload the BOC Single Administrative Document so the consignee can see the official assessment.
+            </p>
             {% endif %}
+
+            <form method="POST" enctype="multipart/form-data"
+                  action="{% url 'declarant:upload_sad' shipment.id %}">
+                {% csrf_token %}
+                <div style="display:flex; gap:8px; align-items:flex-end;">
+                    <div style="flex:1;">
+                        <label class="form-label" style="font-size:11px;">Select SAD File (PDF)</label>
+                        <input type="file" name="sad_file" class="form-input"
+                               accept=".pdf,.jpg,.jpeg,.png" required style="font-size:12px;">
+                    </div>
+                    <button type="submit" class="btn btn-warning" style="flex-shrink:0; font-size:12px;">
+                        Upload SAD
+                    </button>
+                </div>
+            </form>
         </div>
         {% endif %}
 

@@ -75,14 +75,14 @@
         <p style="font-size:13px; color:#64748b; margin:3px 0 0;">Submitted {{ shipment.submitted_at|date:"M d, Y g:i A" }}</p>
     </div>
     <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
-        {% if shipment.status in 'approved,rejected' %}
+        {% if shipment.status == 'billed' %}
             {% if shipment.feedback %}
                 <span style="font-size:12px; color:#64748b; padding:6px 12px; background:#1e293b; border:1px solid #334155; border-radius:8px;">★ Feedback Submitted</span>
             {% else %}
                 <a href="{% url 'consignee:feedback' shipment_id=shipment.id %}"
                    style="font-size:13px; font-weight:600; color:#f1f5f9; text-decoration:none; padding:6px 16px; background:#1d4ed8; border-radius:8px; border:1px solid #2563eb;"
                    onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#1d4ed8'">
-                    ⭐ Leave Feedback
+                    ⭐ Rate Your Experience
                 </a>
             {% endif %}
         {% endif %}
@@ -104,6 +104,23 @@
         </div>
         {% endfor %}
     </div>
+
+    {% if current_sublabel %}
+    <div style="margin-top:14px; padding:10px 16px; border-radius:7px;
+                background:#0f172a; border-left:3px solid
+                {% if shipment.status == 'billed' %}#22c55e
+                {% elif shipment.status == 'assessed' %}#f59e0b
+                {% elif shipment.status == 'computed' %}#3b82f6
+                {% else %}#334155{% endif %};">
+        <p style="font-size:12px; color:#94a3b8; margin:0; line-height:1.6;">
+            <span style="font-weight:700; color:#f1f5f9; text-transform:uppercase;
+                         font-size:10px; letter-spacing:0.6px;">
+                {{ shipment.get_status_display }} &nbsp;—&nbsp;
+            </span>
+            {{ current_sublabel }}
+        </p>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Approve Computation Banner -->
@@ -410,45 +427,48 @@
 {% endif %}
 
 
-<!-- ── Row 3: Payment Receipt (full-width, conditional) ───────────────── -->
-{% if shipment.status == 'paid' or shipment.payment_receipt %}
-<div class="card" style="margin-bottom:20px; border-color:{% if shipment.payment_receipt %}#22c55e40{% else %}#f59e0b40{% endif %};">
-    <p class="card-title">Payment Receipt</p>
-    {% if shipment.payment_receipt %}
-    <div style="display:flex; align-items:center; gap:12px; padding:12px 14px;
-                background:#052e16; border:1px solid #166534; border-radius:8px; margin-bottom:12px;">
-        <span style="font-size:20px;">✅</span>
-        <div>
-            <p style="color:#22c55e; font-size:13px; font-weight:600; margin:0;">Receipt Uploaded</p>
-            <p style="color:#64748b; font-size:11px; margin:3px 0 0;">{{ shipment.payment_receipt_uploaded_at|date:"M d, Y g:i A" }}</p>
-        </div>
-        <a href="{{ shipment.payment_receipt.url }}" target="_blank"
-           class="btn btn-secondary" style="font-size:11px; padding:5px 12px; margin-left:auto;">View Receipt ↗</a>
+<!-- ── Row 3: SAD Document (shown from assessed onwards) ──────────────── -->
+{% if shipment.status in 'assessed,paid,released,billed' %}
+<div class="card" style="margin-bottom:20px; border-color:#f59e0b44;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+        <p class="card-title" style="margin:0;">Single Administrative Document (SAD)</p>
+        <span style="font-size:10px; font-weight:700; letter-spacing:0.5px; padding:3px 10px;
+                     border-radius:999px; background:#422006; color:#fbbf24; border:1px solid #92400e;">
+            OFFICIAL BOC DOCUMENT
+        </span>
     </div>
-    {% if shipment.status == 'paid' %}
-    <p style="color:#64748b; font-size:12px; margin-bottom:10px;">Upload a replacement if needed:</p>
-    {% endif %}
+
+    {% if sad_document %}
+    <div style="display:flex; align-items:center; gap:14px; padding:14px 16px;
+                background:#0f172a; border:1px solid #f59e0b44; border-radius:8px;">
+        <span style="font-size:28px;">📄</span>
+        <div style="flex:1;">
+            <p style="color:#fbbf24; font-size:13px; font-weight:700; margin:0 0 2px;">SAD Document Available</p>
+            <p style="color:#64748b; font-size:11px; margin:0;">
+                Uploaded {{ sad_document.uploaded_at|date:"M d, Y g:i A" }}
+            </p>
+        </div>
+        <a href="{{ sad_document.file.url }}" target="_blank"
+           style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600;
+                  color:#fbbf24; text-decoration:none; padding:7px 14px;
+                  border:1px solid #92400e; border-radius:6px; background:#422006; flex-shrink:0;"
+           onmouseover="this.style.background='#78350f'"
+           onmouseout="this.style.background='#422006'">
+            ↗ View SAD
+        </a>
+    </div>
+    <p style="color:#64748b; font-size:11px; margin:10px 0 0; line-height:1.5;">
+        This is the official BOC assessment. The figures on this document are final and may differ from the estimated computation above.
+        Please refer to this document for the exact amount due.
+    </p>
     {% else %}
-    <div style="background:#2d1b00; border:1px solid #78350f; border-radius:8px;
-                padding:12px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px;">
-        <span style="font-size:18px;">⚠️</span>
-        <p style="color:#fcd34d; font-size:13px; margin:0;">
-            Your shipment is marked <strong>For Payment</strong>. Please upload your payment receipt below.
+    <div style="display:flex; align-items:center; gap:12px; padding:12px 14px;
+                background:#0f172a; border:1px solid #334155; border-radius:8px;">
+        <span style="font-size:20px;">⏳</span>
+        <p style="color:#94a3b8; font-size:13px; margin:0;">
+            The SAD document has not been uploaded yet. Your declarant will upload it once available from BOC.
         </p>
     </div>
-    {% endif %}
-    {% if shipment.status == 'paid' %}
-    <form method="POST" enctype="multipart/form-data" action="{% url 'consignee:upload_receipt' shipment.id %}">
-        {% csrf_token %}
-        <div style="display:flex; gap:10px; align-items:flex-end;">
-            <div style="flex:1;">
-                <label class="form-label">Select Receipt File</label>
-                <input type="file" name="payment_receipt" class="form-input" accept=".pdf,.jpg,.jpeg,.png" required>
-                <p style="color:#64748b; font-size:11px; margin-top:4px;">PDF, JPG, or PNG accepted</p>
-            </div>
-            <button type="submit" class="btn btn-primary" style="flex-shrink:0;">Upload Receipt</button>
-        </div>
-    </form>
     {% endif %}
 </div>
 {% endif %}
