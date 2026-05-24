@@ -335,6 +335,32 @@ def submit_feedback(request, shipment_id):
     return render(request, 'consignee/feedback.html', {'shipment': shipment})
 
 
+# ─── Approve Computation ─────────────────────────────────────────────────────
+
+@login_required
+def approve_computation(request, shipment_id):
+    """Consignee approves the ECDT+WMCDA computation, advancing status to approved."""
+    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+
+    if request.method == 'POST':
+        if shipment.status != 'computed':
+            messages.error(request, 'This shipment is not awaiting your approval.')
+        else:
+            old_status = shipment.status
+            shipment.status = 'approved'
+            shipment.save()
+            StatusLog.objects.create(
+                shipment=shipment,
+                changed_by=request.user,
+                old_status=old_status,
+                new_status='approved',
+                notes='Consignee approved the computation.',
+            )
+            messages.success(request, 'Computation approved. Your shipment will proceed to customs lodgement.')
+
+    return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+
 # ─── Cancel Submission ────────────────────────────────────────────────────────
 
 @login_required
