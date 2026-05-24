@@ -1,0 +1,253 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms & Privacy</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/terms.css' %}">
+     <!-- POPPINS -->
+    <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+    <!-- FONT AWESOME -->
+    <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+
+<body>
+<header class="navbar">
+
+        <!-- LOGO -->
+        <div class="nav-left">
+
+            <a href="#"
+            class="logo-link">
+
+                <img
+                src="{% static 'images/Thumbnail for R3-PCR.png' %}"
+                alt="R3-PCR Logo">
+
+            </a>
+
+        </div>
+
+        <!-- NAVIGATION -->
+        <div class="nav-right">
+
+            <!-- LANGUAGE -->
+            <div class="language-dropdown">
+
+                <div class="selected-language"
+                id="selectedLanguage">
+
+                    <i class="fa-solid fa-globe"></i>
+
+                    <span id="currentLanguage">
+                        EN
+                    </span>
+
+                </div>
+
+                <!-- MENU -->
+                <div class="language-menu">
+
+                    <div class="language-option"
+                    data-lang="en">
+
+                        English
+
+                    </div>
+
+                    <div class="language-option"
+                    data-lang="fil">
+
+                        Filipino
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <a href="#about">ABOUT</a>
+            <a href="#contact">CONTACT US</a>
+
+            <a href="{% url 'accounts:register' %}"
+            class="register-btn">
+
+                REGISTER
+
+            </a>
+
+            <a href="{% url 'accounts:login' %}"
+            class="login-btn-nav">
+
+                LOG IN
+
+            </a>
+
+        </div>
+
+    </header>
+<main class="terms-container">
+
+    <h1>Terms of Service & Privacy Policy</h1>
+    <p class="effective-date"><strong>Effective Date:</strong> May 15, 2026</p>
+
+    <p>
+        Welcome to R3-PCR (Pre-Clearance Decision Support System). By accessing or using this website and its services, you agree to comply with and be bound by the following Terms of Service and Privacy Policy.
+    </p>
+
+    <p>
+        If you do not agree with these terms, please refrain from using the system.
+    </p>
+
+    <h3>Use of the System</h3>
+    <p>
+        R3-PCR is designed to assist consignees in managing shipment information, pre-clearance processes, and related documentation.
+    </p>
+
+    <p>By using this system, you agree that:</p>
+    <ul>
+        <li>You will provide accurate and complete information during registration and usage.</li>
+        <li>You will not use the system for unlawful or unauthorized purposes.</li>
+        <li>You are responsible for maintaining the confidentiality of your account credentials.</li>
+        <li>You accept responsibility for all activities that occur under your account.</li>
+    </ul>
+
+    <p>
+        We reserve the right to suspend or terminate accounts that violate these terms.
+    </p>
+
+    <h3>Account Registration and Approval</h3>
+    <p>
+        Accounts are intended for consignees only and may require administrative approval before activation.
+    </p>
+
+    <p>By registering:</p>
+    <ul>
+        <li>You consent to verification of your submitted information.</li>
+        <li>You acknowledge that account access may be restricted until approval is granted.</li>
+        <li>You agree not to impersonate any individual or entity.</li>
+    </ul>
+
+    <h3>Information We Collect</h3>
+    <p>We may collect the following types of information:</p>
+
+    <p><strong>Personal Information</strong></p>
+    <ul>
+        <li>Name (First Name, Last Name)</li>
+        <li>Email address</li>
+        <li>Company name (if applicable)</li>
+        <li>Contact number</li>
+    </ul>
+
+    <p><strong>System Data</strong></p>
+    <ul>
+        <li>Login activity</li>
+        <li>Device and browser information</li>
+        <li>IP address and general location data (where permitted)</li>
+    </ul>
+
+    <p>
+        This information is collected to ensure proper system functionality, security, and service improvement.
+    </p>
+
+    <h3>How We Use Your Information</h3>
+    <p>
+        We use your information to manage your account, send verification messages such as OTP codes, process shipment data, and improve system functionality. Your data may also be used to communicate important updates related to your account. We do not sell or rent your personal information to third parties.
+    </p>
+
+    <h3>Data Security</h3>
+    <p>
+        We implement appropriate security measures to protect your personal data. While we strive to safeguard your information, no system is completely secure and users acknowledge the inherent risks.
+    </p>
+
+    <h3>Cookies and Tracking Technologies</h3>
+    <p>
+        Our system may use cookies and similar technologies to enhance user experience and analyze usage. You may disable cookies through your browser settings, though this may affect functionality.
+    </p>
+
+    <h3>Third-Party Services</h3>
+    <p>
+        We may use third-party services such as email providers and analytics tools to support operations. These services process limited user data in accordance with their own privacy policies.
+    </p>
+
+    <h3>User Responsibilities</h3>
+    <p>
+        Users are responsible for maintaining account confidentiality and ensuring all information provided is accurate. Any unauthorized activity should be reported immediately.
+    </p>
+
+    <h3>Limitation of Liability</h3>
+    <p>
+        The system is provided “as is” without guarantees of uninterrupted or error-free operation. We are not liable for any damages or losses resulting from system use.
+    </p>
+
+    <h3>Changes to This Policy</h3>
+    <p>
+        We reserve the right to update this policy at any time. Continued use of the system indicates acceptance of any updates.
+    </p>
+
+    <h3>Your Consent</h3>
+    <p>
+        By using the system, you consent to the collection and use of your information as described in this policy.
+    </p>
+
+    <h3>Contact Information</h3>
+    <p>
+        For any questions or concerns, you may contact us at 
+        <a href="mailto:r3pcr.official@gmail.com">r3pcr.official@gmail.com</a>
+    </p>
+
+</main>
+<!-- =========================================
+         FOOTER
+    ========================================== -->
+
+    <div id="contact" style="scroll-margin-top:0;"></div>
+    <footer class="footer">
+        <div class="footer-content">
+            <!-- SOCIAL -->
+            <div class="footer-social">
+                <h4 id="followText"> FOLLOW US </h4>
+                <div class="social-icons">
+                    <img src="{% static 'accounts/img/Facebook.png' %}">
+                    <img src="{% static 'accounts/img/insta.png' %}">
+                    <img src="{% static 'accounts/img/linkedin.png' %}">
+                </div>
+            </div>
+
+            <!-- CENTER -->
+            <div class="footer-center">
+                <img src="{% static 'accounts/img/Thumbnail for R3-PCR.png' %}">
+                <div class="footer-links">
+                    <a href="{% url 'terms' %}">TERMS & PRIVACY</a>
+                    <a href="#">FEATURES</a>
+                    <a href="#">ABOUT</a>
+                    <a href="#">RTRIPLEJ</a>
+                </div>
+                <p>
+                    © 2026 R3-PCR — RTripleJ Customs Brokerage.
+                    All Rights Reserved.
+                </p>
+            </div>
+
+            <!-- CONTACT -->
+            <div class="footer-contact">
+                <h4 id="contactText"> CONTACT US </h4>
+                <div class="contact-icons">
+                    <img src="{% static 'accounts/img/email icon.png' %}">
+                    <img src="{% static 'accounts/img/Location.png' %}">
+                    <img src="{% static 'accounts/img/Contact.png' %}">
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
