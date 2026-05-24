@@ -78,6 +78,16 @@ class DutyComputation(models.Model):
         return total if total else None
 
     @property
+    def boc_payable(self):
+        """Full BOC counter payment: CUD + VAT + IPF + CDS (fixed ₱130)."""
+        from decimal import Decimal
+        cud = self.customs_duty or Decimal('0')
+        vat = self.vat_amount  or Decimal('0')
+        ipf = self.ipf         or Decimal('0')
+        cds = Decimal('130')
+        return round(cud + vat + ipf + cds, 2)
+
+    @property
     def csf_php(self):
         """CSF converted to PHP using stored exchange rate."""
         return (self.csf_usd or 0) * (self.exchange_rate or 0)

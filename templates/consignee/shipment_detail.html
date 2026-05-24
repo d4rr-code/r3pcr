@@ -143,54 +143,89 @@
         <!-- Computation Summary -->
         {% if computation %}
         <div class="card">
-            <p class="card-title">Duty Computation</p>
+            <p class="card-title">Duties and Tax Computation</p>
 
-            <!-- Global inputs row -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
-                <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Declared Value (EXW)</p>
-                    <p style="font-size:13px; color:#e2e8f0;">USD {{ computation.declared_value|floatformat:2 }}</p>
+            <!-- ── 3-number summary strip ──────────────────────────── -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+                <div style="background:#172554; border:1px solid #1d4ed8; border-radius:8px;
+                            padding:12px 14px; text-align:center;">
+                    <p style="font-size:10px; color:#93c5fd; text-transform:uppercase;
+                               letter-spacing:0.8px; margin:0 0 5px; font-weight:600;">BOC Payable</p>
+                    <p style="font-size:17px; font-weight:800; color:#60a5fa; margin:0;">
+                        ₱ {{ computation.boc_payable|floatformat:2 }}</p>
+                    <p style="font-size:10px; color:#475569; margin:3px 0 0;">Govt. duties &amp; taxes</p>
                 </div>
-                <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Exchange Rate</p>
-                    <p style="font-size:13px; color:#e2e8f0;">₱ {{ computation.exchange_rate|floatformat:4 }}</p>
+                <div style="background:#0f172a; border:1px solid #1e293b; border-radius:8px;
+                            padding:12px 14px; text-align:center;">
+                    <p style="font-size:10px; color:#94a3b8; text-transform:uppercase;
+                               letter-spacing:0.8px; margin:0 0 5px; font-weight:600;">Brokerage Fee</p>
+                    <p style="font-size:17px; font-weight:800; color:#e2e8f0; margin:0;">
+                        ₱ {{ computation.brokerage_fee|floatformat:2|default:"—" }}</p>
+                    <p style="font-size:10px; color:#475569; margin:3px 0 0;">R3-PCR service charge</p>
                 </div>
-                <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Total Freight</p>
-                    <p style="font-size:13px; color:#e2e8f0;">USD {{ computation.total_freight|floatformat:2 }}</p>
-                </div>
-                <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Total Insurance</p>
-                    <p style="font-size:13px; color:#e2e8f0;">USD {{ computation.total_insurance|floatformat:2 }}</p>
+                <div style="background:#052e16; border:1px solid #166534; border-radius:8px;
+                            padding:12px 14px; text-align:center;">
+                    <p style="font-size:10px; color:#86efac; text-transform:uppercase;
+                               letter-spacing:0.8px; margin:0 0 5px; font-weight:600;">Total Landed Cost</p>
+                    <p style="font-size:17px; font-weight:800; color:#22c55e; margin:0;">
+                        ₱ {{ computation.total_landed_cost|floatformat:2|default:"—" }}</p>
+                    <p style="font-size:10px; color:#475569; margin:3px 0 0;">All-in landed value</p>
                 </div>
             </div>
 
-            <!-- Per-item breakdown table -->
+            <!-- ── Input parameters row ───────────────────────────── -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Declared Value (EXW)</p>
+                    <p style="font-size:12px; color:#e2e8f0; margin:0;">USD {{ computation.declared_value|floatformat:2 }}</p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Exchange Rate</p>
+                    <p style="font-size:12px; color:#e2e8f0; margin:0;">₱ {{ computation.exchange_rate|floatformat:4 }}</p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Total Freight</p>
+                    <p style="font-size:12px; color:#e2e8f0; margin:0;">USD {{ computation.total_freight|floatformat:2 }}</p>
+                </div>
+                <div>
+                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Total Insurance</p>
+                    <p style="font-size:12px; color:#e2e8f0; margin:0;">USD {{ computation.total_insurance|floatformat:2 }}</p>
+                </div>
+            </div>
+
+            <!-- ── Per-item breakdown table ───────────────────────── -->
             {% with items=computation.get_items %}
             {% if items %}
-            <div style="overflow-x:auto; margin-bottom:14px;">
+            <div style="overflow-x:auto; margin-bottom:14px;
+                        border:1px solid #1e293b; border-radius:8px;">
                 <table style="width:100%; border-collapse:collapse; font-size:12px;">
                     <thead>
-                        <tr style="background:#0f172a; border-bottom:1px solid #334155;">
-                            <th style="text-align:left; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Description</th>
-                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Qty</th>
-                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">EXW (USD)</th>
-                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">HS Code</th>
-                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Duty %</th>
-                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">D/V (₱)</th>
-                            <th style="text-align:right; padding:7px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">CUD (₱)</th>
+                        <tr style="background:#0c1420; border-bottom:1px solid #334155;">
+                            <th style="text-align:left; padding:8px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px;">Description</th>
+                            <th style="text-align:right; padding:8px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Qty / Unit</th>
+                            <th style="text-align:right; padding:8px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">EXW (USD)</th>
+                            <th style="text-align:right; padding:8px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">HS Code</th>
+                            <th style="text-align:right; padding:8px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Duty %</th>
+                            <th style="text-align:right; padding:8px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">D/V (₱)</th>
+                            <th style="text-align:right; padding:8px 10px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">CUD (₱)</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in items %}
-                        <tr style="border-bottom:1px solid #1e293b;">
-                            <td style="padding:8px 10px; color:#e2e8f0;">{{ item.description|default:"—" }}</td>
-                            <td style="padding:8px 10px; color:#94a3b8; text-align:right;">{{ item.quantity|default:"—" }}</td>
-                            <td style="padding:8px 10px; color:#94a3b8; text-align:right;">{{ item.exw|floatformat:2|default:"—" }}</td>
-                            <td style="padding:8px 10px; color:#94a3b8; text-align:right; white-space:nowrap;">{{ item.hs_code|default:"—" }}</td>
-                            <td style="padding:8px 10px; color:#94a3b8; text-align:right;">{{ item.duty_rate|floatformat:2|default:"—" }}%</td>
-                            <td style="padding:8px 10px; color:#94a3b8; text-align:right;">{{ item.dv_php|floatformat:2|default:"—" }}</td>
-                            <td style="padding:8px 10px; color:#f1f5f9; text-align:right; font-weight:600;">{{ item.cud|floatformat:2|default:"—" }}</td>
+                        <tr style="border-bottom:1px solid #1e293b;"
+                            onmouseover="this.style.background='#0f172a'"
+                            onmouseout="this.style.background=''">
+                            <td style="padding:9px 10px; color:#e2e8f0;">{{ item.description|default:"—" }}</td>
+                            <td style="padding:9px 10px; color:#94a3b8; text-align:right; white-space:nowrap;">
+                                {{ item.quantity|default:"—" }}{% if item.unit %} <span style="color:#64748b;">{{ item.unit }}</span>{% endif %}
+                            </td>
+                            <td style="padding:9px 10px; color:#94a3b8; text-align:right;">{{ item.exw|floatformat:2|default:"—" }}</td>
+                            <td style="padding:9px 10px; text-align:right; white-space:nowrap;">
+                                <span style="color:#22c55e; font-family:monospace; font-weight:700; font-size:11px;">{{ item.hs_code|default:"—" }}</span>
+                            </td>
+                            <td style="padding:9px 10px; color:#94a3b8; text-align:right;">{{ item.duty_rate|floatformat:2|default:"—" }}%</td>
+                            <td style="padding:9px 10px; color:#94a3b8; text-align:right;">{{ item.dv_php|floatformat:2|default:"—" }}</td>
+                            <td style="padding:9px 10px; color:#f1f5f9; text-align:right; font-weight:700;">{{ item.cud|floatformat:2|default:"—" }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -199,48 +234,92 @@
             {% endif %}
             {% endwith %}
 
-            <!-- Summary totals -->
-            <div style="background:#0f172a; border-radius:8px; padding:12px 14px; display:flex; flex-direction:column; gap:7px;">
-                {% if computation.customs_duty %}
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:#94a3b8; font-size:12px;">Customs Duty (CUD)</span>
-                    <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.customs_duty|floatformat:2 }}</span>
+            <!-- ── Fee breakdown: two columns ─────────────────────── -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+
+                <!-- Government (BOC) -->
+                <div style="background:#0f172a; border:1px solid #1e3a5f; border-radius:8px; padding:12px 14px;">
+                    <p style="font-size:10px; font-weight:700; color:#60a5fa; text-transform:uppercase;
+                               letter-spacing:0.8px; margin:0 0 10px;">📋 Government (BOC)</p>
+                    <div style="display:flex; flex-direction:column; gap:7px;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:#94a3b8; font-size:12px;">Customs Duty (CUD)</span>
+                            <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.customs_duty|floatformat:2|default:"0.00" }}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:#94a3b8; font-size:12px;">VAT (12%)</span>
+                            <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.vat_amount|floatformat:2|default:"0.00" }}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:#94a3b8; font-size:12px;">Import Processing Fee</span>
+                            <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.ipf|floatformat:2|default:"0.00" }}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:#94a3b8; font-size:12px;">Documentary Stamp (CDS)</span>
+                            <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ 130.00</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;
+                                    padding-top:8px; border-top:1px solid #1e3a5f; margin-top:2px;">
+                            <span style="color:#93c5fd; font-size:13px; font-weight:700;">BOC Total</span>
+                            <span style="color:#3b82f6; font-size:15px; font-weight:800;">₱ {{ computation.boc_payable|floatformat:2 }}</span>
+                        </div>
+                    </div>
                 </div>
-                {% endif %}
-                {% if computation.vat_amount %}
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:#94a3b8; font-size:12px;">VAT (12%)</span>
-                    <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.vat_amount|floatformat:2 }}</span>
+
+                <!-- Service Charges -->
+                <div style="background:#0f172a; border:1px solid #1e293b; border-radius:8px; padding:12px 14px;">
+                    <p style="font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase;
+                               letter-spacing:0.8px; margin:0 0 10px;">🏢 Service Charges</p>
+                    <div style="display:flex; flex-direction:column; gap:7px;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:#94a3b8; font-size:12px;">Brokerage Fee</span>
+                            <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.brokerage_fee|floatformat:2|default:"0.00" }}</span>
+                        </div>
+                        {% if computation.arrastre %}
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:#94a3b8; font-size:12px;">Arrastre</span>
+                            <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.arrastre|floatformat:2 }}</span>
+                        </div>
+                        {% endif %}
+                        {% if computation.wharfage %}
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:#94a3b8; font-size:12px;">Wharfage</span>
+                            <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.wharfage|floatformat:2 }}</span>
+                        </div>
+                        {% endif %}
+                        {% if computation.bank_charges %}
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:#94a3b8; font-size:12px;">Bank Charges</span>
+                            <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.bank_charges|floatformat:2 }}</span>
+                        </div>
+                        {% endif %}
+                        {% if computation.csf_php %}
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:#94a3b8; font-size:12px;">Container Service Fee</span>
+                            <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.csf_php|floatformat:2 }}</span>
+                        </div>
+                        {% endif %}
+                        {% if not computation.arrastre and not computation.wharfage and not computation.bank_charges and not computation.csf_php %}
+                        <p style="color:#334155; font-size:11px; margin:4px 0 0; font-style:italic;">No additional charges.</p>
+                        {% endif %}
+                    </div>
                 </div>
-                {% endif %}
-                {% if computation.brokerage_fee %}
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:#94a3b8; font-size:12px;">Brokerage Fee</span>
-                    <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.brokerage_fee|floatformat:2 }}</span>
-                </div>
-                {% endif %}
-                {% if computation.ipf %}
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:#94a3b8; font-size:12px;">Import Processing Fee (IPF)</span>
-                    <span style="color:#e2e8f0; font-size:12px; font-weight:600;">₱ {{ computation.ipf|floatformat:2 }}</span>
-                </div>
-                {% endif %}
-                {% if computation.total_duties_and_taxes %}
-                <div style="display:flex; justify-content:space-between; align-items:center; padding-top:7px; border-top:1px solid #334155;">
-                    <span style="color:#93c5fd; font-size:13px; font-weight:700;">Total Duties &amp; Taxes</span>
-                    <span style="color:#3b82f6; font-size:15px; font-weight:800;">₱ {{ computation.total_duties_and_taxes|floatformat:2 }}</span>
-                </div>
-                {% endif %}
-                {% if computation.total_landed_cost %}
-                <div style="display:flex; justify-content:space-between; align-items:center; {% if not computation.total_duties_and_taxes %}padding-top:7px; border-top:1px solid #334155;{% endif %}">
-                    <span style="color:#86efac; font-size:13px; font-weight:700;">Total Landed Cost</span>
-                    <span style="color:#22c55e; font-size:15px; font-weight:800;">₱ {{ computation.total_landed_cost|floatformat:2 }}</span>
-                </div>
-                {% endif %}
-                {% if not computation.total_landed_cost and not computation.total_duties_and_taxes %}
-                <p style="color:#475569; font-size:12px; margin:0; text-align:center;">Computation not yet finalized.</p>
-                {% endif %}
+
             </div>
+
+            <!-- ── Total Landed Cost (full-width highlight) ────────── -->
+            {% if computation.total_landed_cost %}
+            <div style="background:#052e16; border:1px solid #166534; border-radius:8px;
+                        padding:13px 16px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <p style="color:#86efac; font-size:13px; font-weight:700; margin:0;">Total Landed Cost</p>
+                    <p style="color:#4ade80; font-size:10px; margin:2px 0 0;">D/V + all duties, taxes, and charges</p>
+                </div>
+                <span style="color:#22c55e; font-size:22px; font-weight:800;">
+                    ₱ {{ computation.total_landed_cost|floatformat:2 }}
+                </span>
+            </div>
+            {% endif %}
 
             <p style="color:#475569; font-size:11px; margin:10px 0 0;">
                 Computed {{ computation.computed_at|date:"M d, Y g:i A" }}
