@@ -412,6 +412,128 @@
         </div>
         {% endif %}
 
+        <!-- ─── OCR Item Review Panel ─────────────────────────────────────────── -->
+        {% if ocr_items_from_docs %}
+        <div class="card" style="margin-top:16px; border:1px solid #1d4ed855;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+                <p class="card-title" style="margin:0;">📋 OCR Extracted Line Items</p>
+                <span style="font-size:11px; padding:3px 10px; border-radius:10px; flex-shrink:0;
+                    {% if shipment.shipment_type == 'fcl' %}background:#1a2e4a; color:#93c5fd;
+                    {% elif shipment.shipment_type == 'air' %}background:#1e1a2e; color:#c4b5fd;
+                    {% else %}background:#0a2e2a; color:#6ee7b7;{% endif %}">
+                    {% if shipment.shipment_type == 'fcl' %}📦 FCL
+                    {% elif shipment.shipment_type == 'air' %}✈️ Air
+                    {% else %}🚢 LCL{% endif %}
+                     — ECDT will be set to this mode
+                </span>
+                <span style="font-size:11px; color:#64748b; margin-left:auto;">
+                    {{ ocr_items_from_docs|length }} item{{ ocr_items_from_docs|length|pluralize }} found
+                </span>
+            </div>
+            <p style="color:#64748b; font-size:12px; margin-bottom:14px; line-height:1.5;">
+                Review and confirm the items below. Adjust descriptions, quantities, or select the correct
+                HS code for each row, then click <strong style="color:#f1f5f9;">Confirm &amp; Load to ECDT</strong>
+                to pre-fill the computation workspace.
+            </p>
+            <form id="ocr-items-confirm-form" method="POST"
+                  action="{% url 'declarant:save_ocr_items' shipment.id %}">
+                {% csrf_token %}
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:12px;" id="ocr-items-table">
+                        <thead>
+                            <tr style="background:#0f172a; border-bottom:1px solid #334155;">
+                                <th style="text-align:left; padding:8px 6px; color:#64748b;">#</th>
+                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:180px;">Description</th>
+                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:60px;">Qty</th>
+                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:60px;">Unit</th>
+                                <th style="text-align:right; padding:8px 6px; color:#64748b; min-width:90px;">EXW (USD)</th>
+                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:220px;">HS Code &amp; Duty Rate</th>
+                                <th style="text-align:center; padding:8px 6px; color:#64748b; width:40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in ocr_items_from_docs %}
+                            <tr style="border-bottom:1px solid #1e293b;" data-row="{{ forloop.counter0 }}">
+                                <td style="padding:6px 6px; color:#475569; font-size:11px; text-align:center;">
+                                    {{ forloop.counter }}
+                                </td>
+                                <td style="padding:4px 6px;">
+                                    <input type="text" name="description[]"
+                                           value="{{ item.description }}"
+                                           class="form-input ocr-desc-input"
+                                           style="font-size:11px; padding:5px 7px; width:100%;">
+                                </td>
+                                <td style="padding:4px 6px;">
+                                    <input type="text" name="quantity[]"
+                                           value="{{ item.quantity }}"
+                                           class="form-input"
+                                           style="font-size:11px; padding:5px 7px; width:100%;">
+                                </td>
+                                <td style="padding:4px 6px;">
+                                    <input type="text" name="unit[]"
+                                           value="{{ item.unit }}"
+                                           class="form-input"
+                                           style="font-size:11px; padding:5px 7px; width:100%;">
+                                </td>
+                                <td style="padding:4px 6px;">
+                                    <input type="number" name="total_value[]"
+                                           value="{{ item.total_value|default:'' }}"
+                                           step="0.01" min="0"
+                                           class="form-input"
+                                           style="font-size:11px; padding:5px 7px; width:100%; text-align:right;">
+                                </td>
+                                <td style="padding:4px 6px;">
+                                    <select name="hs_code_id[]"
+                                            class="form-input ocr-hs-select"
+                                            data-desc="{{ item.description }}"
+                                            style="font-size:11px; padding:5px 7px; width:100%; margin-bottom:3px;">
+                                        <option value="">Loading suggestions…</option>
+                                    </select>
+                                    <div style="display:flex; align-items:center; gap:5px;">
+                                        <span style="color:#64748b; font-size:10px;">Duty %:</span>
+                                        <input type="number" name="hs_duty_rate[]"
+                                               class="form-input ocr-hs-rate"
+                                               value="0" step="0.01" min="0"
+                                               style="font-size:11px; padding:3px 6px; width:70px;">
+                                        <span style="color:#475569; font-size:10px;" class="ocr-conf-badge">
+                                            {% if item.confidence >= 0.8 %}
+                                            <span style="color:#22c55e;">● High</span>
+                                            {% elif item.confidence >= 0.65 %}
+                                            <span style="color:#f59e0b;">● Med</span>
+                                            {% else %}
+                                            <span style="color:#ef4444;">● Low</span>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td style="padding:4px 6px; text-align:center;">
+                                    <button type="button"
+                                            style="background:none; border:none; color:#ef4444;
+                                                   cursor:pointer; font-size:15px; padding:0 4px;"
+                                            title="Remove row"
+                                            onclick="ocrRemoveRow(this)">✕</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:14px; align-items:center; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-secondary"
+                            style="font-size:12px;"
+                            onclick="ocrAddRow()">+ Add Row</button>
+                    <span style="color:#475569; font-size:11px; margin-left:4px;">
+                        Verify values — unconfirmed figures will need manual entry in ECDT.
+                    </span>
+                    <button type="submit" class="btn btn-primary"
+                            style="font-size:13px; margin-left:auto;">
+                        ✅ Confirm &amp; Load to ECDT →
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
         <!-- HS Recommendations -->
         <div class="card" style="margin-top:16px;">
             <p class="card-title">HS Code Recommendations</p>
@@ -911,7 +1033,89 @@ function confirmHsRecommendation(btn, id, code) {
     .catch(function(err) { alert(err.message); });
 }
 
+// ─── OCR Item Review: per-item HS suggestions ────────────────────────────────
+var OCR_HS_URL = "{% url 'computation:hs_suggest' %}";
+
+function ocrFetchHsForRow(selectEl, desc, rateInput) {
+    if (!desc || !selectEl) return;
+    selectEl.innerHTML = '<option value="">Searching…</option>';
+    fetch(OCR_HS_URL + '?q=' + encodeURIComponent(desc) + '&limit=5')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var suggs = data.suggestions || [];
+            selectEl.innerHTML = '<option value="">— Select HS Code —</option>';
+            suggs.forEach(function(s) {
+                var opt = document.createElement('option');
+                opt.value = s.id;
+                var shortDesc = s.desc.length > 42 ? s.desc.substring(0, 42) + '…' : s.desc;
+                opt.textContent = s.code + ' — ' + shortDesc + '  (' + s.rate.toFixed(2) + '%)';
+                opt.dataset.rate = s.rate;
+                selectEl.appendChild(opt);
+            });
+            if (suggs.length > 0 && selectEl.options.length > 1) {
+                selectEl.selectedIndex = 1;
+                if (rateInput) rateInput.value = suggs[0].rate.toFixed(2);
+            }
+        })
+        .catch(function() {
+            selectEl.innerHTML = '<option value="">— Search failed —</option>';
+        });
+}
+
+function ocrInitRow(row) {
+    var selectEl  = row.querySelector('.ocr-hs-select');
+    var rateInput = row.querySelector('.ocr-hs-rate');
+    var descInput = row.querySelector('.ocr-desc-input');
+    if (!selectEl || !descInput) return;
+    // Initial load
+    var initDesc = selectEl.dataset.desc || descInput.value.trim();
+    if (initDesc) ocrFetchHsForRow(selectEl, initDesc, rateInput);
+    // On description blur, refresh suggestions
+    descInput.addEventListener('blur', function() {
+        var d = this.value.trim();
+        if (d) ocrFetchHsForRow(selectEl, d, rateInput);
+    });
+    // On HS select change, update duty rate field
+    selectEl.addEventListener('change', function() {
+        var opt = this.selectedOptions[0];
+        if (opt && rateInput) rateInput.value = opt.dataset.rate ? parseFloat(opt.dataset.rate).toFixed(2) : '0';
+    });
+}
+
+function ocrRemoveRow(btn) {
+    btn.closest('tr').remove();
+}
+
+function ocrAddRow() {
+    var tbody = document.querySelector('#ocr-items-table tbody');
+    if (!tbody) return;
+    var rowIdx = tbody.children.length + 1;
+    var tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid #1e293b';
+    tr.innerHTML =
+        '<td style="padding:6px;color:#475569;font-size:11px;text-align:center;">' + rowIdx + '</td>' +
+        '<td style="padding:4px 6px;"><input type="text" name="description[]" class="form-input ocr-desc-input" placeholder="Item description…" style="font-size:11px;padding:5px 7px;width:100%;"></td>' +
+        '<td style="padding:4px 6px;"><input type="text" name="quantity[]" class="form-input" style="font-size:11px;padding:5px 7px;width:100%;"></td>' +
+        '<td style="padding:4px 6px;"><input type="text" name="unit[]" class="form-input" style="font-size:11px;padding:5px 7px;width:100%;"></td>' +
+        '<td style="padding:4px 6px;"><input type="number" name="total_value[]" step="0.01" min="0" class="form-input" style="font-size:11px;padding:5px 7px;width:100%;text-align:right;"></td>' +
+        '<td style="padding:4px 6px;">' +
+            '<select name="hs_code_id[]" class="form-input ocr-hs-select" style="font-size:11px;padding:5px 7px;width:100%;margin-bottom:3px;" data-desc="">' +
+                '<option value="">— Enter description first —</option>' +
+            '</select>' +
+            '<div style="display:flex;align-items:center;gap:5px;">' +
+                '<span style="color:#64748b;font-size:10px;">Duty %:</span>' +
+                '<input type="number" name="hs_duty_rate[]" class="form-input ocr-hs-rate" value="0" step="0.01" min="0" style="font-size:11px;padding:3px 6px;width:70px;">' +
+            '</div>' +
+        '</td>' +
+        '<td style="padding:4px 6px;text-align:center;"><button type="button" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:15px;padding:0 4px;" onclick="ocrRemoveRow(this)">✕</button></td>';
+    tbody.appendChild(tr);
+    ocrInitRow(tr);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Init per-item HS dropdowns for OCR review panel
+    document.querySelectorAll('#ocr-items-table tbody tr').forEach(ocrInitRow);
+
     fetchHsRecommendations(false);
 });
 

@@ -218,10 +218,10 @@ def queue_manager(request):
     page_number  = request.GET.get('page', 1)
     pending_page = paginator.get_page(page_number)
 
-    # Arrived: my claimed shipments
+    # Arrived: my claimed shipments (prefetch computation for inline status cards)
     in_review = Shipment.objects.filter(
         status='arrived', declarant=request.user
-    ).select_related('consignee')
+    ).select_related('consignee').prefetch_related('computation')
 
     # History: shipments I processed that are past the arrived stage
     history = Shipment.objects.filter(
@@ -313,6 +313,26 @@ def process_shipment(request, shipment_id):
     documents = shipment.documents.all()
     status_logs = shipment.status_logs.order_by('-changed_at')[:5]
 
+    # ── Extract OCR line items from scanned documents (for review panel) ────────
+    ocr_items_from_docs = []
+    _seen_ocr_desc = set()
+    _priority_doc_types = ['invoice', 'packing_list', 'airway_bill']
+    _docs_by_type = {}
+    for _d in documents:
+        if _d.document_type in _priority_doc_types and _d.ocr_ran_at and _d.ocr_fields_json:
+            _docs_by_type.setdefault(_d.document_type, []).append(_d)
+    for _doc_type in _priority_doc_types:
+        for _doc in _docs_by_type.get(_doc_type, []):
+            try:
+                _ocr_data = json.loads(_doc.ocr_fields_json)
+                for _item in _ocr_data.get('__items__', []):
+                    _desc = (_item.get('description') or '').strip()
+                    if _desc and _desc not in _seen_ocr_desc:
+                        _seen_ocr_desc.add(_desc)
+                        ocr_items_from_docs.append(dict(_item, source_doc=_doc_type))
+            except (TypeError, ValueError):
+                pass
+
     ocr_fields = None
     if request.session.get('ocr_shipment_id') == shipment_id:
         ocr_fields = request.session.get('ocr_fields')
@@ -327,17 +347,18 @@ def process_shipment(request, shipment_id):
     sad_document = shipment.documents.filter(document_type='sad').first()
 
     context = {
-        'shipment':        shipment,
-        'documents':       documents,
-        'status_logs':     status_logs,
-        'ocr_fields':      ocr_fields,
-        'ocr_documents':   _ocr_display_documents(documents),
-        'ocr_toast':       ocr_toast,
-        'has_pending_ocr': has_pending_ocr,
+        'shipment':            shipment,
+        'documents':           documents,
+        'status_logs':         status_logs,
+        'ocr_fields':          ocr_fields,
+        'ocr_documents':       _ocr_display_documents(documents),
+        'ocr_items_from_docs': ocr_items_from_docs,
+        'ocr_toast':           ocr_toast,
+        'has_pending_ocr':     has_pending_ocr,
         'manual_status_choices': Shipment.MANUAL_STATUS_CHOICES,
-        'status_steps':    build_status_progress(shipment.status, 'declarant'),
-        'vasp_url':        vasp_url,
-        'sad_document':    sad_document,
+        'status_steps':        build_status_progress(shipment.status, 'declarant'),
+        'vasp_url':            vasp_url,
+        'sad_document':        sad_document,
     }
     return render(request, 'declarant/process.html', context)
 
@@ -530,6 +551,81 @@ def flag_deficiency(request, shipment_id):
 
     messages.success(request, f'Deficiency flagged — consignee has been notified.')
     return redirect('declarant:process', shipment_id=shipment_id)
+
+
+# ─── Save Confirmed OCR Items → ECDT ─────────────────────────────────────────
+
+@login_required
+@declarant_required
+def save_ocr_items(request, shipment_id):
+    """Accept declarant-reviewed OCR item rows, store in session, redirect to ECDT."""
+    if request.method != 'POST':
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
+    descriptions = request.POST.getlist('description[]')
+    quantities   = request.POST.getlist('quantity[]')
+    units        = request.POST.getlist('unit[]')
+    total_values = request.POST.getlist('total_value[]')
+    hs_code_ids  = request.POST.getlist('hs_code_id[]')
+    hs_rates     = request.POST.getlist('hs_duty_rate[]')
+
+    n = len(descriptions)
+    def _pad(lst): return (lst + [''] * n)[:n]
+    quantities   = _pad(quantities)
+    units        = _pad(units)
+    total_values = _pad(total_values)
+    hs_code_ids  = _pad(hs_code_ids)
+    hs_rates     = _pad(hs_rates)
+
+    items = []
+    for desc, qty, unit, val, hs_id, hs_rate in zip(
+        descriptions, quantities, units, total_values, hs_code_ids, hs_rates
+    ):
+        desc = (desc or '').strip()
+        if not desc:
+            continue
+        try:
+            total_value = float(val) if str(val).strip() else 0.0
+        except (ValueError, TypeError):
+            total_value = 0.0
+        try:
+            hs_rate_val = float(hs_rate) if str(hs_rate).strip() else 0.0
+        except (ValueError, TypeError):
+            hs_rate_val = 0.0
+        hs_id_clean = str(hs_id).strip() if hs_id and str(hs_id).strip().isdigit() else ''
+        items.append({
+            'description':  desc,
+            'quantity':     (qty or '').strip() or '1',
+            'unit':         (unit or '').strip().upper(),
+            'total_value':  total_value,
+            'unit_price':   '',
+            'gross_weight': '',
+            'net_weight':   '',
+            'num_packages': '',
+            'source':       'ocr_confirmed',
+            'confidence':   1.0,
+            'hs_code_id':   hs_id_clean,
+            'duty_rate':    hs_rate_val,
+        })
+
+    if not items:
+        messages.warning(request, 'No items to load — add at least one row with a description.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    request.session['ocr_items']       = items
+    request.session['ocr_shipment_id'] = shipment_id
+    request.session.modified = True
+
+    from django.http import HttpResponseRedirect
+    from django.urls import reverse
+    return HttpResponseRedirect(
+        reverse('computation:compute', kwargs={'shipment_id': shipment_id}) + '?ocr=1'
+    )
 
 
 # ─── BOC Tracking ─────────────────────────────────────────────────────────────

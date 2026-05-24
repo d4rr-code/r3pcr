@@ -344,11 +344,10 @@
                 onmouseover="this.style.background='#1e293b'"
                 onmouseout="this.style.background=''">
                 <td style="padding:12px 8px 12px 16px; text-align:center;">
-                    {% if s.description %}
                     <button onclick="toggleRow('rv-{{ s.id }}')"
                             style="background:none; border:none; cursor:pointer;
-                                   color:#64748b; font-size:14px; padding:0;">▶</button>
-                    {% endif %}
+                                   color:#64748b; font-size:14px; padding:0;"
+                            title="Show details">▶</button>
                 </td>
                 <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:600;">
                     {{ s.hawb_number }}
@@ -393,16 +392,114 @@
                     </a>
                 </td>
             </tr>
-            {% if s.description %}
-            <tr id="rv-{{ s.id }}" style="display:none; background:#0f172a;">
-                <td colspan="8" style="padding:10px 20px 14px 52px;">
-                    <p style="color:#94a3b8; font-size:12px; margin:0;">
-                        <strong style="color:#64748b;">Description:</strong>
-                        {{ s.description }}
-                    </p>
+            <tr id="rv-{{ s.id }}" style="display:none; background:#081222;">
+                <td colspan="8" style="padding:12px 20px 16px 52px;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; max-width:860px;">
+
+                        <!-- Description + Shipping info -->
+                        <div style="grid-column:1 / -1;">
+                            {% if s.description %}
+                            <p style="color:#94a3b8; font-size:12px; margin:0 0 8px;">
+                                <strong style="color:#64748b;">Description:</strong>
+                                {{ s.description }}
+                            </p>
+                            {% endif %}
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <span style="font-size:11px; padding:2px 9px; border-radius:8px;
+                                    {% if s.shipment_type == 'fcl' %}background:#1a2e4a; color:#93c5fd;
+                                    {% elif s.shipment_type == 'air' %}background:#1e1a2e; color:#c4b5fd;
+                                    {% elif s.shipment_type == 'lcl' or s.shipment_type == 'sea' %}background:#0a2e2a; color:#6ee7b7;
+                                    {% else %}background:#1e293b; color:#94a3b8;{% endif %}">
+                                    {% if s.shipment_type == 'fcl' %}📦 FCL
+                                    {% elif s.shipment_type == 'air' %}✈️ Air
+                                    {% elif s.shipment_type == 'lcl' %}🚢 LCL
+                                    {% elif s.shipment_type == 'sea' %}🚢 Sea
+                                    {% else %}{{ s.get_shipment_type_display|default:"—" }}{% endif %}
+                                </span>
+                                <span style="font-size:11px; padding:2px 9px; border-radius:8px; background:#1e293b; color:#94a3b8;">
+                                    {{ s.get_import_type_display|default:"—" }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Consignee-provided values -->
+                        <div>
+                            <p style="color:#475569; font-size:10px; text-transform:uppercase; letter-spacing:.05em; margin:0 0 5px;">Consignee Values</p>
+                            <div style="font-size:11px; color:#94a3b8; line-height:1.8;">
+                                <div><span style="color:#475569;">EXW:</span>
+                                    {% if s.declared_value %}
+                                    <span style="color:#f1f5f9; font-weight:600;">USD {{ s.declared_value }}</span>
+                                    {% else %}<span style="color:#334155;">—</span>{% endif %}
+                                </div>
+                                <div><span style="color:#475569;">Freight:</span>
+                                    {% if s.freight_cost %}
+                                    USD {{ s.freight_cost }}
+                                    {% else %}<span style="color:#334155;">—</span>{% endif %}
+                                </div>
+                                <div><span style="color:#475569;">Insurance:</span>
+                                    {% if s.insurance_cost %}
+                                    USD {{ s.insurance_cost }}
+                                    {% else %}<span style="color:#334155;">—</span>{% endif %}
+                                </div>
+                                {% if s.quantity %}
+                                <div><span style="color:#475569;">Qty:</span> {{ s.quantity }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Computation status -->
+                        <div>
+                            <p style="color:#475569; font-size:10px; text-transform:uppercase; letter-spacing:.05em; margin:0 0 5px;">ECDT / Computation</p>
+                            {% with comp=s.computation %}
+                            {% if comp %}
+                            <div style="font-size:11px; line-height:1.8;">
+                                <div style="color:#22c55e; font-weight:600; margin-bottom:3px;">✅ Computed</div>
+                                <div style="color:#94a3b8;">
+                                    BOC: <span style="color:#f1f5f9; font-weight:600;">₱{{ comp.boc_payable|floatformat:2 }}</span>
+                                </div>
+                                <div style="color:#94a3b8;">
+                                    TLC: <span style="color:#3b82f6; font-weight:600;">₱{{ comp.total_landed_cost|floatformat:2 }}</span>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div style="font-size:11px; color:#64748b;">
+                                <span style="color:#f59e0b;">⏳</span> Pending ECDT computation
+                            </div>
+                            {% endif %}
+                            {% endwith %}
+                        </div>
+
+                        <!-- Mini status pipeline -->
+                        <div>
+                            <p style="color:#475569; font-size:10px; text-transform:uppercase; letter-spacing:.05em; margin:0 0 7px;">Progress</p>
+                            <div>
+                                <span style="display:flex; align-items:center; gap:0;">
+                                    <!-- Arrived (always current for in-review) -->
+                                    <span title="Arrived" style="width:9px; height:9px; border-radius:50%; background:#3b82f6; box-shadow:0 0 8px #3b82f688; flex-shrink:0;"></span>
+                                    <span style="width:20px; height:2px; background:#334155;"></span>
+                                    <!-- Computed -->
+                                    <span title="Computed" style="width:9px; height:9px; border-radius:50%;
+                                        {% if s.computation %}background:#22c55e; box-shadow:0 0 6px #22c55e66;
+                                        {% else %}background:#334155;{% endif %} flex-shrink:0;"></span>
+                                    <span style="width:20px; height:2px; background:#334155;"></span>
+                                    <!-- Consignee Approved -->
+                                    <span title="Consignee Approved" style="width:9px; height:9px; border-radius:50%; background:#334155; flex-shrink:0;"></span>
+                                    <span style="width:20px; height:2px; background:#334155;"></span>
+                                    <!-- Filed/Lodgement -->
+                                    <span title="Filed" style="width:9px; height:9px; border-radius:50%; background:#334155; flex-shrink:0;"></span>
+                                </span>
+                                <div style="display:flex; gap:9px; margin-top:5px;">
+                                    <span style="font-size:9px; color:#3b82f6; min-width:38px;">Arrived</span>
+                                    <span style="font-size:9px; {% if s.computation %}color:#22c55e;{% else %}color:#334155;{% endif %} min-width:52px;">Computed</span>
+                                    <span style="font-size:9px; color:#334155; min-width:50px;">Approved</span>
+                                    <span style="font-size:9px; color:#334155;">Filed</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
                 </td>
             </tr>
-            {% endif %}
             {% endfor %}
         </tbody>
     </table>
