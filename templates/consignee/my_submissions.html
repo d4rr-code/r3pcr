@@ -1,27 +1,115 @@
-{% extends 'base.html' %}
+{% extends 'consignee/base_consignee.html' %}
 
 {% block title %}My Submissions{% endblock %}
-{% block page_title %}My Submissions{% endblock %}
+{% block nav_submissions %}active{% endblock %}
+
+{% block extra_css %}
+/* ── Status badge variants ─────────────────────────────── */
+.sbadge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.s-arrived   { background: #FEF3C7; color: #B45309; }
+.s-lodgement { background: #E0F2FE; color: #0369A1; }
+.s-paid      { background: #DCFCE7; color: #15803D; }
+.s-computed  { background: #DBEAFE; color: #1D4ED8; }
+.s-ongoing   { background: #FFEDD5; color: #C2410C; }
+.s-released  { background: #CCFBF1; color: #0F766E; }
+.s-approved  { background: #DCFCE7; color: #15803D; }
+.s-assessed  { background: #EDE9FE; color: #6D28D9; }
+.s-billed    { background: #F1F5F9; color: #475569; }
+.s-incoming  { background: #F3F4F6; color: #6B7280; }
+.s-rejected  { background: #FEE2E2; color: #B91C1C; }
+.s-revision  { background: #FEF9C3; color: #854D0E; }
+.s-flagged   { background: #FEF2F2; color: #B91C1C; }
+.s-default   { background: #F3F4F6; color: #6B7280; }
+.section-kicker {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+    margin: 22px 0 10px;
+}
+.section-kicker h2 {
+    color: #1A1A2E;
+    font-size: 16px;
+    font-weight: 800;
+    margin: 0;
+}
+.section-kicker p {
+    color: #9CA3AF;
+    font-size: 12px;
+    margin: 3px 0 0;
+}
+.section-count {
+    color: #6B7280;
+    font-size: 14px;
+    font-weight: 800;
+}
+.empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 16px;
+    color: #CBD5E1;
+}
+.inline-status-note {
+    display: block;
+    color: #9CA3AF;
+    font-size: 10px;
+    line-height: 1.25;
+    margin-top: 2px;
+}
+{% endblock %}
 
 {% block content %}
 
-<!-- Filter Bar -->
-<div style="margin-bottom:20px;">
-    <form method="GET" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-        <!-- Search ref no -->
+<!-- ── Page Header ───────────────────────────────────────────────────────────── -->
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <div>
+        <h1 style="font-size:20px; font-weight:700; color:#1A1A2E;">My Submissions</h1>
+        <p style="font-size:13px; color:#6B7280; margin-top:2px;">
+            Total Shipments: <strong style="color:#1A1A2E;">{{ total_shipments }}</strong>
+            {% if flagged_shipments %}
+                <span style="color:#D1D5DB;">/</span>
+                Flagged: <strong style="color:#B91C1C;">{{ flagged_shipments|length }}</strong>
+            {% endif %}
+        </p>
+    </div>
+    <a href="{% url 'consignee:submit' %}" class="c-btn c-btn-primary">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clip-rule="evenodd"/>
+        </svg>
+        New Submission
+    </a>
+</div>
+
+<!-- ── Filter Bar ────────────────────────────────────────────────────────────── -->
+<div class="c-card" style="margin-bottom:16px; padding:16px 20px;">
+    <form method="GET" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+
+        <!-- Search Ref No -->
         <div style="flex:1; min-width:180px;">
-            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">
-                Shipment Reference No.
-            </label>
-            <input type="text" name="q" value="{{ q }}"
-                   class="form-input" style="padding:7px 12px; font-size:13px;"
-                   placeholder="e.g. R3PCR-2026">
+            <label class="c-label">Shipment Ref No.</label>
+            <div style="position:relative;">
+                <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9CA3AF;pointer-events:none;"
+                     width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/>
+                </svg>
+                <input type="text" name="q" value="{{ q }}"
+                       class="c-input" style="padding-left:34px;"
+                       placeholder="Search ref no...">
+            </div>
         </div>
+
         <!-- Status -->
-        <div style="min-width:160px;">
-            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Status</label>
-            <select name="status" class="form-input" style="padding:7px 12px; font-size:13px;">
-                <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+        <div style="min-width:150px;">
+            <label class="c-label">Status</label>
+            <select name="status" class="c-input">
+                <option value=""            {% if not status_filter %}selected{% endif %}>All Statuses</option>
                 <option value="incoming"    {% if status_filter == 'incoming'    %}selected{% endif %}>Incoming</option>
                 <option value="arrived"     {% if status_filter == 'arrived'     %}selected{% endif %}>Arrived</option>
                 <option value="computed"    {% if status_filter == 'computed'    %}selected{% endif %}>Computed</option>
@@ -36,144 +124,158 @@
                 <option value="for_revision" {% if status_filter == 'for_revision' %}selected{% endif %}>For Revision</option>
             </select>
         </div>
+
         <!-- Date From -->
-        <div style="min-width:140px;">
-            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Date From</label>
-            <input type="date" name="date_from" value="{{ date_from }}"
-                   class="form-input" style="padding:7px 12px; font-size:13px;">
+        <div style="min-width:130px;">
+            <label class="c-label">Date From</label>
+            <input type="date" name="date_from" value="{{ date_from }}" class="c-input">
         </div>
+
         <!-- Date To -->
-        <div style="min-width:140px;">
-            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Date To</label>
-            <input type="date" name="date_to" value="{{ date_to }}"
-                   class="form-input" style="padding:7px 12px; font-size:13px;">
+        <div style="min-width:130px;">
+            <label class="c-label">Date To</label>
+            <input type="date" name="date_to" value="{{ date_to }}" class="c-input">
         </div>
+
         <div style="display:flex; gap:8px; align-self:flex-end;">
-            <button type="submit" class="btn btn-primary" style="font-size:12px; padding:8px 16px;">
-                Search
-            </button>
+            <button type="submit" class="c-btn c-btn-primary" style="padding:9px 18px;">Search</button>
             {% if q or status_filter or date_from or date_to %}
-            <a href="{% url 'consignee:my_submissions' %}"
-               class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
+            <a href="{% url 'consignee:my_submissions' %}" class="c-btn c-btn-outline" style="padding:8px 18px;">
                 Clear
             </a>
             {% endif %}
         </div>
     </form>
 </div>
-<div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
-    <a href="{% url 'consignee:submit' %}" class="btn btn-primary">+ New Submission</a>
-</div>
 
-<!-- Submissions Table -->
-<div class="card" style="padding:0; overflow:hidden;">
+<!-- ── Submissions Table ─────────────────────────────────────────────────────── -->
+<div class="c-card" style="padding:0; overflow:hidden;">
     {% if shipments %}
     <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse;">
+        <table class="c-table">
             <thead>
-                <tr style="background:#0f172a;">
-                    <th style="padding:12px 16px; text-align:left; color:#94a3b8; font-size:12px;">
-                        Shipment Reference No.
-                    </th>
-                    <th style="padding:12px 16px; text-align:left; color:#94a3b8; font-size:12px;">
-                        Type
-                    </th>
-                    <th style="padding:12px 16px; text-align:left; color:#94a3b8; font-size:12px;">
-                        Urgency
-                    </th>
-                    <th style="padding:12px 16px; text-align:left; color:#94a3b8; font-size:12px;">
-                        Status
-                    </th>
-                    <th style="padding:12px 16px; text-align:left; color:#94a3b8; font-size:12px;">
-                        Submitted
-                    </th>
-                    <th style="padding:12px 16px; text-align:left; color:#94a3b8; font-size:12px;">
-                        Documents
-                    </th>
-                    <th style="padding:12px 16px; text-align:center; color:#94a3b8; font-size:12px;">
-                        Actions
-                    </th>
+                <tr>
+                    <th>Shipment Ref No.</th>
+                    <th>Import Type</th>
+                    <th>Urgency</th>
+                    <th>Status</th>
+                    <th>Shipment Type</th>
+                    <th>Submitted</th>
+                    <th>Last Updated</th>
+                    <th style="text-align:center;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for shipment in shipments %}
-                <tr style="border-top:1px solid #1e293b;"
-                    onmouseover="this.style.background='#1e293b'"
-                    onmouseout="this.style.background=''">
-                    <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:600;">
-                        {{ shipment.hawb_number }}
-                    </td>
-                    <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
-                        {{ shipment.import_type|capfirst|default:"—" }}
-                    </td>
-                    <td style="padding:12px 16px; font-size:12px;">
-                        {% if shipment.urgency == 'urgent' %}
-                            <span style="color:#ef4444; font-weight:600;">⚡ Urgent</span>
-                        {% else %}
-                            <span style="color:#64748b;">Normal</span>
+                <tr>
+                    <!-- Ref No. -->
+                    <td>
+                        <span style="font-weight:600; color:#1A1A2E; font-size:13px;">
+                            {{ shipment.hawb_number }}
+                        </span>
+                        {% if shipment.has_deficiency %}
+                        <br>
+                        <span style="font-size:10px; color:#DC2626; font-weight:600;">
+                            ⚠ Deficiency
+                        </span>
                         {% endif %}
                     </td>
-                    <td style="padding:12px 16px;">
-                        {% if shipment.status == 'approved' %}
-                            <span class="badge badge-success">✓ Approved</span>
-                        {% elif shipment.status == 'rejected' %}
-                            <span class="badge badge-danger">✗ Rejected</span>
-                        {% elif shipment.status == 'arrived' %}
-                            <span class="badge badge-info">Arrived</span>
-                        {% elif shipment.status == 'computed' %}
-                            <span class="badge badge-warning">Computed</span>
+
+                    <!-- Import Type -->
+                    <td style="color:#6B7280;">
+                        {{ shipment.get_import_type_display|default:"—" }}
+                    </td>
+
+                    <!-- Urgency -->
+                    <td>
+                        {% if shipment.urgency == 'standard' %}
+                            <span class="c-badge badge-standard">Standard</span>
+                        {% elif shipment.urgency == 'priority' %}
+                            <span class="c-badge badge-priority">Priority</span>
+                        {% elif shipment.urgency == 'urgent' %}
+                            <span class="c-badge badge-urgent">Urgent</span>
+                        {% elif shipment.urgency == 'rush' %}
+                            <span class="c-badge badge-rush">Rush</span>
+                        {% else %}
+                            <span style="color:#D1D5DB; font-size:12px;">—</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Status -->
+                    <td>
+                        {% if shipment.status == 'arrived' %}
+                            <span class="sbadge s-arrived">Arrived</span>
                         {% elif shipment.status == 'lodgement' %}
-                            <span class="badge badge-info">Lodgement</span>
+                            <span class="sbadge s-lodgement">Lodgement</span>
+                        {% elif shipment.status == 'paid' %}
+                            <span class="sbadge s-paid">Paid</span>
+                        {% elif shipment.status == 'computed' %}
+                            <span class="sbadge s-computed">Computed</span>
+                        {% elif shipment.status == 'ongoing' %}
+                            <span class="sbadge s-ongoing">Ongoing</span>
+                        {% elif shipment.status == 'released' %}
+                            <span class="sbadge s-released">Released</span>
+                        {% elif shipment.status == 'approved' %}
+                            <span class="sbadge s-approved">Approved</span>
+                        {% elif shipment.status == 'assessed' %}
+                            <span class="sbadge s-assessed">Assessed</span>
+                        {% elif shipment.status == 'billed' %}
+                            <span class="sbadge s-billed">Billed</span>
+                        {% elif shipment.status == 'rejected' %}
+                            <span class="sbadge s-rejected">Rejected</span>
+                        {% elif shipment.status == 'for_revision' %}
+                            <span class="sbadge s-revision">For Revision</span>
+                        {% elif shipment.status == 'incoming' %}
+                            <span class="sbadge s-incoming">Incoming</span>
                         {% else %}
-                            <span class="badge badge-secondary">{{ shipment.get_status_display }}</span>
+                            <span class="sbadge s-default">{{ shipment.get_status_display }}</span>
                         {% endif %}
                     </td>
-                    <td style="padding:12px 16px; color:#64748b; font-size:12px;">
-                        {{ shipment.submitted_at|date:"M d, Y H:i" }}
+
+                    <!-- Shipment Type -->
+                    <td style="color:#6B7280;">
+                        {{ shipment.get_shipment_type_display|default:"—" }}
                     </td>
-                    <td style="padding:12px 16px; font-size:12px;">
-                        {% with docs=shipment.documents.all %}
-                        {% if docs %}
-                            <span style="color:#94a3b8;">{{ docs.count }} file{{ docs.count|pluralize }}</span>
-                            <div style="margin-top:4px;">
-                                {% for doc in docs %}
-                                <a href="{{ doc.file.url }}" target="_blank"
-                                   style="color:#3b82f6; text-decoration:none; font-size:11px; margin-right:6px;"
-                                   title="{{ doc.get_document_type_display }}">
-                                    {% if doc.document_type == 'invoice' %}📄{% elif doc.document_type == 'packing_list' %}📦{% elif doc.document_type == 'airway_bill' %}✈️{% else %}📎{% endif %}
-                                </a>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <span style="color:#475569;">No docs</span>
-                        {% endif %}
-                        {% endwith %}
+
+                    <!-- Submitted -->
+                    <td style="white-space:nowrap;">
+                        <span style="color:#374151; font-size:12.5px;">{{ shipment.submitted_at|date:"M d, Y" }}</span>
+                        <br>
+                        <span style="color:#9CA3AF; font-size:11px;">{{ shipment.submitted_at|date:"H:i" }}</span>
                     </td>
-                    <td style="padding:12px 16px; text-align:center;">
-                        <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+
+                    <!-- Last Updated -->
+                    <td style="white-space:nowrap;">
+                        <span style="color:#374151; font-size:12.5px;">{{ shipment.updated_at|date:"M d, Y" }}</span>
+                        <br>
+                        <span style="color:#9CA3AF; font-size:11px;">{{ shipment.updated_at|date:"H:i" }}</span>
+                    </td>
+
+                    <!-- Actions -->
+                    <td style="text-align:center;">
+                        <div style="display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:wrap;">
                             <a href="{% url 'consignee:shipment_detail' shipment.id %}"
-                               class="btn"
-                               style="font-size:11px; padding:4px 12px; background:#1e293b;
-                                      color:#93c5fd; border:1px solid #1e3a5f;">
-                                Details
+                               class="c-btn c-btn-primary" style="padding:5px 16px; font-size:12px;">
+                                View
                             </a>
                             {% if shipment.can_cancel %}
                             <form method="POST"
                                   action="{% url 'consignee:cancel' shipment.id %}"
-                                  onsubmit="return confirm('Cancel shipment {{ shipment.hawb_number }}? This cannot be undone.');">
+                                  onsubmit="return confirm('Cancel shipment {{ shipment.hawb_number }}? This cannot be undone.');"
+                                  style="margin:0;">
                                 {% csrf_token %}
-                                <button type="submit"
-                                        class="btn btn-danger"
-                                        style="font-size:11px; padding:4px 10px;">
+                                <button type="submit" class="c-btn"
+                                        style="padding:5px 14px; font-size:12px;
+                                               background:#FEE2E2; color:#B91C1C;
+                                               border:1px solid #FECACA;">
                                     Cancel
                                 </button>
                             </form>
                             {% elif shipment.cancel_expired %}
-                            <span title="1-hour cancellation window has passed"
-                                  style="color:#475569; font-size:11px; padding:4px 10px;
-                                         border:1px solid #334155; border-radius:8px;
-                                         cursor:not-allowed;">
-                                Cannot Cancel
+                            <span style="font-size:11px; color:#D1D5DB; padding:5px 10px;
+                                         border:1px solid #E5E7EB; border-radius:8px;
+                                         cursor:not-allowed;" title="1-hour cancellation window has passed">
+                                Expired
                             </span>
                             {% endif %}
                         </div>
@@ -183,15 +285,108 @@
             </tbody>
         </table>
     </div>
-    {% else %}
-    <div style="padding:48px; text-align:center; color:#64748b;">
-        <p style="font-size:32px; margin-bottom:12px;">📭</p>
-        <p style="font-size:14px;">No submissions found.</p>
-        <a href="{% url 'consignee:submit' %}" class="btn btn-primary" style="margin-top:16px;">
+
+    {% elif not flagged_shipments %}
+    <!-- Empty state -->
+    <div style="padding:64px 32px; text-align:center; color:#9CA3AF;">
+        <div style="font-size:48px; margin-bottom:16px; line-height:1;">📭</div>
+        <p style="font-size:16px; font-weight:600; color:#6B7280; margin-bottom:6px;">No submissions found</p>
+        <p style="font-size:13px; margin-bottom:24px; max-width:320px; margin-left:auto; margin-right:auto;">
+            {% if q or status_filter or date_from or date_to %}
+                No shipments match your current filters. Try adjusting your search.
+            {% else %}
+                You haven't submitted any shipments yet. Get started by submitting your first one.
+            {% endif %}
+        </p>
+        {% if q or status_filter or date_from or date_to %}
+        <a href="{% url 'consignee:my_submissions' %}" class="c-btn c-btn-outline">
+            Clear Filters
+        </a>
+        {% else %}
+        <a href="{% url 'consignee:submit' %}" class="c-btn c-btn-primary">
             Submit Your First Shipment
         </a>
+        {% endif %}
     </div>
     {% endif %}
 </div>
+
+{% if flagged_shipments %}
+<div class="section-kicker">
+    <div>
+        <h2>Flag Shipments <span class="section-count">: {{ flagged_shipments|length|stringformat:"02d" }}</span></h2>
+        <p>Kindly comply with the revisions and requirements to process your shipment.</p>
+    </div>
+</div>
+
+<div class="c-card" style="padding:0; overflow:hidden;">
+    <div style="overflow-x:auto;">
+        <table class="c-table">
+            <thead>
+                <tr>
+                    <th>Shipment Ref No.</th>
+                    <th>Import Type</th>
+                    <th>Urgency</th>
+                    <th>Status</th>
+                    <th>Shipment Type</th>
+                    <th>Submitted</th>
+                    <th>Last Updated</th>
+                    <th style="text-align:center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for shipment in flagged_shipments %}
+                <tr>
+                    <td>
+                        <span style="font-weight:600; color:#1A1A2E; font-size:13px;">
+                            {{ shipment.hawb_number }}
+                        </span>
+                    </td>
+                    <td style="color:#6B7280;">
+                        {{ shipment.get_import_type_display|default:"-" }}
+                    </td>
+                    <td>
+                        {% if shipment.urgency == 'standard' %}
+                            <span class="c-badge badge-standard">Standard</span>
+                        {% elif shipment.urgency == 'priority' %}
+                            <span class="c-badge badge-priority">Priority</span>
+                        {% elif shipment.urgency == 'urgent' %}
+                            <span class="c-badge badge-urgent">Urgent</span>
+                        {% elif shipment.urgency == 'rush' %}
+                            <span class="c-badge badge-rush">Rush</span>
+                        {% else %}
+                            <span style="color:#D1D5DB; font-size:12px;">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="sbadge s-flagged">On Hold</span>
+                        <span class="inline-status-note">{{ shipment.deficiency_notes|default:"Documents need revision" }}</span>
+                    </td>
+                    <td style="color:#6B7280;">
+                        {{ shipment.get_shipment_type_display|default:"-" }}
+                    </td>
+                    <td style="white-space:nowrap;">
+                        <span style="color:#374151; font-size:12.5px;">{{ shipment.submitted_at|date:"M d, Y" }}</span>
+                        <br>
+                        <span style="color:#9CA3AF; font-size:11px;">{{ shipment.submitted_at|date:"H:i" }}</span>
+                    </td>
+                    <td style="white-space:nowrap;">
+                        <span style="color:#374151; font-size:12.5px;">{{ shipment.updated_at|date:"M d, Y" }}</span>
+                        <br>
+                        <span style="color:#9CA3AF; font-size:11px;">{{ shipment.updated_at|date:"H:i" }}</span>
+                    </td>
+                    <td style="text-align:center;">
+                        <a href="{% url 'consignee:shipment_detail' shipment.id %}"
+                           class="c-btn c-btn-primary" style="padding:5px 16px; font-size:12px;">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 
 {% endblock %}

@@ -1,9 +1,10 @@
-{% extends 'base.html' %}
+{% extends 'supervisor/base_supervisor.html' %}
 {% block title %}System Configuration{% endblock %}
 {% block page_title %}System Configuration{% endblock %}
+{% block nav_config %}active{% endblock %}
 {% block content %}
 
-<p style="color:#94a3b8; font-size:14px; margin-bottom:28px;">
+<p style="color:#6B7280; font-size:14px; margin-bottom:28px;">
     Select a configuration area to manage.
 </p>
 
@@ -11,51 +12,57 @@
 
     <!-- Global Parameters -->
     <a href="{% url 'supervisor:config_global' %}" style="text-decoration:none;">
-        <div class="card" style="padding:32px 28px; cursor:pointer; border:1px solid #1e293b;
+        <div class="card" style="padding:32px 28px; cursor:pointer; border:1px solid #FFFFFF;
                                   transition:border-color .2s, transform .15s;"
              onmouseover="this.style.borderColor='#3b82f6'; this.style.transform='translateY(-2px)'"
-             onmouseout="this.style.borderColor='#1e293b'; this.style.transform='translateY(0)'">
-            <div style="font-size:40px; margin-bottom:14px;">⚙️</div>
-            <p style="color:#f1f5f9; font-size:17px; font-weight:700; margin:0 0 8px;">Global Parameters</p>
-            <p style="color:#64748b; font-size:13px; margin:0; line-height:1.5;">
-                Exchange rate (USD → PHP) and VAT rate used in all duty computations.
+             onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
+            <svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" style="color:#1B3358; margin-bottom:14px;">
+                <path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.332 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+            </svg>
+            <p style="color:#1A1A2E; font-size:17px; font-weight:700; margin:0 0 8px;">Global Parameters</p>
+            <p style="color:#9CA3AF; font-size:13px; margin:0; line-height:1.5;">
+                Exchange rate (USD to PHP) and VAT rate used in all duty computations.
             </p>
             <p style="color:#3b82f6; font-size:12px; margin:14px 0 0; font-weight:600;">
-                Configure →
+                Configure
             </p>
         </div>
     </a>
 
     <!-- WMCDA Criterion Weights -->
     <a href="{% url 'supervisor:config_wmcda' %}" style="text-decoration:none;">
-        <div class="card" style="padding:32px 28px; cursor:pointer; border:1px solid #1e293b;
+        <div class="card" style="padding:32px 28px; cursor:pointer; border:1px solid #FFFFFF;
                                   transition:border-color .2s, transform .15s;"
              onmouseover="this.style.borderColor='#8b5cf6'; this.style.transform='translateY(-2px)'"
-             onmouseout="this.style.borderColor='#1e293b'; this.style.transform='translateY(0)'">
-            <div style="font-size:40px; margin-bottom:14px;">🎯</div>
-            <p style="color:#f1f5f9; font-size:17px; font-weight:700; margin:0 0 8px;">WMCDA Criterion Weights</p>
-            <p style="color:#64748b; font-size:13px; margin:0; line-height:1.5;">
+             onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
+            <svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" style="color:#1B3358; margin-bottom:14px;">
+                <path fill-rule="evenodd" d="M10 2a.75.75 0 01.75.75v1.5a5.75 5.75 0 015 5h1.5a.75.75 0 010 1.5h-1.5a5.75 5.75 0 01-5 5v1.5a.75.75 0 01-1.5 0v-1.5a5.75 5.75 0 01-5-5h-1.5a.75.75 0 010-1.5h1.5a5.75 5.75 0 015-5v-1.5A.75.75 0 0110 2zm0 3.75a4.25 4.25 0 100 8.5 4.25 4.25 0 000-8.5zm0 2.5a1.75 1.75 0 100 3.5 1.75 1.75 0 000-3.5z" clip-rule="evenodd"/>
+            </svg>
+            <p style="color:#1A1A2E; font-size:17px; font-weight:700; margin:0 0 8px;">WMCDA Criterion Weights</p>
+            <p style="color:#9CA3AF; font-size:13px; margin:0; line-height:1.5;">
                 Cost, time, weight/volume, and risk weights for the shipping advisory algorithm. Must total 100%.
             </p>
             <p style="color:#8b5cf6; font-size:12px; margin:14px 0 0; font-weight:600;">
-                Configure →
+                Configure
             </p>
         </div>
     </a>
 
     <!-- HS Code Duty Rates -->
     <a href="{% url 'supervisor:config_hscodes_sections' %}" style="text-decoration:none;">
-        <div class="card" style="padding:32px 28px; cursor:pointer; border:1px solid #1e293b;
+        <div class="card" style="padding:32px 28px; cursor:pointer; border:1px solid #FFFFFF;
                                   transition:border-color .2s, transform .15s;"
              onmouseover="this.style.borderColor='#22c55e'; this.style.transform='translateY(-2px)'"
-             onmouseout="this.style.borderColor='#1e293b'; this.style.transform='translateY(0)'">
-            <div style="font-size:40px; margin-bottom:14px;">📋</div>
-            <p style="color:#f1f5f9; font-size:17px; font-weight:700; margin:0 0 8px;">HS Code Duty Rates</p>
-            <p style="color:#64748b; font-size:13px; margin:0; line-height:1.5;">
-                Browse Sections I–XXI → Chapters → HS codes. Update duty rates per code.
+             onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
+            <svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" style="color:#1B3358; margin-bottom:14px;">
+                <path fill-rule="evenodd" d="M5 4a2 2 0 012-2h6a2 2 0 012 2v1h1a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2h1V4zm2-1h6v2H7V3zM4 7h12v9H4V7zm3 3a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7zm0 3a.75.75 0 000 1.5h4a.75.75 0 000-1.5H7z" clip-rule="evenodd"/>
+            </svg>
+            <p style="color:#1A1A2E; font-size:17px; font-weight:700; margin:0 0 8px;">HS Code Duty Rates</p>
+            <p style="color:#9CA3AF; font-size:13px; margin:0; line-height:1.5;">
+                Browse Sections I-XXI, Chapters, and HS codes. Update duty rates per code.
             </p>
             <p style="color:#22c55e; font-size:12px; margin:14px 0 0; font-weight:600;">
-                Browse →
+                Browse
             </p>
         </div>
     </a>

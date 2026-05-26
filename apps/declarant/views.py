@@ -13,6 +13,7 @@ from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
 from apps.notifications.utils import create_notification, notify_shipment_status_change
 from apps.computation.ocr import process_document, _extract_line_items
+from apps.computation.models import ShipmentLineItem
 
 
 # ─── Role Decorator ───────────────────────────────────────────────────────────
@@ -340,7 +341,17 @@ def process_shipment(request, shipment_id):
                 _desc = (_item.get('description') or '').strip()
                 if _desc and _desc not in _seen_ocr_desc:
                     _seen_ocr_desc.add(_desc)
-                    ocr_items_from_docs.append(dict(_item, source_doc=_doc_type))
+                    ocr_items_from_docs.append(dict(
+                        _item,
+                        source_doc=_doc_type,
+                        raw_extracted_text=(
+                            _item.get('raw_extracted_text')
+                            or _item.get('raw_text')
+                            or _item.get('description')
+                            or ''
+                        ),
+                        confidence_pct=round(float(_item.get('confidence', 0)) * 100, 1),
+                    ))
 
     ocr_fields = None
     if request.session.get('ocr_shipment_id') == shipment_id:
@@ -540,6 +551,13 @@ def flag_deficiency(request, shipment_id):
     type_label = type_labels.get(deficiency_type, deficiency_type)
     note_text  = f'{type_label}. {deficiency_notes}'.strip('. ') if deficiency_notes else type_label
 
+    # Save deficiency flag to shipment
+    shipment.has_deficiency    = True
+    shipment.deficiency_type   = deficiency_type
+    shipment.deficiency_notes  = note_text
+    shipment.deficiency_flagged_at = timezone.now()
+    shipment.save(update_fields=['has_deficiency', 'deficiency_type', 'deficiency_notes', 'deficiency_flagged_at'])
+
     # Audit trail — same status, just record the flag
     StatusLog.objects.create(
         shipment=shipment,
@@ -555,7 +573,7 @@ def flag_deficiency(request, shipment_id):
         shipment=shipment,
         notification_type='status_update',
         title=f'Document Deficiency — {shipment.hawb_number}',
-        message=f'A deficiency has been flagged on your shipment: {note_text}. Please check your submissions and contact your declarant.',
+        message=f'A deficiency has been flagged on your shipment: {note_text}. Please resubmit the corrected documents.',
     )
 
     messages.success(request, f'Deficiency flagged — consignee has been notified.')
@@ -582,6 +600,7 @@ def save_ocr_items(request, shipment_id):
     total_values = request.POST.getlist('total_value[]')
     hs_code_ids  = request.POST.getlist('hs_code_id[]')
     hs_rates     = request.POST.getlist('hs_duty_rate[]')
+    confidences  = request.POST.getlist('confidence_pct[]')
 
     n = len(descriptions)
     def _pad(lst): return (lst + [''] * n)[:n]
@@ -590,10 +609,11 @@ def save_ocr_items(request, shipment_id):
     total_values = _pad(total_values)
     hs_code_ids  = _pad(hs_code_ids)
     hs_rates     = _pad(hs_rates)
+    confidences  = _pad(confidences)
 
     items = []
-    for desc, qty, unit, val, hs_id, hs_rate in zip(
-        descriptions, quantities, units, total_values, hs_code_ids, hs_rates
+    for desc, qty, unit, val, hs_id, hs_rate, confidence_pct in zip(
+        descriptions, quantities, units, total_values, hs_code_ids, hs_rates, confidences
     ):
         desc = (desc or '').strip()
         if not desc:
@@ -606,6 +626,10 @@ def save_ocr_items(request, shipment_id):
             hs_rate_val = float(hs_rate) if str(hs_rate).strip() else 0.0
         except (ValueError, TypeError):
             hs_rate_val = 0.0
+        try:
+            confidence_val = max(0.0, min(float(confidence_pct) / 100, 1.0))
+        except (ValueError, TypeError):
+            confidence_val = 0.0
         hs_id_clean = str(hs_id).strip() if hs_id and str(hs_id).strip().isdigit() else ''
         items.append({
             'description':  desc,
@@ -617,7 +641,7 @@ def save_ocr_items(request, shipment_id):
             'net_weight':   '',
             'num_packages': '',
             'source':       'ocr_confirmed',
-            'confidence':   1.0,
+            'confidence':   confidence_val,
             'hs_code_id':   hs_id_clean,
             'duty_rate':    hs_rate_val,
         })
@@ -626,6 +650,39 @@ def save_ocr_items(request, shipment_id):
         messages.warning(request, 'No items to load — add at least one row with a description.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
+    # ── Persist to ShipmentLineItem (DB) so items survive browser close ───────
+    from apps.shipments.models import HSCode
+    ShipmentLineItem.objects.filter(shipment=shipment, source='ocr').delete()
+    for order, it in enumerate(items):
+        hs_obj = None
+        if it.get('hs_code_id'):
+            try:
+                hs_obj = HSCode.objects.get(id=int(it['hs_code_id']), is_active=True)
+            except (HSCode.DoesNotExist, ValueError):
+                pass
+        try:
+            qty_d = __import__('decimal').Decimal(str(it['quantity'])) if it.get('quantity') else None
+        except Exception:
+            qty_d = None
+        try:
+            val_d = __import__('decimal').Decimal(str(it['total_value'])) if it.get('total_value') else None
+        except Exception:
+            val_d = None
+        ShipmentLineItem.objects.create(
+            shipment      = shipment,
+            description   = it['description'],
+            quantity      = qty_d,
+            unit          = it.get('unit', ''),
+            unit_price    = None,
+            total_val_usd = val_d,
+            hs_code       = hs_obj,
+            is_confirmed  = bool(hs_obj),
+            source        = 'ocr',
+            confidence    = __import__('decimal').Decimal(str(it.get('confidence', 0.0))),
+            row_order     = order,
+        )
+
+    # Keep session bridge for backward-compatibility with compute.html OCR pre-fill
     request.session['ocr_items']       = items
     request.session['ocr_shipment_id'] = shipment_id
     request.session.modified = True

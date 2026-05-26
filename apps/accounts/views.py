@@ -401,7 +401,14 @@ def account_settings(request):
 
         return redirect('accounts:settings')
 
-    return render(request, 'accounts/settings.html')
+    role = request.user.role
+    if role == 'consignee':
+        template = 'consignee/settings.html'
+    elif role == 'supervisor':
+        template = 'supervisor/settings.html'
+    else:
+        template = 'accounts/settings.html'
+    return render(request, template)
 
 
 # ─── Role-based Redirect ──────────────────────────────────────────────────────

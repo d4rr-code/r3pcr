@@ -1,13 +1,43 @@
-{% extends 'base.html' %}
+{% extends 'supervisor/base_supervisor.html' %}
 
 {% block title %}Memos & Announcements{% endblock %}
 {% block page_title %}Memos &amp; Announcements{% endblock %}
+{% block nav_memos %}active{% endblock %}
+
+{% block extra_css %}
+.audience-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 1.5px solid #E5E7EB;
+    border-radius: 8px;
+    background: #F8FAFC;
+    color: #6B7280;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    transition: border-color .15s, background .15s, color .15s;
+}
+input[type="radio"]:checked + .audience-option {
+    background: #1B3358;
+    border-color: #1B3358;
+    color: #fff;
+}
+{% endblock %}
 
 {% block content %}
 
-<!-- ─── Create Memo Form ───────────────────────────────────────────────────── -->
+<!--  Create Memo Form  -->
 <div class="card" style="margin-bottom:24px;">
-    <p class="card-title">📢 Post New Announcement</p>
+    <p class="card-title" style="display:flex; align-items:center; gap:8px;">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path d="M13.92 3.845a19.36 19.36 0 01-6.3 1.98C6.765 5.974 6 6.73 6 7.617v4.766c0 .887.765 1.643 1.62 1.792a19.36 19.36 0 016.3 1.98A1.5 1.5 0 0016 14.807V5.193a1.5 1.5 0 00-2.08-1.348z"/>
+            <path d="M5 7.914v4.172a2.5 2.5 0 01-2-2.45v-.272a2.5 2.5 0 012-2.45z"/>
+        </svg>
+        Post New Announcement
+    </p>
 
     <form method="post" action="{% url 'supervisor:create_memo' %}">
         {% csrf_token %}
@@ -15,52 +45,73 @@
             <div style="grid-column:1/-1;">
                 <label class="form-label">Title</label>
                 <input type="text" name="title" class="form-input"
-                       placeholder="e.g. BOC Holiday Advisory — May 2025"
+                       placeholder="e.g. BOC Holiday Advisory, May 2025"
                        maxlength="200" required>
             </div>
             <div>
                 <label class="form-label">Category</label>
                 <select name="category" class="form-input">
-                    <option value="general">🟢 General</option>
-                    <option value="boc">🔵 BOC Update</option>
-                    <option value="customs">🟡 Customs Reminder</option>
-                    <option value="shipment">🟣 Shipment Notice</option>
+                    <option value="general">General</option>
+                    <option value="boc">BOC Update</option>
+                    <option value="customs">Customs Reminder</option>
+                    <option value="shipment">Shipment Notice</option>
                 </select>
             </div>
+            <div>
+                <label class="form-label">Audience</label>
+                <div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px;">
+                    <label style="position:relative; cursor:pointer;">
+                        <input type="radio" name="target_audience" value="all" checked style="position:absolute; opacity:0; pointer-events:none;">
+                        <span class="audience-option">All Users</span>
+                    </label>
+                    <label style="position:relative; cursor:pointer;">
+                        <input type="radio" name="target_audience" value="consignee" style="position:absolute; opacity:0; pointer-events:none;">
+                        <span class="audience-option">Consignees</span>
+                    </label>
+                    <label style="position:relative; cursor:pointer;">
+                        <input type="radio" name="target_audience" value="declarant" style="position:absolute; opacity:0; pointer-events:none;">
+                        <span class="audience-option">Declarants</span>
+                    </label>
+                </div>
+            </div>
             <div style="display:flex; align-items:flex-end;">
-                <label style="display:flex; align-items:center; gap:10px; color:#94a3b8; font-size:13px; cursor:pointer;">
+                <label style="display:flex; align-items:center; gap:10px; color:#6B7280; font-size:13px; cursor:pointer;">
                     <input type="checkbox" name="is_active" value="1" checked
                            style="width:16px; height:16px; accent-color:#3b82f6;">
-                    Publish immediately (visible to all users)
+                    Publish immediately and send notification
                 </label>
             </div>
             <div style="grid-column:1/-1;">
                 <label class="form-label">Content</label>
                 <textarea name="content" class="form-input" rows="4"
-                          placeholder="Announcement body — supports plain text." required
+                          placeholder="Announcement body. Supports plain text." required
                           style="resize:vertical;"></textarea>
             </div>
         </div>
-        <button type="submit" class="btn btn-primary">📤 Post Announcement</button>
+        <button type="submit" class="btn btn-primary">Post Announcement</button>
     </form>
 </div>
 
-<!-- ─── Announcements List ────────────────────────────────────────────────── -->
+<!--  Announcements List  -->
 {% if memos %}
 <div class="card" style="padding:0; overflow:hidden;">
-    <div style="padding:14px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
+    <div style="padding:14px 20px; background:#F8FAFC; border-bottom:1px solid #FFFFFF;
                 display:flex; align-items:center; justify-content:space-between;">
-        <p class="card-title" style="margin:0;">📋 All Announcements
-            <span style="color:#64748b; font-weight:400; font-size:13px;">— {{ memos|length }} total</span>
+        <p class="card-title" style="margin:0; display:flex; align-items:center; gap:8px;">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V7.414A2 2 0 0017.414 6L15 3.586A2 2 0 0013.586 3H4zm1 5.75A.75.75 0 015.75 8h8.5a.75.75 0 010 1.5h-8.5A.75.75 0 015 8.75zm0 3A.75.75 0 015.75 11h8.5a.75.75 0 010 1.5h-8.5A.75.75 0 015 11.75z" clip-rule="evenodd"/>
+            </svg>
+            All Announcements
+            <span style="color:#9CA3AF; font-weight:400; font-size:13px;"> {{ memos|length }} total</span>
         </p>
     </div>
 
     <div style="display:flex; flex-direction:column; gap:0;">
         {% for memo in memos %}
-        <div style="padding:18px 20px; border-bottom:1px solid #1e293b;
+        <div style="padding:18px 20px; border-bottom:1px solid #FFFFFF;
                     {% if not memo.is_active %}opacity:0.5;{% endif %}
                     transition:background 0.15s;"
-             onmouseover="this.style.background='#0f172a'"
+             onmouseover="this.style.background='#F8FAFC'"
              onmouseout="this.style.background=''">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
                 <!-- Left: badge + title + meta -->
@@ -69,12 +120,12 @@
                         <!-- Category badge -->
                         <span style="display:inline-block; padding:3px 10px; border-radius:999px;
                                      font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px;
-                                     background:{% if memo.category == 'boc' %}#1e3a5f{% elif memo.category == 'customs' %}#2d1b00{% elif memo.category == 'shipment' %}#2d1b69{% else %}#052e16{% endif %};
-                                     color:{% if memo.category == 'boc' %}#93c5fd{% elif memo.category == 'customs' %}#fcd34d{% elif memo.category == 'shipment' %}#c4b5fd{% else %}#86efac{% endif %};">
-                            {% if memo.category == 'boc' %}🔵 BOC Update
-                            {% elif memo.category == 'customs' %}🟡 Customs Reminder
-                            {% elif memo.category == 'shipment' %}🟣 Shipment Notice
-                            {% else %}🟢 General{% endif %}
+                                     background:{% if memo.category == 'boc' %}#DBEAFE{% elif memo.category == 'customs' %}#FFFBEB{% elif memo.category == 'shipment' %}#EDE9FE{% else %}#ECFDF5{% endif %};
+                                     color:{% if memo.category == 'boc' %}#1D4ED8{% elif memo.category == 'customs' %}#B45309{% elif memo.category == 'shipment' %}#6D28D9{% else %}#047857{% endif %};">
+                            {% if memo.category == 'boc' %}BOC Update
+                            {% elif memo.category == 'customs' %}Customs Reminder
+                            {% elif memo.category == 'shipment' %}Shipment Notice
+                            {% else %}General{% endif %}
                         </span>
                         <!-- Active/Draft badge -->
                         {% if memo.is_active %}
@@ -82,15 +133,23 @@
                         {% else %}
                             <span class="badge badge-rejected" style="font-size:10px;">Hidden</span>
                         {% endif %}
+                        <span style="display:inline-block; padding:3px 10px; border-radius:999px;
+                                     font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px;
+                                     background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;">
+                            {{ memo.get_target_audience_display }}
+                        </span>
                         <!-- Date -->
-                        <span style="font-size:11px; color:#64748b;">{{ memo.created_at|date:"M d, Y g:i A" }}</span>
+                        <span style="font-size:11px; color:#9CA3AF;">{{ memo.created_at|date:"M d, Y g:i A" }}</span>
+                        {% if memo.notified_at %}
+                        <span style="font-size:11px; color:#9CA3AF;">Sent {{ memo.notified_at|date:"M d, Y g:i A" }}</span>
+                        {% endif %}
                     </div>
-                    <p style="font-size:14px; font-weight:600; color:#f1f5f9; margin-bottom:6px;">
+                    <p style="font-size:14px; font-weight:600; color:#1A1A2E; margin-bottom:6px;">
                         {{ memo.title }}
                     </p>
-                    <p style="font-size:13px; color:#94a3b8; white-space:pre-wrap; line-height:1.55;">{{ memo.content }}</p>
+                    <p style="font-size:13px; color:#6B7280; white-space:pre-wrap; line-height:1.55;">{{ memo.content }}</p>
                     {% if memo.created_by %}
-                    <p style="font-size:11px; color:#475569; margin-top:8px;">
+                    <p style="font-size:11px; color:#9CA3AF; margin-top:8px;">
                         Posted by {{ memo.created_by.get_full_name|default:memo.created_by.username }}
                     </p>
                     {% endif %}
@@ -102,9 +161,9 @@
                         {% csrf_token %}
                         <button type="submit" class="btn"
                                 style="font-size:11px; padding:5px 14px;
-                                       {% if memo.is_active %}background:#2d1b00; color:#fcd34d; border:1px solid #78350f;
-                                       {% else %}background:#052e16; color:#86efac; border:1px solid #166534;{% endif %}">
-                            {% if memo.is_active %}🙈 Hide{% else %}👁 Show{% endif %}
+                                       {% if memo.is_active %}background:#FFFBEB; color:#B45309; border:1px solid #FCD34D;
+                                       {% else %}background:#ECFDF5; color:#047857; border:1px solid #86EFAC;{% endif %}">
+                            {% if memo.is_active %}Hide{% else %}Show{% endif %}
                         </button>
                     </form>
                     <!-- Delete -->
@@ -113,7 +172,7 @@
                         {% csrf_token %}
                         <button type="submit" class="btn btn-danger"
                                 style="font-size:11px; padding:5px 14px;">
-                            🗑 Delete
+                            Delete
                         </button>
                     </form>
                 </div>
@@ -124,9 +183,12 @@
 </div>
 
 {% else %}
-<div class="card" style="text-align:center; padding:48px 24px; color:#64748b;">
-    <div style="font-size:40px; margin-bottom:12px;">📭</div>
-    <p style="font-size:15px; font-weight:600; color:#94a3b8; margin-bottom:6px;">No announcements yet</p>
+<div class="card" style="text-align:center; padding:48px 24px; color:#9CA3AF;">
+    <svg width="40" height="40" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+         style="color:#CBD5E1; margin-bottom:12px;">
+        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V7.414A2 2 0 0017.414 6L15 3.586A2 2 0 0013.586 3H4zm1 5.75A.75.75 0 015.75 8h8.5a.75.75 0 010 1.5h-8.5A.75.75 0 015 8.75zm0 3A.75.75 0 015.75 11h8.5a.75.75 0 010 1.5h-8.5A.75.75 0 015 11.75z" clip-rule="evenodd"/>
+    </svg>
+    <p style="font-size:15px; font-weight:600; color:#6B7280; margin-bottom:6px;">No announcements yet</p>
     <p style="font-size:13px;">Post your first announcement using the form above.</p>
 </div>
 {% endif %}

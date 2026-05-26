@@ -1,272 +1,686 @@
-{% extends 'base.html' %}
+{% extends 'consignee/base_consignee.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
 
-{% block title %}My Dashboard{% endblock %}
-{% block page_title %}My Dashboard{% endblock %}
+{% block extra_css %}
+/* ── Status grid ─────────────────────────────────────────────────────────── */
+.dash-status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    flex: 1 1 0;     /* flex-basis 0 forces it to actually respect minmax */
+    min-width: 0;
+    overflow: hidden;
+}
+.status-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.04);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+}
+/* LEFT group: circular icon + label + sub */
+.sc-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+.sc-icon {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.sc-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; overflow: hidden; }
+.sc-label {
+    font-size: 9.5px; font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sc-sub {
+    font-size: 8.5px; color: #9CA3AF;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sc-count {
+    font-size: 26px; font-weight: 800; line-height: 1;
+    color: #1B3358;
+    flex-shrink: 0;
+}
+
+/* ── Total card ──────────────────────────────────────────────────────────── */
+.dash-total-card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 12px;
+    width: 150px;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+/* ── Chart row ───────────────────────────────────────────────────────────── */
+.dash-chart-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 12px;
+    margin-top: 12px;
+}
+.dash-bottom-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 12px;
+    margin-top: 12px;
+}
+.c-card-title {
+    font-size: 14px; font-weight: 700; color: #1B3358; margin-bottom: 14px;
+}
+.chart-filter-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px;
+    background: #F3F4F6;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    font-size: 11px; color: #374151; cursor: pointer;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ── Reminder ────────────────────────────────────────────────────────────── */
+.reminder-item { padding: 10px 0; border-bottom: 1px solid #F3F4F6; }
+.reminder-item:last-child { border-bottom: none; padding-bottom: 0; }
+.reminder-ref { font-size: 12px; font-weight: 700; color: #1B3358; margin-bottom: 3px; word-break: break-all; }
+.reminder-red    { font-size: 11px; font-weight: 600; color: #EF4444; }
+.reminder-amber  { font-size: 11px; font-weight: 600; color: #F59E0B; }
+.reminder-desc   { font-size: 11px; color: #6B7280; margin-top: 3px; line-height: 1.4; word-break: break-word; }
+
+/* Grid children must have min-width:0 so they can shrink */
+.dash-chart-row > *,
+.dash-bottom-row > * { min-width: 0; overflow: hidden; }
+
+/* Prevent chart canvas from forcing the card wider than available space */
+#shipmentChart { max-width: 100%; display: block; }
+
+/* ── Shipping type bar ───────────────────────────────────────────────────── */
+.ship-type-bar {
+    height: 12px; border-radius: 6px; overflow: hidden;
+    display: flex; margin: 8px 0;
+}
+.ship-type-bar div { height: 100%; }
+.ship-type-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; margin-top: 8px;
+}
+.ship-type-item {
+    padding: 8px 10px;
+    background: #F8FAFC;
+    border-radius: 8px;
+    border: 1px solid #F1F5F9;
+}
+.ship-type-label {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10px; color: #6B7280; font-weight: 500;
+    margin-bottom: 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ship-type-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.ship-type-count { font-size: 22px; font-weight: 800; color: #1B3358; line-height: 1; }
+{% endblock %}
 
 {% block content %}
 
-<!-- ─── Announcements Banner ───────────────────────────────────────────────── -->
-{% if recent_announcements %}
-<div style="margin-bottom:20px; display:flex; flex-direction:column; gap:10px;">
-    {% for ann in recent_announcements %}
-    <div style="border-radius:10px; padding:14px 18px; display:flex; align-items:flex-start; gap:12px;
-                border-left:4px solid
-                {% if ann.category == 'boc' %}#3b82f6{% elif ann.category == 'customs' %}#f59e0b{% elif ann.category == 'shipment' %}#8b5cf6{% else %}#22c55e{% endif %};
-                background:#1e293b; border-right:1px solid #334155; border-top:1px solid #334155; border-bottom:1px solid #334155;">
-        <span style="font-size:18px; flex-shrink:0; margin-top:1px;">
-            {% if ann.category == 'boc' %}🔵{% elif ann.category == 'customs' %}🟡{% elif ann.category == 'shipment' %}🟣{% else %}🟢{% endif %}
-        </span>
-        <div style="flex:1; min-width:0;">
-            <p style="font-size:13px; font-weight:600; color:#f1f5f9; margin:0 0 3px;">{{ ann.title }}</p>
-            <p style="font-size:12px; color:#94a3b8; margin:0; white-space:pre-wrap;">{{ ann.content }}</p>
-            <p style="font-size:11px; color:#475569; margin:5px 0 0;">{{ ann.created_at|date:"M d, Y" }}</p>
-        </div>
-    </div>
-    {% endfor %}
-</div>
-{% endif %}
-
-<div class="kpi-grid">
-    <div class="kpi-card blue">
-        <p class="kpi-label">Total Submissions</p>
-        <p class="kpi-value">{{ total }}</p>
-    </div>
-    <div class="kpi-card yellow">
-        <p class="kpi-label">Incoming</p>
-        <p class="kpi-value">{{ incoming }}</p>
-    </div>
-    <div class="kpi-card blue">
-        <p class="kpi-label">Arrived</p>
-        <p class="kpi-value">{{ arrived }}</p>
-    </div>
-    <div class="kpi-card yellow">
-        <p class="kpi-label">Computed</p>
-        <p class="kpi-value">{{ computed }}</p>
-    </div>
-    <div class="kpi-card blue">
-        <p class="kpi-label">Lodgement</p>
-        <p class="kpi-value">{{ lodgement }}</p>
-    </div>
-    <div class="kpi-card green">
-        <p class="kpi-label">Approved</p>
-        <p class="kpi-value">{{ approved }}</p>
-    </div>
-    <div class="kpi-card red">
-        <p class="kpi-label">Rejected</p>
-        <p class="kpi-value">{{ rejected }}</p>
-    </div>
-    <div class="kpi-card yellow">
-        <p class="kpi-label">For Revision</p>
-        <p class="kpi-value">{{ for_revision }}</p>
+<!-- ── Welcome + Month Picker ─────────────────────────────────────────────── -->
+<div style="margin-bottom:16px;">
+    <h1 style="font-size:22px; font-weight:700; color:#1B3358; margin-bottom:10px;">
+        Welcome Back {{ user.first_name|default:user.username }}!
+    </h1>
+    <div class="c-month-pill" id="mpbtn-main" onclick="openMonthPicker('mpbtn-main')" style="display:inline-flex;">
+        <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
+            <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/>
+        </svg>
+        <span class="mp-label">May 2026</span>
     </div>
 </div>
 
-<!-- ─── Analytics ──────────────────────────────────────────────────────────── -->
-{% if total %}
-<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px;">
+<!-- ── Status Grid + Total ───────────────────────────────────────────────── -->
+<div style="display:flex; gap:10px; align-items:stretch; min-width:0; overflow:hidden;">
+    <div class="dash-status-grid" style="flex:1; min-width:0;">
 
-    <!-- Shipping Mode Breakdown -->
-    <div class="card">
-        <p class="card-title" style="margin-bottom:14px;">Shipping Mode</p>
-        {% for item in mode_breakdown %}
-        {% if item.shipment_type %}
-        <div style="margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
-                <span style="color:#94a3b8;">
-                    {% if item.shipment_type == 'air' %}✈️ {% elif item.shipment_type == 'fcl' %}📦 {% elif item.shipment_type == 'sea' or item.shipment_type == 'lcl' %}🚢 {% elif item.shipment_type == 'land' %}🚛 {% endif %}
-                    {{ item.label }}
-                </span>
-                <span style="color:#f1f5f9; font-weight:600;">{{ item.count }}</span>
+        <!-- ARRIVED -->
+        <div class="status-card">
+            <div class="sc-left">
+                <div class="sc-icon" style="background:#FEF3C7;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#F59E0B">
+                        <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z"/>
+                    </svg>
+                </div>
+                <div class="sc-text">
+                    <span class="sc-label" style="color:#F59E0B;">Arrived</span>
+                    <span class="sc-sub">Awaits Revised Invoice</span>
+                </div>
             </div>
-            <div style="background:#1e293b; border-radius:999px; height:6px;">
-                <div style="height:6px; border-radius:999px;
-                    background:{% if item.shipment_type == 'air' %}#3b82f6{% elif item.shipment_type == 'sea' %}#22d3ee{% elif item.shipment_type == 'lcl' %}#8b5cf6{% elif item.shipment_type == 'fcl' %}#a78bfa{% else %}#f59e0b{% endif %};
-                    width:{% widthratio item.count total 100 %}%;"></div>
-            </div>
+            <span class="sc-count">{{ arrived|default:'0' }}</span>
         </div>
-        {% endif %}
-        {% empty %}
-        <p style="color:#64748b; font-size:13px;">No data yet.</p>
-        {% endfor %}
-    </div>
 
-    <!-- Urgency Breakdown -->
-    <div class="card">
-        <p class="card-title" style="margin-bottom:14px;">Urgency Level</p>
-        {% for item in urgency_breakdown %}
-        <div style="margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
-                <span style="color:#94a3b8;">
-                    {% if item.urgency == 'rush' %}🔴 {% elif item.urgency == 'urgent' %}🟠 {% elif item.urgency == 'priority' %}🔵 {% else %}⚪ {% endif %}
-                    {{ item.label }}
-                </span>
-                <span style="font-weight:600;
-                    color:{% if item.urgency == 'rush' %}#ef4444{% elif item.urgency == 'urgent' %}#f97316{% elif item.urgency == 'priority' %}#3b82f6{% else %}#94a3b8{% endif %};">
-                    {{ item.count }}
-                </span>
+        <!-- LODGEMENT -->
+        <div class="status-card">
+            <div class="sc-left">
+                <div class="sc-icon" style="background:#E0F2FE;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#0EA5E9">
+                        <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="sc-text">
+                    <span class="sc-label" style="color:#0EA5E9;">Lodgement</span>
+                    <span class="sc-sub">Lined Up for Final Assessment</span>
+                </div>
             </div>
-            <div style="background:#1e293b; border-radius:999px; height:6px;">
-                <div style="height:6px; border-radius:999px;
-                    background:{% if item.urgency == 'rush' %}#ef4444{% elif item.urgency == 'urgent' %}#f97316{% elif item.urgency == 'priority' %}#3b82f6{% else %}#64748b{% endif %};
-                    width:{% widthratio item.count total 100 %}%;"></div>
-            </div>
+            <span class="sc-count">{{ lodgement|default:'0' }}</span>
         </div>
-        {% empty %}
-        <p style="color:#64748b; font-size:13px;">No data yet.</p>
-        {% endfor %}
-    </div>
 
-    <!-- Import Type Breakdown -->
-    <div class="card">
-        <p class="card-title" style="margin-bottom:14px;">Import Type</p>
-        {% for item in import_breakdown %}
-        <div style="margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
-                <span style="color:#94a3b8;">{{ item.label }}</span>
-                <span style="color:#f1f5f9; font-weight:600;">{{ item.count }}</span>
+        <!-- PAID -->
+        <div class="status-card">
+            <div class="sc-left">
+                <div class="sc-icon" style="background:#DCFCE7;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#16A34A">
+                        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+                    </svg>
+                </div>
+                <div class="sc-text">
+                    <span class="sc-label" style="color:#16A34A;">Paid</span>
+                    <span class="sc-sub">Awaits CDH Discharge &amp; Delivery Schedule</span>
+                </div>
             </div>
-            <div style="background:#1e293b; border-radius:999px; height:6px;">
-                <div style="height:6px; border-radius:999px; background:#22c55e;
-                            width:{% widthratio item.count total 100 %}%;"></div>
-            </div>
+            <span class="sc-count">{{ paid|default:'0' }}</span>
         </div>
-        {% empty %}
-        <p style="color:#64748b; font-size:13px;">No data yet.</p>
-        {% endfor %}
-    </div>
 
+        <!-- COMPUTED -->
+        <div class="status-card">
+            <div class="sc-left">
+                <div class="sc-icon" style="background:#EFF6FF;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#3B82F6">
+                        <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm1 8a1 1 0 100 2h6a1 1 0 100-2H7zm1 3a1 1 0 011-1h4a1 1 0 110 2H9a1 1 0 01-1-1zM9 8a1 1 0 000 2h2a1 1 0 000-2H9z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="sc-text">
+                    <span class="sc-label" style="color:#3B82F6;">Computed</span>
+                    <span class="sc-sub">Awaits CDT Approval</span>
+                </div>
+            </div>
+            <span class="sc-count">{{ computed|default:'0' }}</span>
+        </div>
+
+        <!-- ONGOING -->
+        <div class="status-card">
+            <div class="sc-left">
+                <div class="sc-icon" style="background:#FFF7ED;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#F97316">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="sc-text">
+                    <span class="sc-label" style="color:#F97316;">Ongoing</span>
+                    <span class="sc-sub">Lined Up for Final Assessment</span>
+                </div>
+            </div>
+            <span class="sc-count">{{ ongoing|default:'0' }}</span>
+        </div>
+
+        <!-- RELEASED -->
+        <div class="status-card">
+            <div class="sc-left">
+                <div class="sc-icon" style="background:#CCFBF1;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#14B8A6">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM6.75 9.25a.75.75 0 000 1.5h4.59l-2.1 1.95a.75.75 0 001.02 1.1l3.5-3.25a.75.75 0 000-1.1l-3.5-3.25a.75.75 0 10-1.02 1.1l2.1 1.95H6.75z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="sc-text">
+                    <span class="sc-label" style="color:#14B8A6;">Released</span>
+                    <span class="sc-sub">Cargo Cleared from Customs</span>
+                </div>
+            </div>
+            <span class="sc-count">{{ released|default:'0' }}</span>
+        </div>
+
+        <!-- APPROVED -->
+        <div class="status-card">
+            <div class="sc-left">
+                <div class="sc-icon" style="background:#DCFCE7;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#22C55E">
+                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="sc-text">
+                    <span class="sc-label" style="color:#22C55E;">Approved</span>
+                    <span class="sc-sub">Awaits Manifest Validation</span>
+                </div>
+            </div>
+            <span class="sc-count">{{ approved|default:'0' }}</span>
+        </div>
+
+        <!-- ASSESSED -->
+        <div class="status-card">
+            <div class="sc-left">
+                <div class="sc-icon" style="background:#EDE9FE;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#8B5CF6">
+                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                    </svg>
+                </div>
+                <div class="sc-text">
+                    <span class="sc-label" style="color:#8B5CF6;">Assessed</span>
+                    <span class="sc-sub">Awaits Payment of D/T</span>
+                </div>
+            </div>
+            <span class="sc-count">{{ assessed|default:'0' }}</span>
+        </div>
+
+        <!-- BILLED -->
+        <div class="status-card">
+            <div class="sc-left">
+                <div class="sc-icon" style="background:#F1F5F9;">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#64748B">
+                        <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="sc-text">
+                    <span class="sc-label" style="color:#64748B;">Billed</span>
+                    <span class="sc-sub">Awaits Payment of Broker Fee</span>
+                </div>
+            </div>
+            <span class="sc-count">{{ billed|default:'0' }}</span>
+        </div>
+
+    </div><!-- /dash-status-grid -->
+
+    <!-- TOTAL Card -->
+    <div class="dash-total-card">
+        <p style="font-size:20px; font-weight:900; color:#1B3358; letter-spacing:-0.5px; margin-bottom:4px;">TOTAL</p>
+        <p style="font-size:10px; color:#9CA3AF; margin-bottom:16px;">Overall Submissions</p>
+        <p style="font-size:52px; font-weight:900; color:#1B3358; line-height:1;">{{ total|default:'0' }}</p>
+    </div>
 </div>
-{% endif %}
 
-<div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
-        <p class="card-title" style="margin:0;">Recent Submissions</p>
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <!-- Date quick-filter buttons -->
-            <div style="display:flex; gap:6px;">
-                <button class="date-filter-btn active" data-filter="all"
-                        style="padding:6px 12px; border-radius:6px; border:1px solid #334155;
-                               background:#334155; color:#f1f5f9; font-size:12px; cursor:pointer;">
-                    All
-                </button>
-                <button class="date-filter-btn" data-filter="today"
-                        style="padding:6px 12px; border-radius:6px; border:1px solid #334155;
-                               background:transparent; color:#94a3b8; font-size:12px; cursor:pointer;">
-                    Today
-                </button>
-                <button class="date-filter-btn" data-filter="7"
-                        style="padding:6px 12px; border-radius:6px; border:1px solid #334155;
-                               background:transparent; color:#94a3b8; font-size:12px; cursor:pointer;">
-                    Last 7 Days
-                </button>
-                <button class="date-filter-btn" data-filter="30"
-                        style="padding:6px 12px; border-radius:6px; border:1px solid #334155;
-                               background:transparent; color:#94a3b8; font-size:12px; cursor:pointer;">
-                    Last 30 Days
-                </button>
+<!-- ── Chart Row ──────────────────────────────────────────────────────────── -->
+<div class="dash-chart-row">
+
+    <!-- Shipment Overview Line Chart -->
+    <div class="c-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <p class="c-card-title" style="margin:0;">Shipment Overview</p>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <select class="chart-filter-btn" id="view-toggle" style="border:1px solid #E5E7EB;">
+                    <option value="month">By Month</option>
+                    <option value="week">By Week</option>
+                </select>
+                <!-- Year prev / next -->
+                <div style="display:inline-flex; align-items:center; background:#F3F4F6;
+                            border:1px solid #E5E7EB; border-radius:6px; overflow:hidden;
+                            font-family:'Inter',sans-serif; font-size:11px; color:#374151;">
+                    <button onclick="changeChartYear(-1)"
+                            style="background:none;border:none;cursor:pointer;
+                                   padding:4px 8px;color:#6B7280;font-size:15px;line-height:1;">&#8249;</button>
+                    <span id="chart-year-label" style="padding:0 2px;font-weight:600;">{{ current_year }}</span>
+                    <button onclick="changeChartYear(1)"
+                            style="background:none;border:none;cursor:pointer;
+                                   padding:4px 8px;color:#6B7280;font-size:15px;line-height:1;">&#8250;</button>
+                </div>
             </div>
-            <a href="{% url 'consignee:submit' %}" class="btn btn-primary">
-                + New Submission
-            </a>
+        </div>
+        <div style="position:relative; height:200px;">
+            <canvas id="shipmentChart"></canvas>
         </div>
     </div>
 
-    <p id="dash-count" style="color:#64748b; font-size:12px; margin-bottom:10px;">
-        Showing all submissions
-    </p>
-
-    {% if recent_shipments %}
-    <div class="table-container">
-        <table id="dash-table">
-            <thead>
-                <tr>
-                    <th>HAWB Number</th>
-                    <th>Import Type</th>
-                    <th>Urgency</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for shipment in recent_shipments %}
-                <tr data-date="{{ shipment.submitted_at|date:'Y-m-d' }}">
-                    <td>{{ shipment.hawb_number }}</td>
-                    <td>{{ shipment.get_import_type_display }}</td>
-                    <td>{{ shipment.get_urgency_display }}</td>
-                    <td>
-                        <span class="badge badge-{{ shipment.status }}">
-                            {{ shipment.get_status_display }}
-                        </span>
-                    </td>
-                    <td>{{ shipment.submitted_at|date:"M d, Y" }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Reminder Panel -->
+    <div class="c-card">
+        <p class="c-card-title" style="color:#1B3358; text-align:center; margin-bottom:16px;">Reminder</p>
+        <div id="reminder-list">
+            {% for shipment in recent_shipments %}
+            {% if shipment.has_deficiency or shipment.status == 'arrived' or shipment.status == 'computed' %}
+            <div class="reminder-item">
+                <p class="reminder-ref">{{ shipment.hawb_number }}</p>
+                {% if shipment.has_deficiency %}
+                    <p class="reminder-red">{{ shipment.deficiency_type|default:'Missing Document' }}</p>
+                    <p class="reminder-desc">{{ shipment.deficiency_notes|default:'Please upload the file to process your shipment.' }}</p>
+                {% elif shipment.status == 'computed' %}
+                    <p class="reminder-amber">Awaits Manifest Validation</p>
+                    <p class="reminder-desc">Kindly review the clearance and approved to proceed.</p>
+                {% elif shipment.status == 'arrived' %}
+                    <p class="reminder-amber">Shipment Arrived</p>
+                    <p class="reminder-desc">Your shipment has arrived and is awaiting processing.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% empty %}
+            {% endfor %}
+            {% if not recent_shipments %}
+            <p style="color:#9CA3AF; font-size:12px; text-align:center; padding:20px 0;">No pending reminders.</p>
+            {% endif %}
+        </div>
     </div>
-    {% else %}
-    <p style="color:#94a3b8; font-size:14px;">
-        No submissions yet.
-        <a href="{% url 'consignee:submit' %}" style="color:#3b82f6;">
-            Submit your first shipment
-        </a>
-    </p>
-    {% endif %}
 </div>
+
+<!-- ── Bottom Row ─────────────────────────────────────────────────────────── -->
+<div class="dash-bottom-row">
+
+    <!-- Shipping Type Overview -->
+    <div class="c-card" style="padding:16px 18px;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+            <div>
+                <p style="font-size:13px; font-weight:700; color:#1B3358; margin:0 0 2px;">Shipping Type Overview</p>
+                <p style="font-size:10px; color:#9CA3AF;">Breakdown of shipments based on cargo structure and handling type</p>
+            </div>
+            <button id="mpbtn-shipping" class="chart-filter-btn" style="flex-shrink:0; margin-left:8px;" onclick="openMonthPicker('mpbtn-shipping')">
+                <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
+                    <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/>
+                </svg>
+                <span class="mp-label">May 2026</span>
+            </button>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; margin:0 0 4px;">
+            <p style="font-size:11px; font-weight:600; color:#374151;">Total Shipping</p>
+            <p style="font-size:13px; font-weight:700; color:#1B3358;">{{ total }}</p>
+        </div>
+
+        <div class="ship-type-bar">
+            {% for item in mode_breakdown %}
+                {% if item.shipment_type == 'fcl' %}
+                <div style="flex:{{ item.count }}; background:#607D8B;"></div>
+                {% elif item.shipment_type == 'lcl' %}
+                <div style="flex:{{ item.count }}; background:#F97316;"></div>
+                {% elif item.shipment_type == 'air' %}
+                <div style="flex:{{ item.count }}; background:#1B3358;"></div>
+                {% elif item.shipment_type == 'land' %}
+                <div style="flex:{{ item.count }}; background:#22C55E;"></div>
+                {% else %}
+                <div style="flex:{{ item.count }}; background:#9CA3AF;"></div>
+                {% endif %}
+            {% empty %}
+            <div style="flex:1; background:#E5E7EB;"></div>
+            {% endfor %}
+        </div>
+
+        <div class="ship-type-grid">
+            {% for item in mode_breakdown %}
+            <div class="ship-type-item">
+                <div class="ship-type-label">
+                    <span class="ship-type-dot" style="background:
+                        {% if item.shipment_type == 'fcl' %}#607D8B
+                        {% elif item.shipment_type == 'lcl' %}#F97316
+                        {% elif item.shipment_type == 'air' %}#1B3358
+                        {% elif item.shipment_type == 'land' %}#22C55E
+                        {% else %}#9CA3AF{% endif %};"></span>
+                    {{ item.label }} ({% widthratio item.count total 100 %}%)
+                </div>
+                <p class="ship-type-count">{{ item.count }}</p>
+            </div>
+            {% empty %}
+            <div class="ship-type-item"><p class="ship-type-count" style="color:#9CA3AF;">0</p></div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Urgency Level Donut -->
+    <div class="c-card" style="display:flex; flex-direction:column; padding:16px 18px;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+            <div>
+                <p style="font-size:13px; font-weight:700; color:#1B3358; margin:0 0 2px;">Urgency Level Overview</p>
+                <p style="font-size:10px; color:#9CA3AF; margin:0;">Distribution of shipment urgency levels</p>
+            </div>
+            <button id="mpbtn-urgency" class="chart-filter-btn" style="flex-shrink:0; margin-left:8px;" onclick="openMonthPicker('mpbtn-urgency')">
+                <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
+                    <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/>
+                </svg>
+                <span class="mp-label">May 2026</span>
+            </button>
+        </div>
+        <div style="position:relative; display:flex; align-items:center; justify-content:center; padding:6px 0;">
+            <canvas id="urgencyChart" width="130" height="130"></canvas>
+            <div style="position:absolute; text-align:center; pointer-events:none;">
+                <p style="font-size:8px; color:#6B7280; font-weight:500; margin:0;">Total</p>
+                <p style="font-size:16px; font-weight:800; color:#1B3358; margin:0; line-height:1.2;">{{ total }}</p>
+            </div>
+        </div>
+        <div style="margin-top:10px; display:flex; flex-direction:column; gap:5px;">
+            {% for item in urgency_breakdown %}
+            <div style="display:flex; align-items:center; justify-content:space-between; font-size:10.5px;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; background:
+                        {% if item.urgency == 'standard' or item.urgency == 'normal' %}#3B82F6
+                        {% elif item.urgency == 'priority' %}#F59E0B
+                        {% elif item.urgency == 'urgent' %}#F97316
+                        {% elif item.urgency == 'rush' %}#EF4444
+                        {% else %}#9CA3AF{% endif %};"></span>
+                    <span style="color:#374151;">{{ item.label }}</span>
+                </div>
+                <span style="font-weight:700; color:#1B3358;">{{ item.count }}</span>
+            </div>
+            {% empty %}
+            <p style="color:#9CA3AF; font-size:11px; text-align:center;">No data.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ── Month Picker Popover ───────────────────────────────────────────────── -->
+<div id="month-picker" style="display:none; position:fixed; z-index:999; background:#fff; border-radius:14px;
+     box-shadow:0 8px 32px rgba(0,0,0,0.15); padding:18px; min-width:260px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <span id="picker-year-label" style="font-size:15px; font-weight:700; color:#1B3358;">{{ current_year }}</span>
+        <div style="display:flex; gap:6px;">
+            <button onclick="pickerYear(-1)" style="background:none;border:none;cursor:pointer;font-size:14px;color:#6B7280;">&#8963;</button>
+            <button onclick="pickerYear(1)"  style="background:none;border:none;cursor:pointer;font-size:14px;color:#6B7280; transform:rotate(180deg);">&#8963;</button>
+        </div>
+    </div>
+    <div id="month-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px;"></div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-(function () {
-    var buttons = document.querySelectorAll('.date-filter-btn');
-    var rows    = document.querySelectorAll('#dash-table tbody tr');
-    var countEl = document.getElementById('dash-count');
+// ── Shipment Overview Line Chart ──────────────────────────────────────────────
+var shipmentCtx = document.getElementById('shipmentChart').getContext('2d');
 
-    function applyFilter(filter) {
-        var today = new Date();
-        today.setHours(0, 0, 0, 0);
-        var visible = 0;
+function makeGradient() {
+    var g = shipmentCtx.createLinearGradient(0, 0, 0, 200);
+    g.addColorStop(0, 'rgba(27,51,88,0.18)');
+    g.addColorStop(1, 'rgba(27,51,88,0.00)');
+    return g;
+}
 
-        rows.forEach(function (row) {
-            var dateStr  = row.getAttribute('data-date');   // YYYY-MM-DD
-            var rowDate  = new Date(dateStr);
-            var show     = true;
-
-            if (filter === 'today') {
-                show = rowDate >= today;
-            } else if (filter === '7') {
-                var cutoff = new Date(today);
-                cutoff.setDate(cutoff.getDate() - 7);
-                show = rowDate >= cutoff;
-            } else if (filter === '30') {
-                var cutoff = new Date(today);
-                cutoff.setDate(cutoff.getDate() - 30);
-                show = rowDate >= cutoff;
+var shipmentChart = new Chart(shipmentCtx, {
+    type: 'line',
+    data: {
+        labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+        datasets: [{
+            label: 'Shipment Overview',
+            data: {{ monthly_data|safe }},
+            borderColor: '#1B3358',
+            borderWidth: 2,
+            backgroundColor: makeGradient(),
+            pointBackgroundColor: '#1B3358',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.35,
+            fill: true,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#1B3358',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                padding: 10,
+                cornerRadius: 8,
+                displayColors: false,
+                callbacks: {
+                    title: function(items) { return items[0].label; },
+                    label: function(item) { return item.raw + ' shipment' + (item.raw !== 1 ? 's' : ''); }
+                }
             }
-            row.style.display = show ? '' : 'none';
-            if (show) visible++;
-        });
-
-        var label = filter === 'all'   ? 'Showing all submissions' :
-                    filter === 'today' ? 'Today' :
-                    filter === '7'     ? 'Last 7 days' : 'Last 30 days';
-        countEl.textContent = label + ' — ' + visible + ' record(s)';
+        },
+        scales: {
+            x: { grid: { color: '#F3F4F6' }, ticks: { font: { size: 11, family: 'Inter' }, color: '#9CA3AF', maxRotation: 0 } },
+            y: { grid: { color: '#F3F4F6' }, ticks: { font: { size: 11, family: 'Inter' }, color: '#9CA3AF', precision: 0 }, beginAtZero: true }
+        }
     }
+});
 
-    buttons.forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            buttons.forEach(function (b) {
-                b.style.background = 'transparent';
-                b.style.color = '#94a3b8';
+// ── Chart filter controls ─────────────────────────────────────────────────────
+var currentChartYear = {{ current_year }};
+var currentChartView = 'month';
+var chartDataUrl     = '{% url "consignee:chart_data" %}';
+
+function fetchChartData() {
+    fetch(chartDataUrl + '?view=' + currentChartView + '&year=' + currentChartYear)
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            shipmentChart.data.labels = d.labels;
+            shipmentChart.data.datasets[0].data = d.data;
+            shipmentChart.data.datasets[0].backgroundColor = makeGradient();
+            shipmentChart.update();
+        })
+        .catch(function(e) { console.warn('Chart fetch error', e); });
+}
+
+function changeChartYear(dir) {
+    currentChartYear += dir;
+    document.getElementById('chart-year-label').textContent = currentChartYear;
+    fetchChartData();
+}
+
+document.getElementById('view-toggle').addEventListener('change', function() {
+    currentChartView = this.value;   // 'month' or 'week'
+    fetchChartData();
+});
+
+// ── Urgency Donut Chart ───────────────────────────────────────────────────────
+var urgencyData = [
+    {% for item in urgency_breakdown %}
+    { label: '{{ item.label }}', count: {{ item.count }}, color:
+        '{% if item.urgency == "standard" or item.urgency == "normal" %}#3B82F6{% elif item.urgency == "priority" %}#F59E0B{% elif item.urgency == "urgent" %}#F97316{% elif item.urgency == "rush" %}#EF4444{% else %}#9CA3AF{% endif %}'
+    },
+    {% empty %}
+    { label: 'None', count: 1, color: '#E5E7EB' }
+    {% endfor %}
+];
+var urgencyCtx = document.getElementById('urgencyChart').getContext('2d');
+new Chart(urgencyCtx, {
+    type: 'doughnut',
+    data: {
+        labels: urgencyData.map(function(d){ return d.label; }),
+        datasets: [{
+            data: urgencyData.map(function(d){ return d.count; }),
+            backgroundColor: urgencyData.map(function(d){ return d.color; }),
+            borderWidth: 2,
+            borderColor: '#fff',
+            hoverOffset: 4,
+        }]
+    },
+    options: {
+        cutout: '68%',
+        responsive: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: function(c){ return c.label + ': ' + c.raw; } } }
+        }
+    }
+});
+
+// ── Month Picker (shared across all filter buttons) ───────────────────────────
+var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var pickerState = { year: {{ current_year }}, month: new Date().getMonth() };
+var currentPickerTarget = null;
+
+function openMonthPicker(triggerId) {
+    var btn    = document.getElementById(triggerId);
+    var picker = document.getElementById('month-picker');
+    // Toggle off if same button clicked again
+    if (picker.style.display !== 'none' && currentPickerTarget === triggerId) {
+        picker.style.display = 'none';
+        currentPickerTarget = null;
+        return;
+    }
+    currentPickerTarget = triggerId;
+    var rect = btn.getBoundingClientRect();
+    picker.style.top  = (rect.bottom + 8) + 'px';
+    // Prevent picker from going off-screen right edge
+    var left = rect.left;
+    if (left + 270 > window.innerWidth) { left = window.innerWidth - 278; }
+    picker.style.left = left + 'px';
+    picker.style.display = 'block';
+    renderMonthGrid();
+}
+
+function renderMonthGrid() {
+    document.getElementById('picker-year-label').textContent = pickerState.year;
+    var grid = document.getElementById('month-grid');
+    grid.innerHTML = '';
+    MONTHS.forEach(function(m, i) {
+        var b = document.createElement('button');
+        b.textContent = m;
+        var active = (i === pickerState.month);
+        b.style.cssText = [
+            'padding:8px;border-radius:8px;border:none;cursor:pointer;',
+            'font-family:Inter,sans-serif;font-size:12px;',
+            'font-weight:' + (active ? '700' : '500') + ';',
+            'background:' + (active ? '#1B3358' : 'transparent') + ';',
+            'color:' + (active ? '#fff' : '#374151') + ';',
+        ].join('');
+        b.onmouseover = function() { if (!active) b.style.background = '#F3F4F6'; };
+        b.onmouseout  = function() { if (!active) b.style.background = 'transparent'; };
+        b.onclick = function() {
+            pickerState.month = i;
+            var label = m + ' ' + pickerState.year;
+            // Update every month-label span on the page
+            document.querySelectorAll('.mp-label').forEach(function(el) {
+                el.textContent = label;
             });
-            btn.style.background = '#334155';
-            btn.style.color = '#f1f5f9';
-            applyFilter(btn.getAttribute('data-filter'));
-        });
+            document.getElementById('month-picker').style.display = 'none';
+            currentPickerTarget = null;
+        };
+        grid.appendChild(b);
     });
+}
+function pickerYear(dir) { pickerState.year += dir; renderMonthGrid(); }
 
-    // Show initial count
-    applyFilter('all');
-})();
+document.addEventListener('click', function(e) {
+    var picker = document.getElementById('month-picker');
+    if (!picker || picker.style.display === 'none') return;
+    // Check if click is inside picker or inside whichever button opened it
+    if (picker.contains(e.target)) return;
+    if (currentPickerTarget) {
+        var triggerBtn = document.getElementById(currentPickerTarget);
+        if (triggerBtn && triggerBtn.contains(e.target)) return;
+    }
+    picker.style.display = 'none';
+    currentPickerTarget = null;
+});
 </script>
 {% endblock %}

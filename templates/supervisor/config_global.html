@@ -1,41 +1,45 @@
-{% extends 'base.html' %}
+{% extends 'supervisor/base_supervisor.html' %}
 {% block title %}Global Parameters{% endblock %}
 {% block page_title %}Global Parameters{% endblock %}
+{% block nav_config %}active{% endblock %}
 {% block content %}
 
 <!-- Breadcrumb -->
-<p style="color:#64748b; font-size:13px; margin-bottom:24px;">
+<p style="color:#9CA3AF; font-size:13px; margin-bottom:24px;">
     <a href="{% url 'supervisor:config' %}" style="color:#3b82f6; text-decoration:none;">System Config</a>
-    <span style="margin:0 8px;">›</span>
-    <span style="color:#94a3b8;">Global Parameters</span>
+    <span style="margin:0 8px;"></span>
+    <span style="color:#6B7280;">Global Parameters</span>
 </p>
 
 <form method="POST" style="max-width:680px;">
     {% csrf_token %}
 
-    <!-- ── Exchange Rates ──────────────────────────────────────────────────── -->
+    <!--  Exchange Rates  -->
     <div class="card" style="padding:28px; margin-bottom:20px;">
         <div style="display:flex; align-items:flex-start; justify-content:space-between;
                     flex-wrap:wrap; gap:12px; margin-bottom:6px;">
             <div>
                 <p class="card-title" style="margin:0;">Exchange Rates</p>
-                <p style="color:#64748b; font-size:12px; margin:4px 0 0;">
-                    1 foreign currency → PHP &nbsp;·&nbsp; Used in all duty computations
+                <p style="color:#9CA3AF; font-size:12px; margin:4px 0 0;">
+                    1 foreign currency to PHP &nbsp;-&nbsp; Used in all duty computations
                 </p>
             </div>
             <button type="button" id="btn-fetch-rates"
-                    style="background:#0f2240; color:#60a5fa;
-                           border:1px solid #3b82f655; border-radius:6px;
+                    style="background:#EFF6FF; color:#1D4ED8;
+                           border:1px solid #BFDBFE; border-radius:6px;
                            padding:8px 16px; font-size:12px; font-weight:600;
                            cursor:pointer; display:flex; align-items:center; gap:6px;
                            white-space:nowrap;">
-                <span id="fetch-icon">🔄</span> Fetch All Live Rates
+                    <svg id="fetch-icon" width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.1A7 7 0 0117 10a1 1 0 11-2 0 5 5 0 00-8.54-3.54L8 8H3a1 1 0 01-1-1V3a1 1 0 012 0v-.99zm11 15v-2.1A7 7 0 013 10a1 1 0 112 0 5 5 0 008.54 3.54L12 12h5a1 1 0 011 1v4a1 1 0 11-2 0v.01A1 1 0 0115 17z" clip-rule="evenodd"/>
+                    </svg>
+                    Fetch All Live Rates
             </button>
         </div>
-        <p style="color:#334155; font-size:11px; margin:0 0 20px;">
+        <p style="color:#9CA3AF; font-size:11px; margin:0 0 20px;">
             Rates sourced from
             <a href="https://www.frankfurter.app/" target="_blank"
-               style="color:#475569; text-decoration:none;">Frankfurter API</a>
+               style="color:#9CA3AF; text-decoration:none;">Frankfurter API</a>
             (free, no key required). Each rate can be manually overridden below.
         </p>
 
@@ -46,33 +50,32 @@
         <div>
             {% for row in currency_rows %}
             <div style="display:flex; align-items:center; gap:14px;
-                        padding:11px 0; border-bottom:1px solid #1e293b;">
+                        padding:11px 0; border-bottom:1px solid #FFFFFF;">
                 <!-- Flag + code -->
                 <div style="width:52px; flex-shrink:0; text-align:center;">
-                    <span style="font-size:22px; line-height:1; display:block;">{{ row.flag }}</span>
-                    <span style="color:#64748b; font-size:11px; font-weight:700;
+                    <span style="color:#1B3358; font-size:11px; font-weight:800;
                                  letter-spacing:.06em;">{{ row.code }}</span>
                 </div>
                 <!-- Currency name + last-updated -->
                 <div style="flex:1; min-width:0;">
-                    <p style="color:#f1f5f9; font-size:13px; font-weight:600; margin:0; line-height:1.3;">
+                    <p style="color:#1A1A2E; font-size:13px; font-weight:600; margin:0; line-height:1.3;">
                         {{ row.name }}
                     </p>
                     {% if row.meta and row.meta.updated_at %}
-                    <p style="color:#334155; font-size:10px; margin:2px 0 0;">
+                    <p style="color:#9CA3AF; font-size:10px; margin:2px 0 0;">
                         Updated {{ row.meta.updated_at|date:"M d, Y H:i" }}
                         {% if row.meta.updated_by %}&nbsp;by {{ row.meta.updated_by.username }}{% endif %}
                     </p>
                     {% else %}
-                    <p style="color:#1e293b; font-size:10px; margin:2px 0 0;">Never updated</p>
+                    <p style="color:#9CA3AF; font-size:10px; margin:2px 0 0;">Never updated</p>
                     {% endif %}
                 </div>
                 <!-- Rate input -->
                 <div style="width:170px; flex-shrink:0;">
                     <div style="position:relative;">
                         <span style="position:absolute; left:11px; top:50%;
-                                     transform:translateY(-50%); color:#64748b;
-                                     font-size:13px; pointer-events:none;">₱</span>
+                                     transform:translateY(-50%); color:#9CA3AF;
+                                     font-size:13px; pointer-events:none;"></span>
                         <input type="number" name="{{ row.key }}" step="0.0001" min="0.0001"
                                value="{{ row.value }}" id="input-{{ row.code }}"
                                class="form-input"
@@ -80,7 +83,7 @@
                                       text-align:right; font-size:13px; font-weight:600;"
                                required>
                     </div>
-                    <p style="color:#334155; font-size:10px; text-align:right; margin:3px 0 0;">
+                    <p style="color:#9CA3AF; font-size:10px; text-align:right; margin:3px 0 0;">
                         per 1 {{ row.symbol }}
                     </p>
                 </div>
@@ -89,10 +92,10 @@
         </div>
     </div>
 
-    <!-- ── VAT Rate ────────────────────────────────────────────────────────── -->
+    <!--  VAT Rate  -->
     <div class="card" style="padding:28px; margin-bottom:24px;">
         <p class="card-title" style="margin:0 0 4px;">VAT Rate</p>
-        <p style="color:#64748b; font-size:12px; margin:0 0 20px;">
+        <p style="color:#9CA3AF; font-size:12px; margin:0 0 20px;">
             Applied to dutiable value on every computation.
         </p>
         <div style="max-width:200px;">
@@ -102,10 +105,10 @@
                        class="form-input" style="padding-right:36px; font-size:14px;"
                        required>
                 <span style="position:absolute; right:14px; top:50%; transform:translateY(-50%);
-                             color:#64748b; font-size:14px; pointer-events:none;">%</span>
+                             color:#9CA3AF; font-size:14px; pointer-events:none;">%</span>
             </div>
             {% if config_meta.vat_rate and config_meta.vat_rate.updated_at %}
-            <p style="color:#475569; font-size:11px; margin:6px 0 0;">
+            <p style="color:#9CA3AF; font-size:11px; margin:6px 0 0;">
                 Updated {{ config_meta.vat_rate.updated_at|date:"M d, Y H:i" }}
                 {% if config_meta.vat_rate.updated_by %}&nbsp;by {{ config_meta.vat_rate.updated_by.username }}{% endif %}
             </p>
@@ -127,12 +130,10 @@
 <script>
 document.getElementById('btn-fetch-rates').addEventListener('click', function () {
     var btn    = this;
-    var icon   = document.getElementById('fetch-icon');
     var status = document.getElementById('fetch-status');
 
     btn.disabled    = true;
     btn.style.opacity = '0.6';
-    icon.textContent  = '⏳';
     status.style.display = 'none';
 
     fetch('{% url "supervisor:fetch_exchange_rates" %}', {
@@ -150,35 +151,31 @@ document.getElementById('btn-fetch-rates').addEventListener('click', function ()
                 var el = document.getElementById('input-' + code);
                 if (el && rates[code] !== undefined) el.value = rates[code];
             });
-            icon.textContent    = '✅';
             btn.style.color     = '#22c55e';
             status.style.display   = 'block';
-            status.style.background = '#052e16';
-            status.style.color      = '#4ade80';
-            status.style.border     = '1px solid #166534';
-            status.textContent = '✓ Live rates fetched successfully — review and click Save Changes to apply.';
+            status.style.background = '#ECFDF5';
+            status.style.color      = '#047857';
+            status.style.border     = '1px solid #86EFAC';
+            status.textContent = 'Live rates fetched successfully. Review and click Save Changes to apply.';
         } else {
-            icon.textContent = '❌';
             status.style.display   = 'block';
-            status.style.background = '#2d0a0a';
-            status.style.color      = '#f87171';
-            status.style.border     = '1px solid #7f1d1d';
-            status.textContent = '✗ Failed to fetch rates: ' + (data.error || 'unknown error');
+            status.style.background = '#FEF2F2';
+            status.style.color      = '#991B1B';
+            status.style.border     = '1px solid #FCA5A5';
+            status.textContent = 'Failed to fetch rates: ' + (data.error || 'unknown error');
         }
     })
     .catch(function (e) {
-        icon.textContent = '❌';
         status.style.display   = 'block';
-        status.style.background = '#2d0a0a';
-        status.style.color      = '#f87171';
-        status.style.border     = '1px solid #7f1d1d';
-        status.textContent = '✗ Network error: ' + e;
+        status.style.background = '#FEF2F2';
+        status.style.color      = '#991B1B';
+        status.style.border     = '1px solid #FCA5A5';
+        status.textContent = 'Network error: ' + e;
     })
     .finally(function () {
         btn.disabled      = false;
         btn.style.opacity = '1';
         setTimeout(function () {
-            icon.textContent = '🔄';
             btn.style.color  = '';
         }, 4000);
     });

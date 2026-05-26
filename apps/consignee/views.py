@@ -39,7 +39,9 @@ def generate_hawb():
 
 @login_required
 def dashboard(request):
+    import json
     from django.db.models import Count
+    from django.db.models.functions import ExtractMonth
     shipments = Shipment.objects.filter(consignee=request.user)
     total = shipments.count()
 
@@ -85,6 +87,19 @@ def dashboard(request):
     for item in urgency_breakdown:
         item['label'] = urgency_labels.get(item['urgency'], item['urgency'] or 'Unknown')
 
+    # ── Monthly chart data (current year) ────────────────────────────────────
+    current_year = timezone.now().year
+    monthly_qs = (
+        shipments
+        .filter(submitted_at__year=current_year)
+        .annotate(month=ExtractMonth('submitted_at'))
+        .values('month')
+        .annotate(count=Count('id'))
+    )
+    monthly_data = [0] * 12
+    for row in monthly_qs:
+        monthly_data[row['month'] - 1] = row['count']
+
     context = {
         'total': total,
         **status_counts,
@@ -92,10 +107,15 @@ def dashboard(request):
         'mode_breakdown':     mode_breakdown,
         'urgency_breakdown':  urgency_breakdown,
         'recent_shipments':   shipments.order_by('-submitted_at'),
+        'monthly_data':       json.dumps(monthly_data),
+        'current_year':       current_year,
     }
 
     from apps.supervisor.models import Announcement
-    recent_announcements = Announcement.objects.filter(is_active=True).order_by('-created_at')[:3]
+    recent_announcements = Announcement.objects.filter(
+        is_active=True,
+        target_audience__in=['all', 'consignee'],
+    ).order_by('-created_at')[:3]
     context['recent_announcements'] = recent_announcements
 
     return render(request, 'consignee/dashboard.html', context)
@@ -207,8 +227,13 @@ def my_submissions(request):
         s.can_cancel     = s.status == 'incoming' and age_seconds <= 3600
         s.cancel_expired = s.status == 'incoming' and age_seconds > 3600
 
+    flagged_shipments = [s for s in shipments_list if s.has_deficiency]
+    active_shipments = [s for s in shipments_list if not s.has_deficiency]
+
     return render(request, 'consignee/my_submissions.html', {
-        'shipments':     shipments_list,
+        'shipments':     active_shipments,
+        'flagged_shipments': flagged_shipments,
+        'total_shipments': len(shipments_list),
         'status_filter': status_filter,
         'q':             q,
         'date_from':     date_from,
@@ -1076,6 +1101,56 @@ def _ecdt_pdf(request, shipment, computation, advisory):
     return response
 
 
+# ─── Chart Data (AJAX) ───────────────────────────────────────────────────────
+
+@login_required
+def chart_data(request):
+    import datetime
+    from django.db.models import Count
+    from django.db.models.functions import ExtractMonth, ExtractWeek
+    from django.http import JsonResponse
+
+    view_type = request.GET.get('view', 'month')
+    try:
+        year = int(request.GET.get('year', timezone.now().year))
+    except (ValueError, TypeError):
+        year = timezone.now().year
+
+    qs = Shipment.objects.filter(consignee=request.user, submitted_at__year=year)
+
+    if view_type == 'week':
+        rows = (
+            qs.annotate(week=ExtractWeek('submitted_at'))
+              .values('week')
+              .annotate(count=Count('id'))
+        )
+        data = [0] * 53
+        for row in rows:
+            w = row['week']
+            if 1 <= w <= 53:
+                data[w - 1] = row['count']
+        labels = [f'Wk {i}' for i in range(1, 54)]
+        # For the current year, trim to current week + a small buffer
+        if year == timezone.now().year:
+            current_week = datetime.date.today().isocalendar()[1]
+            cutoff = min(current_week + 2, 53)
+            data   = data[:cutoff]
+            labels = labels[:cutoff]
+    else:
+        rows = (
+            qs.annotate(month=ExtractMonth('submitted_at'))
+              .values('month')
+              .annotate(count=Count('id'))
+        )
+        data = [0] * 12
+        for row in rows:
+            data[row['month'] - 1] = row['count']
+        labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+    return JsonResponse({'labels': labels, 'data': data})
+
+
 # ─── Cancel Submission ────────────────────────────────────────────────────────
 
 @login_required
@@ -1094,3 +1169,71 @@ def cancel_submission(request, shipment_id):
             return redirect('consignee:my_submissions')
 
     return redirect('consignee:my_submissions')
+
+
+# ─── Resubmit Documents (after deficiency flag) ───────────────────────────────
+
+@login_required
+def resubmit_documents(request, shipment_id):
+    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+
+    if request.method == 'POST':
+        if not shipment.has_deficiency:
+            messages.error(request, 'No deficiency flag on this shipment.')
+            return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+        files_uploaded = 0
+        for doc_type in ['invoice', 'packing_list', 'airway_bill']:
+            file = request.FILES.get(doc_type)
+            if file:
+                # Replace existing document of this type if present
+                ShipmentDocument.objects.filter(
+                    shipment=shipment,
+                    document_type=doc_type
+                ).delete()
+                ShipmentDocument.objects.create(
+                    shipment=shipment,
+                    document_type=doc_type,
+                    file=file,
+                )
+                files_uploaded += 1
+
+        if not files_uploaded:
+            messages.error(request, 'Please upload at least one document.')
+            return redirect('consignee:shipment_detail', shipment_id=shipment_id)
+
+        # Clear deficiency flag
+        shipment.has_deficiency       = False
+        shipment.deficiency_type      = None
+        shipment.deficiency_notes     = None
+        shipment.deficiency_flagged_at = None
+        shipment.save(update_fields=[
+            'has_deficiency', 'deficiency_type',
+            'deficiency_notes', 'deficiency_flagged_at',
+        ])
+
+        # Audit trail
+        StatusLog.objects.create(
+            shipment=shipment,
+            changed_by=request.user,
+            old_status=shipment.status,
+            new_status=shipment.status,
+            notes=f'Consignee resubmitted {files_uploaded} document(s) after deficiency flag.',
+        )
+
+        # Notify declarant
+        if shipment.declarant:
+            create_notification(
+                recipient=shipment.declarant,
+                shipment=shipment,
+                notification_type='status_update',
+                title=f'Documents Resubmitted — {shipment.hawb_number}',
+                message=(
+                    f'The consignee has resubmitted {files_uploaded} document(s) '
+                    f'for shipment {shipment.hawb_number}. Please review the updated documents.'
+                ),
+            )
+
+        messages.success(request, f'{files_uploaded} document(s) resubmitted successfully. Your declarant has been notified.')
+
+    return redirect('consignee:shipment_detail', shipment_id=shipment_id)

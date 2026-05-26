@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
 
-# ─── HS Code Section / Chapter Hierarchy ─────────────────────────────────────
+#  HS Code Section / Chapter Hierarchy 
 _HS_SECTIONS = [
     (1,  'I',     'Live Animals; Animal Products',                  list(range(1, 6))),
     (2,  'II',    'Vegetable Products',                             list(range(6, 15))),
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 
 def _send_mail_async(subject, message, from_email, recipient_list, html_message=None, log_tag=''):
-    """Send email in a daemon thread — never blocks the HTTP response."""
+    """Send email in a daemon thread; never blocks the HTTP response."""
     def _send():
         try:
             send_mail(
@@ -62,7 +62,7 @@ from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
-from apps.notifications.utils import notify_shipment_status_change
+from apps.notifications.utils import create_notification, notify_shipment_status_change
 from .models import SystemConfig, Announcement
 
 
@@ -75,16 +75,16 @@ def supervisor_required(view_func):
     return wrapper
 
 
-# ─── Dashboard ────────────────────────────────────────────────────────────────
+#  Dashboard 
 
 @login_required
 @supervisor_required
 def dashboard(request):
-    """Redirect to the unified analytics/command-centre page."""
-    return redirect('supervisor:analytics')
+    """Unified analytics/command-centre page."""
+    return _analytics_context_response(request)
 
 
-# ─── User Management ─────────────────────────────────────────────────────────
+#  User Management 
 
 @login_required
 @supervisor_required
@@ -108,7 +108,7 @@ def approve_registration(request, user_id):
 
         if user.email:
             _send_mail_async(
-                subject='R3-PCR — Account Approved',
+                subject='R3-PCR - Account Approved',
                 message=(
                     f'Hello {user.first_name or user.username},\n\n'
                     f'Your R3-PCR account has been approved. '
@@ -145,7 +145,7 @@ def reject_registration(request, user_id):
         name     = user.first_name or username
         if email:
             _send_mail_async(
-                subject='R3-PCR — Registration Not Approved',
+                subject='R3-PCR - Registration Not Approved',
                 message=(
                     f'Hello {name},\n\nUnfortunately your R3-PCR registration was not approved. '
                     f'Please contact the administrator for more information.'
@@ -200,14 +200,18 @@ def toggle_user(request, user_id):
     return redirect('supervisor:users')
 
 
-# ─── Analytics (merged command centre) ───────────────────────────────────────
+#  Analytics (merged command centre) 
 
 @login_required
 @supervisor_required
 def analytics(request):
+    return redirect('supervisor:dashboard')
+
+
+def _analytics_context_response(request):
     all_shipments = Shipment.objects.all()
 
-    # ── Chart/KPI filters (date range + declarant) ────────────────────────────
+    #  Chart/KPI filters (date range + declarant) 
     date_from        = request.GET.get('date_from', '').strip()
     date_to          = request.GET.get('date_to', '').strip()
     declarant_filter = request.GET.get('declarant', '').strip()
@@ -222,7 +226,7 @@ def analytics(request):
 
     chart_total = chart_qs.count()
 
-    # ── Shipment table filters (search + status + date) ───────────────────────
+    #  Shipment table filters (search + status + date) 
     q        = request.GET.get('q', '').strip()
     status_f = request.GET.get('status_f', '').strip()
 
@@ -241,7 +245,7 @@ def analytics(request):
     if date_to:
         table_qs = table_qs.filter(submitted_at__date__lte=date_to)
 
-    # ── KPI strip (always all-time) ───────────────────────────────────────────
+    #  KPI strip (always all-time) 
     total_all = all_shipments.count()
     total_computed_presented = (
         StatusLog.objects.filter(new_status='computed')
@@ -256,7 +260,7 @@ def analytics(request):
         if total_computed_presented else 0
     )
 
-    # ── Status breakdown bar chart (respects chart filters) ───────────────────
+    #  Status breakdown bar chart (respects chart filters) 
     _status_colors = {
         'incoming':    '#f59e0b', 'arrived':    '#3b82f6', 'computed':    '#8b5cf6',
         'approved':    '#22c55e', 'rejected':   '#ef4444', 'for_revision':'#f97316',
@@ -271,45 +275,44 @@ def analytics(request):
             'pct': round(count / chart_total * 100, 1) if chart_total else 0,
             'color': _status_colors.get(key, '#475569'),
         })
-    # Pipeline order (workflow sequence) — all 12 statuses
+    # Pipeline order (workflow sequence)  all 12 statuses
     _pipeline_order = [
         'incoming', 'arrived', 'computed', 'for_revision', 'rejected',
         'approved', 'lodgement', 'ongoing', 'assessed', 'paid', 'released', 'billed',
     ]
     _status_map = {r['key']: r for r in status_rows}
     pipeline_rows = [_status_map[k] for k in _pipeline_order if k in _status_map]
-    # bar_pct relative to max for stacked bar tooltip (not used for width — CSS does that)
+    # bar_pct relative to max for stacked bar tooltip (not used for width  CSS does that)
     max_status = max((r['count'] for r in pipeline_rows), default=1) or 1
     for row in pipeline_rows:
         row['bar_pct'] = round(row['count'] / max_status * 100) if max_status > 0 else 0
     # Keep sorted version for any legacy references
     status_rows_sorted = sorted(pipeline_rows, key=lambda r: r['count'], reverse=True)
 
-    # Add icon + subtitle to each pipeline row for the Status Overview cards
+    # Add subtitle to each pipeline row for the Status Overview cards.
     _status_meta = {
-        'incoming':     {'icon': '📥', 'subtitle': 'Awaits Declarant Assignment'},
-        'arrived':      {'icon': '📦', 'subtitle': 'Awaits ECDT Processing'},
-        'computed':     {'icon': '🧮', 'subtitle': 'Awaits Consignee Approval'},
-        'for_revision': {'icon': '🔄', 'subtitle': 'Returned for Revision'},
-        'rejected':     {'icon': '❌', 'subtitle': 'Rejected by Consignee'},
-        'approved':     {'icon': '✅', 'subtitle': 'Proceeding to Lodgement'},
-        'lodgement':    {'icon': '📋', 'subtitle': 'Filed with BOC'},
-        'ongoing':      {'icon': '⚙️',  'subtitle': 'Lined Up for Final Assessment'},
-        'assessed':     {'icon': '📊', 'subtitle': 'Awaits Payment of D/T'},
-        'paid':         {'icon': '💳', 'subtitle': 'Awaits CNTR Discharge & Delivery'},
-        'released':     {'icon': '🚚', 'subtitle': 'Awaits Final Billing'},
-        'billed':       {'icon': '🏁', 'subtitle': 'Shipment Fully Processed End-to-End'},
+        'incoming':     {'subtitle': 'Awaits Declarant Assignment'},
+        'arrived':      {'subtitle': 'Awaits ECDT Processing'},
+        'computed':     {'subtitle': 'Awaits Consignee Approval'},
+        'for_revision': {'subtitle': 'Returned for Revision'},
+        'rejected':     {'subtitle': 'Rejected by Consignee'},
+        'approved':     {'subtitle': 'Proceeding to Lodgement'},
+        'lodgement':    {'subtitle': 'Filed with BOC'},
+        'ongoing':      {'subtitle': 'Lined Up for Final Assessment'},
+        'assessed':     {'subtitle': 'Awaits Payment of D/T'},
+        'paid':         {'subtitle': 'Awaits CNTR Discharge & Delivery'},
+        'released':     {'subtitle': 'Awaits Final Billing'},
+        'billed':       {'subtitle': 'Shipment Fully Processed End-to-End'},
     }
     for row in pipeline_rows:
         meta = _status_meta.get(row['key'], {})
-        row['icon']     = meta.get('icon', '●')
         row['subtitle'] = meta.get('subtitle', '')
 
-    # ── WMCDA Scoreboard (respects chart filters) ─────────────────────────────
+    # WMCDA Scoreboard (respects chart filters)
     _wmcda_meta = [
-        ('air',  'Air Freight',  '#f59e0b', '✈️'),
-        ('lcl',  'LCL Sea',      '#38bdf8', '🚢'),
-        ('fcl',  'FCL Sea',      '#8b5cf6', '📦'),
+        ('air',  'Air Freight',  '#f59e0b', 'AIR'),
+        ('lcl',  'LCL Sea',      '#38bdf8', 'LCL'),
+        ('fcl',  'FCL Sea',      '#8b5cf6', 'FCL'),
     ]
     advisory_qs = ShippingAdvisory.objects.filter(shipment__in=chart_qs)
     wmcda_total = advisory_qs.filter(recommended_type__isnull=False).count()
@@ -325,13 +328,11 @@ def analytics(request):
             'count': count, 'pct': pct, 'avg_score': avg_score,
         })
     wmcda_scoreboard.sort(key=lambda x: x['count'], reverse=True)
-    # Assign rank badges
-    rank_labels = ['🥇 1st', '🥈 2nd', '🥉 3rd', '4th']
+    rank_labels = ['1st', '2nd', '3rd', '4th']
     for i, row in enumerate(wmcda_scoreboard):
         row['rank'] = rank_labels[i] if i < len(rank_labels) else f'{i+1}th'
     wmcda_max = wmcda_scoreboard[0]['count'] if wmcda_scoreboard else 1
-
-    # ── Declarant Performance (respects chart filters) ────────────────────────
+    #  Declarant Performance (respects chart filters) 
     declarants = User.objects.filter(role='declarant').order_by('first_name', 'username')
     declarant_data = []
     for dec in declarants:
@@ -415,7 +416,7 @@ def analytics(request):
     })
 
 
-# ─── Live Status Counts (AJAX) ───────────────────────────────────────────────
+#  Live Status Counts (AJAX) 
 
 @login_required
 @supervisor_required
@@ -433,7 +434,7 @@ def analytics_status_counts(request):
     return JsonResponse({'counts': counts, 'total': total, 'max_count': max_count})
 
 
-# ─── Supervisor Shipment Detail (read-only) ───────────────────────────────────
+#  Supervisor Shipment Detail (read-only) 
 
 @login_required
 @supervisor_required
@@ -486,7 +487,31 @@ def shipment_detail(request, shipment_id):
     })
 
 
-# ─── Memos & Announcements ────────────────────────────────────────────────────
+#  Memos & Announcements 
+
+def _announcement_recipients(announcement):
+    return User.objects.filter(
+        role__in=announcement.target_roles(),
+        is_active=True,
+        is_pending_approval=False,
+    )
+
+
+def _notify_announcement_recipients(announcement):
+    recipients = _announcement_recipients(announcement)
+    for recipient in recipients:
+        create_notification(
+            recipient=recipient,
+            shipment=None,
+            notification_type='announcement',
+            title=announcement.title,
+            message=announcement.content,
+            announcement=announcement,
+        )
+    announcement.notified_at = timezone.now()
+    announcement.save(update_fields=['notified_at', 'updated_at'])
+    return recipients.count()
+
 
 @login_required
 @supervisor_required
@@ -499,17 +524,30 @@ def list_memos(request):
 @supervisor_required
 def create_memo(request):
     if request.method == 'POST':
-        title    = request.POST.get('title', '').strip()
-        content  = request.POST.get('content', '').strip()
-        category = request.POST.get('category', 'general')
+        title     = request.POST.get('title', '').strip()
+        content   = request.POST.get('content', '').strip()
+        category  = request.POST.get('category', 'general')
+        audience  = request.POST.get('target_audience', 'all')
+        is_active = request.POST.get('is_active') == '1'
+        valid_audiences = {choice[0] for choice in Announcement.AUDIENCE_CHOICES}
+        if audience not in valid_audiences:
+            audience = 'all'
         if not title or not content:
             messages.error(request, 'Title and content are required.')
         else:
-            Announcement.objects.create(
+            announcement = Announcement.objects.create(
                 title=title, content=content,
-                category=category, created_by=request.user,
+                category=category, target_audience=audience,
+                is_active=is_active, created_by=request.user,
             )
-            messages.success(request, f'Announcement "{title}" published.')
+            if announcement.is_active:
+                notified_count = _notify_announcement_recipients(announcement)
+                messages.success(
+                    request,
+                    f'Announcement "{title}" published and sent to {notified_count} user(s).',
+                )
+            else:
+                messages.success(request, f'Announcement "{title}" saved as hidden.')
     return redirect('supervisor:memos')
 
 
@@ -532,29 +570,33 @@ def toggle_memo(request, memo_id):
         memo.is_active = not memo.is_active
         memo.save()
         state = 'published' if memo.is_active else 'archived'
-        messages.success(request, f'"{memo.title}" {state}.')
+        if memo.is_active and not memo.notified_at:
+            notified_count = _notify_announcement_recipients(memo)
+            messages.success(request, f'"{memo.title}" {state} and sent to {notified_count} user(s).')
+        else:
+            messages.success(request, f'"{memo.title}" {state}.')
     return redirect('supervisor:memos')
 
 
-# ─── System Configuration ────────────────────────────────────────────────────
+#  System Configuration 
 
 _CURRENCY_KEYS = ['rate_USD', 'rate_EUR', 'rate_JPY', 'rate_HKD', 'rate_CNY', 'rate_GBP', 'rate_SGD']
 
 _CURRENCY_META = [
-    {'key': 'rate_USD', 'code': 'USD', 'name': 'US Dollar',       'symbol': '$',   'flag': '🇺🇸'},
-    {'key': 'rate_EUR', 'code': 'EUR', 'name': 'Euro',             'symbol': '€',   'flag': '🇪🇺'},
-    {'key': 'rate_JPY', 'code': 'JPY', 'name': 'Japanese Yen',     'symbol': '¥',   'flag': '🇯🇵'},
-    {'key': 'rate_HKD', 'code': 'HKD', 'name': 'Hong Kong Dollar', 'symbol': 'HK$', 'flag': '🇭🇰'},
-    {'key': 'rate_CNY', 'code': 'CNY', 'name': 'Chinese Yuan',     'symbol': '¥',   'flag': '🇨🇳'},
-    {'key': 'rate_GBP', 'code': 'GBP', 'name': 'British Pound',    'symbol': '£',   'flag': '🇬🇧'},
-    {'key': 'rate_SGD', 'code': 'SGD', 'name': 'Singapore Dollar', 'symbol': 'S$',  'flag': '🇸🇬'},
+    {'key': 'rate_USD', 'code': 'USD', 'name': 'US Dollar',       'symbol': 'USD'},
+    {'key': 'rate_EUR', 'code': 'EUR', 'name': 'Euro',             'symbol': 'EUR'},
+    {'key': 'rate_JPY', 'code': 'JPY', 'name': 'Japanese Yen',     'symbol': 'JPY'},
+    {'key': 'rate_HKD', 'code': 'HKD', 'name': 'Hong Kong Dollar', 'symbol': 'HKD'},
+    {'key': 'rate_CNY', 'code': 'CNY', 'name': 'Chinese Yuan',     'symbol': 'CNY'},
+    {'key': 'rate_GBP', 'code': 'GBP', 'name': 'British Pound',    'symbol': 'GBP'},
+    {'key': 'rate_SGD', 'code': 'SGD', 'name': 'Singapore Dollar', 'symbol': 'SGD'},
 ]
 
 
 def _get_config():
     from types import SimpleNamespace
     defaults = {
-        'exchange_rate':  '59.1480',   # Legacy USD→PHP key (kept for backward compat)
+        'exchange_rate':  '59.1480',   # Legacy USDPHP key (kept for backward compat)
         'rate_USD':       '59.1480',
         'rate_EUR':       '65.0000',
         'rate_JPY':       '0.3900',
@@ -583,7 +625,7 @@ def _config_meta(keys):
 @login_required
 @supervisor_required
 def config_home(request):
-    """Landing page — 3 large buttons to sub-sections."""
+    """Landing page  3 large buttons to sub-sections."""
     return render(request, 'supervisor/config.html')
 
 
@@ -645,7 +687,7 @@ def fetch_exchange_rates(request):
         for code, rate_key in _code_to_key.items():
             php_per_foreign = rates_raw.get(code)
             if php_per_foreign:
-                # Frankfurter: 1 PHP = X foreign → invert to: 1 foreign = Y PHP
+                # Frankfurter: 1 PHP = X foreign  invert to: 1 foreign = Y PHP
                 rate_val = round(1.0 / float(php_per_foreign), 4)
                 SystemConfig.objects.update_or_create(
                     key=rate_key,
@@ -784,7 +826,7 @@ def system_config(request):
     return redirect('supervisor:config_home')
 
 
-# ─── Shipment Admin Actions ───────────────────────────────────────────────────
+#  Shipment Admin Actions 
 
 @login_required
 @supervisor_required
@@ -876,7 +918,7 @@ def delete_shipment(request, shipment_id):
     return redirect('supervisor:dashboard')
 
 
-# ─── Feedback Management ──────────────────────────────────────────────────────
+#  Feedback Management 
 
 @login_required
 @supervisor_required
@@ -892,7 +934,7 @@ def approve_feedback(request, feedback_id):
         fb = get_object_or_404(Feedback, id=feedback_id)
         fb.is_approved = True
         fb.save()
-        messages.success(request, 'Feedback approved — it will now appear on the landing page.')
+        messages.success(request, 'Feedback approved  it will now appear on the landing page.')
     return redirect('supervisor:feedbacks')
 
 

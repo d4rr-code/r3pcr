@@ -46,10 +46,18 @@ class Announcement(models.Model):
         'general':  '#22c55e',
     }
 
+    AUDIENCE_CHOICES = [
+        ('all', 'All Users'),
+        ('consignee', 'Consignees Only'),
+        ('declarant', 'Declarants Only'),
+    ]
+
     title      = models.CharField(max_length=200)
     content    = models.TextField()
     category   = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='general')
+    target_audience = models.CharField(max_length=20, choices=AUDIENCE_CHOICES, default='all')
     is_active  = models.BooleanField(default=True)
+    notified_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
         'accounts.User',
         on_delete=models.SET_NULL,
@@ -67,3 +75,8 @@ class Announcement(models.Model):
 
     def color(self):
         return self.CATEGORY_COLORS.get(self.category, '#64748b')
+
+    def target_roles(self):
+        if self.target_audience == 'all':
+            return ['consignee', 'declarant']
+        return [self.target_audience]

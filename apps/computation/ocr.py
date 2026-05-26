@@ -251,26 +251,10 @@ def extract_text_from_file(file_path):
                         break
                     image = images[0]
 
-                    if api_key:
-                        # ── Google Vision path ──────────────────────────────
-                        buf = io.BytesIO()
-                        image.save(buf, format='JPEG', quality=85)
-                        full_text += _vision_api_call(api_key, buf.getvalue()) + '\n'
-                        buf.close()
-                    else:
-                        # ── Tesseract fallback ──────────────────────────────
-                        # --psm 3 : fully automatic page segmentation — handles
-                        #           tables, columns and mixed layouts correctly
-                        # No --oem flag: use default engine (OEM 3) which tries
-                        #   LSTM then falls back to legacy for compatibility
-                        # No timeout: let Tesseract finish naturally; killing it
-                        #   early causes empty results
-                        page_text = pytesseract.image_to_string(
-                            image,
-                            config='--psm 3',
-                        )
-                        print(f"[OCR] Tesseract page {page_num}: {len(page_text)} chars")
-                        full_text += page_text
+                    # _image_to_text: Vision API → if poor/failed → Tesseract
+                    page_text = _image_to_text(image, api_key)
+                    print(f"[OCR] page {page_num}: {len(page_text)} chars")
+                    full_text += page_text + '\n'
 
                     # Explicitly release page memory before next iteration
                     image.close()
@@ -372,6 +356,13 @@ def _extract_line_items(text):
         re.IGNORECASE,
     )
 
+    # ── Pattern E ─ broad fallback: any desc + a decimal amount ───────────────
+    # e.g. "LABORATORY OVEN 3,500.00"  or  "Spare Parts for Centrifuge 1250.00"
+    pat_E = re.compile(
+        r'^(?:\d+[\s.)]+)?([A-Za-z][A-Za-z0-9\s\-/,()]{3,80}?)\s+([\d,]+\.\d{1,4})\s*$',
+        re.IGNORECASE,
+    )
+
     items = []
     for raw_line in text.splitlines():
         line = raw_line.strip()
@@ -417,6 +408,13 @@ def _extract_line_items(text):
                         desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
                         amount_str = m.group(4)
                         matched_pattern, confidence = 'D', 0.65
+                    else:
+                        m = pat_E.match(line)
+                        if m:
+                            desc_raw   = m.group(1)
+                            amount_str = m.group(2)
+                            qty = unit = ''
+                            matched_pattern, confidence = 'E', 0.50
 
         if not matched_pattern:
             continue
@@ -603,38 +601,12 @@ def extract_fields_from_invoice(text):
             break
 
     # ── Description ────────────────────────────────────────────────────────────
-    description = ''
-    desc_keywords = [
-        ('SUNGLASSES', 'Sunglasses'),
-        ('INCUBATOR', 'Incubator'),
-        ('OVEN', 'Laboratory Oven'),
-        ('CHAMBER', 'Climate Chamber'),
-        ('CENTRIFUGE', 'Centrifuge'),
-        ('MICROSCOPE', 'Microscope'),
-        ('PLASTIC NASAL SPRAY', 'Plastic Nasal Spray Bottle'),
-        ('PLASTIC BOTTLE', 'Plastic Bottle'),
-        ('NASAL SPRAY', 'Nasal Spray'),
-        ('BOTTLE', 'Plastic Bottle'),
-        ('SPARE PART', 'Spare Parts'),
-        ('ACCESSORY', 'Accessories'),
-        ('EQUIPMENT', 'Laboratory Equipment'),
-        ('INSTRUMENT', 'Scientific Instrument'),
-        ('DEVICE', 'Electronic Device'),
-        ('MACHINE', 'Machinery'),
-        ('CHEMICAL', 'Chemical'),
-        ('REAGENT', 'Reagent'),
-        ('TEXTILE', 'Textile'),
-        ('GARMENT', 'Garment'),
-        ('ELECTRONIC', 'Electronic Components'),
-        ('FURNITURE', 'Furniture'),
-        ('FOOD', 'Food Products'),
-    ]
-    for keyword, label in desc_keywords:
-        if keyword in text_upper:
-            description = label
-            break
-
-    # Try extracting from invoice line if no keyword matched
+    description = _block_after_label(
+        text,
+        [r'\bDescription\s+of\s+Goods?\b', r'\bCommodity\b', r'\bGoods?\b'],
+        [r'\bTotal\b', r'\bAmount\b', r'\bShipper\b', r'\bConsignee\b', r'\bInvoice\b'],
+        max_lines=2,
+    )
     if not description:
         m = re.search(
             r'(?:Description|Commodity|Goods?)\s*[:\s]+([A-Za-z][^\n]{3,60})',
@@ -649,35 +621,45 @@ def extract_fields_from_invoice(text):
     m = re.search(r'TO:\s*M/S\s*\n?([^\n]+)', text, re.IGNORECASE)
     if m:
         consignee_name = m.group(1).strip()
-    else:
+    if not consignee_name:
         m = re.search(r'TO:\s*([^\n]+)', text, re.IGNORECASE)
         if m:
             consignee_name = m.group(1).strip()
-
-    if 'IICOMBINED PHILIPPINES' in text_upper:
-        consignee_name = 'IICOMBINED PHILIPPINES INC.'
-        consignee_address = '28TH FLOOR MENARCO TOWER, 32ND STREET FORT BONIFACIO, TAGUIG CITY 1630'
-    elif 'HIZON LABORATORIES' in text_upper:
-        consignee_name = 'HIZON LABORATORIES INC'
-        consignee_address = '29 HIZON BUILDING, QUEZON AVENUE, LOURDES 1, QUEZON CITY, 1114 PHILIPPINES'
-    elif 'ITS SCIENCE' in text_upper:
-        consignee_name = 'ITS SCIENCE (PHILS.) INC.'
-        consignee_address = 'ORTIGAS CENTER, UNIT 1603-04, 1605 PASIG CITY, PHILIPPINES'
+    if not consignee_name:
+        consignee_name = _block_after_label(
+            text,
+            [r'\bConsignee\b', r'\bBuyer\b', r'\bSold\s+to\b', r'\bBill\s+to\b'],
+            [r'\bShipper\b', r'\bNotify\b', r'\bInvoice\b', r'\bPort\b', r'\bDescription\b'],
+            max_lines=3,
+        )
+    # Extract address as the lines immediately following the consignee name block
+    if not consignee_address:
+        consignee_address = _block_after_label(
+            text,
+            [r'\bConsignee\b', r'\bBuyer\b', r'\bBill\s+to\b'],
+            [r'\bShipper\b', r'\bNotify\b', r'\bPort\b', r'\bDescription\b', r'\bInvoice\b'],
+            max_lines=4,
+        )
+        # If the address block is the same as the name, clear it (single-line consignee block)
+        if consignee_address == consignee_name:
+            consignee_address = ''
 
     # ── Port / Destination ─────────────────────────────────────────────────────
-    port_of_loading = ''
-    if 'INCHEON' in text_upper:
-        port_of_loading = 'INCHEON AIRPORT, SOUTH KOREA'
-    elif 'CHINA' in text_upper or 'WUXI' in text_upper:
-        port_of_loading = 'CHINA'
-    elif 'GERMANY' in text_upper or 'SCHWABACH' in text_upper:
-        port_of_loading = 'GERMANY'
+    port_of_loading = _first_match(text, [
+        r'Port\s+of\s+Loading\s*[:\s]+([^\n,]+)',
+        r'Port\s+of\s+Origin\s*[:\s]+([^\n,]+)',
+        r'Origin\s+Port\s*[:\s]+([^\n,]+)',
+        r'POL\s*[:\s]+([^\n,]+)',
+        r'Shipped\s+from\s*[:\s]+([^\n,]+)',
+    ])
 
-    destination = ''
-    if 'MANILA' in text_upper:
-        destination = 'MANILA, PHILIPPINES'
-    elif 'PHILIPPINES' in text_upper or 'PASIG' in text_upper or 'QUEZON' in text_upper:
-        destination = 'PHILIPPINES'
+    destination = _first_match(text, [
+        r'Port\s+of\s+Discharge\s*[:\s]+([^\n,]+)',
+        r'Port\s+of\s+Destination\s*[:\s]+([^\n,]+)',
+        r'Destination\s+Port\s*[:\s]+([^\n,]+)',
+        r'POD\s*[:\s]+([^\n,]+)',
+        r'Shipped\s+to\s*[:\s]+([^\n,]+)',
+    ])
 
     fields = {
         'invoice_number':    _w(invoice_number,    0.90),
@@ -826,21 +808,12 @@ def extract_fields_from_hawb(text):
             break
 
     # ── Description ────────────────────────────────────────────────────────────
-    description = ''
-    desc_keywords = [
-        ('SUNGLASSES', 'Sunglasses'),
-        ('INCUBATOR', 'Incubator'),
-        ('PLASTIC NASAL SPRAY', 'Plastic Nasal Spray Bottle'),
-        ('PLASTIC BOTTLE', 'Plastic Bottle'),
-        ('NASAL SPRAY', 'Nasal Spray'),
-        ('BOTTLE', 'Plastic Bottle'),
-    ]
-    for keyword, label in desc_keywords:
-        if keyword in text_upper:
-            description = label
-            break
-
-    # Try to extract from "Nature and quantity of goods" or "Description of Goods"
+    description = _block_after_label(
+        text,
+        [r'\bNature\s+and\s+Quantity\s+of\s+Goods\b', r'\bDescription\s+of\s+Goods?\b', r'\bCommodity\b'],
+        [r'\bShipper\b', r'\bConsignee\b', r'\bTotal\b', r'\bWeight\b'],
+        max_lines=2,
+    )
     if not description:
         m = re.search(
             r'(?:Nature\s+and\s+Quantity\s+of\s+Goods|Description\s+of\s+Goods?)\s*[:\n]+\s*([^\n]+)',
@@ -859,20 +832,21 @@ def extract_fields_from_hawb(text):
     if m:
         no_of_pieces = m.group(1).replace(',', '')
 
-    # ── Shipper / Consignee ────────────────────────────────────────────────────
-    origin = ''
-    if 'INCHEON' in text_upper:
-        origin = 'INCHEON, KOREA'
-    elif 'CHINA' in text_upper or 'WUXI' in text_upper:
-        origin = 'CHINA'
-    elif 'GERMANY' in text_upper or 'SCHWABACH' in text_upper or 'BÜCHENBACH' in text_upper:
-        origin = 'GERMANY'
+    # ── Origin / Destination ───────────────────────────────────────────────────
+    origin = _first_match(text, [
+        r'Airport\s+of\s+Departure\s*[:\s]+([^\n,]+)',
+        r'Port\s+of\s+Loading\s*[:\s]+([^\n,]+)',
+        r'Origin\s*[:\s]+([^\n,]+)',
+        r'From\s*[:\s]+([^\n,]+)',
+    ])
 
-    destination = ''
-    if 'MANILA' in text_upper:
-        destination = 'MANILA, PHILIPPINES'
-    elif 'PHILIPPINES' in text_upper or 'PASIG' in text_upper or 'QUEZON' in text_upper:
-        destination = 'PHILIPPINES'
+    destination = _first_match(text, [
+        r'Airport\s+of\s+Destination\s*[:\s]+([^\n,]+)',
+        r'Port\s+of\s+Discharge\s*[:\s]+([^\n,]+)',
+        r'Port\s+of\s+Destination\s*[:\s]+([^\n,]+)',
+        r'Destination\s*[:\s]+([^\n,]+)',
+        r'To\s*[:\s]+([^\n,]+)',
+    ])
 
     # Fall back to port_discharge if destination is empty
     if not destination and port_discharge:
@@ -984,20 +958,12 @@ def extract_fields_from_packing_list(text):
             break
 
     # ── Description ────────────────────────────────────────────────────────────
-    description = ''
-    desc_keywords = [
-        ('SUNGLASSES', 'Sunglasses'),
-        ('INCUBATOR', 'Incubator'),
-        ('PLASTIC NASAL SPRAY', 'Plastic Nasal Spray Bottle'),
-        ('PLASTIC BOTTLE', 'Plastic Bottle'),
-        ('NASAL SPRAY', 'Nasal Spray'),
-        ('BOTTLE', 'Plastic Bottle'),
-    ]
-    for keyword, label in desc_keywords:
-        if keyword in text_upper:
-            description = label
-            break
-
+    description = _block_after_label(
+        text,
+        [r'\bDescription\s+of\s+Goods?\b', r'\bCommodity\b'],
+        [r'\bTotal\b', r'\bWeight\b', r'\bPackage\b', r'\bShipper\b'],
+        max_lines=2,
+    )
     if not description:
         m = re.search(
             r'(?:Description\s+of\s+Goods?|Commodity)\s*[:\n]+\s*([^\n]+)',

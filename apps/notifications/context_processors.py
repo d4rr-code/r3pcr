@@ -14,7 +14,10 @@ def unread_notification_count(request):
         try:
             from apps.supervisor.models import Announcement
             ctx['recent_announcements'] = list(
-                Announcement.objects.filter(is_active=True).order_by('-created_at')[:5]
+                Announcement.objects.filter(
+                    is_active=True,
+                    target_audience__in=['all', request.user.role],
+                ).order_by('-created_at')[:5]
             )
         except Exception:
             pass

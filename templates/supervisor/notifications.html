@@ -1,0 +1,124 @@
+{% extends 'supervisor/base_supervisor.html' %}
+
+{% block title %}Notifications{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block content %}
+
+<!-- ─── Header + Controls ──────────────────────────────────────────────────── -->
+<div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+
+    <!-- Filter Tabs -->
+    <div style="display:flex; background:#F3F4F6; border:1px solid #E5E7EB;
+                border-radius:8px; overflow:hidden;">
+        <a href="?filter=all"
+           style="padding:8px 18px; font-size:13px; text-decoration:none; font-weight:500;
+                  {% if filter_type == 'all' %}background:#1B3358; color:#fff;
+                  {% else %}color:#6B7280;{% endif %}">
+            All
+        </a>
+        <a href="?filter=unread"
+           style="padding:8px 18px; font-size:13px; text-decoration:none; font-weight:500;
+                  border-left:1px solid #E5E7EB;
+                  {% if filter_type == 'unread' %}background:#1B3358; color:#fff;
+                  {% else %}color:#6B7280;{% endif %}">
+            Unread
+            {% if unread_total %}
+            <span style="background:#3B82F6; color:#fff; font-size:10px; font-weight:700;
+                         padding:1px 6px; border-radius:10px; margin-left:4px;">
+                {{ unread_total }}
+            </span>
+            {% endif %}
+        </a>
+        <a href="?filter=read"
+           style="padding:8px 18px; font-size:13px; text-decoration:none; font-weight:500;
+                  border-left:1px solid #E5E7EB;
+                  {% if filter_type == 'read' %}background:#1B3358; color:#fff;
+                  {% else %}color:#6B7280;{% endif %}">
+            Read
+        </a>
+    </div>
+
+    <!-- Mark All Read -->
+    {% if unread_total %}
+    <form method="POST" action="{% url 'notifications:mark_all_read' %}" style="margin-left:auto;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-secondary" style="font-size:12px;">
+            Mark All Read
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<!-- ─── Notifications List ────────────────────────────────────────────────── -->
+<div class="card" style="padding:0; overflow:hidden;">
+    {% if notifications %}
+    <div style="display:flex; flex-direction:column;">
+        {% for notif in notifications %}
+        <a href="{% url 'notifications:detail' notif.id %}"
+           style="display:flex; align-items:flex-start; gap:14px;
+                  padding:16px 20px; border-bottom:1px solid #F0F2F5;
+                  background:{% if not notif.is_read %}#EFF6FF{% else %}transparent{% endif %};
+                  text-decoration:none; transition:background 0.15s;"
+           onmouseover="this.style.background='#F9FAFB'"
+           onmouseout="this.style.background='{% if not notif.is_read %}#EFF6FF{% else %}transparent{% endif %}'">
+
+            <!-- Unread indicator dot -->
+            <div style="margin-top:5px; flex-shrink:0; width:8px; height:8px; border-radius:50%;
+                        background:{% if not notif.is_read %}#3B82F6{% else %}transparent{% endif %};
+                        border:{% if notif.is_read %}1.5px solid #D1D5DB{% else %}none{% endif %};">
+            </div>
+
+            <!-- Content -->
+            <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                    <span style="color:{% if not notif.is_read %}#1A1A2E{% else %}#6B7280{% endif %};
+                                 font-size:14px; font-weight:{% if not notif.is_read %}600{% else %}400{% endif %};">
+                        {{ notif.title }}
+                    </span>
+                    <!-- Type badge -->
+                    <span style="font-size:10px; padding:2px 7px; border-radius:10px; font-weight:600;
+                        {% if notif.notification_type == 'approved' %}background:#DCFCE7; color:#15803D;
+                        {% elif notif.notification_type == 'rejected' %}background:#FEE2E2; color:#B91C1C;
+                        {% elif notif.notification_type == 'payment' %}background:#FEF3C7; color:#B45309;
+                        {% elif notif.notification_type == 'computation' %}background:#EDE9FE; color:#6D28D9;
+                        {% else %}background:#F3F4F6; color:#6B7280;{% endif %}">
+                        {{ notif.get_notification_type_display }}
+                    </span>
+                </div>
+                <p style="color:#6B7280; font-size:13px; margin:0 0 6px; line-height:1.5;
+                           overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:500px;">
+                    {{ notif.message }}
+                </p>
+                <p style="color:#9CA3AF; font-size:11px; margin:0;">
+                    {{ notif.created_at|timesince }} ago &middot; {{ notif.created_at|date:"M d, Y H:i" }}
+                    {% if notif.shipment %}
+                    &middot; <span style="color:#1B3358; font-weight:600;">{{ notif.shipment.hawb_number }}</span>
+                    {% endif %}
+                </p>
+            </div>
+
+            <!-- Chevron -->
+            <div style="flex-shrink:0; color:#9CA3AF; font-size:16px; margin-top:4px;">›</div>
+
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="padding:56px; text-align:center; color:#9CA3AF;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+             style="width:40px;height:40px;margin:0 auto 14px;opacity:.35;display:block;color:#D1D5DB;">
+            <path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6zm0 14.5a2 2 0 01-1.95-1.557 33.54 33.54 0 003.9 0A2 2 0 0110 16.5z" clip-rule="evenodd"/>
+        </svg>
+        {% if filter_type == 'unread' %}
+        <p style="font-size:14px;">No unread notifications. You're all caught up!</p>
+        {% elif filter_type == 'read' %}
+        <p style="font-size:14px;">No read notifications yet.</p>
+        {% else %}
+        <p style="font-size:14px;">No notifications yet.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

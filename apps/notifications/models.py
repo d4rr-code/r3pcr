@@ -15,6 +15,7 @@ class Notification(models.Model):
         ('computed', 'Computation Ready'),
         ('for_revision', 'For Revision'),
         ('billed', 'Shipment Billed'),
+        ('announcement', 'Announcement'),
         ('general', 'General'),
     ]
 
@@ -25,6 +26,12 @@ class Notification(models.Model):
     )
     shipment = models.ForeignKey(
         Shipment,
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='notifications'
+    )
+    announcement = models.ForeignKey(
+        'supervisor.Announcement',
         on_delete=models.CASCADE,
         null=True, blank=True,
         related_name='notifications'

@@ -1,0 +1,715 @@
+{% extends 'consignee/base_consignee.html' %}
+{% load static %}
+
+{% block title %}Notifications{% endblock %}
+{% block nav_notifications %}active{% endblock %}
+
+{% block extra_css %}
+/* â”€â”€ Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.n-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #F0F2F5;
+    padding: 16px 18px;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: #fff;
+}
+.n-tabs {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1.5px solid #E5E7EB;
+    border-radius: 9px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.n-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 92px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+    text-decoration: none;
+    border-right: 1.5px solid #E5E7EB;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    line-height: 1;
+}
+.n-tab:last-child { border-right: 0; }
+.n-tab:hover  { color: #1B3358; background: #F8FAFC; }
+.n-tab.active { color: #fff; background: #1B3358; }
+
+.n-tab-badge {
+    background: rgba(255,255,255,0.22);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.n-tab.active .n-tab-badge { background: rgba(255,255,255,0.22); }
+.n-tab:not(.active) .n-tab-badge { background: #9CA3AF; }
+
+/* â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.n-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.n-search-wrap svg {
+    position: absolute;
+    left: 10px;
+    color: #9CA3AF;
+    pointer-events: none;
+    flex-shrink: 0;
+}
+.n-search {
+    padding: 8px 12px 8px 34px;
+    background: #F3F4F6;
+    border: 1.5px solid #E5E7EB;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-family: 'Inter', sans-serif;
+    color: #1A1A2E;
+    outline: none;
+    width: 220px;
+    transition: border-color 0.15s, background 0.15s;
+}
+.n-search:focus { border-color: #1B3358; background: #fff; }
+
+/* â”€â”€ Notification rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.notif-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #F3F4F6;
+    cursor: pointer;
+    transition: background 0.12s;
+    position: relative;
+}
+.notif-row:last-child { border-bottom: none; }
+.notif-row:hover { background: #F8FAFC; }
+.notif-row.unread { background: #FAFBFF; }
+
+.notif-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 5px;
+}
+.notif-dot.unread { background: #3B82F6; }
+.notif-dot.read   { background: transparent; }
+
+.notif-body { flex: 1; min-width: 0; }
+
+.notif-title {
+    font-size: 13px;
+    color: #111827;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.notif-title.unread { font-weight: 700; }
+.notif-title.read   { font-weight: 500; color: #374151; }
+
+.notif-hawb {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1B3358;
+    margin-bottom: 3px;
+}
+
+.notif-msg {
+    font-size: 12px;
+    color: #6B7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notif-ts {
+    font-size: 11px;
+    color: #9CA3AF;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.notif-chevron {
+    color: #CBD5E1;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* â”€â”€ Empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.n-empty {
+    text-align: center;
+    padding: 64px 20px;
+}
+.n-empty-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    color: #D1D5DB;
+}
+.n-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+.n-empty-sub {
+    font-size: 12.5px;
+    color: #9CA3AF;
+}
+
+/* â”€â”€ Mark All Read btn â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.n-mark-all-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: #fff;
+    border: 1.5px solid #1B3358;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1B3358;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s, color 0.15s;
+}
+.n-mark-all-btn:hover { background: #1B3358; color: #fff; }
+
+/* â”€â”€ Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+#notif-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+#notif-backdrop.open { display: flex; }
+
+#notif-modal {
+    background: #fff;
+    border-radius: 18px;
+    width: 500px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+    position: relative;
+}
+
+.modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: #F3F4F6;
+    color: #6B7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.15s, color 0.15s;
+}
+.modal-close:hover { background: #E5E7EB; color: #111827; }
+
+.modal-header {
+    padding: 24px 24px 0;
+}
+.modal-hawb {
+    font-size: 20px;
+    font-weight: 800;
+    color: #1B3358;
+    margin-bottom: 3px;
+}
+.modal-date-lbl {
+    font-size: 11.5px;
+    color: #9CA3AF;
+}
+
+.modal-badge-row {
+    padding: 14px 24px 0;
+}
+.modal-status-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.modal-message {
+    padding: 14px 24px 0;
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.65;
+}
+
+.modal-divider {
+    border: none;
+    border-top: 1px solid #F0F2F5;
+    margin: 16px 24px 0;
+}
+
+.modal-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: #E5E7EB;
+    margin: 16px 24px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.modal-info-cell {
+    background: #fff;
+    padding: 14px 16px;
+}
+.modal-info-label {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    color: #9CA3AF;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.modal-info-val {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1B3358;
+    line-height: 1.4;
+}
+.modal-info-sub {
+    font-size: 11px;
+    color: #6B7280;
+    margin-top: 3px;
+    line-height: 1.4;
+}
+.modal-info-small {
+    font-size: 12px;
+    font-weight: 400;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.modal-footer {
+    padding: 4px 24px 24px;
+}
+.modal-view-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px;
+    background: #1B3358;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+.modal-view-btn:hover { background: #152847; color: #fff; }
+
+/* Loading skeleton */
+.modal-loading {
+    padding: 48px 24px;
+    text-align: center;
+    color: #9CA3AF;
+    font-size: 13px;
+}
+.modal-loading-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #CBD5E1;
+    margin: 0 2px;
+    animation: blink 1.2s infinite;
+}
+.modal-loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.modal-loading-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%,80%,100% { opacity: 0.2; } 40% { opacity: 1; } }
+{% endblock %}
+
+{% block content %}
+
+<!-- â”€â”€ Page header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+        <h1 style="font-size:22px; font-weight:800; color:#1B3358; margin:0;">Notifications</h1>
+        {% if unread_total %}
+        <span style="background:#EFF6FF; color:#1D4ED8; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; border:1px solid #BFDBFE;">
+            {{ unread_total }} unread
+        </span>
+        {% endif %}
+    </div>
+    {% if unread_total %}
+    <form method="post" action="{% url 'notifications:mark_all_read' %}" style="margin:0;">
+        {% csrf_token %}
+        <button type="submit" class="n-mark-all-btn">
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+            </svg>
+            Mark All Read
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<!-- â”€â”€ Main card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<div class="c-card" style="padding:0; overflow:hidden;">
+
+    <!-- Toolbar: tabs + search -->
+    <div class="n-toolbar">
+        <div class="n-tabs" role="tablist" aria-label="Notification filters">
+            <a href="?filter=all{% if q %}&q={{ q|urlencode }}{% endif %}"
+               class="n-tab {% if filter_type == 'all' %}active{% endif %}"
+               role="tab" aria-selected="{% if filter_type == 'all' %}true{% else %}false{% endif %}">
+                All
+            </a>
+            <a href="?filter=unread{% if q %}&q={{ q|urlencode }}{% endif %}"
+               class="n-tab {% if filter_type == 'unread' %}active{% endif %}"
+               role="tab" aria-selected="{% if filter_type == 'unread' %}true{% else %}false{% endif %}">
+                Unread
+                {% if unread_total %}<span class="n-tab-badge">{{ unread_total }}</span>{% endif %}
+            </a>
+            <a href="?filter=read{% if q %}&q={{ q|urlencode }}{% endif %}"
+               class="n-tab {% if filter_type == 'read' %}active{% endif %}"
+               role="tab" aria-selected="{% if filter_type == 'read' %}true{% else %}false{% endif %}">
+                Read
+            </a>
+        </div>
+
+        <form method="get" style="display:flex; align-items:center;">
+            <input type="hidden" name="filter" value="{{ filter_type }}">
+            <div class="n-search-wrap">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/>
+                </svg>
+                <input type="text" name="q" value="{{ q }}" placeholder="Search notificationsâ€¦" class="n-search">
+            </div>
+        </form>
+    </div>
+
+    <!-- Notification list -->
+    <div id="notif-list">
+        {% for notif in notifications %}
+        <div class="notif-row {% if not notif.is_read %}unread{% endif %}"
+             data-id="{{ notif.id }}"
+             data-ts="{{ notif.created_at|date:'c' }}"
+             data-date="{{ notif.created_at|date:'M j, Y' }} at {{ notif.created_at|date:'g:i A' }}"
+             onclick="openNotifModal({{ notif.id }})">
+
+            <!-- Unread dot -->
+            <div class="notif-dot {% if not notif.is_read %}unread{% else %}read{% endif %}"></div>
+
+            <!-- Body -->
+            <div class="notif-body">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:2px;">
+                    <div class="notif-title {% if not notif.is_read %}unread{% else %}read{% endif %}">
+                        {{ notif.title }}
+                    </div>
+                    <div class="notif-ts ts-label"></div>
+                </div>
+                {% if notif.shipment %}
+                <div class="notif-hawb">{{ notif.shipment.hawb_number }}</div>
+                {% endif %}
+                <div class="notif-msg">{{ notif.message|truncatechars:130 }}</div>
+            </div>
+
+            <!-- Chevron -->
+            <div class="notif-chevron">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
+                </svg>
+            </div>
+        </div>
+        {% empty %}
+        <div class="n-empty">
+            <svg class="n-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
+            </svg>
+            {% if filter_type == 'unread' %}
+            <div class="n-empty-title">All caught up!</div>
+            <div class="n-empty-sub">You have no unread notifications.</div>
+            {% elif filter_type == 'read' %}
+            <div class="n-empty-title">Nothing here yet</div>
+            <div class="n-empty-sub">Notifications you've read will appear here.</div>
+            {% elif q %}
+            <div class="n-empty-title">No results for "{{ q }}"</div>
+            <div class="n-empty-sub">Try a different keyword or clear the search.</div>
+            {% else %}
+            <div class="n-empty-title">No notifications yet</div>
+            <div class="n-empty-sub">We'll notify you when there's an update on your shipments.</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+</div><!-- /c-card -->
+
+
+<!-- â”€â”€ Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<div id="notif-backdrop" onclick="closeNotifModal()">
+    <div id="notif-modal" onclick="event.stopPropagation()">
+
+        <button class="modal-close" onclick="closeNotifModal()" title="Close">âœ•</button>
+
+        <!-- Loading state -->
+        <div id="modal-loading" class="modal-loading">
+            <span class="modal-loading-dot"></span>
+            <span class="modal-loading-dot"></span>
+            <span class="modal-loading-dot"></span>
+        </div>
+
+        <!-- Content -->
+        <div id="modal-content" style="display:none;">
+
+            <!-- Header -->
+            <div class="modal-header">
+                <div class="modal-hawb" id="modal-hawb">â€”</div>
+                <div class="modal-date-lbl" id="modal-created"></div>
+            </div>
+
+            <!-- Status badge -->
+            <div class="modal-badge-row">
+                <span class="modal-status-badge" id="modal-badge">â€”</span>
+            </div>
+
+            <!-- Message -->
+            <p class="modal-message" id="modal-message"></p>
+
+            <hr class="modal-divider" id="modal-divider">
+
+            <!-- 2Ã—2 Info grid -->
+            <div class="modal-info-grid" id="modal-info-grid">
+                <div class="modal-info-cell">
+                    <div class="modal-info-label">Status</div>
+                    <div class="modal-info-val" id="modal-status-display">â€”</div>
+                    <div class="modal-info-sub" id="modal-status-sublabel"></div>
+                    <div class="modal-info-sub" id="modal-declarant" style="color:#1B3358; font-weight:500; margin-top:4px;"></div>
+                </div>
+                <div class="modal-info-cell">
+                    <div class="modal-info-label">Next Step</div>
+                    <div class="modal-info-small" id="modal-next-step">â€”</div>
+                </div>
+                <div class="modal-info-cell">
+                    <div class="modal-info-label">Date Submitted</div>
+                    <div class="modal-info-small" id="modal-submitted">â€”</div>
+                </div>
+                <div class="modal-info-cell">
+                    <div class="modal-info-label">Last Updated</div>
+                    <div class="modal-info-small" id="modal-updated">â€”</div>
+                </div>
+            </div>
+
+            <!-- View shipment button -->
+            <div class="modal-footer" id="modal-footer">
+                <a id="modal-view-btn" href="#" class="modal-view-btn">
+                    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/>
+                        <path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                    </svg>
+                    VIEW MY SHIPMENT
+                </a>
+            </div>
+
+        </div><!-- /modal-content -->
+    </div><!-- /notif-modal -->
+</div><!-- /notif-backdrop -->
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    /* â”€â”€ Status badge colors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    var STATUS_COLORS = {
+        'incoming':     { bg: '#F1F5F9', text: '#475569' },
+        'arrived':      { bg: '#FFF7ED', text: '#C2410C' },
+        'computed':     { bg: '#F5F3FF', text: '#6D28D9' },
+        'approved':     { bg: '#F0FDF4', text: '#15803D' },
+        'lodgement':    { bg: '#EFF6FF', text: '#1D4ED8' },
+        'ongoing':      { bg: '#EFF6FF', text: '#1D4ED8' },
+        'assessed':     { bg: '#FFFBEB', text: '#B45309' },
+        'paid':         { bg: '#F0FDF4', text: '#15803D' },
+        'released':     { bg: '#ECFDF5', text: '#047857' },
+        'billed':       { bg: '#FFF7ED', text: '#C2410C' },
+        'for_revision': { bg: '#FEFCE8', text: '#A16207' },
+        'rejected':     { bg: '#FEF2F2', text: '#B91C1C' },
+    };
+
+    /* Fallback colors by notification_type */
+    var TYPE_COLORS = {
+        'submission':   { bg: '#EFF6FF', text: '#1D4ED8' },
+        'status_update':{ bg: '#F5F3FF', text: '#6D28D9' },
+        'computation':  { bg: '#F5F3FF', text: '#6D28D9' },
+        'advisory':     { bg: '#FFFBEB', text: '#B45309' },
+        'payment':      { bg: '#FFF7ED', text: '#C2410C' },
+        'approved':     { bg: '#F0FDF4', text: '#15803D' },
+        'rejected':     { bg: '#FEF2F2', text: '#B91C1C' },
+        'arrived':      { bg: '#FFF7ED', text: '#C2410C' },
+        'computed':     { bg: '#F5F3FF', text: '#6D28D9' },
+        'for_revision': { bg: '#FEFCE8', text: '#A16207' },
+        'billed':       { bg: '#FFF7ED', text: '#C2410C' },
+        'announcement':  { bg: '#EFF6FF', text: '#1D4ED8' },
+        'general':      { bg: '#F3F4F6', text: '#374151' },
+    };
+
+    /* â”€â”€ URL template for shipment detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    var SHIPMENT_URL_TPL = '{% url "consignee:shipment_detail" 99999 %}';
+
+    /* â”€â”€ Relative time â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    function timeAgo(isoStr) {
+        var now  = new Date();
+        var then = new Date(isoStr);
+        var secs = Math.floor((now - then) / 1000);
+        if (secs < 60)  return 'just now';
+        var mins = Math.floor(secs / 60);
+        if (mins < 60)  return mins + ' min' + (mins > 1 ? 's' : '') + ' ago';
+        var hrs  = Math.floor(mins / 60);
+        if (hrs  < 24)  return hrs  + ' hr'  + (hrs  > 1 ? 's' : '') + ' ago';
+        var days = Math.floor(hrs  / 24);
+        if (days < 30)  return days + ' day' + (days > 1 ? 's' : '') + ' ago';
+        var mos  = Math.floor(days / 30);
+        return mos + ' month' + (mos > 1 ? 's' : '') + ' ago';
+    }
+
+    /* Stamp relative times on every row */
+    document.querySelectorAll('.notif-row').forEach(function (row) {
+        var ts   = row.getAttribute('data-ts');
+        var date = row.getAttribute('data-date');
+        var el   = row.querySelector('.ts-label');
+        if (el && ts) { el.textContent = timeAgo(ts) + ' Â· ' + date; }
+    });
+
+    /* â”€â”€ Modal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    var backdrop = document.getElementById('notif-backdrop');
+    var loading  = document.getElementById('modal-loading');
+    var content  = document.getElementById('modal-content');
+
+    function setText(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = val || 'â€”';
+    }
+    function setTextOrHide(id, val) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (val) { el.textContent = val; el.style.display = ''; }
+        else     { el.textContent = ''; el.style.display = 'none'; }
+    }
+
+    /* â”€â”€ Open modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    window.openNotifModal = function (id) {
+        backdrop.classList.add('open');
+        loading.style.display  = 'block';
+        content.style.display  = 'none';
+
+        /* Optimistically mark row as read in the DOM */
+        var row = document.querySelector('.notif-row[data-id="' + id + '"]');
+        if (row) {
+            row.classList.remove('unread');
+            var dot   = row.querySelector('.notif-dot');
+            var title = row.querySelector('.notif-title');
+            if (dot)   { dot.classList.remove('unread'); dot.classList.add('read'); }
+            if (title) { title.classList.remove('unread'); title.classList.add('read'); }
+        }
+
+        fetch('{% url "notifications:json" 0 %}'.replace('/0/', '/' + id + '/'))
+            .then(function (r) {
+                if (!r.ok) throw new Error('Network error');
+                return r.json();
+            })
+            .then(function (d) {
+                /* Header */
+                var isAnnouncement = !!d.is_announcement;
+                var infoGrid = document.getElementById('modal-info-grid');
+                var divider  = document.getElementById('modal-divider');
+                var footer   = document.getElementById('modal-footer');
+
+                setText('modal-hawb', isAnnouncement ? d.announcement_title : (d.hawb_number || d.title || 'General Notification'));
+                setText('modal-created', d.created_at);
+
+                /* Status badge */
+                var badge  = document.getElementById('modal-badge');
+                var colors = STATUS_COLORS[d.status_code]
+                          || TYPE_COLORS[d.notification_type]
+                          || { bg: '#F3F4F6', text: '#374151' };
+                badge.textContent       = isAnnouncement ? (d.announcement_category || 'Announcement') : (d.status_display || d.notification_type || '-');
+                badge.style.background  = colors.bg;
+                badge.style.color       = colors.text;
+
+                /* Message */
+                setText('modal-message', isAnnouncement ? d.announcement_content : d.message);
+
+                if (infoGrid) infoGrid.style.display = isAnnouncement ? 'none' : 'grid';
+                if (divider) divider.style.display = isAnnouncement ? 'none' : '';
+                if (footer) footer.style.display = isAnnouncement ? 'none' : '';
+
+                /* Info grid */
+                if (!isAnnouncement) {
+                    setText('modal-status-display',  d.status_display);
+                    setTextOrHide('modal-status-sublabel', d.status_sublabel);
+                    setTextOrHide('modal-declarant',  d.declarant ? 'Handled by ' + d.declarant : '');
+                    setText('modal-next-step',  d.next_step);
+                    setText('modal-submitted',  d.submitted_at);
+                    setText('modal-updated',    d.updated_at);
+                }
+                /* View shipment button */
+                var btn = document.getElementById('modal-view-btn');
+                if (d.shipment_id) {
+                    btn.href = SHIPMENT_URL_TPL.replace('99999', d.shipment_id);
+                    btn.style.display = 'flex';
+                } else {
+                    btn.style.display = 'none';
+                }
+
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            })
+            .catch(function () {
+                loading.innerHTML = '<span style="color:#EF4444;">Failed to load. Please try again.</span>';
+            });
+    };
+
+    /* â”€â”€ Close modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    window.closeNotifModal = function () {
+        backdrop.classList.remove('open');
+    };
+
+    /* Close on Escape key */
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeNotifModal();
+    });
+})();
+</script>
+{% endblock %}

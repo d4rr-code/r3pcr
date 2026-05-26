@@ -131,7 +131,13 @@ class Shipment(models.Model):
     # BOC details
     boc_reference = models.CharField(max_length=100, blank=True, null=True)
     boc_status = models.CharField(max_length=50, blank=True, null=True)
-    
+
+    # Document Deficiency Flag
+    has_deficiency = models.BooleanField(default=False)
+    deficiency_type = models.CharField(max_length=50, blank=True, null=True)
+    deficiency_notes = models.TextField(blank=True, null=True)
+    deficiency_flagged_at = models.DateTimeField(blank=True, null=True)
+
     # Timestamps
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -14,4 +14,6 @@ urlpatterns = [
     path('shipment/<int:shipment_id>/revise/',    views.revise_computation,   name='revise_computation'),
     path('shipment/<int:shipment_id>/reject/',    views.reject_computation,   name='reject_computation'),
     path('shipment/<int:shipment_id>/download/',  views.download_computation, name='download_computation'),
+    path('shipment/<int:shipment_id>/resubmit/',  views.resubmit_documents,   name='resubmit'),
+    path('chart-data/',                           views.chart_data,           name='chart_data'),
 ]

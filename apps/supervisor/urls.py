@@ -13,7 +13,7 @@ urlpatterns = [
     path('analytics/',                            views.analytics,              name='analytics'),
     path('analytics/status-counts/',             views.analytics_status_counts, name='analytics_status_counts'),
 
-    # System Config — split into sub-pages
+    # System Config split into sub-pages
     path('config/',                              views.config_home,              name='config'),
     path('config/home/',                         views.config_home,              name='config_home'),
     path('config/global/',                       views.config_global,            name='config_global'),

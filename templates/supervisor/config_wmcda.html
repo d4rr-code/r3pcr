@@ -1,25 +1,26 @@
-{% extends 'base.html' %}
+{% extends 'supervisor/base_supervisor.html' %}
 {% block title %}WMCDA Criterion Weights{% endblock %}
 {% block page_title %}WMCDA Criterion Weights{% endblock %}
+{% block nav_config %}active{% endblock %}
 {% block content %}
 
 <!-- Breadcrumb -->
-<p style="color:#64748b; font-size:13px; margin-bottom:24px;">
+<p style="color:#9CA3AF; font-size:13px; margin-bottom:24px;">
     <a href="{% url 'supervisor:config' %}" style="color:#8b5cf6; text-decoration:none;">System Config</a>
-    <span style="margin:0 8px;">›</span>
-    <span style="color:#94a3b8;">WMCDA Criterion Weights</span>
+    <span style="margin:0 8px;"></span>
+    <span style="color:#6B7280;">WMCDA Criterion Weights</span>
 </p>
 
 <div style="max-width:560px;">
     <div class="card" style="padding:32px;">
 
-        <p style="color:#94a3b8; font-size:13px; margin:0 0 8px; line-height:1.6;">
+        <p style="color:#6B7280; font-size:13px; margin:0 0 8px; line-height:1.6;">
             These weights control the shipping advisory algorithm. Each shipment is
-            scored across four criteria — the weights determine how much each criterion
+            scored across four criteria  the weights determine how much each criterion
             influences the recommendation.
         </p>
-        <p style="color:#475569; font-size:12px; margin:0 0 28px;">
-            Weights must add up to exactly <strong style="color:#f1f5f9;">100%</strong>.
+        <p style="color:#9CA3AF; font-size:12px; margin:0 0 28px;">
+            Weights must add up to exactly <strong style="color:#1A1A2E;">100%</strong>.
         </p>
 
         <form method="POST" id="wmcda-form">
@@ -30,9 +31,9 @@
             <!-- Cost Weight -->
             <div style="margin-bottom:22px;">
                 <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
-                    <label style="color:#f1f5f9; font-size:14px; font-weight:600;">
+                    <label style="color:#1A1A2E; font-size:14px; font-weight:600;">
                         Cost
-                        <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:4px;">shipping + insurance cost</span>
+                        <span style="color:#9CA3AF; font-weight:400; font-size:12px; margin-left:4px;">shipping + insurance cost</span>
                     </label>
                     <span id="val-cost" style="color:#8b5cf6; font-size:16px; font-weight:700; min-width:44px; text-align:right;">{{ weights.wmcda_w_cost }}%</span>
                 </div>
@@ -41,10 +42,10 @@
                        oninput="updateWmcda()"
                        style="width:100%; accent-color:#8b5cf6; height:6px; cursor:pointer;">
                 {% if config_meta.wmcda_w_cost %}
-                <p style="color:#475569; font-size:11px; margin:4px 0 0;">
+                <p style="color:#9CA3AF; font-size:11px; margin:4px 0 0;">
                     Last updated
-                    {% if config_meta.wmcda_w_cost.updated_by %}by <span style="color:#64748b;">{{ config_meta.wmcda_w_cost.updated_by.username }}</span>{% endif %}
-                    {% if config_meta.wmcda_w_cost.updated_at %}on <span style="color:#64748b;">{{ config_meta.wmcda_w_cost.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_cost.updated_by %}by <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_cost.updated_by.username }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_cost.updated_at %}on <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_cost.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
                 </p>
                 {% endif %}
             </div>
@@ -52,9 +53,9 @@
             <!-- Time Weight -->
             <div style="margin-bottom:22px;">
                 <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
-                    <label style="color:#f1f5f9; font-size:14px; font-weight:600;">
+                    <label style="color:#1A1A2E; font-size:14px; font-weight:600;">
                         Time
-                        <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:4px;">transit time</span>
+                        <span style="color:#9CA3AF; font-weight:400; font-size:12px; margin-left:4px;">transit time</span>
                     </label>
                     <span id="val-time" style="color:#f59e0b; font-size:16px; font-weight:700; min-width:44px; text-align:right;">{{ weights.wmcda_w_time }}%</span>
                 </div>
@@ -63,10 +64,10 @@
                        oninput="updateWmcda()"
                        style="width:100%; accent-color:#f59e0b; height:6px; cursor:pointer;">
                 {% if config_meta.wmcda_w_time %}
-                <p style="color:#475569; font-size:11px; margin:4px 0 0;">
+                <p style="color:#9CA3AF; font-size:11px; margin:4px 0 0;">
                     Last updated
-                    {% if config_meta.wmcda_w_time.updated_by %}by <span style="color:#64748b;">{{ config_meta.wmcda_w_time.updated_by.username }}</span>{% endif %}
-                    {% if config_meta.wmcda_w_time.updated_at %}on <span style="color:#64748b;">{{ config_meta.wmcda_w_time.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_time.updated_by %}by <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_time.updated_by.username }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_time.updated_at %}on <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_time.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
                 </p>
                 {% endif %}
             </div>
@@ -74,9 +75,9 @@
             <!-- Weight/Volume Weight -->
             <div style="margin-bottom:22px;">
                 <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
-                    <label style="color:#f1f5f9; font-size:14px; font-weight:600;">
+                    <label style="color:#1A1A2E; font-size:14px; font-weight:600;">
                         Weight / Volume
-                        <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:4px;">cargo size suitability</span>
+                        <span style="color:#9CA3AF; font-weight:400; font-size:12px; margin-left:4px;">cargo size suitability</span>
                     </label>
                     <span id="val-weight" style="color:#38bdf8; font-size:16px; font-weight:700; min-width:44px; text-align:right;">{{ weights.wmcda_w_weight }}%</span>
                 </div>
@@ -85,10 +86,10 @@
                        oninput="updateWmcda()"
                        style="width:100%; accent-color:#38bdf8; height:6px; cursor:pointer;">
                 {% if config_meta.wmcda_w_weight %}
-                <p style="color:#475569; font-size:11px; margin:4px 0 0;">
+                <p style="color:#9CA3AF; font-size:11px; margin:4px 0 0;">
                     Last updated
-                    {% if config_meta.wmcda_w_weight.updated_by %}by <span style="color:#64748b;">{{ config_meta.wmcda_w_weight.updated_by.username }}</span>{% endif %}
-                    {% if config_meta.wmcda_w_weight.updated_at %}on <span style="color:#64748b;">{{ config_meta.wmcda_w_weight.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_weight.updated_by %}by <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_weight.updated_by.username }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_weight.updated_at %}on <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_weight.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
                 </p>
                 {% endif %}
             </div>
@@ -96,9 +97,9 @@
             <!-- Risk Weight -->
             <div style="margin-bottom:28px;">
                 <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
-                    <label style="color:#f1f5f9; font-size:14px; font-weight:600;">
+                    <label style="color:#1A1A2E; font-size:14px; font-weight:600;">
                         Risk
-                        <span style="color:#64748b; font-weight:400; font-size:12px; margin-left:4px;">cargo damage / loss risk</span>
+                        <span style="color:#9CA3AF; font-weight:400; font-size:12px; margin-left:4px;">cargo damage / loss risk</span>
                     </label>
                     <span id="val-risk" style="color:#f87171; font-size:16px; font-weight:700; min-width:44px; text-align:right;">{{ weights.wmcda_w_risk }}%</span>
                 </div>
@@ -107,10 +108,10 @@
                        oninput="updateWmcda()"
                        style="width:100%; accent-color:#f87171; height:6px; cursor:pointer;">
                 {% if config_meta.wmcda_w_risk %}
-                <p style="color:#475569; font-size:11px; margin:4px 0 0;">
+                <p style="color:#9CA3AF; font-size:11px; margin:4px 0 0;">
                     Last updated
-                    {% if config_meta.wmcda_w_risk.updated_by %}by <span style="color:#64748b;">{{ config_meta.wmcda_w_risk.updated_by.username }}</span>{% endif %}
-                    {% if config_meta.wmcda_w_risk.updated_at %}on <span style="color:#64748b;">{{ config_meta.wmcda_w_risk.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_risk.updated_by %}by <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_risk.updated_by.username }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_risk.updated_at %}on <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_risk.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
                 </p>
                 {% endif %}
             </div>
@@ -119,10 +120,10 @@
 
             <!-- Live Sum Display -->
             <div id="sum-display" style="margin-bottom:24px; padding:14px 18px;
-                                          border-radius:8px; border:1px solid #1e293b;
+                                          border-radius:8px; border:1px solid #FFFFFF;
                                           display:flex; align-items:center; justify-content:space-between;
-                                          background:#0f172a;">
-                <span style="color:#94a3b8; font-size:13px;">Total Weight</span>
+                                          background:#F8FAFC;">
+                <span style="color:#6B7280; font-size:13px;">Total Weight</span>
                 <span id="sum-value" style="font-size:22px; font-weight:700;">100%</span>
             </div>
 
@@ -160,7 +161,7 @@ function updateWmcda() {
     if (total === 100) {
         sumEl.style.color  = '#22c55e';
         dispEl.style.borderColor = '#166534';
-        dispEl.style.background  = '#052e16';
+        dispEl.style.background  = '#ECFDF5';
         btn.disabled = false;
         btn.style.opacity = '1';
     } else {

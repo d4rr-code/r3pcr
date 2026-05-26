@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from apps.shipments.models import Shipment, HSCode
 
@@ -113,6 +114,46 @@ class DutyComputation(models.Model):
                 if it.get('hs_code_id') and not it.get('hs_code'):
                     it['hs_code'] = code_map.get(int(it['hs_code_id']), '')
         return items
+
+
+class ShipmentLineItem(models.Model):
+    """
+    Staging table between OCR extraction and ECDT computation.
+    Persists extracted/manual line items to DB so they survive browser close.
+    """
+    SOURCE_CHOICES = [('ocr', 'OCR Extracted'), ('manual', 'Manual Entry')]
+
+    shipment      = models.ForeignKey(
+        Shipment, on_delete=models.CASCADE, related_name='line_items'
+    )
+    description   = models.TextField()
+    quantity      = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    unit          = models.CharField(max_length=30, blank=True)
+    unit_price    = models.DecimalField(max_digits=15, decimal_places=4, null=True, blank=True)
+    total_val_usd = models.DecimalField(max_digits=15, decimal_places=4, null=True, blank=True)
+    hs_code       = models.ForeignKey(
+        HSCode, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    is_confirmed  = models.BooleanField(default=False)
+    source        = models.CharField(max_length=10, choices=SOURCE_CHOICES, default='manual')
+    confidence    = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal('0.0'))
+    row_order     = models.IntegerField(default=0)
+    created_at    = models.DateTimeField(auto_now_add=True)
+    updated_at    = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['row_order']
+
+    def __str__(self):
+        return f"LineItem #{self.row_order} — {self.description[:50]}"
+
+    @property
+    def exw_usd(self):
+        return self.total_val_usd
+
+    @property
+    def confidence_pct(self):
+        return round(float(self.confidence or 0) * 100, 1)
 
 
 class ShippingAdvisory(models.Model):

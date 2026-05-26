@@ -1,0 +1,488 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} | R3-PCR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #F0F2F5;
+            color: #1A1A2E;
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           SIDEBAR — always light/white, collapsed = icon-only (64px)
+        ═══════════════════════════════════════════════════════════════════ */
+        .c-sidebar {
+            width: 64px;
+            min-height: 100vh;
+            background: #ffffff;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.07);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0; top: 0; bottom: 0;
+            z-index: 200;
+            overflow: hidden;
+            transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+        }
+        .c-sidebar.expanded {
+            width: 220px;
+        }
+
+        /* ── Logo area ─────────────────────────────────────────────────── */
+        .c-sidebar-logo {
+            padding: 16px 0;
+            border-bottom: 1px solid #F0F2F5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 72px;
+            overflow: hidden;
+            position: relative;
+        }
+        .c-sidebar.expanded .c-sidebar-logo {
+            justify-content: flex-start;
+            padding: 16px 18px;
+        }
+
+        /* Mini icon — collapsed only */
+        .c-sidebar-logo-mini {
+            width: 34px; height: 34px;
+            border-radius: 8px;
+            background: #EEF2F8;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            position: absolute;
+            transition: opacity 0.15s;
+        }
+        .c-sidebar.expanded .c-sidebar-logo-mini {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Full logo — expanded only */
+        .c-sidebar-logo img {
+            height: 42px;
+            max-width: 178px;
+            width: auto;
+            object-fit: contain;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease 0.08s;
+            flex-shrink: 0;
+        }
+        .c-sidebar.expanded .c-sidebar-logo img {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ── Navigation ────────────────────────────────────────────────── */
+        .c-sidebar-nav {
+            flex: 1;
+            padding: 12px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+        .c-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-radius: 8px;
+            color: #94A3B8;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.15s, color 0.15s, padding 0.25s;
+            white-space: nowrap;
+            overflow: hidden;
+            justify-content: center;
+        }
+        .c-nav-item:hover  { background: #F3F4F6; color: #1B3358; }
+        .c-nav-item.active { background: #1B3358; color: #ffffff; font-weight: 600; }
+
+        /* Expanded: align left, show labels */
+        .c-sidebar.expanded .c-nav-item {
+            justify-content: flex-start;
+            padding: 9px 12px;
+        }
+
+        /* Nav label — hidden when collapsed */
+        .c-nav-label {
+            opacity: 0;
+            max-width: 0;
+            overflow: hidden;
+            transition: opacity 0.15s, max-width 0.25s;
+            font-size: 13px;
+        }
+        .c-sidebar.expanded .c-nav-label {
+            opacity: 1;
+            max-width: 160px;
+        }
+
+        /* Unread badge */
+        .c-nav-badge {
+            background: #EF4444;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 10px;
+            margin-left: auto;
+            opacity: 0;
+            max-width: 0;
+            overflow: hidden;
+            transition: opacity 0.15s, max-width 0.2s;
+        }
+        .c-sidebar.expanded .c-nav-badge { opacity: 1; max-width: 40px; }
+
+        .c-nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
+        /* ── Bottom group ──────────────────────────────────────────────── */
+        .c-sidebar-bottom {
+            padding: 8px;
+            border-top: 1px solid #F0F2F5;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        /* ── User info — expanded only ─────────────────────────────────── */
+        .c-sidebar-user {
+            padding: 0 14px;
+            border-top: 1px solid #F0F2F5;
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: max-height 0.25s, opacity 0.2s, padding 0.25s;
+        }
+        .c-sidebar.expanded .c-sidebar-user {
+            max-height: 80px;
+            opacity: 1;
+            padding: 12px 16px 16px;
+        }
+        .c-sidebar-user p    { color: #1B3358; font-size: 13px; font-weight: 700; margin: 0 0 2px; white-space: nowrap; }
+        .c-sidebar-user span { color: #9CA3AF; font-size: 11px; white-space: nowrap; }
+
+        /* ── Toggle button ─────────────────────────────────────────────── */
+        .sidebar-toggle {
+            position: absolute;
+            top: 50%;
+            right: -14px;
+            transform: translateY(-50%);
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: #fff;
+            border: 1.5px solid #E2E8F0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            color: #1B3358;
+            z-index: 201;
+            transition: background 0.15s, box-shadow 0.15s;
+            padding: 0;
+        }
+        .sidebar-toggle:hover { background: #F0F2F5; }
+        .sidebar-toggle svg { transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); }
+        .c-sidebar.expanded .sidebar-toggle svg { transform: rotate(180deg); }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           MAIN CONTENT
+        ═══════════════════════════════════════════════════════════════════ */
+        .c-main {
+            margin-left: 64px;
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            min-width: 0;
+        }
+        .c-main.sidebar-open { margin-left: 220px; }
+
+        .c-topbar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 16px 22px 8px;
+            gap: 10px;
+        }
+        .c-topbar-btn {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            border: 1.5px solid #E5E7EB;
+            background: #fff;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            color: #6B7280;
+            text-decoration: none;
+            position: relative;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .c-topbar-btn:hover { border-color: #1B3358; color: #1B3358; }
+        .c-notif-badge {
+            position: absolute; top: -4px; right: -4px;
+            background: #1B3358; color: #fff;
+            font-size: 9px; font-weight: 700;
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .c-content { padding: 0 22px 32px; flex: 1; min-width: 0; }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           DESIGN SYSTEM
+        ═══════════════════════════════════════════════════════════════════ */
+
+        /* Cards */
+        .c-card {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+            padding: 20px;
+        }
+
+        /* Forms */
+        .c-label {
+            font-size: 11px; font-weight: 500; color: #6B7280;
+            margin-bottom: 6px; display: block;
+        }
+        .c-input {
+            width: 100%;
+            padding: 10px 14px;
+            background: #F3F4F6;
+            border: 1.5px solid #E5E7EB;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            color: #1A1A2E;
+            outline: none;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .c-input:focus      { border-color: #1B3358; background: #fff; }
+        .c-input[readonly]  { cursor: default; }
+
+        /* Buttons */
+        .c-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 9px 22px;
+            border-radius: 8px;
+            font-size: 13px; font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer; border: none;
+            text-decoration: none;
+            transition: background 0.15s, color 0.15s;
+        }
+        .c-btn-primary { background: #1B3358; color: #fff; }
+        .c-btn-primary:hover { background: #152847; color: #fff; }
+        .c-btn-outline { background: #fff; color: #1B3358; border: 1.5px solid #1B3358; padding: 8px 22px; }
+        .c-btn-outline:hover { background: #1B3358; color: #fff; }
+
+        /* Badges */
+        .c-badge {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 11px; font-weight: 700;
+            white-space: nowrap;
+        }
+        .badge-standard { background: #3B82F6; color: #fff; }
+        .badge-priority { background: #F59E0B; color: #fff; }
+        .badge-urgent   { background: #F97316; color: #fff; }
+        .badge-rush     { background: #EF4444; color: #fff; }
+
+        /* Table */
+        .c-table { width: 100%; border-collapse: collapse; }
+        .c-table thead tr { background: #1B3358; }
+        .c-table thead th {
+            padding: 12px 16px;
+            text-align: left;
+            color: #fff;
+            font-size: 11px; font-weight: 600;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+        .c-table tbody tr {
+            border-bottom: 1px solid #F3F4F6;
+            transition: background 0.1s;
+        }
+        .c-table tbody tr:hover { background: #F8FAFC; }
+        .c-table tbody td { padding: 13px 16px; font-size: 12.5px; color: #374151; }
+
+        /* Month picker pill */
+        .c-month-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px;
+            background: #F3F4F6;
+            border: 1.5px solid #E5E7EB;
+            border-radius: 20px;
+            font-size: 12px; font-weight: 500; color: #374151;
+            cursor: pointer;
+        }
+        .c-month-pill:hover { border-color: #1B3358; }
+
+        /* Messages */
+        .c-msg { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+        .c-msg.success { background: #ECFDF5; color: #065F46; border: 1px solid #6EE7B7; }
+        .c-msg.error   { background: #FEF2F2; color: #991B1B; border: 1px solid #FCA5A5; }
+        .c-msg.warning { background: #FFFBEB; color: #92400E; border: 1px solid #FCD34D; }
+        .c-msg.info    { background: #EFF6FF; color: #1D4ED8; border: 1px solid #93C5FD; }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════════════════════════════════════════ -->
+<aside class="c-sidebar" id="c-sidebar">
+
+    <!-- Logo (visible when expanded) / mini icon (visible when collapsed) -->
+    <div class="c-sidebar-logo">
+        <!-- Mini icon shown collapsed -->
+        <div class="c-sidebar-logo-mini">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B3358" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+        </div>
+        <!-- Full logo shown expanded -->
+        <img src="{% static 'images/Thumbnail for R3-PCR.png' %}" alt="RTripleJ Primecargo Relay">
+    </div>
+
+    <!-- Toggle button -->
+    <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
+        <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
+        </svg>
+    </button>
+
+    <!-- Nav -->
+    <nav class="c-sidebar-nav">
+        <a href="{% url 'consignee:dashboard' %}"
+           class="c-nav-item {% block nav_dashboard %}{% endblock %}">
+            <svg class="c-nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+            </svg>
+            <span class="c-nav-label">Dashboard</span>
+        </a>
+
+        <a href="{% url 'consignee:submit' %}"
+           class="c-nav-item {% block nav_submit %}{% endblock %}">
+            <svg class="c-nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M9.25 13.25a.75.75 0 001.5 0V4.636l2.955 3.129a.75.75 0 001.09-1.03l-4.25-4.5a.75.75 0 00-1.09 0l-4.25 4.5a.75.75 0 101.09 1.03L9.25 4.636v8.614z"/>
+                <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
+            </svg>
+            <span class="c-nav-label">New Submission</span>
+        </a>
+
+        <a href="{% url 'consignee:my_submissions' %}"
+           class="c-nav-item {% block nav_submissions %}{% endblock %}">
+            <svg class="c-nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5 4a2 2 0 012-2h6a2 2 0 012 2v1h1a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2h1V4zm2-1h6v2H7V3zM4 7h12v9H4V7zm3 3a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7zm0 3a.75.75 0 000 1.5h4a.75.75 0 000-1.5H7z" clip-rule="evenodd"/>
+            </svg>
+            <span class="c-nav-label">My Submissions</span>
+        </a>
+
+        <a href="{% url 'notifications:list' %}"
+           class="c-nav-item {% block nav_notifications %}{% endblock %}">
+            <svg class="c-nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6zm0 14.5a2 2 0 01-1.95-1.557 33.54 33.54 0 003.9 0A2 2 0 0110 16.5z" clip-rule="evenodd"/>
+            </svg>
+            <span class="c-nav-label">Notifications</span>
+            {% if unread_count %}<span class="c-nav-badge">{{ unread_count }}</span>{% endif %}
+        </a>
+    </nav>
+
+    <!-- Bottom links -->
+    <div class="c-sidebar-bottom">
+        <a href="{% url 'accounts:settings' %}"
+           class="c-nav-item {% block nav_settings %}{% endblock %}">
+            <svg class="c-nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.332 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+            </svg>
+            <span class="c-nav-label">Settings</span>
+        </a>
+        <a href="{% url 'accounts:logout' %}" class="c-nav-item">
+            <svg class="c-nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd"/>
+                <path fill-rule="evenodd" d="M6 10a.75.75 0 01.75-.75h9.546l-1.048-.943a.75.75 0 111.004-1.114l2.5 2.25a.75.75 0 010 1.114l-2.5 2.25a.75.75 0 11-1.004-1.114l1.048-.943H6.75A.75.75 0 016 10z" clip-rule="evenodd"/>
+            </svg>
+            <span class="c-nav-label">Logout</span>
+        </a>
+    </div>
+
+    <!-- User info (expanded only) -->
+    <div class="c-sidebar-user">
+        <p>{{ user.get_full_name|default:user.username }}</p>
+        <span>{{ user.company_name|default:'Company Consignee' }}</span>
+    </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MAIN
+═══════════════════════════════════════════════════════════════════════════ -->
+<div class="c-main" id="c-main">
+    <div class="c-topbar">
+        <a href="{% url 'notifications:list' %}" class="c-topbar-btn" title="Notifications">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6zm0 14.5a2 2 0 01-1.95-1.557 33.54 33.54 0 003.9 0A2 2 0 0110 16.5z" clip-rule="evenodd"/>
+            </svg>
+            {% if unread_count %}<span class="c-notif-badge">{{ unread_count }}</span>{% endif %}
+        </a>
+        <a href="{% url 'accounts:settings' %}" class="c-topbar-btn" title="Account">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z"/>
+            </svg>
+        </a>
+    </div>
+
+    <div class="c-content">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="c-msg {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+</div>
+
+<script>
+(function () {
+    var STORAGE_KEY = 'sidebar_expanded';
+    var sidebar = document.getElementById('c-sidebar');
+    var main    = document.getElementById('c-main');
+
+    /* Restore preference from localStorage */
+    if (localStorage.getItem(STORAGE_KEY) === '1') {
+        sidebar.classList.add('expanded');
+        main.classList.add('sidebar-open');
+    }
+
+    window.toggleSidebar = function () {
+        var isOpen = sidebar.classList.toggle('expanded');
+        main.classList.toggle('sidebar-open', isOpen);
+        localStorage.setItem(STORAGE_KEY, isOpen ? '1' : '0');
+    };
+})();
+</script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

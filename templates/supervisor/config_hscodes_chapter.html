@@ -1,35 +1,55 @@
-{% extends 'base.html' %}
-{% block title %}Chapter {{ chapter_num_str }} — HS Codes{% endblock %}
-{% block page_title %}Chapter {{ chapter_num_str }} — Duty Rates{% endblock %}
+{% extends 'supervisor/base_supervisor.html' %}
+{% block title %}Chapter {{ chapter_num_str }}  HS Codes{% endblock %}
+{% block page_title %}Chapter {{ chapter_num_str }}  Duty Rates{% endblock %}
+{% block nav_config %}active{% endblock %}
 {% block content %}
 
 <!-- Breadcrumb -->
-<p style="color:#64748b; font-size:13px; margin-bottom:24px;">
+<p style="color:#9CA3AF; font-size:13px; margin-bottom:24px;">
     <a href="{% url 'supervisor:config' %}" style="color:#22c55e; text-decoration:none;">System Config</a>
-    <span style="margin:0 8px;">›</span>
+    <span style="margin:0 8px;"></span>
     <a href="{% url 'supervisor:config_hscodes_sections' %}" style="color:#22c55e; text-decoration:none;">HS Code Duty Rates</a>
-    <span style="margin:0 8px;">›</span>
+    <span style="margin:0 8px;"></span>
     {% if section_num %}
     <a href="{% url 'supervisor:config_hscodes_section' section_num %}" style="color:#22c55e; text-decoration:none;">
         Section {{ section_roman }}
     </a>
-    <span style="margin:0 8px;">›</span>
+    <span style="margin:0 8px;"></span>
     {% endif %}
-    <span style="color:#94a3b8;">Chapter {{ chapter_num_str }}</span>
+    <span style="color:#6B7280;">Chapter {{ chapter_num_str }}</span>
 </p>
 
 {% if section_title %}
-<p style="color:#64748b; font-size:13px; margin-bottom:20px;">
-    {{ section_roman }} — {{ section_title }}
+<p style="color:#9CA3AF; font-size:13px; margin-bottom:20px;">
+    {{ section_roman }}  {{ section_title }}
 </p>
 {% endif %}
 
 {% if hs_codes %}
+
+<!-- Search Bar -->
+<div style="margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+    <div style="position:relative; flex:1; max-width:420px;">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+             style="position:absolute; left:12px; top:50%; transform:translateY(-50%);
+                    color:#9CA3AF; pointer-events:none;">
+            <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 103.47 9.77l2.63 2.63a.75.75 0 101.06-1.06l-2.63-2.63A5.5 5.5 0 009 3.5zM5 9a4 4 0 118 0 4 4 0 01-8 0z" clip-rule="evenodd"/>
+        </svg>
+        <input type="text" id="hs-search" placeholder="Search HS code or description"
+               class="form-input"
+               style="padding-left:36px; font-size:13px;"
+               oninput="filterHsCodes(this.value)">
+    </div>
+    <span id="hs-count-label" style="font-size:12px; color:#9CA3AF;">
+        {{ hs_codes|length }} code{{ hs_codes|length|pluralize }}
+    </span>
+</div>
+
 <form method="POST">
     {% csrf_token %}
 
     <div class="card" style="padding:0; overflow:hidden; margin-bottom:16px;">
-        <div style="padding:14px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
+        <div style="padding:14px 20px; background:#F8FAFC; border-bottom:1px solid #FFFFFF;
                     display:flex; align-items:center; justify-content:space-between;">
             <p class="card-title" style="margin:0;">
                 {{ hs_codes|length }} HS code{{ hs_codes|length|pluralize }} in Chapter {{ chapter_num_str }}
@@ -42,16 +62,18 @@
         <div style="overflow-x:auto;">
             <table style="width:100%; border-collapse:collapse;">
                 <thead>
-                    <tr style="background:#0c1420;">
-                        <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px; white-space:nowrap;">HS Code</th>
-                        <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Description</th>
-                        <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px; white-space:nowrap;">Duty Rate (%)</th>
+                    <tr style="background:#F8FAFC;">
+                        <th style="padding:10px 16px; text-align:left; color:#6B7280; font-size:12px; white-space:nowrap;">HS Code</th>
+                        <th style="padding:10px 16px; text-align:left; color:#6B7280; font-size:12px;">Description</th>
+                        <th style="padding:10px 16px; text-align:center; color:#6B7280; font-size:12px; white-space:nowrap;">Duty Rate (%)</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for hs in hs_codes %}
-                    <tr style="border-top:1px solid #1e293b;"
-                        onmouseover="this.style.background='#1e293b'"
+                    <tr class="hs-row" style="border-top:1px solid #FFFFFF;"
+                        data-code="{{ hs.code|lower }}"
+                        data-desc="{{ hs.description|lower }}"
+                        onmouseover="this.style.background='#FFFFFF'"
                         onmouseout="this.style.background=''">
                         <td style="padding:11px 16px;">
                             <input type="hidden" name="hs_id[]" value="{{ hs.id }}">
@@ -60,11 +82,11 @@
                             </span>
                             {% if hs.chapter %}
                             <br>
-                            <span style="color:#475569; font-size:11px;">Ch. {{ hs.chapter }}</span>
+                            <span style="color:#9CA3AF; font-size:11px;">Ch. {{ hs.chapter }}</span>
                             {% endif %}
                         </td>
-                        <td style="padding:11px 16px; color:#94a3b8; font-size:13px; max-width:480px;">
-                            {{ hs.description|default:"—" }}
+                        <td style="padding:11px 16px; color:#6B7280; font-size:13px; max-width:480px;">
+                            {{ hs.description|default:"" }}
                         </td>
                         <td style="padding:11px 16px; text-align:center;">
                             <div style="position:relative; display:inline-block; width:100px;">
@@ -74,9 +96,9 @@
                                        class="form-input"
                                        style="padding:6px 28px 6px 10px; font-size:13px;
                                               text-align:right; width:100%;
-                                              color:{% if hs.duty_rate == 0 %}#64748b{% else %}#f1f5f9{% endif %};">
+                                              color:{% if hs.duty_rate == 0 %}#9CA3AF{% else %}#1A1A2E{% endif %};">
                                 <span style="position:absolute; right:10px; top:50%; transform:translateY(-50%);
-                                             color:#475569; font-size:12px; pointer-events:none;">%</span>
+                                             color:#9CA3AF; font-size:12px; pointer-events:none;">%</span>
                             </div>
                         </td>
                     </tr>
@@ -85,10 +107,10 @@
             </table>
         </div>
 
-        <div style="padding:14px 20px; border-top:1px solid #1e293b; display:flex; gap:12px; justify-content:flex-end;">
+        <div style="padding:14px 20px; border-top:1px solid #FFFFFF; display:flex; gap:12px; justify-content:flex-end;">
             <a href="{% if section_num %}{% url 'supervisor:config_hscodes_section' section_num %}{% else %}{% url 'supervisor:config_hscodes_sections' %}{% endif %}"
                class="btn btn-secondary" style="font-size:12px; padding:7px 18px;">
-                ← Back to Chapters
+                 Back to Chapters
             </a>
             <button type="submit" class="btn btn-primary" style="font-size:12px; padding:7px 18px;">
                 Save All Changes
@@ -98,9 +120,30 @@
 </form>
 {% else %}
 <div class="card" style="padding:48px; text-align:center;">
-    <p style="color:#64748b; font-size:14px; margin:0 0 8px;">No HS codes loaded for Chapter {{ chapter_num_str }}.</p>
-    <p style="color:#475569; font-size:12px; margin:0;">Import HS codes to enable duty rate editing.</p>
+    <p style="color:#9CA3AF; font-size:14px; margin:0 0 8px;">No HS codes loaded for Chapter {{ chapter_num_str }}.</p>
+    <p style="color:#9CA3AF; font-size:12px; margin:0;">Import HS codes to enable duty rate editing.</p>
 </div>
 {% endif %}
+
+<script>
+function filterHsCodes(query) {
+    var q = query.toLowerCase().trim();
+    var rows = document.querySelectorAll('.hs-row');
+    var visible = 0;
+    rows.forEach(function(row) {
+        var code = row.getAttribute('data-code') || '';
+        var desc = row.getAttribute('data-desc') || '';
+        var match = !q || code.includes(q) || desc.includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    var label = document.getElementById('hs-count-label');
+    if (label) {
+        label.textContent = q
+            ? visible + ' of {{ hs_codes|length }} code' + (visible !== 1 ? 's' : '') + ' matched'
+            : '{{ hs_codes|length }} code{{ hs_codes|length|pluralize }}';
+    }
+}
+</script>
 
 {% endblock %}

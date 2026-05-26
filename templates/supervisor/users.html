@@ -1,15 +1,16 @@
-{% extends 'base.html' %}
+{% extends 'supervisor/base_supervisor.html' %}
 
 {% block title %}User Management{% endblock %}
 {% block page_title %}User Management{% endblock %}
+{% block nav_users %}active{% endblock %}
 
 {% block content %}
 
-<!-- ─── Pending Registrations ─────────────────────────────────────────────── -->
+<!--  Pending Registrations  -->
 {% if pending %}
 <div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;
                           border-color:#d97706;">
-    <div style="padding:14px 20px; background:#422006; border-bottom:1px solid #d97706;
+    <div style="padding:14px 20px; background:#FFFBEB; border-bottom:1px solid #d97706;
                 display:flex; align-items:center; justify-content:space-between;">
         <p class="card-title" style="margin:0; color:#fbbf24;">
             Pending Registrations
@@ -21,7 +22,7 @@
     </div>
     <table style="width:100%; border-collapse:collapse;">
         <thead>
-            <tr style="background:#1c1208;">
+            <tr style="background:#FFF7ED;">
                 <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Name</th>
                 <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Username</th>
                 <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Email</th>
@@ -32,18 +33,18 @@
         </thead>
         <tbody>
             {% for u in pending %}
-            <tr style="border-top:1px solid #422006;"
-                onmouseover="this.style.background='#1c1208'"
+            <tr style="border-top:1px solid #FFFBEB;"
+                onmouseover="this.style.background='#FFF7ED'"
                 onmouseout="this.style.background=''">
                 <td style="padding:12px 16px; color:#fbbf24; font-size:13px; font-weight:600;">
                     {{ u.get_full_name|default:u.username }}
                 </td>
                 <td style="padding:12px 16px; color:#f59e0b; font-size:13px;">{{ u.username }}</td>
-                <td style="padding:12px 16px; color:#94a3b8; font-size:12px;">{{ u.email }}</td>
-                <td style="padding:12px 16px; color:#94a3b8; font-size:12px;">
-                    {{ u.company_name|default:"—" }}
+                <td style="padding:12px 16px; color:#6B7280; font-size:12px;">{{ u.email }}</td>
+                <td style="padding:12px 16px; color:#6B7280; font-size:12px;">
+                    {{ u.company_name|default:"" }}
                 </td>
-                <td style="padding:12px 16px; color:#64748b; font-size:12px;">
+                <td style="padding:12px 16px; color:#9CA3AF; font-size:12px;">
                     {{ u.date_joined|timesince }} ago
                 </td>
                 <td style="padding:12px 16px; text-align:center;">
@@ -75,12 +76,12 @@
 </div>
 {% endif %}
 
-<!-- ─── Active Users ───────────────────────────────────────────────────────── -->
+<!--  Active Users  -->
 <!-- Controls -->
 <div style="display:flex; gap:10px; align-items:flex-end; margin-bottom:20px; flex-wrap:wrap;">
     <!-- Search -->
     <div style="flex:1; min-width:200px;">
-        <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">
+        <label style="color:#9CA3AF; font-size:11px; display:block; margin-bottom:4px;">
             Search (name / username / email)
         </label>
         <input type="text" id="user-search"
@@ -90,7 +91,7 @@
     </div>
     <!-- Role filter -->
     <div style="min-width:150px;">
-        <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Role</label>
+        <label style="color:#9CA3AF; font-size:11px; display:block; margin-bottom:4px;">Role</label>
         <select id="role-filter" class="form-input"
                 style="padding:7px 12px; font-size:13px;"
                 onchange="filterUsers()">
@@ -102,7 +103,7 @@
     </div>
     <!-- Status filter -->
     <div style="min-width:140px;">
-        <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Status</label>
+        <label style="color:#9CA3AF; font-size:11px; display:block; margin-bottom:4px;">Status</label>
         <select id="status-filter" class="form-input"
                 style="padding:7px 12px; font-size:13px;"
                 onchange="filterUsers()">
@@ -116,7 +117,7 @@
     </div>
 </div>
 
-<p id="user-count" style="color:#64748b; font-size:13px; margin-bottom:12px;">
+<p id="user-count" style="color:#9CA3AF; font-size:13px; margin-bottom:12px;">
     {{ users.count }} user(s)
 </p>
 
@@ -141,8 +142,8 @@
                 data-fullname="{{ u.get_full_name|default:u.username }}"
                 data-username="{{ u.username }}"
                 data-displayemail="{{ u.email }}"
-                data-company="{{ u.company_name|default:'—' }}"
-                data-phone="{{ u.phone_number|default:'—' }}"
+                data-company="{{ u.company_name|default:'' }}"
+                data-phone="{{ u.phone_number|default:'' }}"
                 data-roledisplay="{{ u.get_role_display }}"
                 data-joined="{{ u.date_joined|date:'M d, Y' }}"
                 data-isactive="{% if u.is_active %}1{% else %}0{% endif %}"
@@ -167,7 +168,7 @@
                         <button type="button"
                                 onclick="openUserDetail(this.closest('tr'))"
                                 class="btn"
-                                style="font-size:11px; padding:5px 12px; background:#1e293b; color:#94a3b8; border:1px solid #334155;">
+                                style="font-size:11px; padding:5px 12px; background:#FFFFFF; color:#6B7280; border:1px solid #E5E7EB;">
                             Details
                         </button>
                         {% if u != request.user %}
@@ -178,7 +179,7 @@
                             {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
                         </a>
                         {% else %}
-                        <span style="color:#94a3b8; font-size:12px;">You</span>
+                        <span style="color:#6B7280; font-size:12px;">You</span>
                         {% endif %}
                     </div>
                 </td>
@@ -188,55 +189,55 @@
     </table>
 </div>
 
-<!-- ─── User Detail Modal ───────────────────────────────────────────────────── -->
+<!--  User Detail Modal  -->
 <div id="user-modal-overlay"
      style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
             z-index:1000; align-items:center; justify-content:center;"
      onclick="if(event.target===this) closeUserDetail()">
-    <div style="background:#1e293b; border:1px solid #334155; border-radius:14px;
+    <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:14px;
                 width:100%; max-width:480px; margin:16px; overflow:hidden;">
         <!-- Header -->
-        <div style="padding:18px 24px; background:#0f172a; border-bottom:1px solid #334155;
+        <div style="padding:18px 24px; background:#F8FAFC; border-bottom:1px solid #E5E7EB;
                     display:flex; justify-content:space-between; align-items:center;">
             <div>
-                <p style="font-size:16px; font-weight:700; color:#f1f5f9; margin:0;" id="modal-name">—</p>
-                <p style="font-size:12px; color:#64748b; margin:4px 0 0;" id="modal-username">—</p>
+                <p style="font-size:16px; font-weight:700; color:#1A1A2E; margin:0;" id="modal-name"></p>
+                <p style="font-size:12px; color:#9CA3AF; margin:4px 0 0;" id="modal-username"></p>
             </div>
             <button onclick="closeUserDetail()"
-                    style="background:none; border:none; color:#64748b; font-size:20px;
+                    style="background:none; border:none; color:#9CA3AF; font-size:20px;
                            cursor:pointer; padding:4px 8px;">&times;</button>
         </div>
         <!-- Body -->
         <div style="padding:24px;">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                 <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Email</p>
-                    <p style="font-size:13px; color:#e2e8f0;" id="modal-email">—</p>
+                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Email</p>
+                    <p style="font-size:13px; color:#374151;" id="modal-email"></p>
                 </div>
                 <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Phone</p>
-                    <p style="font-size:13px; color:#e2e8f0;" id="modal-phone">—</p>
+                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Phone</p>
+                    <p style="font-size:13px; color:#374151;" id="modal-phone"></p>
                 </div>
                 <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Company</p>
-                    <p style="font-size:13px; color:#e2e8f0;" id="modal-company">—</p>
+                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Company</p>
+                    <p style="font-size:13px; color:#374151;" id="modal-company"></p>
                 </div>
                 <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Role</p>
-                    <p style="font-size:13px;" id="modal-role">—</p>
+                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Role</p>
+                    <p style="font-size:13px;" id="modal-role"></p>
                 </div>
                 <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Status</p>
-                    <p id="modal-status">—</p>
+                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Status</p>
+                    <p id="modal-status"></p>
                 </div>
                 <div>
-                    <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Date Joined</p>
-                    <p style="font-size:13px; color:#e2e8f0;" id="modal-joined">—</p>
+                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Date Joined</p>
+                    <p style="font-size:13px; color:#374151;" id="modal-joined"></p>
                 </div>
             </div>
         </div>
         <!-- Footer actions -->
-        <div id="modal-actions" style="padding:16px 24px; border-top:1px solid #334155; display:flex; justify-content:flex-end; gap:10px;">
+        <div id="modal-actions" style="padding:16px 24px; border-top:1px solid #E5E7EB; display:flex; justify-content:flex-end; gap:10px;">
         </div>
     </div>
 </div>
@@ -292,7 +293,7 @@ function openUserDetail(row) {
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'btn';
-    closeBtn.style.cssText = 'background:#1e293b; color:#94a3b8; border:1px solid #334155;';
+    closeBtn.style.cssText = 'background:#FFFFFF; color:#6B7280; border:1px solid #E5E7EB;';
     closeBtn.textContent = 'Close';
     closeBtn.onclick = closeUserDetail;
     actionsDiv.appendChild(closeBtn);

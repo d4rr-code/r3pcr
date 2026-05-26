@@ -1,55 +1,56 @@
-{% extends 'base.html' %}
+{% extends 'supervisor/base_supervisor.html' %}
 
 {% block title %}Dashboard{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
 
 {% block content %}
 
 <!-- ─── KPI Strip ──────────────────────────────────────────────────────────── -->
 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-bottom:24px;">
     <div class="card" style="text-align:center; padding:18px 12px;">
-        <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Total</p>
-        <p style="color:#f1f5f9; font-size:28px; font-weight:700; margin:0;">{{ total }}</p>
+        <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Total</p>
+        <p style="color:#1A1A2E; font-size:28px; font-weight:700; margin:0;">{{ total }}</p>
     </div>
     <div class="card" style="text-align:center; padding:18px 12px;">
-        <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Incoming</p>
+        <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Incoming</p>
         <p style="color:#f59e0b; font-size:28px; font-weight:700; margin:0;">{{ incoming }}</p>
     </div>
     <div class="card" style="text-align:center; padding:18px 12px;">
-        <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Arrived</p>
+        <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Arrived</p>
         <p style="color:#3b82f6; font-size:28px; font-weight:700; margin:0;">{{ arrived }}</p>
     </div>
     <div class="card" style="text-align:center; padding:18px 12px;">
-        <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Computed</p>
+        <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Computed</p>
         <p style="color:#8b5cf6; font-size:28px; font-weight:700; margin:0;">{{ computed }}</p>
     </div>
     <div class="card" style="text-align:center; padding:18px 12px;">
-        <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Approved</p>
+        <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Approved</p>
         <p style="color:#22c55e; font-size:28px; font-weight:700; margin:0;">{{ approved }}</p>
     </div>
     <div class="card" style="text-align:center; padding:18px 12px;">
-        <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Rejected</p>
+        <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Rejected</p>
         <p style="color:#ef4444; font-size:28px; font-weight:700; margin:0;">{{ rejected }}</p>
     </div>
     <div class="card" style="text-align:center; padding:18px 12px;">
-        <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Users</p>
-        <p style="color:#a78bfa; font-size:28px; font-weight:700; margin:0;">{{ total_users }}</p>
+        <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Users</p>
+        <p style="color:#7C3AED; font-size:28px; font-weight:700; margin:0;">{{ total_users }}</p>
     </div>
     <div class="card" style="text-align:center; padding:18px 12px;">
-        <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Consignees</p>
-        <p style="color:#94a3b8; font-size:28px; font-weight:700; margin:0;">{{ total_consignees }}</p>
+        <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Consignees</p>
+        <p style="color:#6B7280; font-size:28px; font-weight:700; margin:0;">{{ total_consignees }}</p>
     </div>
     <div class="card" style="text-align:center; padding:18px 12px;">
-        <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Declarants</p>
-        <p style="color:#94a3b8; font-size:28px; font-weight:700; margin:0;">{{ total_declarants }}</p>
+        <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Declarants</p>
+        <p style="color:#6B7280; font-size:28px; font-weight:700; margin:0;">{{ total_declarants }}</p>
     </div>
-    <div class="card" style="text-align:center; padding:18px 12px; border-color:{% if consignee_approval_rate >= 70 %}#166534{% elif consignee_approval_rate > 0 %}#78350f{% else %}#334155{% endif %};">
-        <p style="color:#64748b; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">CDT Approval Rate</p>
+    <div class="card" style="text-align:center; padding:18px 12px; border-color:{% if consignee_approval_rate >= 70 %}#86EFAC{% elif consignee_approval_rate > 0 %}#FCD34D{% else %}#E5E7EB{% endif %};">
+        <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">CDT Approval Rate</p>
         <p style="font-size:28px; font-weight:700; margin:0;
-                  color:{% if consignee_approval_rate >= 70 %}#22c55e{% elif consignee_approval_rate > 0 %}#f59e0b{% else %}#64748b{% endif %};">
+                  color:{% if consignee_approval_rate >= 70 %}#22c55e{% elif consignee_approval_rate > 0 %}#f59e0b{% else %}#9CA3AF{% endif %};">
             {{ consignee_approval_rate }}%
         </p>
-        <p style="color:#475569; font-size:10px; margin:4px 0 0;">
+        <p style="color:#9CA3AF; font-size:10px; margin:4px 0 0;">
             {{ total_consignee_approved }} / {{ total_computed_presented }} presented
         </p>
     </div>
@@ -66,12 +67,12 @@
             {% for row in status_rows %}{% if row.count > 0 %}
             <div>
                 <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
-                    <span style="color:#cbd5e1; font-size:12px;">{{ row.label }}</span>
+                    <span style="color:#6B7280; font-size:12px;">{{ row.label }}</span>
                     <span style="font-size:12px; color:{{ row.color }}; font-weight:700; margin-left:8px; white-space:nowrap;">
-                        {{ row.count }} <span style="color:#475569; font-weight:400; font-size:11px;">({{ row.pct }}%)</span>
+                        {{ row.count }} <span style="color:#9CA3AF; font-weight:400; font-size:11px;">({{ row.pct }}%)</span>
                     </span>
                 </div>
-                <div style="height:8px; background:#1e293b; border-radius:6px; overflow:hidden;">
+                <div style="height:8px; background:#E5E7EB; border-radius:6px; overflow:hidden;">
                     <div style="height:100%; width:{{ row.bar_pct }}%; background:{{ row.color }}; border-radius:6px;
                                 transition:width .4s ease;"></div>
                 </div>
@@ -79,7 +80,7 @@
             {% endif %}{% endfor %}
         </div>
         {% else %}
-        <p style="color:#475569; font-size:13px; text-align:center; padding:20px 0;">No shipments yet.</p>
+        <p style="color:#9CA3AF; font-size:13px; text-align:center; padding:20px 0;">No shipments yet.</p>
         {% endif %}
     </div>
 
@@ -88,7 +89,7 @@
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
             <p class="card-title" style="margin:0;">WMCDA Shipping Advisory</p>
             {% if wmcda_total %}
-            <span style="color:#64748b; font-size:12px;">{{ wmcda_total }} computed</span>
+            <span style="color:#6B7280; font-size:12px;">{{ wmcda_total }} computed</span>
             {% endif %}
         </div>
         {% if wmcda_total %}
@@ -100,41 +101,41 @@
                 <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
                     <span style="font-size:18px;">{{ row.icon }}</span>
                     <span style="color:{{ row.color }}; font-size:14px; font-weight:700;">{{ row.label }}</span>
-                    <span style="background:#fef08a22; border:1px solid #fef08a55; color:#fef08a;
+                    <span style="background:#FEF9C3; border:1px solid #FCD34D; color:#92400E;
                                  font-size:10px; font-weight:700; padding:1px 7px; border-radius:99px;
                                  letter-spacing:.05em;">WINNER</span>
                     <span style="margin-left:auto; color:{{ row.color }}; font-size:13px; font-weight:700;">
                         {{ row.count }}
-                        <span style="color:#475569; font-size:11px; font-weight:400;">({{ row.pct }}%)</span>
+                        <span style="color:#9CA3AF; font-size:11px; font-weight:400;">({{ row.pct }}%)</span>
                     </span>
                 </div>
                 {% else %}
                 <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
                     <span style="font-size:16px;">{{ row.icon }}</span>
-                    <span style="color:#94a3b8; font-size:13px;">{{ row.label }}</span>
-                    <span style="margin-left:auto; color:#f1f5f9; font-size:13px; font-weight:600;">
+                    <span style="color:#6B7280; font-size:13px;">{{ row.label }}</span>
+                    <span style="margin-left:auto; color:#374151; font-size:13px; font-weight:600;">
                         {{ row.count }}
-                        <span style="color:#475569; font-size:11px; font-weight:400;">({{ row.pct }}%)</span>
+                        <span style="color:#9CA3AF; font-size:11px; font-weight:400;">({{ row.pct }}%)</span>
                     </span>
                 </div>
                 {% endif %}
                 <!-- Bar -->
-                <div style="height:{% if forloop.first %}10{% else %}7{% endif %}px; background:#1e293b; border-radius:6px; overflow:hidden;">
+                <div style="height:{% if forloop.first %}10{% else %}7{% endif %}px; background:#E5E7EB; border-radius:6px; overflow:hidden;">
                     <div style="height:100%; width:{% if wmcda_max %}{{ row.count|floatformat:0 }}{% else %}0{% endif %}%;
                                 background:{{ row.color }}; border-radius:6px; transition:width .5s ease;"
                          data-count="{{ row.count }}" data-max="{{ wmcda_max }}" class="wmcda-bar"></div>
                 </div>
                 <!-- Avg score -->
                 {% if row.avg_score %}
-                <p style="color:#475569; font-size:11px; margin:4px 0 0; text-align:right;">
-                    avg score: <span style="color:#64748b;">{{ row.avg_score }}%</span>
+                <p style="color:#9CA3AF; font-size:11px; margin:4px 0 0; text-align:right;">
+                    avg score: <span style="color:#6B7280;">{{ row.avg_score }}%</span>
                 </p>
                 {% endif %}
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p style="color:#475569; font-size:13px; text-align:center; padding:20px 0;">
+        <p style="color:#9CA3AF; font-size:13px; text-align:center; padding:20px 0;">
             No shipping advisory data yet.
         </p>
         {% endif %}
@@ -144,42 +145,42 @@
 
 <!-- ─── Declarant Performance ──────────────────────────────────────────────── -->
 <div class="card" style="padding:0; overflow:hidden; margin-bottom:24px;">
-    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;">
+    <div style="padding:16px 20px; background:#F9FAFB; border-bottom:1px solid #E5E7EB;">
         <p class="card-title" style="margin:0;">Declarant Performance</p>
     </div>
     <div style="overflow-x:auto;">
         <table style="width:100%; border-collapse:collapse;">
             <thead>
-                <tr style="background:#0f172a;">
-                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Declarant</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Processed</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Avg Arrived → Computed</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Approved</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Approval Rate</th>
+                <tr style="background:#F9FAFB;">
+                    <th style="padding:10px 16px; text-align:left; color:#6B7280; font-size:12px;">Declarant</th>
+                    <th style="padding:10px 16px; text-align:center; color:#6B7280; font-size:12px;">Processed</th>
+                    <th style="padding:10px 16px; text-align:center; color:#6B7280; font-size:12px;">Avg Arrived → Computed</th>
+                    <th style="padding:10px 16px; text-align:center; color:#6B7280; font-size:12px;">Approved</th>
+                    <th style="padding:10px 16px; text-align:center; color:#6B7280; font-size:12px;">Approval Rate</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in declarant_data %}
-                <tr style="border-top:1px solid #1e293b;"
-                    onmouseover="this.style.background='#1e293b'"
+                <tr style="border-top:1px solid #F0F2F5;"
+                    onmouseover="this.style.background='#F9FAFB'"
                     onmouseout="this.style.background=''">
                     <td style="padding:12px 16px;">
-                        <p style="color:#f8fafc; font-size:13px; font-weight:600; margin:0;">{{ row.name }}</p>
-                        <p style="color:#64748b; font-size:11px; margin:2px 0 0;">@{{ row.username }}</p>
+                        <p style="color:#1A1A2E; font-size:13px; font-weight:600; margin:0;">{{ row.name }}</p>
+                        <p style="color:#6B7280; font-size:11px; margin:2px 0 0;">@{{ row.username }}</p>
                     </td>
-                    <td style="padding:12px 16px; text-align:center; color:#f1f5f9; font-size:14px;">
+                    <td style="padding:12px 16px; text-align:center; color:#374151; font-size:14px;">
                         {{ row.total_processed }}
                     </td>
-                    <td style="padding:12px 16px; text-align:center; color:#f1f5f9; font-size:13px;">
+                    <td style="padding:12px 16px; text-align:center; color:#374151; font-size:13px;">
                         {% if row.avg_hours is not None %}
                             <span style="color:{% if row.avg_hours <= 4 %}#22c55e{% elif row.avg_hours <= 12 %}#f59e0b{% else %}#ef4444{% endif %};">
                                 {{ row.avg_hours }}h
                             </span>
                         {% else %}
-                            <span style="color:#475569;">&mdash;</span>
+                            <span style="color:#9CA3AF;">&mdash;</span>
                         {% endif %}
                     </td>
-                    <td style="padding:12px 16px; text-align:center; color:#f1f5f9; font-size:14px;">
+                    <td style="padding:12px 16px; text-align:center; color:#374151; font-size:14px;">
                         {{ row.approved }}
                     </td>
                     <td style="padding:12px 16px; text-align:center;">
@@ -190,7 +191,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" style="padding:28px; text-align:center; color:#64748b; font-size:13px;">
+                    <td colspan="5" style="padding:28px; text-align:center; color:#9CA3AF; font-size:13px;">
                         No declarants found.
                     </td>
                 </tr>
@@ -202,25 +203,25 @@
 
 <!-- ─── Shipments Table ────────────────────────────────────────────────────── -->
 <div class="card" style="padding:0; overflow:hidden;">
-    <div style="padding:16px 20px; background:#0f172a; border-bottom:1px solid #1e293b;
+    <div style="padding:16px 20px; background:#F9FAFB; border-bottom:1px solid #E5E7EB;
                 display:flex; align-items:center; justify-content:space-between;">
         <p class="card-title" style="margin:0;">All Shipments
-            {% if recent.count %}<span style="color:#64748b; font-weight:400; font-size:13px;"> — {{ recent.count }} result{{ recent.count|pluralize }}</span>{% endif %}
+            {% if recent.count %}<span style="color:#6B7280; font-weight:400; font-size:13px;"> — {{ recent.count }} result{{ recent.count|pluralize }}</span>{% endif %}
         </p>
     </div>
 
     <!-- Filter Bar -->
-    <form method="GET" style="padding:14px 20px; background:#0c1420;
-                              border-bottom:1px solid #1e293b;
+    <form method="GET" style="padding:14px 20px; background:#F9FAFB;
+                              border-bottom:1px solid #E5E7EB;
                               display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
         <div style="flex:1; min-width:180px;">
-            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Search (Ref No. / Consignee)</label>
+            <label style="color:#6B7280; font-size:11px; display:block; margin-bottom:4px;">Search (Ref No. / Consignee)</label>
             <input type="text" name="q" value="{{ q }}"
                    class="form-input" style="padding:7px 12px; font-size:13px;"
                    placeholder="e.g. R3PCR-2026 or Maria">
         </div>
         <div style="min-width:150px;">
-            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Status</label>
+            <label style="color:#6B7280; font-size:11px; display:block; margin-bottom:4px;">Status</label>
             <select name="status" class="form-input" style="padding:7px 12px; font-size:13px;">
                 <option value="">All Statuses</option>
                 <option value="incoming"     {% if status_f == 'incoming'     %}selected{% endif %}>Incoming</option>
@@ -238,12 +239,12 @@
             </select>
         </div>
         <div style="min-width:140px;">
-            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Date From</label>
+            <label style="color:#6B7280; font-size:11px; display:block; margin-bottom:4px;">Date From</label>
             <input type="date" name="date_from" value="{{ date_from }}"
                    class="form-input" style="padding:7px 12px; font-size:13px;">
         </div>
         <div style="min-width:140px;">
-            <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Date To</label>
+            <label style="color:#6B7280; font-size:11px; display:block; margin-bottom:4px;">Date To</label>
             <input type="date" name="date_to" value="{{ date_to }}"
                    class="form-input" style="padding:7px 12px; font-size:13px;">
         </div>
@@ -259,27 +260,27 @@
     <div style="overflow-x:auto;">
         <table style="width:100%; border-collapse:collapse;">
             <thead>
-                <tr style="background:#0f172a;">
-                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Shipment Ref. No.</th>
-                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Consignee</th>
-                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Declarant</th>
-                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Status</th>
-                    <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Submitted</th>
-                    <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Actions</th>
+                <tr style="background:#F9FAFB;">
+                    <th style="padding:10px 16px; text-align:left; color:#6B7280; font-size:12px;">Shipment Ref. No.</th>
+                    <th style="padding:10px 16px; text-align:left; color:#6B7280; font-size:12px;">Consignee</th>
+                    <th style="padding:10px 16px; text-align:left; color:#6B7280; font-size:12px;">Declarant</th>
+                    <th style="padding:10px 16px; text-align:left; color:#6B7280; font-size:12px;">Status</th>
+                    <th style="padding:10px 16px; text-align:left; color:#6B7280; font-size:12px;">Submitted</th>
+                    <th style="padding:10px 16px; text-align:center; color:#6B7280; font-size:12px;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for s in recent %}
-                <tr style="border-top:1px solid #1e293b;"
-                    onmouseover="this.style.background='#1e293b'"
+                <tr style="border-top:1px solid #F0F2F5;"
+                    onmouseover="this.style.background='#F9FAFB'"
                     onmouseout="this.style.background=''">
-                    <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:600;">
+                    <td style="padding:12px 16px; color:#1A1A2E; font-size:13px; font-weight:600;">
                         {{ s.hawb_number }}
                     </td>
-                    <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                    <td style="padding:12px 16px; color:#6B7280; font-size:13px;">
                         {{ s.consignee.get_full_name|default:s.consignee.username }}
                     </td>
-                    <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                    <td style="padding:12px 16px; color:#6B7280; font-size:13px;">
                         {% if s.declarant %}{{ s.declarant.get_full_name|default:s.declarant.username }}{% else %}&mdash;{% endif %}
                     </td>
                     <td style="padding:12px 16px;">
@@ -297,7 +298,7 @@
                             <span class="badge badge-secondary">{{ s.get_status_display }}</span>
                         {% endif %}
                     </td>
-                    <td style="padding:12px 16px; color:#64748b; font-size:12px;">
+                    <td style="padding:12px 16px; color:#6B7280; font-size:12px;">
                         {{ s.submitted_at|date:"M d, Y" }}
                     </td>
                     <td style="padding:12px 16px; text-align:center;">
@@ -337,7 +338,7 @@
         </table>
     </div>
     {% else %}
-    <div style="padding:40px; text-align:center; color:#64748b;">
+    <div style="padding:40px; text-align:center; color:#9CA3AF;">
         <p style="font-size:14px;">No shipments found.</p>
     </div>
     {% endif %}

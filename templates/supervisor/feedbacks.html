@@ -1,15 +1,16 @@
-{% extends 'base.html' %}
+{% extends 'supervisor/base_supervisor.html' %}
 {% block title %}Manage Feedbacks{% endblock %}
 {% block page_title %}Consignee Feedbacks{% endblock %}
+{% block nav_feedbacks %}active{% endblock %}
 
 {% block content %}
 
 {% if messages %}
     {% for message in messages %}
     <div style="padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px;
-                background:{% if message.tags == 'error' %}#450a0a{% else %}#052e16{% endif %};
-                color:{% if message.tags == 'error' %}#fca5a5{% else %}#86efac{% endif %};
-                border:1px solid {% if message.tags == 'error' %}#991b1b{% else %}#166534{% endif %};">
+                background:{% if message.tags == 'error' %}#FEF2F2{% else %}#ECFDF5{% endif %};
+                color:{% if message.tags == 'error' %}#991B1B{% else %}#047857{% endif %};
+                border:1px solid {% if message.tags == 'error' %}#FCA5A5{% else %}#86EFAC{% endif %};">
         {{ message }}
     </div>
     {% endfor %}
@@ -17,48 +18,53 @@
 
 <div class="card">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-        <p class="card-title" style="margin:0;">⭐ Consignee Feedbacks</p>
-        <span style="font-size:12px; color:#64748b;">
-            {{ feedbacks.count }} total &nbsp;·&nbsp;
+        <p class="card-title" style="margin:0; display:flex; align-items:center; gap:8px;">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M3.505 2.365A41.37 41.37 0 0110 1.875c2.2 0 4.36.17 6.495.49A2.5 2.5 0 0118.625 4.84v5.32a2.5 2.5 0 01-2.13 2.475 41.36 41.36 0 01-4.745.455L8 16.84a.75.75 0 01-1.28-.53v-3.27a41.08 41.08 0 01-3.215-.405A2.5 2.5 0 011.375 10.16V4.84a2.5 2.5 0 012.13-2.475z"/>
+            </svg>
+            Consignee Feedbacks
+        </p>
+        <span style="font-size:12px; color:#9CA3AF;">
+            {{ feedbacks.count }} total &nbsp;-&nbsp;
             {{ feedbacks|length }} pending review
         </span>
     </div>
 
     {% if not feedbacks %}
-    <p style="color:#475569; font-size:14px; text-align:center; padding:32px 0;">
+    <p style="color:#9CA3AF; font-size:14px; text-align:center; padding:32px 0;">
         No feedbacks submitted yet.
     </p>
     {% else %}
     <div style="display:flex; flex-direction:column; gap:16px;">
         {% for fb in feedbacks %}
-        <div style="background:#0f172a; border:1px solid {% if fb.is_approved %}#166534{% else %}#334155{% endif %};
+        <div style="background:#F8FAFC; border:1px solid {% if fb.is_approved %}#166534{% else %}#E5E7EB{% endif %};
                     border-radius:10px; padding:16px 20px;">
             <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
                 <div style="flex:1;">
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap;">
-                        <span style="font-size:18px; color:#f59e0b; letter-spacing:2px;">
-                            {% for i in "12345" %}{% if forloop.counter <= fb.rating %}★{% else %}☆{% endif %}{% endfor %}
+                        <span style="font-size:12px; color:#B45309; background:#FEF3C7; border:1px solid #FCD34D; border-radius:999px; padding:3px 10px; font-weight:800;">
+                            Rating {{ fb.rating }}/5
                         </span>
-                        <span style="font-size:13px; font-weight:600; color:#e2e8f0;">
+                        <span style="font-size:13px; font-weight:600; color:#374151;">
                             {{ fb.consignee.get_full_name|default:fb.consignee.username }}
                         </span>
                         {% if fb.consignee.company_name %}
-                        <span style="font-size:11px; color:#64748b;">· {{ fb.consignee.company_name }}</span>
+                        <span style="font-size:11px; color:#9CA3AF;">- {{ fb.consignee.company_name }}</span>
                         {% endif %}
                         {% if fb.shipment %}
-                        <span style="font-size:11px; color:#475569;">· {{ fb.shipment.hawb_number }}</span>
+                        <span style="font-size:11px; color:#9CA3AF;">- {{ fb.shipment.hawb_number }}</span>
                         {% endif %}
-                        <span style="font-size:11px; color:#475569;">· {{ fb.created_at|date:"M d, Y" }}</span>
+                        <span style="font-size:11px; color:#9CA3AF;">- {{ fb.created_at|date:"M d, Y" }}</span>
                     </div>
-                    <p style="font-size:13px; color:#94a3b8; margin:0; line-height:1.6;">
+                    <p style="font-size:13px; color:#6B7280; margin:0; line-height:1.6;">
                         "{{ fb.comment }}"
                     </p>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
                     {% if fb.is_approved %}
-                        <span style="font-size:11px; font-weight:600; color:#86efac; background:#052e16;
-                                     border:1px solid #166534; border-radius:999px; padding:3px 10px;">
-                            ✓ Published
+                        <span style="font-size:11px; font-weight:600; color:#047857; background:#ECFDF5;
+                                     border:1px solid #86EFAC; border-radius:999px; padding:3px 10px;">
+                            Published
                         </span>
                         <form method="POST" action="{% url 'supervisor:reject_feedback' fb.id %}">
                             {% csrf_token %}
@@ -68,8 +74,8 @@
                             </button>
                         </form>
                     {% else %}
-                        <span style="font-size:11px; color:#64748b; background:#1e293b;
-                                     border:1px solid #334155; border-radius:999px; padding:3px 10px;">
+                        <span style="font-size:11px; color:#9CA3AF; background:#FFFFFF;
+                                     border:1px solid #E5E7EB; border-radius:999px; padding:3px 10px;">
                             Pending
                         </span>
                         <form method="POST" action="{% url 'supervisor:approve_feedback' fb.id %}">

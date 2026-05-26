@@ -14,11 +14,11 @@ from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, HSCode, ShipmentHSCode, StatusLog
 from apps.supervisor.models import SystemConfig
 from apps.notifications.utils import notify_shipment_status_change
-from .models import DutyComputation, ShippingAdvisory
+from .models import DutyComputation, ShipmentLineItem, ShippingAdvisory
 from .ocr import process_document
 
 
-# ─── Lookup Tables ────────────────────────────────────────────────────────────
+# â”€â”€â”€ Lookup Tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def get_brokerage_fee(taxable_value):
     tv = float(taxable_value)
@@ -30,7 +30,7 @@ def get_brokerage_fee(taxable_value):
     if tv <= 60000:   return Decimal('4000')
     if tv <= 100000:  return Decimal('4700')
     if tv <= 200000:  return Decimal('5300')
-    # ₱5,300 + 0.125% of excess above ₱200,000
+    # â‚±5,300 + 0.125% of excess above â‚±200,000
     excess = Decimal(str(round(tv - 200000, 2)))
     return Decimal('5300') + round(excess * Decimal('0.00125'), 2)
 
@@ -75,16 +75,16 @@ def _store_document_ocr(doc, fields, raw_text, quality):
     doc.save(update_fields=['ocr_text', 'ocr_fields_json', 'ocr_quality', 'ocr_ran_at'])
 
 
-# ─── Per-Item ECDT Formula ────────────────────────────────────────────────────
+# â”€â”€â”€ Per-Item ECDT Formula â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def compute_ecdt(items_data, exchange_rate,
                  arrastre=0, wharfage=0, csf_php=0, bank_charges=0):
     """
     items_data keys: exw_usd, freight_usd, insurance_usd, duty_rate,
                      description, quantity, hs_code_id, gw, nw, pkgs
-    D/V = EXW + Freight + Insurance  (no auto-3% O/C — matches client CDT tool)
+    D/V = EXW + Freight + Insurance  (no auto-3% O/C â€” matches client CDT tool)
     Total Landed Cost excludes VAT; VAT = 12% of Total Landed Cost
-    Brokerage Fee: tiered table up to ₱200,000, then +0.125% of excess
+    Brokerage Fee: tiered table up to â‚±200,000, then +0.125% of excess
     """
     computed_items = []
     total_dv_php   = Decimal('0')
@@ -135,7 +135,7 @@ def compute_ecdt(items_data, exchange_rate,
     bank_charges_d  = Decimal(str(bank_charges or 0))
 
     # Total Landed Cost = DV + Bank Charges + CUD + BF + Arrastre + Wharfage + CDS + IPF
-    # NOTE: CSF is NOT included in TLC — it appears only in the BOC fees total (FCL)
+    # NOTE: CSF is NOT included in TLC â€” it appears only in the BOC fees total (FCL)
     total_landed_cost = round(
         taxable_value + bank_charges_d + customs_duties + brokerage_fee
         + cds + ipf + arrastre_d + wharfage_d, 2
@@ -145,7 +145,7 @@ def compute_ecdt(items_data, exchange_rate,
     vat = round(total_landed_cost * Decimal('0.12'), 2)
 
     # BOC total = CUD + VAT + CDS + IPF only.
-    # CSF is a separate port terminal charge — displayed in the summary but NOT
+    # CSF is a separate port terminal charge â€” displayed in the summary but NOT
     # counted in TLC or BOC (matches existing client CDT Excel format).
     boc_total = round(customs_duties + vat + cds + ipf, 2)
 
@@ -167,7 +167,7 @@ def compute_ecdt(items_data, exchange_rate,
     return computed_items, summary
 
 
-# ─── OCR Merge Helpers ───────────────────────────────────────────────────────
+# â”€â”€â”€ OCR Merge Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 # Priority order per field: which document type to prefer when the same field
 # appears in more than one document.
@@ -238,7 +238,7 @@ def merge_ocr_results(results):
     return merged
 
 
-# ─── OCR Extract (single document — kept for fallback) ───────────────────────
+# â”€â”€â”€ OCR Extract (single document â€” kept for fallback) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required
 def ocr_extract(request, shipment_id, doc_id):
@@ -272,7 +272,7 @@ def ocr_extract(request, shipment_id, doc_id):
                 request.session['ocr_shipment_id'] = shipment_id
                 found    = sum(1 for v in fields.values() if isinstance(v, dict) and v.get('value'))
                 item_msg = f', {len(line_items)} line items detected' if line_items else ''
-                request.session['ocr_toast'] = ('success', f'OCR complete — {found} fields extracted{item_msg}.')
+                request.session['ocr_toast'] = ('success', f'OCR complete â€” {found} fields extracted{item_msg}.')
                 print(f'[OCR] Success: {found} fields, {len(line_items)} items')
             else:
                 request.session['ocr_toast'] = ('warning', 'OCR ran but found no structured fields. Fill in manually.')
@@ -287,7 +287,7 @@ def ocr_extract(request, shipment_id, doc_id):
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
-# ─── OCR Extract All (single button — merges all documents) ──────────────────
+# â”€â”€â”€ OCR Extract All (single button â€” merges all documents) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required
 def ocr_extract_all(request, shipment_id):
@@ -340,13 +340,13 @@ def ocr_extract_all(request, shipment_id):
 
     request.session['ocr_toast'] = (
         'info',
-        f'Scanning {len(documents)} document{"s" if len(documents) != 1 else ""}… '
+        f'Scanning {len(documents)} document{"s" if len(documents) != 1 else ""}â€¦ '
         'Results will appear automatically in a few seconds.'
     )
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
-# ─── Computation ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ Computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required
 def compute_shipment(request, shipment_id):
@@ -370,7 +370,7 @@ def compute_shipment(request, shipment_id):
     wmcda_explanation = None
     wmcda_history     = None
 
-    # ── Pull default exchange rate from SystemConfig ──
+    # â”€â”€ Pull default exchange rate from SystemConfig â”€â”€
     try:
         default_rate = SystemConfig.objects.get(key='exchange_rate').value
     except SystemConfig.DoesNotExist:
@@ -393,6 +393,29 @@ def compute_shipment(request, shipment_id):
                 volume_cbm=cargo_volume,
             )
             csf_php_val     = csf_usd_val * exchange_rate
+
+            # â”€â”€ Server-side port fee defaults (only when declarant left all at 0) â”€â”€
+            # This mirrors the JS auto-fill so submissions without JS still get
+            # the correct defaults applied.
+            _stype = (shipment.shipment_type or '').lower()
+            _csize = container_type.lower() if container_type else ''
+            if arrastre == Decimal('0') and wharfage == Decimal('0'):
+                if _stype in ('lcl', 'sea'):
+                    arrastre    = Decimal('5496.00')
+                    wharfage    = Decimal('519.35')
+                    csf_usd_val = Decimal('0.00')
+                    csf_php_val = Decimal('0.00')
+                elif _stype == 'fcl':
+                    if '40' in _csize:
+                        arrastre    = Decimal('12608.00')
+                        wharfage    = Decimal('779.05')
+                        csf_usd_val = Decimal('10.00')
+                    else:                              # default: 20FT
+                        arrastre    = Decimal('5496.00')
+                        wharfage    = Decimal('519.35')
+                        csf_usd_val = Decimal('5.00')
+                    csf_php_val = csf_usd_val * exchange_rate
+                # AIR / LAND: leave at 0
 
             descriptions  = request.POST.getlist('description[]')
             exw_values    = request.POST.getlist('exw_value[]')
@@ -422,7 +445,7 @@ def compute_shipment(request, shipment_id):
             units         = _pad(units,          '')
             unit_prices   = _pad(unit_prices,    '')
 
-            # Build HS code string lookup map (id → code string)
+            # Build HS code string lookup map (id â†’ code string)
             valid_hs_ids = [int(h) for h in hs_code_ids if h and h.strip().isdigit()]
             hs_code_map  = {
                 str(obj.id): obj.code
@@ -453,6 +476,23 @@ def compute_shipment(request, shipment_id):
             if not items_data:
                 messages.error(request, 'Add at least one item with a value.')
                 raise ValueError('no items')
+
+            # â”€â”€ Proportional freight/insurance server-side distribution â”€â”€â”€â”€â”€â”€
+            # If the declarant entered a global total_freight / total_insurance
+            # but left all per-item values at 0, distribute proportionally by EXW.
+            total_exw_for_dist = sum(Decimal(str(it['exw_usd'])) for it in items_data) or Decimal('1')
+            total_freight_global   = Decimal(request.POST.get('total_freight',   '0') or '0')
+            total_insurance_global = Decimal(request.POST.get('total_insurance', '0') or '0')
+            all_fr_zero  = all(Decimal(str(it.get('freight_usd',   0) or 0)) == 0 for it in items_data)
+            all_ins_zero = all(Decimal(str(it.get('insurance_usd', 0) or 0)) == 0 for it in items_data)
+            if all_fr_zero and total_freight_global > 0:
+                for it in items_data:
+                    prop = Decimal(str(it['exw_usd'])) / total_exw_for_dist
+                    it['freight_usd'] = float(round(total_freight_global * prop, 4))
+            if all_ins_zero and total_insurance_global > 0:
+                for it in items_data:
+                    prop = Decimal(str(it['exw_usd'])) / total_exw_for_dist
+                    it['insurance_usd'] = float(round(total_insurance_global * prop, 4))
 
             items, summary = compute_ecdt(
                 items_data, exchange_rate,
@@ -524,7 +564,7 @@ def compute_shipment(request, shipment_id):
                     notes='Duties and taxes computation completed.',
                 )
 
-            # ── Auto-run WMCDA alongside ECDT ──────────────────────────────────
+            # â”€â”€ Auto-run WMCDA alongside ECDT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             try:
                 wmcda_weight   = float(shipment.gross_weight or 0)
                 wmcda_volume   = float(request.POST.get('cargo_volume', 0) or 0)
@@ -553,7 +593,7 @@ def compute_shipment(request, shipment_id):
                     }
                 )
 
-                # ── Historical recommendation ──────────────────────────────────
+                # â”€â”€ Historical recommendation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 if shipment.shipment_type:
                     past = (
                         ShippingAdvisory.objects
@@ -589,7 +629,7 @@ def compute_shipment(request, shipment_id):
             items = result = None
 
     else:
-        # ── GET: pre-load saved data ───────────────────────────────────────────
+        # â”€â”€ GET: pre-load saved data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if existing:
             items = existing.get_items()
 
@@ -612,17 +652,48 @@ def compute_shipment(request, shipment_id):
             except Exception:
                 pass
 
-        # OCR pre-fill
+        # OCR pre-fill â€” prefer DB-persisted ShipmentLineItem over session
+        if not items and request.GET.get('ocr') == '1':
+            db_items = ShipmentLineItem.objects.filter(
+                shipment=shipment, source='ocr'
+            ).select_related('hs_code').order_by('row_order')
+
+            if db_items.exists():
+                items = []
+                for i, li in enumerate(db_items, 1):
+                    hs_id   = li.hs_code_id or ''
+                    hs_rate = float(li.hs_code.duty_rate) if li.hs_code else 0
+                    items.append({
+                        'no':           i,
+                        'line_item_id': li.id,
+                        'description':  li.description,
+                        'exw':          float(li.total_val_usd) if li.total_val_usd else '',
+                        'quantity':     float(li.quantity) if li.quantity else '1',
+                        'unit':         li.unit or '',
+                        'unit_price':   float(li.unit_price) if li.unit_price else '',
+                        'hs_code_id':   hs_id,
+                        'duty_rate':    hs_rate,
+                        'dv_php':       None,
+                        'cud':          None,
+                        'item_freight': None,
+                        'item_insurance': None,
+                        'dv_usd':       None,
+                        'gw': '', 'nw': '', 'pkgs': '',
+                        'is_extracted': True,
+                        'confidence':   float(li.confidence),
+                    })
+
         if not items and request.GET.get('ocr') == '1':
             _ocr_sid   = request.session.get('ocr_shipment_id')
             _raw_items = request.session.get('ocr_items',  []) if _ocr_sid == shipment_id else []
             _ocr_flds  = request.session.get('ocr_fields', {}) if _ocr_sid == shipment_id else {}
 
             if _raw_items:
-                # ── Multi-item path: one row per extracted line item ──────────
+                # â”€â”€ Multi-item path: one row per extracted line item â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 items = [
                     {
                         'no':             i,
+                        'line_item_id':   '',
                         'description':    it.get('description', ''),
                         'exw':            it.get('total_value', '') or '',
                         'quantity':       it.get('quantity', '') or '1',
@@ -645,7 +716,7 @@ def compute_shipment(request, shipment_id):
                     for i, it in enumerate(_raw_items, 1)
                 ]
             elif _ocr_flds:
-                # ── Single-total fallback: one row from merged OCR totals ─────
+                # â”€â”€ Single-total fallback: one row from merged OCR totals â”€â”€â”€â”€â”€
                 def _val(k):
                     v = _ocr_flds.get(k, {})
                     return v.get('value', '') if isinstance(v, dict) else v
@@ -687,7 +758,7 @@ def compute_shipment(request, shipment_id):
     ocr_fields = request.session.get('ocr_fields', {}) if request.session.get('ocr_shipment_id') == shipment_id else {}
     ocr_items  = request.session.get('ocr_items',  []) if request.session.get('ocr_shipment_id') == shipment_id else []
 
-    # ── HS Code Suggestions (rule-based + historical) ──────────────────────────
+    # â”€â”€ HS Code Suggestions (rule-based + historical) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Collect the richest available description text in priority order:
     # 1. shipment.description, 2. OCR item descriptions, 3. saved item descriptions
     hs_suggestions = []
@@ -711,7 +782,7 @@ def compute_shipment(request, shipment_id):
                 defaults={'is_suggested': True, 'is_confirmed': False}
             )
 
-    # ── Declared mode focused breakdown ──────────────────────────────────────────
+    # â”€â”€ Declared mode focused breakdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     declared_score     = None
     declared_breakdown = None
     declared_rating    = None
@@ -736,7 +807,6 @@ def compute_shipment(request, shipment_id):
     else:
         prefill_freight   = float(shipment.freight_cost   or 0)
         prefill_insurance = float(shipment.insurance_cost or 0)
-
     context = {
         'shipment':           shipment,
         'hs_codes':           hs_codes,
@@ -760,10 +830,13 @@ def compute_shipment(request, shipment_id):
         'prefill_freight':    prefill_freight,
         'prefill_insurance':  prefill_insurance,
     }
+    context['confirmed_items'] = ShipmentLineItem.objects.filter(
+        shipment=shipment, source='ocr'
+    ).select_related('hs_code').order_by('row_order')
     return render(request, 'computation/compute.html', context)
 
 
-# ─── HS Code Suggestion Engine ───────────────────────────────────────────────
+# â”€â”€â”€ HS Code Suggestion Engine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _can_download_computation(user, shipment):
     is_assigned_declarant = user.role == 'declarant' and shipment.declarant == user
@@ -1008,13 +1081,12 @@ def suggest_hs_codes(text, top_n=5):
     """
     Two-layer HS code recommendation engine.
 
-    Layer 1 (Rule-based): keyword overlap between the input text and every
-    active HSCode.description in the database. Each matching keyword adds +1
-    to the score.
+    Layer 1 (Rule-based): DB-level OR prefilter on description keywords to
+    narrow candidates from 9,268 rows to a small working set, then Python
+    scoring with a minimum threshold of 2 matching keywords.
 
     Layer 2 (Historical): previously confirmed ShipmentHSCode assignments
-    each contribute +0.5 to the score for that HS code, so codes the
-    declarants have confirmed before rise to the top over time.
+    each contribute +0.5 to the score for that HS code.
 
     Returns up to top_n HSCode objects, ranked highest first.
     """
@@ -1025,21 +1097,45 @@ def suggest_hs_codes(text, top_n=5):
         w for w in re.findall(r'[a-zA-Z]{3,}', text.lower())
         if w not in _HS_STOPWORDS
     ]
-    if not keywords:
+    # Deduplicate preserving order
+    seen_kw = set()
+    unique_keywords = []
+    for kw in keywords:
+        if kw not in seen_kw:
+            seen_kw.add(kw)
+            unique_keywords.append(kw)
+
+    # Require at least 2 distinct meaningful keywords
+    if len(unique_keywords) < 2:
         return []
 
-    # Layer 1 — keyword overlap
+    # Layer 1 â€” DB-level OR prefilter (avoids loading all 9,268 rows per call)
+    q = Q()
+    for kw in unique_keywords[:12]:   # cap keyword count to keep query manageable
+        q |= Q(description__icontains=kw)
+
+    candidates = list(
+        HSCode.objects.filter(q, is_active=True)
+        .only('id', 'description', 'code', 'duty_rate', 'chapter')
+    )
+    if not candidates:
+        return []
+
+    # Score candidates in Python.
+    # Note: AHTN descriptions are often very short ("Sunglasses", "Centrifuges"),
+    # so requiring â‰¥2 hits would filter out many valid matches.
+    # Minimum threshold = 1; higher scores naturally rank better matches first.
     scored = []
-    for hs in HSCode.objects.filter(is_active=True):
+    for hs in candidates:
         hs_words = set(re.findall(r'[a-zA-Z]{3,}', hs.description.lower()))
-        hits = sum(1 for kw in keywords if kw in hs_words)
-        if hits > 0:
+        hits = sum(1 for kw in unique_keywords if kw in hs_words)
+        if hits >= 1:
             scored.append([hs, float(hits)])
 
     if not scored:
         return []
 
-    # Layer 2 — historical boost from confirmed past assignments
+    # Layer 2 â€” historical boost from confirmed past assignments
     hist = dict(
         ShipmentHSCode.objects
         .filter(is_confirmed=True)
@@ -1055,7 +1151,7 @@ def suggest_hs_codes(text, top_n=5):
     return [hs for hs, _ in scored[:top_n]]
 
 
-# ─── HS Code Suggest (AJAX) ───────────────────────────────────────────────────
+# â”€â”€â”€ HS Code Suggest (AJAX) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _hs_payload(hs, source):
     return {
@@ -1193,7 +1289,57 @@ def hs_code_suggest(request):
     return JsonResponse({'suggestions': data})
 
 
-# ─── HS Code Search ───────────────────────────────────────────────────────────
+# â”€â”€â”€ Update ShipmentLineItem HS Code (AJAX PATCH) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+@login_required
+def update_line_item_hs(request, item_id):
+    """
+    PATCH /computation/line-item/<id>/hs/
+    Body: { hs_code_id: <int> }
+    Updates the hs_code FK on a ShipmentLineItem and returns the duty_rate.
+    Only the assigned declarant may call this.
+    """
+    if request.method not in ('POST', 'PATCH'):
+        return JsonResponse({'ok': False, 'error': 'POST/PATCH required.'}, status=405)
+
+    item = get_object_or_404(ShipmentLineItem, id=item_id)
+    shipment = item.shipment
+
+    if request.user.role != 'declarant' or shipment.declarant != request.user:
+        return JsonResponse({'ok': False, 'error': 'Access denied.'}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except (TypeError, ValueError):
+        payload = request.POST
+
+    hs_code_id = payload.get('hs_code_id')
+    if not hs_code_id:
+        return JsonResponse({'ok': False, 'error': 'hs_code_id required.'}, status=400)
+
+    try:
+        hs = HSCode.objects.get(id=int(hs_code_id), is_active=True)
+    except (HSCode.DoesNotExist, ValueError):
+        return JsonResponse({'ok': False, 'error': 'HS code not found.'}, status=404)
+
+    item.hs_code     = hs
+    item.is_confirmed = True
+    item.save(update_fields=['hs_code', 'is_confirmed', 'updated_at'])
+
+    # Record the confirmation for historical boost
+    ShipmentHSCode.objects.get_or_create(
+        shipment=shipment, hs_code=hs,
+        defaults={'is_suggested': True, 'is_confirmed': True},
+    )
+
+    return JsonResponse({
+        'ok':       True,
+        'hs_code':  hs.code,
+        'duty_rate': float(hs.duty_rate),
+    })
+
+
+# â”€â”€â”€ HS Code Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required
 def hs_code_search(request):
@@ -1210,7 +1356,7 @@ def hs_code_search(request):
     })
 
 
-# ─── Graduated WMCDA ─────────────────────────────────────────────────────────
+# â”€â”€â”€ Graduated WMCDA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _lerp(x, x0, x1, y0, y1):
     if x <= x0: return y0
@@ -1219,20 +1365,20 @@ def _lerp(x, x0, x1, y0, y1):
 
 
 def compute_wmcda(weight, volume, value, urgency, distance):
-    # ── Urgency factor ────────────────────────────────────────────────────────
+    # â”€â”€ Urgency factor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # 0.0 = standard/normal, 0.5 = priority, 1.0 = urgent, 1.3 = rush
     _uf = {'standard': 0.0, 'normal': 0.0, 'priority': 0.5, 'urgent': 1.0, 'rush': 1.3}.get(urgency, 0.0)
     _is_time_critical = urgency in ('urgent', 'rush')
     _urgency_label    = {'standard': 'standard', 'normal': 'standard',
                          'priority': 'priority', 'urgent': 'urgent', 'rush': 'rush'}.get(urgency, urgency)
 
-    # ── Land freight viability flag ───────────────────────────────────────────
+    # â”€â”€ Land freight viability flag â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Land freight is only practical for domestic PH routes or short ASEAN
     # cross-border routes. International sea/air routes (>1500 km) make land
     # freight impractical.
     _land_viable = distance <= 1500
 
-    # ── Cost scores ───────────────────────────────────────────────────────────
+    # â”€â”€ Cost scores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # LCL: cost scales with CBM. Use volume if provided, else weight as proxy.
     if volume > 0:
         lcl_cost = max(0.20, _lerp(volume, 0, 15, 0.92, 0.28))   # ideal <5 CBM, poor >15
@@ -1244,7 +1390,7 @@ def compute_wmcda(weight, volume, value, urgency, distance):
     air_cost  = max(0.15, _lerp(weight, 0, 500, 0.55, 0.18))     # expensive per-kg above 100 kg
     land_cost = max(0.20, _lerp(distance, 0, 1500, 0.90, 0.30)) if _land_viable else 0.15
 
-    # ── Time scores ───────────────────────────────────────────────────────────
+    # â”€â”€ Time scores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     _base_lcl_time  = max(0.30, _lerp(distance, 0, 2000, 0.72, 0.50))
     _base_fcl_time  = max(0.35, _lerp(distance, 0, 2000, 0.78, 0.55))
     _base_air_time  = 0.62
@@ -1255,7 +1401,7 @@ def compute_wmcda(weight, volume, value, urgency, distance):
     air_time  = min(0.99, _base_air_time  + 0.34 * _uf)   # better under urgency
     land_time = max(0.15, _base_land_time - 0.20 * _uf) if _land_viable else 0.15
 
-    # ── Cargo suitability scores (weight + volume blended) ────────────────────
+    # â”€â”€ Cargo suitability scores (weight + volume blended) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Physical weight component
     lcl_w  = _lerp(weight, 0, 2000, 0.92, 0.28)
     fcl_w  = _lerp(weight, 0, 2000, 0.18, 0.95)
@@ -1263,7 +1409,7 @@ def compute_wmcda(weight, volume, value, urgency, distance):
     land_w = _lerp(weight, 0, 2000, 0.70, 0.90)
 
     if volume > 0:
-        # Volume (CBM) component — critical for LCL vs FCL decision
+        # Volume (CBM) component â€” critical for LCL vs FCL decision
         # LCL sweet spot: <5 CBM. At 15 CBM (20ft container threshold) it's poor.
         # FCL sweet spot: >15 CBM. Below 5 CBM wastes the container.
         # Air: very harsh above 3 CBM (volumetric weight cost explodes).
@@ -1278,19 +1424,19 @@ def compute_wmcda(weight, volume, value, urgency, distance):
         air_weight  = round(0.55 * air_w  + 0.45 * air_v,  3)
         land_weight = round(0.55 * land_w + 0.45 * land_v, 3) if _land_viable else 0.20
     else:
-        # No volume data — weight only
+        # No volume data â€” weight only
         lcl_weight  = lcl_w
         fcl_weight  = fcl_w
         air_weight  = air_w
         land_weight = land_w if _land_viable else 0.20
 
-    # ── Risk scores ───────────────────────────────────────────────────────────
+    # â”€â”€ Risk scores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     lcl_risk  = _lerp(value, 0, 20000, 0.82, 0.40)
     fcl_risk  = 0.70
     air_risk  = _lerp(value, 0, 20000, 0.62, 0.92)
     land_risk = max(0.30, _lerp(distance, 0, 1500, 0.72, 0.38)) if _land_viable else 0.25
 
-    # ── Criterion weights from SystemConfig ───────────────────────────────────
+    # â”€â”€ Criterion weights from SystemConfig â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         w_cost   = float(SystemConfig.get('wmcda_w_cost',   '35')) / 100
         w_time   = float(SystemConfig.get('wmcda_w_time',   '30')) / 100
@@ -1331,7 +1477,7 @@ def compute_wmcda(weight, volume, value, urgency, distance):
     explanations = {
         'lcl': (
             f'LCL is cost-efficient for small-to-moderate cargo ({cargo_desc}). '
-            f'{"Not recommended — slower sea transit conflicts with " + _urgency_label + " urgency." if _is_time_critical else "Suitable transit time for this urgency level."}'
+            f'{"Not recommended â€” slower sea transit conflicts with " + _urgency_label + " urgency." if _is_time_critical else "Suitable transit time for this urgency level."}'
         ),
         'fcl': (
             f'FCL is optimal for large or heavy cargo. '
@@ -1340,14 +1486,14 @@ def compute_wmcda(weight, volume, value, urgency, distance):
             f'{" Sea transit may be too slow for " + _urgency_label + " urgency." if _is_time_critical else ""}'
         ),
         'air': (
-            f'{"🚨 Rush — Air Freight only viable option for immediate delivery. " if urgency == "rush" else ""}'
-            f'{"⚡ Air Freight recommended — urgency requires fastest transit. " if urgency == "urgent" else ""}'
-            f'{"⏩ Air Freight ideal for priority delivery at " + value_label + ". " if urgency == "priority" else ""}'
+            f'{"ðŸš¨ Rush â€” Air Freight only viable option for immediate delivery. " if urgency == "rush" else ""}'
+            f'{"âš¡ Air Freight recommended â€” urgency requires fastest transit. " if urgency == "urgent" else ""}'
+            f'{"â© Air Freight ideal for priority delivery at " + value_label + ". " if urgency == "priority" else ""}'
             f'{"Air Freight offers best security and speed for high-value goods at " + value_label + "." if value > 10000 and not _is_time_critical else ""}'
             f'{"Air Freight is competitive for this shipment profile." if not _is_time_critical and value <= 10000 else ""}'
         ),
         'land': (
-            f'{"🚛 Land Freight is viable for this regional route (" + dist_label + ")." if distance <= 1000 else "Land Freight suited for this shorter route (" + dist_label + ")."} '
+            f'{"ðŸš› Land Freight is viable for this regional route (" + dist_label + ")." if distance <= 1000 else "Land Freight suited for this shorter route (" + dist_label + ")."} '
             f'Cargo of {cargo_desc} is well-suited for road transport. '
             f'{"Short-haul land routes can accommodate " + _urgency_label + " urgency." if _is_time_critical and distance <= 500 else "Suitable for this urgency level." if not _is_time_critical else "Road transit may be too slow for time-critical urgency on this route."}'
         ),
@@ -1357,7 +1503,7 @@ def compute_wmcda(weight, volume, value, urgency, distance):
     return scores, recommended, breakdown, explanation
 
 
-# ─── Shipping Advisory (auto-populated) ──────────────────────────────────────
+# â”€â”€â”€ Shipping Advisory (auto-populated) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required
 def shipping_advisory(request, shipment_id):
@@ -1372,7 +1518,7 @@ def shipping_advisory(request, shipment_id):
     result = breakdown = explanation = None
     scores = None
 
-    # ── Auto-populate from shipment + computation data ──
+    # â”€â”€ Auto-populate from shipment + computation data â”€â”€
     computation = getattr(shipment, 'computation', None)
 
     if existing:
@@ -1402,7 +1548,7 @@ def shipping_advisory(request, shipment_id):
             auto_value = 0.0
         auto_volume   = 0.0
         auto_urgency  = shipment.urgency
-        auto_distance = 2600.0  # Default: Incheon, Korea → Manila, Philippines
+        auto_distance = 2600.0  # Default: Incheon, Korea â†’ Manila, Philippines
 
     # Determine which fields were auto-populated vs missing
     missing_fields = []
@@ -1464,7 +1610,7 @@ def shipping_advisory(request, shipment_id):
                     recipient=shipment.consignee,
                     shipment=shipment,
                     notification_type='status_update',
-                    title=f'Shipping Advisory Ready — {shipment.hawb_number}',
+                    title=f'Shipping Advisory Ready â€” {shipment.hawb_number}',
                     message=(
                         f'WMCDA Recommendation: {label_map.get(recommended, recommended.upper())}. '
                         f'{explanation[:120] if explanation else ""}'
@@ -1476,7 +1622,7 @@ def shipping_advisory(request, shipment_id):
         except Exception as e:
             messages.error(request, f'Error: {e}')
 
-    # ── Historical advisory counts (same shipment type as this shipment) ───────
+    # â”€â”€ Historical advisory counts (same shipment type as this shipment) â”€â”€â”€â”€â”€â”€â”€
     wmcda_history = None
     if shipment.shipment_type:
         from collections import Counter
@@ -1523,7 +1669,7 @@ def shipping_advisory(request, shipment_id):
     return render(request, 'computation/advisory.html', context)
 
 
-# ─── Save Declarant Advisory ──────────────────────────────────────────────────
+# â”€â”€â”€ Save Declarant Advisory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required
 def save_declarant_advisory(request, shipment_id):
@@ -1562,7 +1708,7 @@ def save_declarant_advisory(request, shipment_id):
                 recipient=shipment.consignee,
                 shipment=shipment,
                 notification_type='status_update',
-                title=f'Declarant Advisory — {shipment.hawb_number}',
+                title=f'Declarant Advisory â€” {shipment.hawb_number}',
                 message=(
                     f'Your declarant recommends {mode_label} for your shipment. '
                     f'{note}' if note else f'Your declarant recommends {mode_label} for your shipment.'
@@ -1570,7 +1716,7 @@ def save_declarant_advisory(request, shipment_id):
             )
         except Exception:
             pass
-        messages.success(request, f'Advisory saved — {mode_label} recommended to consignee.')
+        messages.success(request, f'Advisory saved â€” {mode_label} recommended to consignee.')
     else:
         messages.success(request, 'Declarant advisory cleared.')
 

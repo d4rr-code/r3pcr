@@ -1,12 +1,11 @@
-{% extends 'base.html' %}
-{% block title %}Shipment — {{ shipment.hawb_number }}{% endblock %}
+{% extends 'supervisor/base_supervisor.html' %}
+{% block title %}Shipment  {{ shipment.hawb_number }}{% endblock %}
 {% block page_title %}Shipment Details{% endblock %}
 
 {% block extra_css %}
-<style>
 .status-alert { border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12px; font-weight:700; }
-.status-alert.revision { background:#422006; color:#fbbf24; border:1px solid #92400e; }
-.status-alert.rejected { background:#450a0a; color:#fca5a5; border:1px solid #991b1b; }
+.status-alert.revision { background:#FFFBEB; color:#92400E; border:1px solid #FCD34D; }
+.status-alert.rejected { background:#FEF2F2; color:#991B1B; border:1px solid #FCA5A5; }
 
 .status-progress {
     display: grid;
@@ -20,7 +19,7 @@
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    color: #475569;
+    color: #9CA3AF;
     font-size: 9px;
     font-weight: 600;
     text-align: center;
@@ -34,76 +33,80 @@
     left: -50%;
     width: 100%;
     height: 3px;
-    background: #1e293b;
+    background: #CBD5E1;
     z-index: 0;
 }
 .status-step:first-child::before { display: none; }
-.status-step.completed::before  { background: #22c55e; }
-.status-step.current::before    { background: #3b82f6; }
+.status-step.completed::before  { background: #1B3358; }
+.status-step.current::before    { background: #1B3358; }
 .progress-dot {
     width: 13px;
     height: 13px;
     border-radius: 50%;
-    background: #1e293b;
+    background: #CBD5E1;
     position: relative;
     z-index: 1;
     flex-shrink: 0;
 }
-.status-step.completed .progress-dot { background: #22c55e; }
+.status-step.completed .progress-dot { background: #1B3358; }
 .status-step.current   .progress-dot {
-    background: #3b82f6;
-    box-shadow: 0 0 0 4px rgba(59,130,246,.25), 0 0 12px rgba(59,130,246,.5);
+    background: #1B3358;
+    box-shadow: 0 0 0 4px rgba(27,51,88,.15), 0 0 12px rgba(27,51,88,.25);
 }
-.status-step.current > span:last-child { color: #f1f5f9; font-weight: 700; }
-</style>
+.status-step.current > span:last-child { color: #1B3358; font-weight: 700; }
 {% endblock %}
 
 {% block content %}
 
 <!-- Header -->
 <div style="display:flex; align-items:center; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
-    <a href="{% url 'supervisor:analytics' %}" class="btn btn-secondary" style="font-size:12px;">
-        ← Back to Dashboard
+    <a href="{% url 'supervisor:dashboard' %}" class="btn btn-secondary" style="font-size:12px;">
+        Back to Dashboard
     </a>
     <div>
-        <h2 style="font-size:18px; font-weight:700; color:#f1f5f9; margin:0;">{{ shipment.hawb_number }}</h2>
-        <p style="font-size:13px; color:#64748b; margin:3px 0 0;">Submitted {{ shipment.submitted_at|date:"M d, Y g:i A" }}</p>
+        <h2 style="font-size:18px; font-weight:700; color:#1A1A2E; margin:0;">{{ shipment.hawb_number }}</h2>
+        <p style="font-size:13px; color:#9CA3AF; margin:3px 0 0;">Submitted {{ shipment.submitted_at|date:"M d, Y g:i A" }}</p>
     </div>
     <div style="margin-left:auto;">
         <span style="font-size:11px; font-weight:700; padding:4px 12px; border-radius:99px;
-                     background:#1e293b; color:#64748b; border:1px solid #334155; letter-spacing:.04em;">
-            👁 Read-only · Supervisor View
+                     background:#FFFFFF; color:#9CA3AF; border:1px solid #E5E7EB; letter-spacing:.04em;">
+            Read-only - Supervisor View
         </span>
     </div>
 </div>
 
 <!-- Consignee + Declarant Info Strip -->
 <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px;">
-    <div style="background:#0c1420; border:1px solid #1e293b; border-radius:8px; padding:14px 18px;
+    <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:14px 18px;
                 display:flex; align-items:center; gap:12px;">
-        <span style="font-size:22px;">👤</span>
+        <svg width="22" height="22" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="color:#1B3358; flex-shrink:0;">
+            <path d="M10 9a3 3 0 100-6 3 3 0 000 6z"/>
+            <path fill-rule="evenodd" d="M2 16.5A5.5 5.5 0 017.5 11h5a5.5 5.5 0 015.5 5.5.5.5 0 01-.5.5h-15a.5.5 0 01-.5-.5z" clip-rule="evenodd"/>
+        </svg>
         <div>
-            <p style="color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:.06em; margin:0 0 2px;">Consignee</p>
-            <p style="color:#f1f5f9; font-size:14px; font-weight:700; margin:0;">
+            <p style="color:#9CA3AF; font-size:10px; text-transform:uppercase; letter-spacing:.06em; margin:0 0 2px;">Consignee</p>
+            <p style="color:#1A1A2E; font-size:14px; font-weight:700; margin:0;">
                 {{ shipment.consignee.get_full_name|default:shipment.consignee.username }}
             </p>
             {% if shipment.consignee.company_name %}
-            <p style="color:#64748b; font-size:11px; margin:2px 0 0;">{{ shipment.consignee.company_name }}</p>
+            <p style="color:#9CA3AF; font-size:11px; margin:2px 0 0;">{{ shipment.consignee.company_name }}</p>
             {% endif %}
         </div>
     </div>
-    <div style="background:#0c1420; border:1px solid #1e293b; border-radius:8px; padding:14px 18px;
+    <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:14px 18px;
                 display:flex; align-items:center; gap:12px;">
-        <span style="font-size:22px;">📋</span>
+        <svg width="22" height="22" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="color:#1B3358; flex-shrink:0;">
+            <path fill-rule="evenodd" d="M6 3a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L13 3.586A2 2 0 0011.586 3H6zm1 7.75A.75.75 0 017.75 10h4.5a.75.75 0 010 1.5h-4.5A.75.75 0 017 10.75z" clip-rule="evenodd"/>
+        </svg>
         <div>
-            <p style="color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:.06em; margin:0 0 2px;">Declarant</p>
+            <p style="color:#9CA3AF; font-size:10px; text-transform:uppercase; letter-spacing:.06em; margin:0 0 2px;">Declarant</p>
             {% if shipment.declarant %}
-            <p style="color:#f1f5f9; font-size:14px; font-weight:700; margin:0;">
+            <p style="color:#1A1A2E; font-size:14px; font-weight:700; margin:0;">
                 {{ shipment.declarant.get_full_name|default:shipment.declarant.username }}
             </p>
-            <p style="color:#64748b; font-size:11px; margin:2px 0 0;">@{{ shipment.declarant.username }}</p>
+            <p style="color:#9CA3AF; font-size:11px; margin:2px 0 0;">@{{ shipment.declarant.username }}</p>
             {% else %}
-            <p style="color:#475569; font-size:13px; margin:0;">Not yet assigned</p>
+            <p style="color:#9CA3AF; font-size:13px; margin:0;">Not yet assigned</p>
             {% endif %}
         </div>
     </div>
@@ -112,9 +115,9 @@
 <!-- Status Progress Bar -->
 <div class="card" style="margin-bottom:20px;">
     {% if shipment.status == 'for_revision' %}
-    <div class="status-alert revision">⚠ Returned for Revision by Consignee</div>
+    <div class="status-alert revision">Returned for Revision by Consignee</div>
     {% elif shipment.status == 'rejected' %}
-    <div class="status-alert rejected">✗ Rejected by Consignee</div>
+    <div class="status-alert rejected">Rejected by Consignee</div>
     {% endif %}
     <div class="status-progress">
         {% for step in status_steps %}
@@ -127,15 +130,15 @@
 
     {% if current_sublabel %}
     <div style="margin-top:14px; padding:10px 16px; border-radius:7px;
-                background:#0f172a; border-left:3px solid
+                background:#F8FAFC; border-left:3px solid
                 {% if shipment.status == 'billed' %}#22c55e
                 {% elif shipment.status == 'assessed' %}#f59e0b
                 {% elif shipment.status == 'computed' %}#3b82f6
-                {% else %}#334155{% endif %};">
-        <p style="font-size:12px; color:#94a3b8; margin:0; line-height:1.6;">
-            <span style="font-weight:700; color:#f1f5f9; text-transform:uppercase;
+                {% else %}#E5E7EB{% endif %};">
+        <p style="font-size:12px; color:#6B7280; margin:0; line-height:1.6;">
+            <span style="font-weight:700; color:#1A1A2E; text-transform:uppercase;
                          font-size:10px; letter-spacing:0.6px;">
-                {{ shipment.get_status_display }} &nbsp;—&nbsp;
+                {{ shipment.get_status_display }} &nbsp;&nbsp;
             </span>
             {{ current_sublabel }}
         </p>
@@ -150,41 +153,41 @@
         <p class="card-title">Shipment Information</p>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
             <div>
-                <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Import Type</p>
-                <p style="font-size:13px; color:#e2e8f0; margin:0;">{{ shipment.get_import_type_display }}</p>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Import Type</p>
+                <p style="font-size:13px; color:#374151; margin:0;">{{ shipment.get_import_type_display }}</p>
             </div>
             <div>
-                <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Urgency</p>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Urgency</p>
                 <p style="font-size:13px; font-weight:{% if shipment.urgency in 'urgent,rush' %}600{% else %}400{% endif %}; margin:0;
-                           color:{% if shipment.urgency == 'rush' %}#ef4444{% elif shipment.urgency == 'urgent' %}#f97316{% elif shipment.urgency == 'priority' %}#f59e0b{% else %}#94a3b8{% endif %};">
-                    {% if shipment.urgency == 'rush' %}🚨 Rush / Time-Critical
-                    {% elif shipment.urgency == 'urgent' %}⚡ Urgent
-                    {% elif shipment.urgency == 'priority' %}⏩ Priority
+                           color:{% if shipment.urgency == 'rush' %}#ef4444{% elif shipment.urgency == 'urgent' %}#f97316{% elif shipment.urgency == 'priority' %}#f59e0b{% else %}#6B7280{% endif %};">
+                    {% if shipment.urgency == 'rush' %} Rush / Time-Critical
+                    {% elif shipment.urgency == 'urgent' %} Urgent
+                    {% elif shipment.urgency == 'priority' %} Priority
                     {% else %}Standard{% endif %}
                 </p>
             </div>
             {% if shipment.shipment_type %}
             <div>
-                <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Shipment Type</p>
-                <p style="font-size:13px; color:#e2e8f0; margin:0;">{{ shipment.get_shipment_type_display }}</p>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Shipment Type</p>
+                <p style="font-size:13px; color:#374151; margin:0;">{{ shipment.get_shipment_type_display }}</p>
             </div>
             {% endif %}
             {% if shipment.description %}
             <div style="grid-column:1/-1;">
-                <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Description</p>
-                <p style="font-size:13px; color:#94a3b8; margin:0;">{{ shipment.description }}</p>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Description</p>
+                <p style="font-size:13px; color:#6B7280; margin:0;">{{ shipment.description }}</p>
             </div>
             {% endif %}
             {% if shipment.boc_reference %}
             <div>
-                <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">BOC Reference</p>
-                <p style="font-size:13px; color:#e2e8f0; margin:0;">{{ shipment.boc_reference }}</p>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">BOC Reference</p>
+                <p style="font-size:13px; color:#374151; margin:0;">{{ shipment.boc_reference }}</p>
             </div>
             {% endif %}
             {% if shipment.boc_status %}
             <div>
-                <p style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">BOC Status</p>
-                <p style="font-size:13px; color:#e2e8f0; margin:0;">{{ shipment.boc_status }}</p>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">BOC Status</p>
+                <p style="font-size:13px; color:#374151; margin:0;">{{ shipment.boc_status }}</p>
             </div>
             {% endif %}
         </div>
@@ -197,18 +200,17 @@
         <div style="display:flex; flex-direction:column; gap:8px;">
             {% for doc in docs %}
             <div style="display:flex; align-items:center; justify-content:space-between;
-                        padding:10px 12px; background:#0f172a; border:1px solid #1e293b; border-radius:8px;">
-                <span style="font-size:13px; color:#94a3b8;">
-                    {% if doc.document_type == 'invoice' %}📄{% elif doc.document_type == 'packing_list' %}📦{% elif doc.document_type == 'airway_bill' %}✈️{% else %}📎{% endif %}
+                        padding:10px 12px; background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px;">
+                <span style="font-size:13px; color:#6B7280;">
                     {{ doc.get_document_type_display }}
                 </span>
                 <a href="{{ doc.file.url }}" target="_blank"
-                   style="font-size:12px; color:#3b82f6; font-weight:600; text-decoration:none;">View ↗</a>
+                   style="font-size:12px; color:#3b82f6; font-weight:600; text-decoration:none;">View</a>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p style="color:#475569; font-size:13px; text-align:center; padding:16px 0; margin:0;">No documents uploaded yet.</p>
+        <p style="color:#9CA3AF; font-size:13px; text-align:center; padding:16px 0; margin:0;">No documents uploaded yet.</p>
         {% endif %}
         {% endwith %}
     </div>
@@ -227,7 +229,7 @@
                       border:1px solid #1e3a6e; border-radius:6px; background:#eff6ff;"
                onmouseover="this.style.background='#dbeafe'"
                onmouseout="this.style.background='#eff6ff'">
-                ⬇ PDF
+                 PDF
             </a>
             <a href="{% url 'consignee:download_computation' shipment.id %}?fmt=xlsx"
                style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600;
@@ -235,7 +237,7 @@
                       border:1px solid #166534; border-radius:6px; background:#f0fdf4;"
                onmouseover="this.style.background='#dcfce7'"
                onmouseout="this.style.background='#f0fdf4'">
-                ⬇ Excel
+                 Excel
             </a>
         </div>
     </div>
@@ -243,88 +245,88 @@
     <div style="background:#fefce8; border:1px solid #fbbf24; border-radius:6px;
                 padding:8px 14px; margin-bottom:16px; text-align:center;">
         <span style="font-size:11px; font-weight:700; color:#92400e; letter-spacing:0.3px;">
-            ⚠ ESTIMATED COMPUTATION ONLY. FINAL ASSESSMENT WILL BE BASED ON CUSTOMS FINDINGS.
+            ESTIMATED COMPUTATION ONLY. FINAL ASSESSMENT WILL BE BASED ON CUSTOMS FINDINGS.
         </span>
     </div>
 
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:18px;">
-        <div style="background:#172554; border:1px solid #1d4ed8; border-radius:8px; padding:14px; text-align:center;">
-            <p style="font-size:10px; color:#93c5fd; text-transform:uppercase; letter-spacing:0.8px; margin:0 0 6px; font-weight:600;">BOC Payable</p>
-            <p style="font-size:20px; font-weight:800; color:#60a5fa; margin:0;">₱ {{ computation.boc_payable|floatformat:2 }}</p>
-            <p style="font-size:10px; color:#475569; margin:4px 0 0;">Govt. duties &amp; taxes</p>
+        <div style="background:#EFF6FF; border:1px solid #1d4ed8; border-radius:8px; padding:14px; text-align:center;">
+            <p style="font-size:10px; color:#1D4ED8; text-transform:uppercase; letter-spacing:0.8px; margin:0 0 6px; font-weight:600;">BOC Payable</p>
+            <p style="font-size:20px; font-weight:800; color:#1D4ED8; margin:0;">PHP {{ computation.boc_payable|floatformat:2 }}</p>
+            <p style="font-size:10px; color:#9CA3AF; margin:4px 0 0;">Govt. duties &amp; taxes</p>
         </div>
-        <div style="background:#0f172a; border:1px solid #1e293b; border-radius:8px; padding:14px; text-align:center;">
-            <p style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin:0 0 6px; font-weight:600;">Brokerage Fee</p>
-            <p style="font-size:20px; font-weight:800; color:#e2e8f0; margin:0;">₱ {{ computation.brokerage_fee|floatformat:2|default:"—" }}</p>
-            <p style="font-size:10px; color:#475569; margin:4px 0 0;">R3-PCR service charge</p>
+        <div style="background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px; padding:14px; text-align:center;">
+            <p style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin:0 0 6px; font-weight:600;">Brokerage Fee</p>
+            <p style="font-size:20px; font-weight:800; color:#374151; margin:0;">PHP {{ computation.brokerage_fee|floatformat:2|default:"" }}</p>
+            <p style="font-size:10px; color:#9CA3AF; margin:4px 0 0;">R3-PCR service charge</p>
         </div>
-        <div style="background:#052e16; border:1px solid #166534; border-radius:8px; padding:14px; text-align:center;">
-            <p style="font-size:10px; color:#86efac; text-transform:uppercase; letter-spacing:0.8px; margin:0 0 6px; font-weight:600;">Total Landed Cost</p>
-            <p style="font-size:20px; font-weight:800; color:#22c55e; margin:0;">₱ {{ computation.total_landed_cost|floatformat:2|default:"—" }}</p>
-            <p style="font-size:10px; color:#475569; margin:4px 0 0;">All-in landed value</p>
+        <div style="background:#ECFDF5; border:1px solid #166534; border-radius:8px; padding:14px; text-align:center;">
+            <p style="font-size:10px; color:#047857; text-transform:uppercase; letter-spacing:0.8px; margin:0 0 6px; font-weight:600;">Total Landed Cost</p>
+            <p style="font-size:20px; font-weight:800; color:#047857; margin:0;">PHP {{ computation.total_landed_cost|floatformat:2|default:"" }}</p>
+            <p style="font-size:10px; color:#9CA3AF; margin:4px 0 0;">All-in landed value</p>
         </div>
     </div>
 
     <details style="margin-bottom:16px;">
         <summary style="display:flex; align-items:center; justify-content:space-between;
-                        padding:9px 14px; background:#0f172a; border:1px solid #1e293b;
+                        padding:9px 14px; background:#F8FAFC; border:1px solid #E5E7EB;
                         border-radius:7px; cursor:pointer; list-style:none; outline:none;"
-                 onmouseover="this.style.background='#1e293b'"
-                 onmouseout="this.style.background='#0f172a'">
-            <span style="font-size:12px; font-weight:600; color:#60a5fa;">📋 View Full Item Breakdown</span>
-            <span style="font-size:11px; color:#475569;">click to expand ▼</span>
+                 onmouseover="this.style.background='#FFFFFF'"
+                 onmouseout="this.style.background='#F8FAFC'">
+            <span style="font-size:12px; font-weight:600; color:#1D4ED8;">View Full Item Breakdown</span>
+            <span style="font-size:11px; color:#9CA3AF;">click to expand</span>
         </summary>
         <div style="margin-top:12px;">
             <div style="display:flex; gap:28px; flex-wrap:wrap; padding:10px 0; margin-bottom:14px;
-                        border-top:1px solid #1e293b; border-bottom:1px solid #1e293b;">
+                        border-top:1px solid #E5E7EB; border-bottom:1px solid #E5E7EB;">
                 <div>
-                    <span style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.6px;">EXW</span>
-                    <span style="font-size:12px; color:#e2e8f0; font-weight:600; margin-left:8px;">USD {{ computation.declared_value|floatformat:2 }}</span>
+                    <span style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.6px;">EXW</span>
+                    <span style="font-size:12px; color:#374151; font-weight:600; margin-left:8px;">USD {{ computation.declared_value|floatformat:2 }}</span>
                 </div>
                 <div>
-                    <span style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.6px;">Rate</span>
-                    <span style="font-size:12px; color:#e2e8f0; font-weight:600; margin-left:8px;">₱ {{ computation.exchange_rate|floatformat:4 }}</span>
+                    <span style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.6px;">Rate</span>
+                    <span style="font-size:12px; color:#374151; font-weight:600; margin-left:8px;"> {{ computation.exchange_rate|floatformat:4 }}</span>
                 </div>
                 <div>
-                    <span style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.6px;">Freight</span>
-                    <span style="font-size:12px; color:#e2e8f0; font-weight:600; margin-left:8px;">USD {{ computation.total_freight|floatformat:2 }}</span>
+                    <span style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.6px;">Freight</span>
+                    <span style="font-size:12px; color:#374151; font-weight:600; margin-left:8px;">USD {{ computation.total_freight|floatformat:2 }}</span>
                 </div>
                 <div>
-                    <span style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.6px;">Insurance</span>
-                    <span style="font-size:12px; color:#e2e8f0; font-weight:600; margin-left:8px;">USD {{ computation.total_insurance|floatformat:2 }}</span>
+                    <span style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.6px;">Insurance</span>
+                    <span style="font-size:12px; color:#374151; font-weight:600; margin-left:8px;">USD {{ computation.total_insurance|floatformat:2 }}</span>
                 </div>
             </div>
             {% with items=computation.get_items %}
             {% if items %}
-            <div style="overflow-x:auto; border:1px solid #1e293b; border-radius:8px;">
+            <div style="overflow-x:auto; border:1px solid #E5E7EB; border-radius:8px;">
                 <table style="width:100%; border-collapse:collapse; font-size:12px;">
                     <thead>
-                        <tr style="background:#0c1420; border-bottom:1px solid #334155;">
-                            <th style="text-align:left; padding:8px 12px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px;">Description</th>
-                            <th style="text-align:right; padding:8px 12px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Qty / Unit</th>
-                            <th style="text-align:right; padding:8px 12px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">EXW (USD)</th>
-                            <th style="text-align:right; padding:8px 12px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">HS Code</th>
-                            <th style="text-align:right; padding:8px 12px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Duty %</th>
-                            <th style="text-align:right; padding:8px 12px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">D/V (₱)</th>
-                            <th style="text-align:right; padding:8px 12px; color:#64748b; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">CUD (₱)</th>
+                        <tr style="background:#F8FAFC; border-bottom:1px solid #E5E7EB;">
+                            <th style="text-align:left; padding:8px 12px; color:#9CA3AF; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px;">Description</th>
+                            <th style="text-align:right; padding:8px 12px; color:#9CA3AF; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Qty / Unit</th>
+                            <th style="text-align:right; padding:8px 12px; color:#9CA3AF; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">EXW (USD)</th>
+                            <th style="text-align:right; padding:8px 12px; color:#9CA3AF; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">HS Code</th>
+                            <th style="text-align:right; padding:8px 12px; color:#9CA3AF; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">Duty %</th>
+                            <th style="text-align:right; padding:8px 12px; color:#9CA3AF; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">D/V (PHP)</th>
+                            <th style="text-align:right; padding:8px 12px; color:#9CA3AF; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;">CUD (PHP)</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in items %}
-                        <tr style="border-bottom:1px solid #1e293b;"
-                            onmouseover="this.style.background='#0f172a'"
+                        <tr style="border-bottom:1px solid #E5E7EB;"
+                            onmouseover="this.style.background='#F8FAFC'"
                             onmouseout="this.style.background=''">
-                            <td style="padding:10px 12px; color:#e2e8f0;">{{ item.description|default:"—" }}</td>
-                            <td style="padding:10px 12px; color:#94a3b8; text-align:right; white-space:nowrap;">
-                                {{ item.quantity|default:"—" }}{% if item.unit %} <span style="color:#64748b;">{{ item.unit }}</span>{% endif %}
+                            <td style="padding:10px 12px; color:#374151;">{{ item.description|default:"" }}</td>
+                            <td style="padding:10px 12px; color:#6B7280; text-align:right; white-space:nowrap;">
+                                {{ item.quantity|default:"" }}{% if item.unit %} <span style="color:#9CA3AF;">{{ item.unit }}</span>{% endif %}
                             </td>
-                            <td style="padding:10px 12px; color:#94a3b8; text-align:right;">{{ item.exw|floatformat:2|default:"—" }}</td>
+                            <td style="padding:10px 12px; color:#6B7280; text-align:right;">{{ item.exw|floatformat:2|default:"" }}</td>
                             <td style="padding:10px 12px; text-align:right; white-space:nowrap;">
-                                <span style="color:#22c55e; font-family:monospace; font-weight:700; font-size:11px;">{{ item.hs_code|default:"—" }}</span>
+                                <span style="color:#22c55e; font-family:monospace; font-weight:700; font-size:11px;">{{ item.hs_code|default:"" }}</span>
                             </td>
-                            <td style="padding:10px 12px; color:#94a3b8; text-align:right;">{{ item.duty_rate|floatformat:2|default:"—" }}%</td>
-                            <td style="padding:10px 12px; color:#94a3b8; text-align:right;">{{ item.dv_php|floatformat:2|default:"—" }}</td>
-                            <td style="padding:10px 12px; color:#f1f5f9; text-align:right; font-weight:700;">{{ item.cud|floatformat:2|default:"—" }}</td>
+                            <td style="padding:10px 12px; color:#6B7280; text-align:right;">{{ item.duty_rate|floatformat:2|default:"" }}%</td>
+                            <td style="padding:10px 12px; color:#6B7280; text-align:right;">{{ item.dv_php|floatformat:2|default:"" }}</td>
+                            <td style="padding:10px 12px; color:#1A1A2E; text-align:right; font-weight:700;">{{ item.cud|floatformat:2|default:"" }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -337,74 +339,74 @@
 
     <div style="display:flex; flex-direction:column; gap:9px;">
         <div style="display:flex; justify-content:space-between;">
-            <span style="color:#94a3b8; font-size:13px;">Customs Duty (CUD)</span>
-            <span style="color:#e2e8f0; font-size:13px; font-weight:600;">₱ {{ computation.customs_duty|floatformat:2|default:"0.00" }}</span>
+            <span style="color:#6B7280; font-size:13px;">Customs Duty (CUD)</span>
+            <span style="color:#374151; font-size:13px; font-weight:600;"> {{ computation.customs_duty|floatformat:2|default:"0.00" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between;">
-            <span style="color:#94a3b8; font-size:13px;">VAT (12%)</span>
-            <span style="color:#e2e8f0; font-size:13px; font-weight:600;">₱ {{ computation.vat_amount|floatformat:2|default:"0.00" }}</span>
+            <span style="color:#6B7280; font-size:13px;">VAT (12%)</span>
+            <span style="color:#374151; font-size:13px; font-weight:600;"> {{ computation.vat_amount|floatformat:2|default:"0.00" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between;">
-            <span style="color:#94a3b8; font-size:13px;">Import Processing Fee</span>
-            <span style="color:#e2e8f0; font-size:13px; font-weight:600;">₱ {{ computation.ipf|floatformat:2|default:"0.00" }}</span>
+            <span style="color:#6B7280; font-size:13px;">Import Processing Fee</span>
+            <span style="color:#374151; font-size:13px; font-weight:600;"> {{ computation.ipf|floatformat:2|default:"0.00" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between;">
-            <span style="color:#94a3b8; font-size:13px;">Documentary Stamp (CDS)</span>
-            <span style="color:#e2e8f0; font-size:13px; font-weight:600;">₱ 130.00</span>
+            <span style="color:#6B7280; font-size:13px;">Documentary Stamp (CDS)</span>
+            <span style="color:#374151; font-size:13px; font-weight:600;"> 130.00</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center;
-                    padding:9px 0; border-top:1px solid #334155; margin-top:2px;">
+                    padding:9px 0; border-top:1px solid #E5E7EB; margin-top:2px;">
             <span style="color:#93c5fd; font-size:14px; font-weight:700;">BOC Total</span>
-            <span style="color:#3b82f6; font-size:16px; font-weight:800;">₱ {{ computation.boc_payable|floatformat:2 }}</span>
+            <span style="color:#3b82f6; font-size:16px; font-weight:800;"> {{ computation.boc_payable|floatformat:2 }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding-top:2px;">
-            <span style="color:#94a3b8; font-size:13px;">Brokerage Fee</span>
-            <span style="color:#e2e8f0; font-size:13px; font-weight:600;">₱ {{ computation.brokerage_fee|floatformat:2|default:"0.00" }}</span>
+            <span style="color:#6B7280; font-size:13px;">Brokerage Fee</span>
+            <span style="color:#374151; font-size:13px; font-weight:600;"> {{ computation.brokerage_fee|floatformat:2|default:"0.00" }}</span>
         </div>
         {% if computation.arrastre %}
         <div style="display:flex; justify-content:space-between;">
-            <span style="color:#94a3b8; font-size:13px;">Arrastre</span>
-            <span style="color:#e2e8f0; font-size:13px; font-weight:600;">₱ {{ computation.arrastre|floatformat:2 }}</span>
+            <span style="color:#6B7280; font-size:13px;">Arrastre</span>
+            <span style="color:#374151; font-size:13px; font-weight:600;"> {{ computation.arrastre|floatformat:2 }}</span>
         </div>
         {% endif %}
         {% if computation.wharfage %}
         <div style="display:flex; justify-content:space-between;">
-            <span style="color:#94a3b8; font-size:13px;">Wharfage</span>
-            <span style="color:#e2e8f0; font-size:13px; font-weight:600;">₱ {{ computation.wharfage|floatformat:2 }}</span>
+            <span style="color:#6B7280; font-size:13px;">Wharfage</span>
+            <span style="color:#374151; font-size:13px; font-weight:600;"> {{ computation.wharfage|floatformat:2 }}</span>
         </div>
         {% endif %}
         {% if computation.bank_charges %}
         <div style="display:flex; justify-content:space-between;">
-            <span style="color:#94a3b8; font-size:13px;">Bank Charges</span>
-            <span style="color:#e2e8f0; font-size:13px; font-weight:600;">₱ {{ computation.bank_charges|floatformat:2 }}</span>
+            <span style="color:#6B7280; font-size:13px;">Bank Charges</span>
+            <span style="color:#374151; font-size:13px; font-weight:600;"> {{ computation.bank_charges|floatformat:2 }}</span>
         </div>
         {% endif %}
         {% if computation.csf_php %}
         <div style="display:flex; justify-content:space-between;">
-            <span style="color:#94a3b8; font-size:13px;">Container Service Fee (FCL)</span>
-            <span style="color:#e2e8f0; font-size:13px; font-weight:600;">₱ {{ computation.csf_php|floatformat:2 }}</span>
+            <span style="color:#6B7280; font-size:13px;">Container Service Fee (FCL)</span>
+            <span style="color:#374151; font-size:13px; font-weight:600;"> {{ computation.csf_php|floatformat:2 }}</span>
         </div>
         {% endif %}
         {% if computation.total_landed_cost %}
         <div style="display:flex; justify-content:space-between; align-items:center;
-                    padding:12px 16px; background:#052e16; border:1px solid #166534; border-radius:8px; margin-top:6px;">
+                    padding:12px 16px; background:#ECFDF5; border:1px solid #166534; border-radius:8px; margin-top:6px;">
             <div>
-                <p style="color:#86efac; font-size:13px; font-weight:700; margin:0;">Total Landed Cost</p>
-                <p style="color:#4ade80; font-size:10px; margin:2px 0 0;">D/V + all charges</p>
+                <p style="color:#047857; font-size:13px; font-weight:700; margin:0;">Total Landed Cost</p>
+                <p style="color:#047857; font-size:10px; margin:2px 0 0;">D/V + all charges</p>
             </div>
-            <span style="color:#22c55e; font-size:20px; font-weight:800;">₱ {{ computation.total_landed_cost|floatformat:2 }}</span>
+            <span style="color:#047857; font-size:20px; font-weight:800;">PHP {{ computation.total_landed_cost|floatformat:2 }}</span>
         </div>
         {% endif %}
     </div>
-    <p style="color:#475569; font-size:11px; margin:14px 0 0;">
+    <p style="color:#9CA3AF; font-size:11px; margin:14px 0 0;">
         Computed {{ computation.computed_at|date:"M d, Y g:i A" }}
         {% if computation.computed_by %}by {{ computation.computed_by.get_full_name|default:computation.computed_by.username }}{% endif %}
     </p>
 </div>
 {% else %}
 <div class="card" style="margin-bottom:20px; text-align:center; padding:32px 24px;">
-    <p style="color:#64748b; font-size:14px; font-weight:600; margin:0 0 6px;">Duties and Tax Computation</p>
-    <p style="color:#475569; font-size:12px; margin:0;">No computation yet. Declarant has not processed this shipment.</p>
+    <p style="color:#9CA3AF; font-size:14px; font-weight:600; margin:0 0 6px;">Duties and Tax Computation</p>
+    <p style="color:#9CA3AF; font-size:12px; margin:0;">No computation yet. Declarant has not processed this shipment.</p>
 </div>
 {% endif %}
 
@@ -414,32 +416,36 @@
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
         <p class="card-title" style="margin:0;">Single Administrative Document (SAD)</p>
         <span style="font-size:10px; font-weight:700; letter-spacing:0.5px; padding:3px 10px;
-                     border-radius:999px; background:#422006; color:#fbbf24; border:1px solid #92400e;">
+                     border-radius:999px; background:#FFFBEB; color:#fbbf24; border:1px solid #92400e;">
             OFFICIAL BOC DOCUMENT
         </span>
     </div>
     {% if sad_document %}
     <div style="display:flex; align-items:center; gap:14px; padding:14px 16px;
-                background:#0f172a; border:1px solid #f59e0b44; border-radius:8px;">
-        <span style="font-size:28px;">📄</span>
+                background:#F8FAFC; border:1px solid #f59e0b44; border-radius:8px;">
+        <svg width="28" height="28" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="color:#B45309; flex-shrink:0;">
+            <path fill-rule="evenodd" d="M6 3a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L13 3.586A2 2 0 0011.586 3H6zm3.75 7.5a.75.75 0 000 1.5h3.5a.75.75 0 000-1.5h-3.5zm0 3a.75.75 0 000 1.5h3.5a.75.75 0 000-1.5h-3.5z" clip-rule="evenodd"/>
+        </svg>
         <div style="flex:1;">
             <p style="color:#fbbf24; font-size:13px; font-weight:700; margin:0 0 2px;">SAD Document Available</p>
-            <p style="color:#64748b; font-size:11px; margin:0;">Uploaded {{ sad_document.uploaded_at|date:"M d, Y g:i A" }}</p>
+            <p style="color:#9CA3AF; font-size:11px; margin:0;">Uploaded {{ sad_document.uploaded_at|date:"M d, Y g:i A" }}</p>
         </div>
         <a href="{{ sad_document.file.url }}" target="_blank"
            style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600;
                   color:#fbbf24; text-decoration:none; padding:7px 14px;
-                  border:1px solid #92400e; border-radius:6px; background:#422006; flex-shrink:0;"
-           onmouseover="this.style.background='#78350f'"
-           onmouseout="this.style.background='#422006'">
-            ↗ View SAD
+                  border:1px solid #FCD34D; border-radius:6px; background:#FFFBEB; flex-shrink:0;"
+           onmouseover="this.style.background='#FEF3C7'"
+           onmouseout="this.style.background='#FFFBEB'">
+            View SAD
         </a>
     </div>
     {% else %}
     <div style="display:flex; align-items:center; gap:12px; padding:12px 14px;
-                background:#0f172a; border:1px solid #334155; border-radius:8px;">
-        <span style="font-size:20px;">⏳</span>
-        <p style="color:#94a3b8; font-size:13px; margin:0;">SAD document not yet uploaded by declarant.</p>
+                background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px;">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="color:#9CA3AF; flex-shrink:0;">
+            <path fill-rule="evenodd" d="M6 3a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L13 3.586A2 2 0 0011.586 3H6zm2.28 6.22a.75.75 0 00-1.06 1.06L8.94 12l-1.72 1.72a.75.75 0 101.06 1.06L10 13.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L10 10.94 8.28 9.22z" clip-rule="evenodd"/>
+        </svg>
+        <p style="color:#6B7280; font-size:13px; margin:0;">SAD document not yet uploaded by declarant.</p>
     </div>
     {% endif %}
 </div>
@@ -455,12 +461,12 @@
             <p class="card-title">Shipping Type Advisory</p>
 
             {% if shipment.shipment_type and declared_score is not None %}
-            <div style="background:#0f172a; border-radius:10px; padding:14px; margin-bottom:12px;
+            <div style="background:#F8FAFC; border-radius:10px; padding:14px; margin-bottom:12px;
                         border:2px solid {% if declared_rating == 'Excellent' %}#22c55e{% elif declared_rating == 'Good' %}#3b82f6{% elif declared_rating == 'Fair' %}#f59e0b{% else %}#ef4444{% endif %};">
                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
                     <div style="flex:1;">
-                        <p style="color:#94a3b8; font-size:10px; margin:0; text-transform:uppercase; letter-spacing:0.5px;">Declared Shipping Mode</p>
-                        <p style="color:#f1f5f9; font-size:15px; font-weight:700; margin:2px 0 0;">{{ shipment.get_shipment_type_display }}</p>
+                        <p style="color:#6B7280; font-size:10px; margin:0; text-transform:uppercase; letter-spacing:0.5px;">Declared Shipping Mode</p>
+                        <p style="color:#1A1A2E; font-size:15px; font-weight:700; margin:2px 0 0;">{{ shipment.get_shipment_type_display }}</p>
                     </div>
                     <div style="text-align:right;">
                         <p style="font-size:22px; font-weight:800; margin:0;
@@ -469,7 +475,7 @@
                         </p>
                         <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;
                             color:{% if declared_rating == 'Excellent' %}#22c55e{% elif declared_rating == 'Good' %}#93c5fd{% elif declared_rating == 'Fair' %}#fbbf24{% else %}#fca5a5{% endif %};
-                            background:{% if declared_rating == 'Excellent' %}#052e16{% elif declared_rating == 'Good' %}#172554{% elif declared_rating == 'Fair' %}#422006{% else %}#450a0a{% endif %};
+                            background:{% if declared_rating == 'Excellent' %}#ECFDF5{% elif declared_rating == 'Good' %}#EFF6FF{% elif declared_rating == 'Fair' %}#FFFBEB{% else %}#FEF2F2{% endif %};
                             border:1px solid {% if declared_rating == 'Excellent' %}#166534{% elif declared_rating == 'Good' %}#1d4ed8{% elif declared_rating == 'Fair' %}#78350f{% else %}#991b1b{% endif %};">
                             {{ declared_rating|upper }}
                         </span>
@@ -478,39 +484,39 @@
             </div>
             {% endif %}
 
-            <!-- 3-mode strip (Air, LCL, FCL — no land for importation) -->
+            <!-- 3-mode strip (Air, LCL, FCL  no land for importation) -->
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px;">
-                <div style="background:#0f172a; border-radius:8px; padding:10px; text-align:center;
-                            border:1px solid {% if advisory.recommended_type == 'lcl' %}#22c55e{% elif shipment.shipment_type == 'lcl' %}#3b82f6{% else %}#1e293b{% endif %};">
-                    <p style="color:#94a3b8; font-size:10px; margin:0 0 3px;">🚢 LCL</p>
-                    <p style="font-size:16px; font-weight:700; margin:0; color:{% if advisory.recommended_type == 'lcl' %}#22c55e{% elif shipment.shipment_type == 'lcl' %}#3b82f6{% else %}#94a3b8{% endif %};">{{ advisory.lcl_score|floatformat:3 }}</p>
-                    {% if advisory.recommended_type == 'lcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+                <div style="background:#F8FAFC; border-radius:8px; padding:10px; text-align:center;
+                            border:1px solid {% if advisory.recommended_type == 'lcl' %}#22c55e{% elif shipment.shipment_type == 'lcl' %}#3b82f6{% else %}#E5E7EB{% endif %};">
+                    <p style="color:#6B7280; font-size:10px; margin:0 0 3px;">LCL</p>
+                    <p style="font-size:16px; font-weight:700; margin:0; color:{% if advisory.recommended_type == 'lcl' %}#22c55e{% elif shipment.shipment_type == 'lcl' %}#3b82f6{% else %}#6B7280{% endif %};">{{ advisory.lcl_score|floatformat:3 }}</p>
+                    {% if advisory.recommended_type == 'lcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">BEST</p>
                     {% elif shipment.shipment_type == 'lcl' %}<p style="color:#3b82f6; font-size:9px; margin:2px 0 0;">declared</p>{% endif %}
                 </div>
-                <div style="background:#0f172a; border-radius:8px; padding:10px; text-align:center;
-                            border:1px solid {% if advisory.recommended_type == 'fcl' %}#22c55e{% elif shipment.shipment_type == 'fcl' %}#3b82f6{% else %}#1e293b{% endif %};">
-                    <p style="color:#94a3b8; font-size:10px; margin:0 0 3px;">📦 FCL</p>
-                    <p style="font-size:16px; font-weight:700; margin:0; color:{% if advisory.recommended_type == 'fcl' %}#22c55e{% elif shipment.shipment_type == 'fcl' %}#3b82f6{% else %}#94a3b8{% endif %};">{{ advisory.fcl_score|floatformat:3 }}</p>
-                    {% if advisory.recommended_type == 'fcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+                <div style="background:#F8FAFC; border-radius:8px; padding:10px; text-align:center;
+                            border:1px solid {% if advisory.recommended_type == 'fcl' %}#22c55e{% elif shipment.shipment_type == 'fcl' %}#3b82f6{% else %}#E5E7EB{% endif %};">
+                    <p style="color:#6B7280; font-size:10px; margin:0 0 3px;">FCL</p>
+                    <p style="font-size:16px; font-weight:700; margin:0; color:{% if advisory.recommended_type == 'fcl' %}#22c55e{% elif shipment.shipment_type == 'fcl' %}#3b82f6{% else %}#6B7280{% endif %};">{{ advisory.fcl_score|floatformat:3 }}</p>
+                    {% if advisory.recommended_type == 'fcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">BEST</p>
                     {% elif shipment.shipment_type == 'fcl' %}<p style="color:#3b82f6; font-size:9px; margin:2px 0 0;">declared</p>{% endif %}
                 </div>
-                <div style="background:#0f172a; border-radius:8px; padding:10px; text-align:center;
-                            border:1px solid {% if advisory.recommended_type == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#1e293b{% endif %};">
-                    <p style="color:#94a3b8; font-size:10px; margin:0 0 3px;">✈️ Air</p>
-                    <p style="font-size:16px; font-weight:700; margin:0; color:{% if advisory.recommended_type == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#94a3b8{% endif %};">{{ advisory.air_score|floatformat:3 }}</p>
-                    {% if advisory.recommended_type == 'air' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">★ BEST</p>
+                <div style="background:#F8FAFC; border-radius:8px; padding:10px; text-align:center;
+                            border:1px solid {% if advisory.recommended_type == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#E5E7EB{% endif %};">
+                    <p style="color:#6B7280; font-size:10px; margin:0 0 3px;">Air</p>
+                    <p style="font-size:16px; font-weight:700; margin:0; color:{% if advisory.recommended_type == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#6B7280{% endif %};">{{ advisory.air_score|floatformat:3 }}</p>
+                    {% if advisory.recommended_type == 'air' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">BEST</p>
                     {% elif shipment.shipment_type == 'air' %}<p style="color:#3b82f6; font-size:9px; margin:2px 0 0;">declared</p>{% endif %}
                 </div>
             </div>
 
             {% if explanation %}
-            <p style="color:#94a3b8; font-size:12px; margin:0 0 10px; padding:10px 12px;
-                      background:#0f172a; border-radius:6px; border-left:3px solid #3b82f6;">
+            <p style="color:#6B7280; font-size:12px; margin:0 0 10px; padding:10px 12px;
+                      background:#F8FAFC; border-radius:6px; border-left:3px solid #3b82f6;">
                 {{ explanation }}
             </p>
             {% endif %}
 
-            <div style="font-size:11px; color:#475569; padding-top:10px; border-top:1px solid #1e293b;">
+            <div style="font-size:11px; color:#9CA3AF; padding-top:10px; border-top:1px solid #E5E7EB;">
                 Advisory computed {{ advisory.computed_at|date:"M d, Y g:i A" }}
                 {% if advisory.computed_by %}by {{ advisory.computed_by.get_full_name|default:advisory.computed_by.username }}{% endif %}
             </div>
@@ -518,7 +524,7 @@
         {% else %}
         <div class="card">
             <p class="card-title">Shipping Type Advisory</p>
-            <p style="color:#475569; font-size:13px; text-align:center; padding:20px 0; margin:0;">No advisory data yet.</p>
+            <p style="color:#9CA3AF; font-size:13px; text-align:center; padding:20px 0; margin:0;">No advisory data yet.</p>
         </div>
         {% endif %}
     </div>
@@ -530,31 +536,31 @@
         <div style="display:flex; flex-direction:column; gap:0;">
             {% for log in status_logs %}
             <div style="display:flex; gap:12px; padding:10px 0;
-                        {% if not forloop.last %}border-bottom:1px solid #1e293b;{% endif %}">
-                <div style="width:8px; height:8px; border-radius:50%; background:#334155;
+                        {% if not forloop.last %}border-bottom:1px solid #E5E7EB;{% endif %}">
+                <div style="width:8px; height:8px; border-radius:50%; background:#E5E7EB;
                             margin-top:5px; flex-shrink:0;"></div>
                 <div style="flex:1; min-width:0;">
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                        <span style="font-size:12px; font-weight:600; color:#f1f5f9;">
+                        <span style="font-size:12px; font-weight:600; color:#1A1A2E;">
                             {{ log.get_new_status_display }}
                         </span>
                         {% if log.old_status %}
-                        <span style="font-size:10px; color:#334155;">← {{ log.get_old_status_display }}</span>
+                        <span style="font-size:10px; color:#9CA3AF;">{{ log.get_old_status_display }}</span>
                         {% endif %}
                     </div>
-                    <p style="color:#475569; font-size:11px; margin:2px 0 0;">
+                    <p style="color:#9CA3AF; font-size:11px; margin:2px 0 0;">
                         {{ log.changed_at|date:"M d, Y g:i A" }}
-                        {% if log.changed_by %} · {{ log.changed_by.get_full_name|default:log.changed_by.username }}{% endif %}
+                        {% if log.changed_by %} - {{ log.changed_by.get_full_name|default:log.changed_by.username }}{% endif %}
                     </p>
                     {% if log.notes %}
-                    <p style="color:#64748b; font-size:11px; margin:3px 0 0; font-style:italic;">{{ log.notes }}</p>
+                    <p style="color:#9CA3AF; font-size:11px; margin:3px 0 0; font-style:italic;">{{ log.notes }}</p>
                     {% endif %}
                 </div>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p style="color:#475569; font-size:13px; text-align:center; padding:20px 0; margin:0;">No status history yet.</p>
+        <p style="color:#9CA3AF; font-size:13px; text-align:center; padding:20px 0; margin:0;">No status history yet.</p>
         {% endif %}
     </div>
 

@@ -1,0 +1,379 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Supervisor{% endblock %} | R3-PCR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #F0F2F5;
+            color: #1A1A2E;
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .s-sidebar {
+            width: 64px;
+            min-height: 100vh;
+            background: #fff;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.07);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0; top: 0; bottom: 0;
+            z-index: 200;
+            overflow: hidden;
+            transition: width 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+        .s-sidebar.expanded { width: 220px; }
+        .s-sidebar-logo {
+            padding: 16px 0;
+            border-bottom: 1px solid #F0F2F5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 72px;
+            overflow: hidden;
+            position: relative;
+        }
+        .s-sidebar.expanded .s-sidebar-logo { justify-content: flex-start; padding: 16px 18px; }
+        .s-sidebar-logo-mini {
+            width: 34px; height: 34px;
+            border-radius: 8px;
+            background: #EEF2F8;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            position: absolute;
+            transition: opacity 0.15s;
+        }
+        .s-sidebar.expanded .s-sidebar-logo-mini { opacity: 0; pointer-events: none; }
+        .s-sidebar-logo img {
+            height: 42px;
+            max-width: 178px;
+            width: auto;
+            object-fit: contain;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease 0.08s;
+            flex-shrink: 0;
+        }
+        .s-sidebar.expanded .s-sidebar-logo img { opacity: 1; pointer-events: auto; }
+        .s-sidebar-nav {
+            flex: 1;
+            padding: 12px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+        .s-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-radius: 8px;
+            color: #94A3B8;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.15s, color 0.15s, padding 0.25s;
+            white-space: nowrap;
+            overflow: hidden;
+            justify-content: center;
+        }
+        .s-nav-item:hover { background: #F3F4F6; color: #1B3358; }
+        .s-nav-item.active { background: #1B3358; color: #fff; font-weight: 600; }
+        .s-sidebar.expanded .s-nav-item { justify-content: flex-start; padding: 9px 12px; }
+        .s-nav-label {
+            opacity: 0;
+            max-width: 0;
+            overflow: hidden;
+            transition: opacity 0.15s, max-width 0.25s;
+            font-size: 13px;
+        }
+        .s-sidebar.expanded .s-nav-label { opacity: 1; max-width: 160px; }
+        .s-nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+        .s-sidebar-bottom {
+            padding: 8px;
+            border-top: 1px solid #F0F2F5;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .s-sidebar-user {
+            padding: 0 14px;
+            border-top: 1px solid #F0F2F5;
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: max-height 0.25s, opacity 0.2s, padding 0.25s;
+        }
+        .s-sidebar.expanded .s-sidebar-user {
+            max-height: 80px;
+            opacity: 1;
+            padding: 12px 16px 16px;
+        }
+        .s-sidebar-user p { color: #1B3358; font-size: 13px; font-weight: 700; margin: 0 0 2px; white-space: nowrap; }
+        .s-sidebar-user span { color: #9CA3AF; font-size: 11px; white-space: nowrap; }
+        .sidebar-toggle {
+            position: absolute;
+            top: 50%;
+            right: -14px;
+            transform: translateY(-50%);
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: #fff;
+            border: 1.5px solid #E2E8F0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            color: #1B3358;
+            z-index: 201;
+            padding: 0;
+        }
+        .sidebar-toggle:hover { background: #F0F2F5; }
+        .sidebar-toggle svg { transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); }
+        .s-sidebar.expanded .sidebar-toggle svg { transform: rotate(180deg); }
+        .s-main {
+            margin-left: 64px;
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.25s cubic-bezier(0.4,0,0.2,1);
+            min-width: 0;
+        }
+        .s-main.sidebar-open { margin-left: 220px; }
+        .s-topbar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 16px 22px 8px;
+            gap: 10px;
+        }
+        .s-topbar-btn {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            border: 1.5px solid #E5E7EB;
+            background: #fff;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            color: #6B7280;
+            text-decoration: none;
+            position: relative;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .s-topbar-btn:hover { border-color: #1B3358; color: #1B3358; }
+        .s-content { padding: 0 22px 32px; flex: 1; min-width: 0; }
+
+        .card, .c-card {
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #E5E7EB;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+            padding: 20px;
+        }
+        .card-title {
+            color: #1B3358;
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+        .form-label, .c-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #6B7280;
+            margin-bottom: 6px;
+            display: block;
+        }
+        .form-input, .c-input {
+            width: 100%;
+            padding: 10px 14px;
+            background: #F3F4F6;
+            border: 1.5px solid #E5E7EB;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            color: #1A1A2E;
+            outline: none;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .form-input:focus, .c-input:focus { border-color: #1B3358; background: #fff; }
+        .btn, .c-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .btn-primary, .c-btn-primary { background: #1B3358; color: #fff; }
+        .btn-primary:hover, .c-btn-primary:hover { background: #152847; color: #fff; }
+        .btn-secondary, .c-btn-outline { background: #fff; color: #1B3358; border: 1.5px solid #1B3358; }
+        .btn-secondary:hover, .c-btn-outline:hover { background: #1B3358; color: #fff; }
+        .btn-success { background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; }
+        .btn-danger { background: #FEE2E2; color: #B91C1C; border: 1px solid #FECACA; }
+        .btn-warning { background: #FEF3C7; color: #B45309; border: 1px solid #FCD34D; }
+        .badge {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .badge-approved, .badge-success { background: #DCFCE7; color: #15803D; }
+        .badge-rejected, .badge-danger { background: #FEE2E2; color: #B91C1C; }
+        .badge-review, .badge-info { background: #DBEAFE; color: #1D4ED8; }
+        .badge-warning { background: #FEF3C7; color: #B45309; }
+        .badge-secondary { background: #F3F4F6; color: #6B7280; }
+        .table-container {
+            background: #fff;
+            border: 1px solid #E5E7EB;
+            border-radius: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+            overflow-x: auto;
+        }
+        .table-container table, .c-table { width: 100%; border-collapse: collapse; }
+        .table-container thead tr, .c-table thead tr { background: #1B3358; }
+        .table-container th, .c-table th {
+            padding: 12px 16px;
+            text-align: left;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .table-container tbody tr, .c-table tbody tr { border-bottom: 1px solid #F3F4F6; }
+        .table-container tbody tr:hover, .c-table tbody tr:hover { background: #F8FAFC; }
+        .table-container td, .c-table td { padding: 13px 16px; font-size: 12.5px; color: #374151; }
+        .s-msg { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+        .s-msg.success { background: #ECFDF5; color: #065F46; border: 1px solid #6EE7B7; }
+        .s-msg.error { background: #FEF2F2; color: #991B1B; border: 1px solid #FCA5A5; }
+        .s-msg.warning { background: #FFFBEB; color: #92400E; border: 1px solid #FCD34D; }
+        .s-msg.info { background: #EFF6FF; color: #1D4ED8; border: 1px solid #93C5FD; }
+        .page-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .page-heading h1 { color: #1B3358; font-size: 22px; font-weight: 800; margin: 0; }
+        .page-heading p { color: #6B7280; font-size: 13px; margin: 4px 0 0; }
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+<aside class="s-sidebar" id="s-sidebar">
+    <div class="s-sidebar-logo">
+        <div class="s-sidebar-logo-mini">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B3358" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+        </div>
+        <img src="{% static 'images/Thumbnail for R3-PCR.png' %}" alt="RTripleJ Primecargo Relay">
+    </div>
+    <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSupervisorSidebar()" title="Toggle sidebar">
+        <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
+        </svg>
+    </button>
+    <nav class="s-sidebar-nav">
+        <a href="{% url 'supervisor:dashboard' %}" class="s-nav-item {% block nav_dashboard %}{% endblock %}">
+            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
+            <span class="s-nav-label">Dashboard</span>
+        </a>
+        <a href="{% url 'supervisor:users' %}" class="s-nav-item {% block nav_users %}{% endblock %}">
+            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zM14.5 9a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM1.615 16.428a1.224 1.224 0 01-.01-.138c0-2.587 2.028-4.755 4.75-4.955a8.073 8.073 0 011.07-.005C9.45 11.53 11.5 13.7 11.5 16.29c0 .047-.002.093-.007.138A13.488 13.488 0 017 17c-1.796 0-3.51-.37-5.385-1.572zM13.5 16.5a3.75 3.75 0 01-2.175-.747A4.01 4.01 0 0013 12.25a3.976 3.976 0 00-.435-1.817 2.5 2.5 0 014.43 1.58 2.501 2.501 0 01-2.495 2.487h-1z"/></svg>
+            <span class="s-nav-label">User Management</span>
+        </a>
+        <a href="{% url 'supervisor:memos' %}" class="s-nav-item {% block nav_memos %}{% endblock %}">
+            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M13.92 3.845a19.361 19.361 0 01-6.3 1.98C6.765 5.942 5.89 6 5 6a4 4 0 000 8c.825 0 1.62-.063 2.402-.2a19.362 19.362 0 016.3 1.98A1 1 0 0015 15V5a1 1 0 00-1.08-1.155zM3 10a2 2 0 012-2c.484 0 .952.044 1.408.124A17.86 17.86 0 003 10zm2 2a2 2 0 01-2-2 17.86 17.86 0 003.408 1.876A2.001 2.001 0 015 12z"/></svg>
+            <span class="s-nav-label">Memos</span>
+        </a>
+        <a href="{% url 'supervisor:feedbacks' %}" class="s-nav-item {% block nav_feedbacks %}{% endblock %}">
+            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2c-4.42 0-8 2.91-8 6.5 0 2.12 1.26 4.01 3.21 5.2-.1.86-.38 1.72-.83 2.49a.75.75 0 00.86 1.08 10.43 10.43 0 004.01-2.29c.25.02.5.02.75.02 4.42 0 8-2.91 8-6.5S14.42 2 10 2z" clip-rule="evenodd"/></svg>
+            <span class="s-nav-label">Feedbacks</span>
+        </a>
+        <a href="{% url 'supervisor:config' %}" class="s-nav-item {% block nav_config %}{% endblock %}">
+            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.332 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+            <span class="s-nav-label">System Config</span>
+        </a>
+    </nav>
+    <div class="s-sidebar-bottom">
+        <a href="{% url 'notifications:list' %}" class="s-nav-item">
+            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6z" clip-rule="evenodd"/></svg>
+            <span class="s-nav-label">Notifications</span>
+        </a>
+        <a href="{% url 'accounts:settings' %}" class="s-nav-item">
+            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z"/></svg>
+            <span class="s-nav-label">Account Settings</span>
+        </a>
+        <a href="{% url 'accounts:logout' %}" class="s-nav-item">
+            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd"/><path fill-rule="evenodd" d="M6 10a.75.75 0 01.75-.75h9.546l-1.048-.943a.75.75 0 111.004-1.114l2.5 2.25a.75.75 0 010 1.114l-2.5 2.25a.75.75 0 11-1.004-1.114l1.048-.943H6.75A.75.75 0 016 10z" clip-rule="evenodd"/></svg>
+            <span class="s-nav-label">Logout</span>
+        </a>
+    </div>
+    <div class="s-sidebar-user">
+        <p>{{ user.get_full_name|default:user.username }}</p>
+        <span>{{ user.get_role_display|default:'Supervisor' }}</span>
+    </div>
+</aside>
+<div class="s-main" id="s-main">
+    <div class="s-topbar">
+        <a href="{% url 'notifications:list' %}" class="s-topbar-btn" title="Notifications">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6z" clip-rule="evenodd"/></svg>
+        </a>
+        <a href="{% url 'accounts:settings' %}" class="s-topbar-btn" title="Account">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z"/></svg>
+        </a>
+    </div>
+    <div class="s-content">
+        <div class="page-heading">
+            <div>
+                <h1>{% block page_title %}Supervisor{% endblock %}</h1>
+            </div>
+        </div>
+        {% if messages %}
+        {% for message in messages %}
+        <div class="s-msg {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </div>
+</div>
+<script>
+(function () {
+    var STORAGE_KEY = 'supervisor_sidebar_expanded';
+    var sidebar = document.getElementById('s-sidebar');
+    var main = document.getElementById('s-main');
+    if (localStorage.getItem(STORAGE_KEY) === '1') {
+        sidebar.classList.add('expanded');
+        main.classList.add('sidebar-open');
+    }
+    window.toggleSupervisorSidebar = function () {
+        var isOpen = sidebar.classList.toggle('expanded');
+        main.classList.toggle('sidebar-open', isOpen);
+        localStorage.setItem(STORAGE_KEY, isOpen ? '1' : '0');
+    };
+})();
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

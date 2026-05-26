@@ -7,11 +7,12 @@ from apps.accounts.models import User
 from .models import Notification
 
 
-def create_notification(recipient, shipment, notification_type, title, message):
+def create_notification(recipient, shipment, notification_type, title, message, announcement=None):
     try:
         return Notification.objects.create(
             recipient=recipient,
             shipment=shipment,
+            announcement=announcement,
             notification_type=notification_type,
             title=title[:100],
             message=message,

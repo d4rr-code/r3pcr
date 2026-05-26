@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Process — {{ shipment.hawb_number }}{% endblock %}
+{% block title %}Process Ã¢â‚¬â€ {{ shipment.hawb_number }}{% endblock %}
 {% block page_title %}Process Shipment{% endblock %}
 
 {% block extra_css %}
@@ -167,7 +167,7 @@
     background:#fff;
 }
 
-/* ── OCR Timer Overlay ───────────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ OCR Timer Overlay Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 @keyframes ocr-spin {
     to { transform: rotate(360deg); }
 }
@@ -196,7 +196,7 @@
 
 {% block content %}
 
-<!-- ─── OCR Timer Overlay ──────────────────────────────────────────────────── -->
+<!-- Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ OCR Timer Overlay Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ -->
 <div id="ocr-overlay">
     <div class="ocr-spinner-ring"></div>
     <p id="ocr-doc-label" style="color:#f1f5f9; font-size:14px; margin:0; font-weight:500;"></p>
@@ -204,7 +204,7 @@
         Elapsed: <span id="ocr-elapsed" style="color:#94a3b8; font-weight:600;">0:00</span>
     </p>
     <p style="color:#475569; font-size:11px; margin-top:4px;">
-        This may take 10–30 seconds depending on document size.
+        This may take 10Ã¢â‚¬â€œ30 seconds depending on document size.
     </p>
 </div>
 
@@ -224,29 +224,29 @@
             border-radius:8px; padding:12px 16px; display:flex; align-items:flex-start; gap:10px;"
      id="ocr-toast">
     <span style="font-size:16px; flex-shrink:0;">
-        {% if ocr_toast.0 == 'success' %}✅{% elif ocr_toast.0 == 'warning' %}⚠️{% elif ocr_toast.0 == 'info' %}🔄{% else %}❌{% endif %}
+        {% if ocr_toast.0 == 'success' %}Ã¢Å“â€¦{% elif ocr_toast.0 == 'warning' %}Ã¢Å¡Â Ã¯Â¸Â{% elif ocr_toast.0 == 'info' %}Ã°Å¸â€â€ž{% else %}Ã¢ÂÅ’{% endif %}
     </span>
     <p style="color:#f1f5f9; font-size:13px; margin:0; line-height:1.4;">{{ ocr_toast.1 }}</p>
     <button onclick="document.getElementById('ocr-toast').remove()"
             style="background:none; border:none; color:#64748b; cursor:pointer; font-size:16px;
-                   padding:0; margin-left:auto; flex-shrink:0;">✕</button>
+                   padding:0; margin-left:auto; flex-shrink:0;">Ã¢Å“â€¢</button>
 </div>
 <script>setTimeout(function(){ var t=document.getElementById('ocr-toast'); if(t) t.remove(); }, 6000);</script>
 {% endif %}
 
-<!-- ─── Shipment Header ───────────────────────────────────────────────────── -->
+<!-- Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Shipment Header Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ -->
 <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
     <div>
         <h2 style="color:#f1f5f9; font-size:20px; margin:0;">{{ shipment.hawb_number }}</h2>
         <p style="color:#64748b; font-size:13px; margin:4px 0 0;">
-            {{ shipment.consignee.get_full_name|default:shipment.consignee.username }} ·
-            {{ shipment.import_type|capfirst }} ·
+            {{ shipment.consignee.get_full_name|default:shipment.consignee.username }} Ã‚Â·
+            {{ shipment.import_type|capfirst }} Ã‚Â·
             {% if shipment.urgency == 'rush' %}
-                <span style="color:#ef4444; font-weight:600;">🚨 Rush</span>
+                <span style="color:#ef4444; font-weight:600;">Ã°Å¸Å¡Â¨ Rush</span>
             {% elif shipment.urgency == 'urgent' %}
-                <span style="color:#f97316; font-weight:600;">⚡ Urgent</span>
+                <span style="color:#f97316; font-weight:600;">Ã¢Å¡Â¡ Urgent</span>
             {% elif shipment.urgency == 'priority' %}
-                <span style="color:#f59e0b;">⏩ Priority</span>
+                <span style="color:#f59e0b;">Ã¢ÂÂ© Priority</span>
             {% else %}
                 Standard
             {% endif %}
@@ -256,20 +256,20 @@
         {% if shipment.computation %}
         <a href="{% url 'computation:download' shipment.id %}"
            class="btn btn-secondary" style="font-size:12px;">
-            ⬇ Download Excel
+            Ã¢Â¬â€¡ Download Excel
         </a>
         <a href="{% url 'computation:download' shipment.id %}?format=pdf"
            class="btn btn-secondary" style="font-size:12px;">PDF</a>
         {% endif %}
         <a href="{% url 'declarant:queue' %}" class="btn btn-secondary" style="font-size:12px;">
-            ← Back to Queue
+            Ã¢â€ Â Back to Queue
         </a>
     </div>
 </div>
 
 <div class="process-layout">
 
-    <!-- ── Left: Document Viewer ──────────────────────────────────────────── -->
+    <!-- Ã¢â€â‚¬Ã¢â€â‚¬ Left: Document Viewer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ -->
     <div>
         <div class="doc-viewer">
             <div class="doc-viewer-header">
@@ -278,7 +278,7 @@
             </div>
             <div id="viewer-area">
                 <div class="doc-viewer-placeholder">
-                    <span style="font-size:40px;">📂</span>
+                    <span style="font-size:40px;">Ã°Å¸â€œâ€š</span>
                     <span>Click "View" on a document below to load it here</span>
                 </div>
             </div>
@@ -294,7 +294,7 @@
                         style="font-size:11px; padding:6px 14px;"
                         title="Run OCR on all documents at once and merge results"
                         onclick="startOCR('{% url 'computation:ocr_extract_all' shipment.id %}', 'All Documents')">
-                    🔍 OCR All Documents
+                    Ã°Å¸â€Â OCR All Documents
                 </button>
                 {% endif %}
             </div>
@@ -305,10 +305,10 @@
                 <div style="display:flex; align-items:center; gap:10px; padding:10px 12px;
                             background:#0f172a; border-radius:6px; border:1px solid #1e293b;">
                     <span style="font-size:18px;">
-                        {% if doc.document_type == 'invoice' %}📄
-                        {% elif doc.document_type == 'packing_list' %}📦
-                        {% elif doc.document_type == 'airway_bill' %}✈️
-                        {% else %}📎{% endif %}
+                        {% if doc.document_type == 'invoice' %}Ã°Å¸â€œâ€ž
+                        {% elif doc.document_type == 'packing_list' %}Ã°Å¸â€œÂ¦
+                        {% elif doc.document_type == 'airway_bill' %}Ã¢Å“Ë†Ã¯Â¸Â
+                        {% else %}Ã°Å¸â€œÅ½{% endif %}
                     </span>
                     <div style="flex:1; min-width:0;">
                         <p style="color:#f1f5f9; font-size:13px; margin:0; font-weight:500; display:flex; align-items:center; gap:7px;">
@@ -330,7 +330,7 @@
                                 <span style="display:inline-block; width:8px; height:8px; border-radius:50%;
                                              background:conic-gradient(#60a5fa 0%, #1e293b 60%);
                                              animation:ocr-spin 1s linear infinite; flex-shrink:0;"></span>
-                                <span style="color:#93c5fd; font-size:10px;">Scanning…</span>
+                                <span style="color:#93c5fd; font-size:10px;">ScanningÃ¢â‚¬Â¦</span>
                             {% else %}
                                 <span class="quality-dot quality-none" title="Not yet scanned"></span>
                                 <span style="color:#94a3b8; font-size:10px;">Not yet scanned</span>
@@ -339,11 +339,11 @@
                         </p>
                         <p style="color:#64748b; font-size:11px; margin:2px 0 0;">
                             Uploaded {{ doc.uploaded_at|date:"M d, Y" }}
-                            {% if doc.ocr_ran_at %} · OCR {{ doc.ocr_quality|title }}{% endif %}
+                            {% if doc.ocr_ran_at %} Ã‚Â· OCR {{ doc.ocr_quality|title }}{% endif %}
                         </p>
                         {% if doc.ocr_quality == 'poor' %}
                         <p style="color:#fca5a5; font-size:11px; margin:5px 0 0;">
-                            Poor quality scan — ask consignee to re-upload a clearer document.
+                            Poor quality scan Ã¢â‚¬â€ ask consignee to re-upload a clearer document.
                         </p>
                         {% endif %}
                     </div>
@@ -412,18 +412,18 @@
         </div>
         {% endif %}
 
-        <!-- ─── OCR Item Review Panel ─────────────────────────────────────────── -->
+        <!-- Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ OCR Item Review Panel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ -->
         <div class="card" style="margin-top:16px; border:1px solid #1d4ed855;">
             <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
-                <p class="card-title" style="margin:0;">📋 OCR Extracted Line Items</p>
+                <p class="card-title" style="margin:0;">Staging Verification Grid</p>
                 <span style="font-size:11px; padding:3px 10px; border-radius:10px; flex-shrink:0;
                     {% if shipment.shipment_type == 'fcl' %}background:#1a2e4a; color:#93c5fd;
                     {% elif shipment.shipment_type == 'air' %}background:#1e1a2e; color:#c4b5fd;
                     {% else %}background:#0a2e2a; color:#6ee7b7;{% endif %}">
-                    {% if shipment.shipment_type == 'fcl' %}📦 FCL
-                    {% elif shipment.shipment_type == 'air' %}✈️ Air
-                    {% else %}🚢 LCL{% endif %}
-                     — ECDT will be set to this mode
+                    {% if shipment.shipment_type == 'fcl' %}Ã°Å¸â€œÂ¦ FCL
+                    {% elif shipment.shipment_type == 'air' %}Ã¢Å“Ë†Ã¯Â¸Â Air
+                    {% else %}Ã°Å¸Å¡Â¢ LCL{% endif %}
+                     Ã¢â‚¬â€ ECDT will be set to this mode
                 </span>
                 <span style="font-size:11px; color:#64748b; margin-left:auto;">
                     {% if ocr_items_from_docs %}
@@ -435,16 +435,14 @@
             </div>
             {% if ocr_items_from_docs %}
             <p style="color:#64748b; font-size:12px; margin-bottom:14px; line-height:1.5;">
-                Review and confirm the items below. Adjust descriptions, quantities, or select the correct
-                HS code for each row, then click <strong style="color:#f1f5f9;">Confirm &amp; Load to ECDT</strong>
-                to pre-fill the computation workspace.
+                Review the OCR extraction below. Select the correct HS code for each row, then click
+                <strong style="color:#f1f5f9;">Proceed to Computation</strong> to save the staged array.
             </p>
             {% else %}
             <p style="color:#64748b; font-size:12px; margin-bottom:14px; line-height:1.5;">
                 No items were automatically extracted from the attached documents.
-                Use <strong style="color:#f1f5f9;">+ Add Row</strong> to enter items manually,
-                then click <strong style="color:#f1f5f9;">Confirm &amp; Load to ECDT</strong>
-                to pre-fill the computation workspace.
+                Use <strong style="color:#f1f5f9;">+ Add Row</strong> to enter items manually, then click
+                <strong style="color:#f1f5f9;">Proceed to Computation</strong>.
             </p>
             {% endif %}
             <form id="ocr-items-confirm-form" method="POST"
@@ -454,60 +452,45 @@
                     <table style="width:100%; border-collapse:collapse; font-size:12px;" id="ocr-items-table">
                         <thead>
                             <tr style="background:#0f172a; border-bottom:1px solid #334155;">
-                                <th style="text-align:left; padding:8px 6px; color:#64748b;">#</th>
-                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:180px;">Description</th>
-                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:60px;">Qty</th>
-                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:60px;">Unit</th>
-                                <th style="text-align:right; padding:8px 6px; color:#64748b; min-width:90px;">EXW (USD)</th>
-                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:220px;">HS Code &amp; Duty Rate</th>
-                                <th style="text-align:center; padding:8px 6px; color:#64748b; width:40px;"></th>
+                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:240px;">Item Description</th>
+                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:180px;">AI Analysis Score</th>
+                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:260px;">Predicted HS Code</th>
                             </tr>
                         </thead>
                         <tbody id="ocr-items-tbody">
                             {% if not ocr_items_from_docs %}
                             <tr id="ocr-empty-row">
-                                <td colspan="7" style="padding:18px 12px; text-align:center;
+                                <td colspan="3" style="padding:18px 12px; text-align:center;
                                     color:#475569; font-size:12px; font-style:italic;">
-                                    No items extracted — add rows manually using the button below.
+                                    No items extracted Ã¢â‚¬â€ add rows manually using the button below.
                                 </td>
                             </tr>
                             {% endif %}
                             {% for item in ocr_items_from_docs %}
                             <tr style="border-bottom:1px solid #1e293b;" data-row="{{ forloop.counter0 }}">
-                                <td style="padding:6px 6px; color:#475569; font-size:11px; text-align:center;">
-                                    {{ forloop.counter }}
-                                </td>
-                                <td style="padding:4px 6px;">
+                                <td style="padding:8px 6px; min-width:240px;">
+                                    <div style="color:#cbd5e1; font-size:12px; line-height:1.45; margin-bottom:6px; white-space:pre-wrap;">
+                                        {{ item.raw_extracted_text }}
+                                    </div>
                                     <input type="text" name="description[]"
                                            value="{{ item.description }}"
                                            class="form-input ocr-desc-input"
                                            style="font-size:11px; padding:5px 7px; width:100%;">
+                                    <input type="hidden" name="quantity[]" value="{{ item.quantity|default:'1' }}">
+                                    <input type="hidden" name="unit[]" value="{{ item.unit }}">
+                                    <input type="hidden" name="total_value[]" value="{{ item.total_value|default:'' }}">
+                                    <input type="hidden" name="raw_extracted_text[]" value="{{ item.raw_extracted_text }}">
+                                    <input type="hidden" name="confidence_pct[]" value="{{ item.confidence_pct }}">
                                 </td>
-                                <td style="padding:4px 6px;">
-                                    <input type="text" name="quantity[]"
-                                           value="{{ item.quantity }}"
-                                           class="form-input"
-                                           style="font-size:11px; padding:5px 7px; width:100%;">
+                                <td style="padding:8px 6px; vertical-align:top;">
+                                    <span class="badge bg-dark font-monospace text-success">● OCR: {{ item.confidence_pct }}%</span>
                                 </td>
-                                <td style="padding:4px 6px;">
-                                    <input type="text" name="unit[]"
-                                           value="{{ item.unit }}"
-                                           class="form-input"
-                                           style="font-size:11px; padding:5px 7px; width:100%;">
-                                </td>
-                                <td style="padding:4px 6px;">
-                                    <input type="number" name="total_value[]"
-                                           value="{{ item.total_value|default:'' }}"
-                                           step="0.01" min="0"
-                                           class="form-input"
-                                           style="font-size:11px; padding:5px 7px; width:100%; text-align:right;">
-                                </td>
-                                <td style="padding:4px 6px;">
+                                <td style="padding:8px 6px; vertical-align:top;">
                                     <select name="hs_code_id[]"
                                             class="form-input ocr-hs-select"
                                             data-desc="{{ item.description }}"
                                             style="font-size:11px; padding:5px 7px; width:100%; margin-bottom:3px;">
-                                        <option value="">Loading suggestions…</option>
+                                        <option value="">Loading suggestionsÃ¢â‚¬Â¦</option>
                                     </select>
                                     <div style="display:flex; align-items:center; gap:5px;">
                                         <span style="color:#64748b; font-size:10px;">Duty %:</span>
@@ -515,23 +498,12 @@
                                                class="form-input ocr-hs-rate"
                                                value="0" step="0.01" min="0"
                                                style="font-size:11px; padding:3px 6px; width:70px;">
-                                        <span style="color:#475569; font-size:10px;" class="ocr-conf-badge">
-                                            {% if item.confidence >= 0.8 %}
-                                            <span style="color:#22c55e;">● High</span>
-                                            {% elif item.confidence >= 0.65 %}
-                                            <span style="color:#f59e0b;">● Med</span>
-                                            {% else %}
-                                            <span style="color:#ef4444;">● Low</span>
-                                            {% endif %}
-                                        </span>
                                     </div>
-                                </td>
-                                <td style="padding:4px 6px; text-align:center;">
                                     <button type="button"
                                             style="background:none; border:none; color:#ef4444;
-                                                   cursor:pointer; font-size:15px; padding:0 4px;"
+                                                   cursor:pointer; font-size:11px; padding:4px 0; margin-top:4px;"
                                             title="Remove row"
-                                            onclick="ocrRemoveRow(this)">✕</button>
+                                            onclick="ocrRemoveRow(this)">Remove</button>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -543,44 +515,14 @@
                             style="font-size:12px;"
                             onclick="ocrAddRow()">+ Add Row</button>
                     <span style="color:#475569; font-size:11px; margin-left:4px;">
-                        Verify values — unconfirmed figures will need manual entry in ECDT.
+                        Verified values are saved to the staging table before opening ECDT.
                     </span>
                     <button type="submit" class="btn btn-primary"
                             style="font-size:13px; margin-left:auto;">
-                        ✅ Confirm &amp; Load to ECDT →
+                        Proceed to Computation
                     </button>
                 </div>
             </form>
-        </div>
-
-        <!-- HS Recommendations -->
-        <div class="card" style="margin-top:16px;">
-            <p class="card-title">HS Code Recommendations</p>
-            <div style="display:flex; gap:8px; margin-bottom:10px;">
-                <input type="text" id="hs-rec-search" class="form-input"
-                       placeholder="Search HS code or description..."
-                       style="font-size:12px;" onkeyup="filterHsRecommendations()">
-                <button type="button" class="btn btn-secondary" style="font-size:12px; white-space:nowrap;"
-                        onclick="fetchHsRecommendations(true)">
-                    Search Tariff Database
-                </button>
-            </div>
-            <div style="overflow-x:auto;">
-                <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                    <thead>
-                        <tr style="background:#0f172a; border-bottom:1px solid #334155;">
-                            <th style="text-align:left; padding:8px; color:#64748b;">HS Code</th>
-                            <th style="text-align:left; padding:8px; color:#64748b;">Description</th>
-                            <th style="text-align:right; padding:8px; color:#64748b;">MFN Duty Rate</th>
-                            <th style="text-align:left; padding:8px; color:#64748b;">Source</th>
-                            <th style="text-align:right; padding:8px; color:#64748b;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="hs-rec-body">
-                        <tr><td colspan="5" style="padding:12px; color:#64748b;">Loading recommendations...</td></tr>
-                    </tbody>
-                </table>
-            </div>
         </div>
 
         <!-- OCR Extracted Fields -->
@@ -589,19 +531,19 @@
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
                 <p class="card-title" style="margin:0;">OCR Extracted Fields
                     <span style="color:#64748b; font-weight:400; font-size:11px; margin-left:6px;">
-                        <span style="color:#22c55e;">●</span> ≥85%
-                        <span style="color:#f59e0b; margin-left:3px;">●</span> ≥70%
-                        <span style="color:#ef4444; margin-left:3px;">●</span> low
+                        <span style="color:#22c55e;">Ã¢â€”Â</span> Ã¢â€°Â¥85%
+                        <span style="color:#f59e0b; margin-left:3px;">Ã¢â€”Â</span> Ã¢â€°Â¥70%
+                        <span style="color:#ef4444; margin-left:3px;">Ã¢â€”Â</span> low
                     </span>
                 </p>
                 <!-- Source legend -->
                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                     <span style="font-size:10px; background:#1e293b; color:#93c5fd;
-                                 padding:2px 7px; border-radius:10px;">📄 Invoice</span>
+                                 padding:2px 7px; border-radius:10px;">Ã°Å¸â€œâ€ž Invoice</span>
                     <span style="font-size:10px; background:#1e293b; color:#86efac;
-                                 padding:2px 7px; border-radius:10px;">✈️ AWB</span>
+                                 padding:2px 7px; border-radius:10px;">Ã¢Å“Ë†Ã¯Â¸Â AWB</span>
                     <span style="font-size:10px; background:#1e293b; color:#fbbf24;
-                                 padding:2px 7px; border-radius:10px;">📦 Packing</span>
+                                 padding:2px 7px; border-radius:10px;">Ã°Å¸â€œÂ¦ Packing</span>
                 </div>
             </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 16px;">
@@ -633,7 +575,7 @@
             </div>
             <a href="{% url 'computation:compute' shipment.id %}?ocr=1"
                class="btn btn-primary" style="font-size:12px; margin-top:12px; display:block; text-align:center;">
-                Open Computation Tool with OCR data →
+                Open Computation Tool with OCR data Ã¢â€ â€™
             </a>
         </div>
         {% endif %}
@@ -647,7 +589,7 @@
                             background:#0f172a; border-radius:6px; margin-bottom:6px;">
                     <span style="color:#94a3b8; font-size:12px;">Total Landed Cost</span>
                     <span style="color:#3b82f6; font-weight:700; font-size:14px;">
-                        ₱{{ shipment.computation.total_landed_cost|floatformat:2 }}
+                        Ã¢â€šÂ±{{ shipment.computation.total_landed_cost|floatformat:2 }}
                     </span>
                 </div>
                 {% with adv=shipment.shipping_advisory %}
@@ -656,9 +598,9 @@
                             background:#0f172a; border-radius:6px;">
                     <span style="color:#94a3b8; font-size:12px;">WMCDA Recommendation</span>
                     <span style="color:#22c55e; font-weight:700; font-size:13px;">
-                        {% if adv.recommended_type == 'air' %}✈️ Air Freight
-                        {% elif adv.recommended_type == 'lcl' %}🚢 LCL
-                        {% elif adv.recommended_type == 'fcl' %}📦 FCL
+                        {% if adv.recommended_type == 'air' %}Ã¢Å“Ë†Ã¯Â¸Â Air Freight
+                        {% elif adv.recommended_type == 'lcl' %}Ã°Å¸Å¡Â¢ LCL
+                        {% elif adv.recommended_type == 'fcl' %}Ã°Å¸â€œÂ¦ FCL
                         {% else %}{{ adv.recommended_type|upper }}{% endif %}
                         <span style="color:#475569; font-weight:400; font-size:11px; margin-left:6px;">
                             (scores: Air {{ adv.air_score|floatformat:3 }} /
@@ -672,7 +614,7 @@
             </div>
             <div style="display:flex; gap:8px;">
                 <a href="{% url 'computation:download' shipment.id %}"
-                   class="btn btn-secondary" style="font-size:12px;">⬇ Excel</a>
+                   class="btn btn-secondary" style="font-size:12px;">Ã¢Â¬â€¡ Excel</a>
                 <a href="{% url 'computation:download' shipment.id %}?format=pdf"
                    class="btn btn-secondary" style="font-size:12px;">PDF</a>
                 <a href="{% url 'computation:compute' shipment.id %}"
@@ -685,13 +627,13 @@
             </p>
             <a href="{% url 'computation:compute' shipment.id %}"
                class="btn btn-primary" style="font-size:13px;">
-                Open Computation Tool →
+                Open Computation Tool Ã¢â€ â€™
             </a>
             {% endif %}
         </div>
     </div>
 
-    <!-- ── Right: Action Panel ─────────────────────────────────────────────── -->
+    <!-- Ã¢â€â‚¬Ã¢â€â‚¬ Right: Action Panel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ -->
     <div>
 
         <!-- Current Status -->
@@ -716,7 +658,7 @@
                         padding:14px; margin-bottom:14px;">
                 <p style="color:#93c5fd; font-size:12px; font-weight:700; margin:0 0 10px;
                            text-transform:uppercase; letter-spacing:0.5px;">
-                    🚢 Refine Sea Freight Type
+                    Ã°Å¸Å¡Â¢ Refine Sea Freight Type
                 </p>
                 <p style="color:#64748b; font-size:11px; margin:0 0 10px;">
                     Consignee selected Sea Freight. Specify the container type:
@@ -726,11 +668,11 @@
                     <div style="display:flex; gap:8px;">
                         <button type="submit" name="shipment_type" value="lcl"
                                 class="btn btn-secondary" style="flex:1; font-size:12px;">
-                            🚢 LCL — Shared Container
+                            Ã°Å¸Å¡Â¢ LCL Ã¢â‚¬â€ Shared Container
                         </button>
                         <button type="submit" name="shipment_type" value="fcl"
                                 class="btn btn-secondary" style="flex:1; font-size:12px;">
-                            📦 FCL — Full Container
+                            Ã°Å¸â€œÂ¦ FCL Ã¢â‚¬â€ Full Container
                         </button>
                     </div>
                 </form>
@@ -742,7 +684,7 @@
                 <div class="form-group">
                     <label class="form-label">Update Status</label>
                     <select name="new_status" class="form-input">
-                        <option value="">— Select new status —</option>
+                        <option value="">Ã¢â‚¬â€ Select new status Ã¢â‚¬â€</option>
                         {% for key, label in manual_status_choices %}
                         <option value="{{ key }}">{{ label }}</option>
                         {% endfor %}
@@ -762,7 +704,7 @@
         <!-- 6.2 Deficiency Flagging -->
         {% if shipment.status == 'arrived' or shipment.status == 'incoming' %}
         <div class="card" style="margin-bottom:16px; border:1px solid #7c3aed44;">
-            <p class="card-title" style="color:#a78bfa;">⚠ Flag Document Deficiency</p>
+            <p class="card-title" style="color:#a78bfa;">Ã¢Å¡Â  Flag Document Deficiency</p>
             <p style="color:#64748b; font-size:12px; margin-bottom:12px;">
                 Flag a missing or incorrect document. The consignee will be notified immediately.
             </p>
@@ -771,7 +713,7 @@
                 <div class="form-group">
                     <label class="form-label" style="font-size:12px;">Deficiency Type</label>
                     <select name="deficiency_type" class="form-input" style="font-size:13px;" required>
-                        <option value="">— Select issue —</option>
+                        <option value="">Ã¢â‚¬â€ Select issue Ã¢â‚¬â€</option>
                         <option value="missing_invoice">Missing Commercial Invoice</option>
                         <option value="missing_packing">Missing Packing List</option>
                         <option value="missing_awb">Missing Airway Bill / BOL</option>
@@ -799,13 +741,13 @@
         <!-- VASP / Etrade Link (lodgement) -->
         {% if shipment.status == 'lodgement' %}
         <div class="card" style="margin-bottom:16px; border:1px solid #2563eb44;">
-            <p class="card-title" style="margin-bottom:10px;">BOC Filing — VASP</p>
+            <p class="card-title" style="margin-bottom:10px;">BOC Filing Ã¢â‚¬â€ VASP</p>
             <p style="color:#94a3b8; font-size:12px; margin-bottom:12px; line-height:1.5;">
                 Proceed to the VASP / Etrade portal to file the entry with the Bureau of Customs.
             </p>
             <a href="{{ vasp_url }}" target="_blank" rel="noopener noreferrer"
                class="btn btn-primary" style="width:100%; text-align:center; display:block;">
-                Open VASP / Etrade →
+                Open VASP / Etrade Ã¢â€ â€™
             </a>
         </div>
         {% endif %}
@@ -818,18 +760,18 @@
             {% if sad_document %}
             <div style="background:#0f172a; border:1px solid #166534; border-radius:8px;
                         padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px;">
-                <span style="font-size:18px;">📄</span>
+                <span style="font-size:18px;">Ã°Å¸â€œâ€ž</span>
                 <div style="flex:1;">
                     <p style="color:#22c55e; font-size:12px; font-weight:600; margin:0;">SAD Uploaded</p>
                     <p style="color:#64748b; font-size:11px; margin:2px 0 0;">{{ sad_document.uploaded_at|date:"M d, Y H:i" }}</p>
                 </div>
                 <a href="{{ sad_document.file.url }}" target="_blank"
-                   class="btn btn-secondary" style="font-size:11px; padding:5px 10px; flex-shrink:0;">View ↗</a>
+                   class="btn btn-secondary" style="font-size:11px; padding:5px 10px; flex-shrink:0;">View Ã¢â€ â€”</a>
             </div>
             <p style="color:#64748b; font-size:11px; margin-bottom:8px;">Replace SAD document:</p>
             {% else %}
             <p style="color:#fbbf24; font-size:12px; margin-bottom:10px; font-weight:600;">
-                ⚠ SAD not yet uploaded. Upload the BOC Single Administrative Document so the consignee can see the official assessment.
+                Ã¢Å¡Â  SAD not yet uploaded. Upload the BOC Single Administrative Document so the consignee can see the official assessment.
             </p>
             {% endif %}
 
@@ -878,7 +820,7 @@
                 <div style="border-left:3px solid #334155; padding-left:12px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="color:#94a3b8; font-size:12px; font-weight:600;">
-                            {{ log.old_status|upper }} → {{ log.new_status|upper }}
+                            {{ log.old_status|upper }} Ã¢â€ â€™ {{ log.new_status|upper }}
                         </span>
                         <span style="color:#475569; font-size:11px;">
                             {{ log.changed_at|date:"M d, H:i" }}
@@ -905,7 +847,7 @@
 
 {% block extra_js %}
 <script>
-// ─── Document viewer ─────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Document viewer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function loadDoc(url, label) {
     var area = document.getElementById('viewer-area');
     var lbl  = document.getElementById('viewer-label');
@@ -913,10 +855,10 @@ function loadDoc(url, label) {
     var isPdf = ext.endsWith('.pdf');
     var isImg = /\.(jpe?g|png|gif|webp)$/.test(ext);
 
-    lbl.innerHTML = '— ' + label +
+    lbl.innerHTML = 'Ã¢â‚¬â€ ' + label +
         ' <a href="' + url + '" target="_blank" ' +
         'style="color:#3b82f6; font-size:11px; text-decoration:none; margin-left:8px; ' +
-        'padding:2px 8px; border:1px solid #334155; border-radius:4px;">Open in new tab ↗</a>';
+        'padding:2px 8px; border:1px solid #334155; border-radius:4px;">Open in new tab Ã¢â€ â€”</a>';
 
     if (isPdf) {
         area.innerHTML =
@@ -931,11 +873,11 @@ function loadDoc(url, label) {
         area.innerHTML =
             '<div style="padding:48px; text-align:center;">' +
             '<p style="color:#94a3b8; font-size:14px; margin:0 0 16px;">Preview not available for this file type.</p>' +
-            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:13px;">Open / Download ↗</a></div>';
+            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:13px;">Open / Download Ã¢â€ â€”</a></div>';
     }
 }
 
-// ─── OCR Timer ───────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ OCR Timer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function openDocFullscreen(url, label) {
     var modal = document.getElementById('doc-fullscreen-modal');
     var body = document.getElementById('doc-fullscreen-body');
@@ -973,7 +915,7 @@ function switchOcrTab(btn) {
 }
 
 {% if has_pending_ocr %}
-// OCR is running in background — reload page every 15 s until all docs are scanned
+// OCR is running in background Ã¢â‚¬â€ reload page every 15 s until all docs are scanned
 setTimeout(function() { window.location.reload(); }, 15000);
 {% endif %}
 
@@ -988,86 +930,22 @@ function getCsrfToken() {
     return input ? input.value : '';
 }
 
-var hsRecommendations = [];
-
-function renderHsRecommendations(rows) {
-    hsRecommendations = rows || [];
-    var body = document.getElementById('hs-rec-body');
-    if (!body) return;
-    if (!hsRecommendations.length) {
-        body.innerHTML = '<tr><td colspan="5" style="padding:12px; color:#64748b;">No HS code recommendations found.</td></tr>';
-        return;
-    }
-    body.innerHTML = hsRecommendations.map(function(row) {
-        var sourceLabel = row.source === 'document' ? 'From Document' : 'Suggested';
-        return '<tr data-search="' + (row.code + ' ' + row.description).replace(/"/g, '&quot;').toLowerCase() + '">' +
-            '<td style="padding:8px; color:#93c5fd; white-space:nowrap;">' + row.code + '</td>' +
-            '<td style="padding:8px; color:#cbd5e1;">' + row.description + '</td>' +
-            '<td style="padding:8px; color:#f1f5f9; text-align:right;">' + Number(row.duty_rate || 0).toFixed(2) + '%</td>' +
-            '<td style="padding:8px; color:#94a3b8;">' + sourceLabel + '</td>' +
-            '<td style="padding:8px; text-align:right;">' +
-                '<button type="button" class="btn btn-secondary" style="font-size:11px; padding:4px 9px;" ' +
-                'onclick="confirmHsRecommendation(this, ' + row.id + ', \'' + row.code.replace(/'/g, "\\'") + '\')">Confirm</button>' +
-            '</td>' +
-        '</tr>';
-    }).join('');
-    filterHsRecommendations();
-}
-
-function fetchHsRecommendations(useQuery) {
-    var q = document.getElementById('hs-rec-search').value.trim();
-    var url = "{% url 'computation:hs_suggestions' shipment.id %}";
-    if (useQuery && q) url += '?q=' + encodeURIComponent(q);
-    fetch(url, { credentials: 'same-origin' })
-        .then(function(resp) { return resp.json(); })
-        .then(renderHsRecommendations)
-        .catch(function() {
-            document.getElementById('hs-rec-body').innerHTML =
-                '<tr><td colspan="5" style="padding:12px; color:#ef4444;">Could not load recommendations.</td></tr>';
-        });
-}
-
-function filterHsRecommendations() {
-    var q = document.getElementById('hs-rec-search').value.trim().toLowerCase();
-    document.querySelectorAll('#hs-rec-body tr[data-search]').forEach(function(row) {
-        row.style.display = !q || row.dataset.search.indexOf(q) >= 0 ? '' : 'none';
-    });
-}
-
-function confirmHsRecommendation(btn, id, code) {
-    fetch("{% url 'computation:confirm_hs_code' shipment.id %}", {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-        body: JSON.stringify({id: id, code: code})
-    })
-    .then(function(resp) { return resp.json(); })
-    .then(function(data) {
-        if (!data.ok) throw new Error(data.error || 'Could not confirm HS code.');
-        var row = btn.closest('tr');
-        row.classList.add('hs-row-confirmed');
-        btn.textContent = 'Confirmed';
-        btn.disabled = true;
-    })
-    .catch(function(err) { alert(err.message); });
-}
-
-// ─── OCR Item Review: per-item HS suggestions ────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ OCR Item Review: per-item HS suggestions Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 var OCR_HS_URL = "{% url 'computation:hs_suggest' %}";
 
 function ocrFetchHsForRow(selectEl, desc, rateInput) {
     if (!desc || !selectEl) return;
-    selectEl.innerHTML = '<option value="">Searching…</option>';
+    selectEl.innerHTML = '<option value="">SearchingÃ¢â‚¬Â¦</option>';
     fetch(OCR_HS_URL + '?q=' + encodeURIComponent(desc) + '&limit=5')
         .then(function(r) { return r.json(); })
         .then(function(data) {
             var suggs = data.suggestions || [];
-            selectEl.innerHTML = '<option value="">— Select HS Code —</option>';
+            selectEl.innerHTML = '<option value="">Ã¢â‚¬â€ Select HS Code Ã¢â‚¬â€</option>';
             suggs.forEach(function(s) {
                 var opt = document.createElement('option');
                 opt.value = s.id;
-                var shortDesc = s.desc.length > 42 ? s.desc.substring(0, 42) + '…' : s.desc;
-                opt.textContent = s.code + ' — ' + shortDesc + '  (' + s.rate.toFixed(2) + '%)';
+                var shortDesc = s.desc.length > 42 ? s.desc.substring(0, 42) + 'Ã¢â‚¬Â¦' : s.desc;
+                opt.textContent = s.code + ' Ã¢â‚¬â€ ' + shortDesc + '  (' + s.rate.toFixed(2) + '%)';
                 opt.dataset.rate = s.rate;
                 selectEl.appendChild(opt);
             });
@@ -1077,7 +955,7 @@ function ocrFetchHsForRow(selectEl, desc, rateInput) {
             }
         })
         .catch(function() {
-            selectEl.innerHTML = '<option value="">— Search failed —</option>';
+            selectEl.innerHTML = '<option value="">Ã¢â‚¬â€ Search failed Ã¢â‚¬â€</option>';
         });
 }
 
@@ -1112,7 +990,7 @@ function ocrRemoveRow(btn) {
         if (!emptyRow) {
             emptyRow = document.createElement('tr');
             emptyRow.id = 'ocr-empty-row';
-            emptyRow.innerHTML = '<td colspan="7" style="padding:18px 12px;text-align:center;color:#475569;font-size:12px;font-style:italic;">No items extracted — add rows manually using the button below.</td>';
+            emptyRow.innerHTML = '<td colspan="3" style="padding:18px 12px;text-align:center;color:#475569;font-size:12px;font-style:italic;">No items extracted - add rows manually using the button below.</td>';
             tbody.appendChild(emptyRow);
         }
     }
@@ -1128,21 +1006,26 @@ function ocrAddRow() {
     var tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid #1e293b';
     tr.innerHTML =
-        '<td style="padding:6px;color:#475569;font-size:11px;text-align:center;">' + rowIdx + '</td>' +
-        '<td style="padding:4px 6px;"><input type="text" name="description[]" class="form-input ocr-desc-input" placeholder="Item description…" style="font-size:11px;padding:5px 7px;width:100%;"></td>' +
-        '<td style="padding:4px 6px;"><input type="text" name="quantity[]" class="form-input" style="font-size:11px;padding:5px 7px;width:100%;"></td>' +
-        '<td style="padding:4px 6px;"><input type="text" name="unit[]" class="form-input" style="font-size:11px;padding:5px 7px;width:100%;"></td>' +
-        '<td style="padding:4px 6px;"><input type="number" name="total_value[]" step="0.01" min="0" class="form-input" style="font-size:11px;padding:5px 7px;width:100%;text-align:right;"></td>' +
-        '<td style="padding:4px 6px;">' +
+        '<td style="padding:8px 6px;min-width:240px;">' +
+            '<div style="color:#cbd5e1;font-size:12px;line-height:1.45;margin-bottom:6px;">Manual staging row ' + rowIdx + '</div>' +
+            '<input type="text" name="description[]" class="form-input ocr-desc-input" placeholder="Item description..." style="font-size:11px;padding:5px 7px;width:100%;">' +
+            '<input type="hidden" name="quantity[]" value="1">' +
+            '<input type="hidden" name="unit[]" value="">' +
+            '<input type="hidden" name="total_value[]" value="">' +
+            '<input type="hidden" name="raw_extracted_text[]" value="Manual staging row">' +
+            '<input type="hidden" name="confidence_pct[]" value="0">' +
+        '</td>' +
+        '<td style="padding:8px 6px;vertical-align:top;"><span class="badge bg-dark font-monospace text-success">● OCR: 0%</span></td>' +
+        '<td style="padding:8px 6px;vertical-align:top;">' +
             '<select name="hs_code_id[]" class="form-input ocr-hs-select" style="font-size:11px;padding:5px 7px;width:100%;margin-bottom:3px;" data-desc="">' +
-                '<option value="">— Enter description first —</option>' +
+                '<option value="">Enter description first</option>' +
             '</select>' +
             '<div style="display:flex;align-items:center;gap:5px;">' +
                 '<span style="color:#64748b;font-size:10px;">Duty %:</span>' +
                 '<input type="number" name="hs_duty_rate[]" class="form-input ocr-hs-rate" value="0" step="0.01" min="0" style="font-size:11px;padding:3px 6px;width:70px;">' +
             '</div>' +
-        '</td>' +
-        '<td style="padding:4px 6px;text-align:center;"><button type="button" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:15px;padding:0 4px;" onclick="ocrRemoveRow(this)">✕</button></td>';
+            '<button type="button" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:11px;padding:4px 0;margin-top:4px;" onclick="ocrRemoveRow(this)">Remove</button>' +
+        '</td>';
     tbody.appendChild(tr);
     ocrInitRow(tr);
 }
@@ -1150,8 +1033,6 @@ function ocrAddRow() {
 document.addEventListener('DOMContentLoaded', function() {
     // Init per-item HS dropdowns for OCR review panel
     document.querySelectorAll('#ocr-items-tbody tr:not(#ocr-empty-row)').forEach(ocrInitRow);
-
-    fetchHsRecommendations(false);
 });
 
 var _ocrTimer = null;

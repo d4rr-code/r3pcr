@@ -1,18 +1,19 @@
-{% extends 'base.html' %}
-{% block title %}Section {{ section_roman }} — HS Codes{% endblock %}
+{% extends 'supervisor/base_supervisor.html' %}
+{% block title %}Section {{ section_roman }}  HS Codes{% endblock %}
 {% block page_title %}Section {{ section_roman }}: {{ section_title }}{% endblock %}
+{% block nav_config %}active{% endblock %}
 {% block content %}
 
 <!-- Breadcrumb -->
-<p style="color:#64748b; font-size:13px; margin-bottom:24px;">
+<p style="color:#9CA3AF; font-size:13px; margin-bottom:24px;">
     <a href="{% url 'supervisor:config' %}" style="color:#22c55e; text-decoration:none;">System Config</a>
-    <span style="margin:0 8px;">›</span>
+    <span style="margin:0 8px;"></span>
     <a href="{% url 'supervisor:config_hscodes_sections' %}" style="color:#22c55e; text-decoration:none;">HS Code Duty Rates</a>
-    <span style="margin:0 8px;">›</span>
-    <span style="color:#94a3b8;">Section {{ section_roman }}</span>
+    <span style="margin:0 8px;"></span>
+    <span style="color:#6B7280;">Section {{ section_roman }}</span>
 </p>
 
-<p style="color:#94a3b8; font-size:13px; margin-bottom:24px;">
+<p style="color:#6B7280; font-size:13px; margin-bottom:24px;">
     Select a chapter to view and edit its HS code duty rates.
 </p>
 
@@ -20,15 +21,15 @@
 <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;">
     {% for ch in chapters %}
     <a href="{% url 'supervisor:config_hscodes_chapter' ch.num %}" style="text-decoration:none;">
-        <div class="card" style="padding:18px 20px; cursor:pointer; border:1px solid #1e293b;
+        <div class="card" style="padding:18px 20px; cursor:pointer; border:1px solid #FFFFFF;
                                   transition:border-color .2s, transform .15s;"
              onmouseover="this.style.borderColor='#22c55e'; this.style.transform='translateY(-2px)'"
-             onmouseout="this.style.borderColor='#1e293b'; this.style.transform='translateY(0)'">
+             onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
                 <span style="color:#22c55e; font-size:18px; font-weight:800; font-family:monospace;">
                     {{ ch.num_str }}
                 </span>
-                <span style="color:#64748b; font-size:12px;">Chapter {{ ch.num }}</span>
+                <span style="color:#9CA3AF; font-size:12px;">Chapter {{ ch.num }}</span>
             </div>
 
             {% if ch.count %}
@@ -36,22 +37,22 @@
                 {{ ch.count }} HS code{{ ch.count|pluralize }}
             </p>
             {% if ch.samples %}
-            <p style="color:#475569; font-size:11px; margin:0; font-family:monospace; letter-spacing:.02em;">
-                {{ ch.samples|join:", " }}{% if ch.count > 3 %}…{% endif %}
+            <p style="color:#9CA3AF; font-size:11px; margin:0; font-family:monospace; letter-spacing:.02em;">
+                {{ ch.samples|join:", " }}{% if ch.count > 3 %}{% endif %}
             </p>
             {% endif %}
             {% else %}
             <p style="color:#374151; font-size:12px; margin:0;">No HS codes loaded</p>
             {% endif %}
 
-            <p style="color:#22c55e; font-size:11px; font-weight:600; margin:10px 0 0;">Edit rates →</p>
+            <p style="color:#22c55e; font-size:11px; font-weight:600; margin:10px 0 0;">Edit rates </p>
         </div>
     </a>
     {% endfor %}
 </div>
 {% else %}
 <div class="card" style="padding:40px; text-align:center;">
-    <p style="color:#64748b; font-size:14px;">No chapters found for this section.</p>
+    <p style="color:#9CA3AF; font-size:14px;">No chapters found for this section.</p>
 </div>
 {% endif %}
 
