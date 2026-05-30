@@ -1,0 +1,96 @@
+<div class="sr-table-card">
+    {% if records %}
+    <div class="sr-table-scroll">
+        <table class="sr-table">
+            <thead>
+                <tr
+                    {% if enable_flag_preview and s.has_deficiency %}
+                    data-preview="flagged"
+                    data-hawb="{{ s.hawb_number }}"
+                    data-description="{{ s.description|default:'-' }}"
+                    data-consignee="{{ s.consignee.get_full_name|default:s.consignee.username }}"
+                    data-declarant="{% if s.declarant %}{{ s.declarant.get_full_name|default:s.declarant.username }}{% else %}-{% endif %}"
+                    data-status="{{ s.get_status_display }}"
+                    data-shipmenttype="{{ s.get_shipment_type_display|default:'-' }}"
+                    data-importtype="{{ s.get_import_type_display }}"
+                    data-urgency="{{ s.get_urgency_display }}"
+                    data-duelabel="{{ s.hold_due_label|default:'-' }}"
+                    data-submitted="{{ s.submitted_at|date:'M d, Y \\a\\t g:i A' }}"
+                    data-updated="{{ s.updated_at|date:'M d, Y \\a\\t g:i A' }}"
+                    data-notes="{{ s.deficiency_notes|default:'' }}"
+                    {% endif %}
+                >
+                    <th>Shipment Reference No.</th>
+                    <th>Import Type</th>
+                    <th>Urgency</th>
+                    <th>Status</th>
+                    <th>Shipment Type</th>
+                    <th>Submitted</th>
+                    <th>Consignee</th>
+                    <th>Declarant</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in records %}
+                <tr>
+                    <td class="sr-ref">{{ s.hawb_number }}</td>
+                    <td>{{ s.get_import_type_display }}</td>
+                    <td>
+                        <span class="sr-pill urgency-{{ s.urgency|default:'standard' }}">{{ s.get_urgency_display }}</span>
+                    </td>
+                    <td>
+                        <span class="sr-status">{{ s.get_status_display|default:"-" }}</span>
+                        {% if s.has_deficiency and s.deficiency_notes %}
+                        <small>{{ s.deficiency_notes|truncatechars:38 }}</small>
+                        {% elif s.status == 'for_revision' %}
+                        <small>Revise ECDT Computation</small>
+                        {% elif s.status == 'arrived' %}
+                        <small>Awaits revised invoice</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ s.get_shipment_type_display|default:"-" }}</td>
+                    <td>{{ s.submitted_at|date:"M d,Y g:i A" }}</td>
+                    <td>{{ s.consignee.get_full_name|default:s.consignee.username }}</td>
+                    <td>{% if s.declarant %}{{ s.declarant.get_full_name|default:s.declarant.username }}{% else %}-{% endif %}</td>
+                    <td class="sr-action">
+                        {% if enable_flag_preview and s.has_deficiency %}
+                        <button type="button" class="sr-preview-btn" aria-label="Preview flagged shipment {{ s.hawb_number }}" onclick="openFlagPreview(this.closest('tr'))">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 4.5c-4.2 0-7.15 3.22-8.2 4.6a1.5 1.5 0 000 1.8c1.05 1.38 4 4.6 8.2 4.6s7.15-3.22 8.2-4.6a1.5 1.5 0 000-1.8c-1.05-1.38-4-4.6-8.2-4.6zm0 8.5a3 3 0 110-6 3 3 0 010 6zm0-1.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>
+                        </button>
+                        {% else %}
+                        <a href="{% url 'supervisor:shipment_detail' s.id %}{% if detail_return_url %}?return_to={{ detail_return_url|urlencode }}&return_label={{ detail_return_label|urlencode }}{% endif %}" aria-label="View shipment {{ s.hawb_number }}">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 4.5c-4.2 0-7.15 3.22-8.2 4.6a1.5 1.5 0 000 1.8c1.05 1.38 4 4.6 8.2 4.6s7.15-3.22 8.2-4.6a1.5 1.5 0 000-1.8c-1.05-1.38-4-4.6-8.2-4.6zm0 8.5a3 3 0 110-6 3 3 0 010 6zm0-1.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="sr-pages">
+        {% if page_obj.has_previous %}
+        <a class="sr-page-btn" href="{{ prev_url }}" aria-label="Previous page">&lt;</a>
+        {% else %}
+        <span class="sr-page-btn disabled">&lt;</span>
+        {% endif %}
+
+        {% for link in page_links %}
+            {% if link.current %}
+            <strong class="sr-page-btn current">{{ link.number }}</strong>
+            {% else %}
+            <a class="sr-page-btn" href="{{ link.url }}">{{ link.number }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <a class="sr-page-btn" href="{{ next_url }}" aria-label="Next page">&gt;</a>
+        {% else %}
+        <span class="sr-page-btn disabled">&gt;</span>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="sr-empty">{{ empty_text }}</div>
+    {% endif %}
+</div>

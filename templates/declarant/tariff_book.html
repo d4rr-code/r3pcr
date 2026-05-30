@@ -1,0 +1,64 @@
+{% extends 'declarant/base_declarant.html' %}
+
+{% block title %}Tariff Book 2022{% endblock %}
+{% block page_title %}Tariff Book 2022{% endblock %}
+{% block nav_tariff %}active{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:18px;">
+    <a href="{% url 'declarant:dashboard' %}" class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
+            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
+        </svg>
+        Back to Dashboard
+    </a>
+</div>
+
+<p style="color:#6B7280; font-size:13px; margin-bottom:24px;">
+    Browse HS sections to view chapters, HS codes, and duty rates. This tariff book is read-only for declarants.
+</p>
+
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px;">
+    {% for section in sections %}
+    <a href="{% url 'declarant:tariff_book_section' section.num %}" style="text-decoration:none;">
+        <div class="card" style="padding:22px 20px; cursor:pointer; border:1px solid #FFFFFF;
+                                  transition:border-color .2s, transform .15s;"
+             onmouseover="this.style.borderColor='#1B3358'; this.style.transform='translateY(-2px)'"
+             onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
+            <div style="display:flex; align-items:flex-start; gap:14px;">
+                <div style="flex-shrink:0; width:44px; height:44px; border-radius:8px;
+                             background:#EEF2F8; border:1px solid #D8E0EC;
+                             display:flex; align-items:center; justify-content:center;">
+                    <span style="color:#1B3358; font-size:13px; font-weight:800;">{{ section.roman }}</span>
+                </div>
+                <div style="flex:1; min-width:0;">
+                    <p style="color:#1A1A2E; font-size:14px; font-weight:700; margin:0 0 4px;
+                               white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                       title="{{ section.title }}">
+                        {{ section.title }}
+                    </p>
+                    <div style="display:flex; gap:12px; margin-top:6px; flex-wrap:wrap;">
+                        <span style="color:#6B7280; font-size:11px;">
+                            {{ section.total_chapters }} chapter{{ section.total_chapters|pluralize }}
+                        </span>
+                        {% if section.total_codes %}
+                        <span style="color:#1D4ED8; font-size:11px;">
+                            {{ section.total_codes }} HS code{{ section.total_codes|pluralize }}
+                        </span>
+                        {% else %}
+                        <span style="color:#9CA3AF; font-size:11px;">no codes loaded</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <svg class="d-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+                     style="color:#1B3358; width:16px; height:16px; flex-shrink:0; margin-top:4px;">
+                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
+                </svg>
+            </div>
+        </div>
+    </a>
+    {% empty %}
+    <p style="color:#6B7280; font-size:14px;">No tariff sections found.</p>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -307,9 +307,12 @@ def _extract_line_items(text):
         # logistics / charges
         'freight', 'insurance', 'shipping', 'handling', 'tax', 'vat', 'charges',
         'surcharge', 'customs', 'duty', 'fee', 'commission',
-        # contact / header lines  ← NEW
+        # contact / header lines
         'tel', 'tel.', 'fax', 'fax.', 'email', 'e-mail', 'phone', 'mobile',
         'hotline', 'website', 'www.', 'address', 'addr.',
+        # banking / payment details — must never become an item description
+        'iban', 'bic', 'swift', 'sort code', 'account no', 'bank account',
+        'routing', 'beneficiary', 'correspondent',
         # document / header words
         'invoice', 'description', 'item', 'qty', 'quantity', 'unit', 'price',
         'amount', 'no.', 'number', 'date', 'currency', 'terms', 'payment',
@@ -363,8 +366,26 @@ def _extract_line_items(text):
         re.IGNORECASE,
     )
 
+    # ── Pre-scan: locate "HS CODE: XXXX.XX" labels at each line index ──────────
+    # Real invoices print the HS code on the line immediately after the item.
+    # Pattern handles: "HS CODE: 3923.30", "HS CODE 3923.30", "HSCODE:3923.30",
+    #                  "HS CODE: 3923 30 00", "HS: 9616.10"
+    _hs_label_pat = re.compile(
+        r'\bHS[\s._-]*CODE\b[\s:]*(\d{4}(?:[.\s]?\d{2}){1,3})',
+        re.IGNORECASE,
+    )
+    lines = text.splitlines()
+    _hs_at_line = {}  # line_index → normalized HS code string  e.g. "3923.30"
+    for _i, _ln in enumerate(lines):
+        _m = _hs_label_pat.search(_ln)
+        if _m:
+            _raw = _m.group(1).strip()
+            # Normalize spaces/dots between digit groups → dots
+            _normalized = re.sub(r'[\s]+', '.', _raw)
+            _hs_at_line[_i] = _normalized
+
     items = []
-    for raw_line in text.splitlines():
+    for idx, raw_line in enumerate(lines):
         line = raw_line.strip()
         if not line or len(line) < 10:
             continue
@@ -375,6 +396,10 @@ def _extract_line_items(text):
         # Skip phone / fax / address lines even when keyword appears mid-line
         # Patterns: +63, (63-2), (+63), (+1-), international dial codes, @-signs
         if re.search(r'(?:\+\d{1,3}[\s\-.]|\(\d{2,4}\)[\s\-]\d|\b\d{3}[-.\s]\d{4}\b|@\w+\.\w)', line):
+            continue
+
+        # Skip banking/payment lines: IBAN XX\d+, BIC/SWIFT codes, account numbers
+        if re.search(r'\bIBAN\b|\bBIC\b|\bSWIFT\b|\bDE\d{2}\b', line, re.IGNORECASE):
             continue
 
         matched_pattern = None
@@ -472,6 +497,27 @@ def _extract_line_items(text):
             if qty_inline:
                 qty = qty_inline.group(1)
 
+        # ── HS Code from document: scan the next 1-6 lines for "HS CODE: XXXX"
+        # This handles real invoices that print the code on its own line below
+        # the item description, e.g.:
+        #   BOTTLE, PLASTIC NASAL SPRAY 17/415, PE 30ML  ...  USD10,150.00
+        #   HS CODE: 3923.30
+        doc_hs_code = None
+        for _look in range(1, 7):
+            _next_idx = idx + _look
+            if _next_idx in _hs_at_line:
+                doc_hs_code = _hs_at_line[_next_idx]
+                break
+            # Stop scanning forward if next line looks like a new item
+            # (contains another currency amount — i.e. a new invoice row started)
+            if _next_idx < len(lines):
+                _next_stripped = lines[_next_idx].strip()
+                if _next_stripped and re.search(
+                    r'(?:US\$|USD)\s*[\d,]+\.\d{2}|\b[\d,]{4,}\.\d{2}\b',
+                    _next_stripped,
+                ):
+                    break
+
         items.append({
             'description':  desc_part[:200],
             'quantity':     qty,
@@ -483,6 +529,7 @@ def _extract_line_items(text):
             'num_packages': packages,
             'source':       'ocr',
             'confidence':   confidence,
+            'doc_hs_code':  doc_hs_code,  # HS code printed in the document (highest priority)
         })
 
     if not items:
@@ -494,6 +541,114 @@ def _extract_line_items(text):
         last_value    = float(items[-1].get('total_value') or 0)
         if preceding_sum > 0 and last_value and abs(last_value - preceding_sum) / preceding_sum < 0.01:
             items = items[:-1]
+
+    return items
+
+
+def _extract_hs_anchored_items(text):
+    """
+    Fallback extractor used when _extract_line_items() finds nothing.
+
+    Strategy: scan for 'HS CODE: XXXX.XX' labels, then walk backwards
+    through the preceding lines to reconstruct the item description.
+
+    This handles real invoice formats where items span multiple lines:
+        BOTTLE, PLASTIC NASAL       ← desc line 1
+        SPRAY 17/415, PE 30ML       ← desc line 2 (continuation)
+        HS CODE: 3923.30            ← anchor — we find this first
+
+    Returns a list of minimal item dicts with doc_hs_code set.
+    """
+    hs_label_pat = re.compile(
+        r'\bHS[\s._-]*CODE\b[\s:]*(\d{4}(?:[.\s]?\d{2}){1,3})',
+        re.IGNORECASE,
+    )
+
+    # Fragments that indicate a line is NOT a product description
+    _SKIP_LOW = {
+        'tel', 'email', 'fax', 'www', 'invoice', 'packing list', 'packing',
+        'total', 'payment', 'shipper', 'consignee', 'date', 'no.',
+        'per proforma', 'cif', 'fob', 'manufacturer', 'documentary',
+        'credit', 'shipping mark', 'packed in', 'authorized', 'signature',
+        'room', 'road', 'jiangsu', 'china', 'philippines', 'quezon',
+        'commodity', 'quantity', 'package', 'measurement', 'specs',
+    }
+
+    lines = text.splitlines()
+    items = []
+    seen_codes = set()
+
+    for idx, line in enumerate(lines):
+        m = hs_label_pat.search(line)
+        if not m:
+            continue
+
+        raw_code = m.group(1).strip()
+        hs_code  = re.sub(r'\s+', '.', raw_code)
+        if hs_code in seen_codes:
+            continue
+        seen_codes.add(hs_code)
+
+        # Walk backwards from the HS CODE line to collect description lines
+        desc_lines = []
+        for prev_idx in range(idx - 1, max(idx - 10, -1), -1):
+            prev = lines[prev_idx].strip()
+            if not prev or len(prev) < 3:
+                continue
+            # Stop at another HS code label
+            if hs_label_pat.search(prev):
+                break
+            low = prev.lower()
+            # Stop at header/footer/address lines
+            if any(frag in low for frag in _SKIP_LOW):
+                break
+            # Skip lines that are pure numbers, amounts, or dashes
+            if re.match(r'^[\d\s,.$€\-=_]+$', prev):
+                break
+            # Skip lines that look like table column headers
+            if re.match(r'^(?:PCS|CTNS?|KGS?|CBM|UNIT|QTY)\b', prev, re.IGNORECASE):
+                break
+
+            # ── Strip inline qty + price suffix from invoice lines ────────────
+            # e.g. "BOTTLE, PLASTIC NASAL  290,000  USD0.035/PC  USD10,150.00"
+            # →    "BOTTLE, PLASTIC NASAL"
+            clean = re.sub(
+                r'\s+\d[\d,]+\s+(?:US\$?|USD|EUR|\$|€)[\d.,/\w]+.*$',
+                '', prev, flags=re.IGNORECASE,
+            ).strip()
+            # Also strip trailing standalone large numbers (quantities like 290,000)
+            clean = re.sub(r'\s+\d{1,3}(?:,\d{3})+\s*$', '', clean).strip()
+            # Keep at least the cleaned version (even if it removes something)
+            used = clean if (clean and re.search(r'[A-Za-z]{3,}', clean)) else prev
+
+            desc_lines.insert(0, used)
+            if len(desc_lines) >= 4:
+                break
+
+        if not desc_lines:
+            continue
+
+        # Join and do a final trim of any remaining price/qty at the end
+        desc = ' '.join(desc_lines).strip()
+        desc = re.sub(r'\s+\d[\d,]*(?:\.\d+)?\s*$', '', desc).strip()
+        desc = re.sub(r'\s+(?:US\$?|USD|EUR)[\d.,]+\s*$', '', desc, flags=re.IGNORECASE).strip()
+
+        if len(desc) < 4 or not re.search(r'[A-Za-z]{3,}', desc):
+            continue
+
+        items.append({
+            'description':  desc[:200],
+            'quantity':     '',
+            'unit':         '',
+            'unit_price':   '',
+            'total_value':  '',
+            'gross_weight': '',
+            'net_weight':   '',
+            'num_packages': '',
+            'source':       'ocr',
+            'confidence':   0.75,
+            'doc_hs_code':  hs_code,
+        })
 
     return items
 

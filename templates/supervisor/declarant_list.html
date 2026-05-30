@@ -1,0 +1,124 @@
+{% extends 'supervisor/base_supervisor.html' %}
+{% block title %}Declarant List{% endblock %}
+{% block page_title %}Declarants{% endblock %}
+{% block nav_clients %}has-active-child{% endblock %}
+{% block nav_declarants %}active{% endblock %}
+
+{% block extra_css %}
+.page-heading { display: none; }
+.cs-page { color:#111827; max-width: 1180px; margin: 0 auto; }
+.cs-title { color:#1B3358; text-align:center; font-size:24px; font-weight:900; margin: 16px 0 30px; }
+.top-declarants { display:flex; justify-content:center; align-items:end; gap:54px; margin-bottom:28px; flex-wrap:wrap; }
+.rank-card { width:190px; min-height:160px; border-radius:6px; background:#fff; box-shadow:0 12px 28px rgba(31,43,62,.17); border:1px solid #E6ECF2; position:relative; padding:46px 18px 16px; overflow:hidden; }
+.rank-card.main { width:230px; min-height:210px; padding-top:66px; }
+.rank-band { position:absolute; inset:0 0 auto; height:62px; background:#D9D9D9; color:rgba(27,51,88,.22); font-size:60px; font-weight:900; text-align:right; padding-right:18px; line-height:1; }
+.rank-card.main .rank-band { height:86px; background:#FFE979; color:rgba(165,127,0,.32); font-size:68px; }
+.rank-card.third .rank-band { background:#FFC05E; color:rgba(165,98,0,.32); }
+.rank-avatar { position:relative; width:56px; height:56px; border-radius:50%; background:#1B3358; color:#fff; display:flex; align-items:center; justify-content:center; font-size:44px; font-weight:900; margin-bottom:8px; }
+.rank-card.main .rank-avatar { width:76px; height:76px; font-size:58px; }
+.rank-name { color:#1B3358; font-size:15px; font-weight:900; margin:0 0 4px; }
+.rank-card.main .rank-name { font-size:18px; }
+.rank-meta, .rank-copy { color:#111827; font-size:10px; line-height:1.35; margin:0; }
+.rank-green { color:#20B86F; font-size:10px; font-weight:800; margin:2px 0 0; }
+.cs-search { margin:0 0 18px; max-width:550px; }
+.cs-search label { display:block; color:#111827; font-size:12px; font-weight:800; margin-bottom:6px; }
+.cs-search-wrap { position:relative; }
+.cs-input { width:100%; height:38px; border:1px solid #E6ECF2; border-radius:6px; background:#fff; color:#111827; padding:0 42px 0 14px; font:inherit; box-shadow:0 8px 18px rgba(31,43,62,.06); }
+.cs-search button { position:absolute; right:8px; top:50%; transform:translateY(-50%); border:0; background:transparent; color:#111827; cursor:pointer; width:28px; height:28px; }
+.cs-search svg { width:17px; height:17px; }
+.cs-table-card { background:#fff; border-radius:6px; border:1px solid #E6ECF2; overflow:hidden; box-shadow:0 12px 28px rgba(31,43,62,.12); }
+.cs-scroll { overflow-x:auto; }
+.cs-table { width:100%; min-width:1000px; border-collapse:collapse; }
+.cs-table th { background:#1B3358; color:#fff; font-size:10px; font-weight:900; text-transform:uppercase; padding:16px 14px; text-align:center; }
+.cs-table td { color:#111827; font-size:12px; padding:18px 14px; border-top:1px solid #E6ECF2; text-align:center; vertical-align:middle; }
+.cs-table td:first-child, .cs-table th:first-child { text-align:left; padding-left:42px; }
+.cs-sub { display:block; color:#111827; font-size:9px; margin-top:2px; }
+.cs-action a { color:#34485F; display:inline-flex; width:24px; height:24px; align-items:center; justify-content:center; }
+.cs-action svg { width:16px; height:16px; }
+.cs-pages { min-height:64px; display:flex; justify-content:center; align-items:center; gap:10px; color:#111827; font-size:14px; }
+.cs-pages strong { color:#1B3358; }
+.cs-empty { padding:44px; text-align:center; color:#111827; }
+@media (max-width: 900px) {
+    .top-declarants { gap:18px; }
+    .rank-card, .rank-card.main { width: min(100%, 260px); }
+}
+{% endblock %}
+
+{% block content %}
+<div class="cs-page">
+    <h1 class="cs-title">Top Performing Declarant</h1>
+
+    <div class="top-declarants">
+        {% for row in top_declarants %}
+        <section class="rank-card {% if row.rank == '1st' %}main{% elif row.rank == '3rd' %}third{% endif %}">
+            <div class="rank-band">{{ row.rank }}</div>
+            <div class="rank-avatar">{{ row.initial }}</div>
+            <p class="rank-name">{{ row.name }}</p>
+            <p class="rank-meta">{{ row.rank }} Highest on-time shipment clearance performance</p>
+            <br>
+            <p class="rank-copy">Average Clearance Time: <strong>{% if row.average_clearance_days %}{{ row.average_clearance_days }} Days{% else %}-{% endif %}</strong></p>
+            <p class="rank-copy">{{ row.cleared_shipments }} Cleared Shipments</p>
+            <p class="rank-green">{{ row.clearance_rate }}% On-Time Clearance Rate</p>
+        </section>
+        {% empty %}
+        <p class="cs-empty">No declarant performance data yet.</p>
+        {% endfor %}
+    </div>
+
+    <form method="GET" class="cs-search">
+        <label>Search Declarant Name</label>
+        <div class="cs-search-wrap">
+            <input class="cs-input" type="text" name="q" value="{{ q }}" placeholder="e.g Elena">
+            <button type="submit" aria-label="Search declarants">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 103.473 9.767l2.38 2.38a.75.75 0 101.061-1.061l-2.38-2.38A5.5 5.5 0 009 3.5zM5 9a4 4 0 118 0 4 4 0 01-8 0z" clip-rule="evenodd"/></svg>
+            </button>
+        </div>
+    </form>
+
+    <div class="cs-table-card">
+        {% if declarants %}
+        <div class="cs-scroll">
+            <table class="cs-table">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Cleared<br>Shipments</th>
+                        <th>Handled<br>Consignee</th>
+                        <th>Active<br>Count</th>
+                        <th>Revised<br>Count</th>
+                        <th>Average<br>Clearance Time</th>
+                        <th>Incoming Due<br>Date (3 Days)</th>
+                        <th>Current Handled<br>Shipment</th>
+                        <th>Current Handled<br>Consignee</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in declarants %}
+                    <tr>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.cleared_shipments }}</td>
+                        <td>{{ row.handled_consignees }}</td>
+                        <td>{{ row.active_count }}</td>
+                        <td>{{ row.revised_count }}</td>
+                        <td>{% if row.average_clearance_days %}{{ row.average_clearance_days }} Days{% else %}-{% endif %}</td>
+                        <td>{{ row.incoming_due }}</td>
+                        <td>{% if row.current_shipment %}{{ row.current_shipment.hawb_number }}{% else %}-{% endif %}</td>
+                        <td>{% if row.current_shipment %}{{ row.current_shipment.consignee.get_full_name|default:row.current_shipment.consignee.username }}{% else %}-{% endif %}</td>
+                        <td class="cs-action">
+                            <a href="{% url 'supervisor:declarant_detail' row.user.id %}" aria-label="View declarant records">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 4.5c-4.2 0-7.15 3.22-8.2 4.6a1.5 1.5 0 000 1.8c1.05 1.38 4 4.6 8.2 4.6s7.15-3.22 8.2-4.6a1.5 1.5 0 000-1.8c-1.05-1.38-4-4.6-8.2-4.6zm0 8.5a3 3 0 110-6 3 3 0 010 6zm0-1.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="cs-pages"><span>&lt;</span><strong>1</strong><span>&gt;</span></div>
+        {% else %}
+        <div class="cs-empty">No declarants found.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

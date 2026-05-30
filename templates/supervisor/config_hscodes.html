@@ -2,7 +2,111 @@
 {% block title %}HS Code Duty Rates{% endblock %}
 {% block page_title %}HS Code Duty Rates{% endblock %}
 {% block nav_config %}active{% endblock %}
+{% block extra_css %}
+.hs-search-panel {
+    background: #fff;
+    border: 1px solid #E6ECF2;
+    border-radius: 6px;
+    box-shadow: 0 10px 28px rgba(31, 43, 62, 0.09);
+    margin-bottom: 24px;
+    padding: 18px 20px;
+}
+.hs-search-form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+.hs-search-input-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+.hs-search-input-wrap svg {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: #9CA3AF;
+    pointer-events: none;
+}
+.hs-search-input {
+    width: 100%;
+    height: 42px;
+    border: 1px solid #E6ECF2;
+    border-radius: 6px;
+    background: #fff;
+    color: #111827;
+    font: inherit;
+    font-size: 13px;
+    padding: 0 14px 0 42px;
+    box-shadow: 0 8px 18px rgba(31, 43, 62, 0.06);
+    outline: none;
+}
+.hs-search-results {
+    margin-top: 16px;
+    border-top: 1px solid #E6ECF2;
+    padding-top: 14px;
+}
+.hs-result-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.hs-result-table th,
+.hs-result-table td {
+    border-top: 1px solid #EEF2F7;
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: top;
+}
+.hs-result-table th {
+    color: #6B7280;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+.hs-result-code {
+    color: #22c55e;
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.hs-result-desc {
+    color: #4B5563;
+    font-size: 13px;
+    line-height: 1.35;
+}
+.hs-result-rate {
+    color: #111827;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.hs-result-link {
+    color: #1B3358;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+}
+@media (max-width: 720px) {
+    .hs-search-form { flex-direction: column; align-items: stretch; }
+    .hs-result-table { min-width: 720px; }
+    .hs-search-results { overflow-x: auto; }
+}
+{% endblock %}
 {% block content %}
+
+<div style="margin-bottom:18px;">
+    <a href="{% url 'supervisor:config' %}" class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
+            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
+        </svg>
+        Back to System Config
+    </a>
+</div>
 
 <!-- Breadcrumb -->
 <p style="color:#9CA3AF; font-size:13px; margin-bottom:8px;">
@@ -13,6 +117,60 @@
 <p style="color:#9CA3AF; font-size:13px; margin-bottom:28px;">
     Browse by HS Section to update duty rates. Select a section to see its chapters and HS codes.
 </p>
+
+<div class="hs-search-panel">
+    <form method="GET" class="hs-search-form">
+        <div class="hs-search-input-wrap">
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 103.473 9.767l2.38 2.38a.75.75 0 101.061-1.061l-2.38-2.38A5.5 5.5 0 009 3.5zM5 9a4 4 0 118 0 4 4 0 01-8 0z" clip-rule="evenodd"/>
+            </svg>
+            <input class="hs-search-input" type="text" name="q" value="{{ q }}" placeholder="Search HS code or item description, e.g. magazine, rice, 8523">
+        </div>
+        <button type="submit" class="btn btn-primary" style="height:42px; font-size:12px; padding:0 20px;">Search</button>
+        {% if q %}
+        <a href="{% url 'supervisor:config_hscodes_sections' %}" class="btn btn-secondary" style="height:42px; font-size:12px; padding:0 18px;">Clear</a>
+        {% endif %}
+    </form>
+
+    {% if q %}
+    <div class="hs-search-results">
+        <p style="color:#6B7280; font-size:13px; font-weight:700; margin:0 0 10px;">
+            {{ search_results|length }} result{{ search_results|length|pluralize }} for "{{ q }}"
+            {% if search_results|length == 60 %}<span style="color:#9CA3AF; font-weight:600;">(showing first 60)</span>{% endif %}
+        </p>
+        {% if search_results %}
+        <table class="hs-result-table">
+            <thead>
+                <tr>
+                    <th>HS Code</th>
+                    <th>Description</th>
+                    <th>Duty Rate</th>
+                    <th>Chapter</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for hs in search_results %}
+                <tr>
+                    <td><span class="hs-result-code">{{ hs.code }}</span></td>
+                    <td class="hs-result-desc">{{ hs.description|default:"-" }}</td>
+                    <td><span class="hs-result-rate">{{ hs.duty_rate|floatformat:2 }}%</span></td>
+                    <td class="hs-result-desc">Chapter {{ hs.chapter_num|stringformat:"02d" }}</td>
+                    <td>
+                        {% if hs.chapter_num %}
+                        <a class="hs-result-link" href="{% url 'supervisor:config_hscodes_chapter' hs.chapter_num %}?q={{ hs.code }}">Edit Rate</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#9CA3AF; font-size:13px; margin:0;">No HS codes matched your search.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
 
 <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px;">
     {% for section in sections %}

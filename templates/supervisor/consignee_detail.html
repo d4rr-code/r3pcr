@@ -1,0 +1,97 @@
+{% extends 'supervisor/base_supervisor.html' %}
+{% block title %}Consignee Shipment Records{% endblock %}
+{% block page_title %}Consignee Shipment Records{% endblock %}
+{% block nav_clients %}has-active-child{% endblock %}
+{% block nav_consignees %}active{% endblock %}
+
+{% block extra_css %}
+.page-heading { display:none; }
+.cd-page { color:#111827; max-width:1180px; margin:0 auto; padding-top:22px; }
+.cd-back { color:#1B3358; display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:900; margin:0 0 18px; text-decoration:none; }
+.cd-head { display:flex; justify-content:space-between; gap:18px; align-items:flex-end; flex-wrap:wrap; margin-bottom:20px; }
+.cd-kicker { color:#8A8A8A; font-size:12px; font-weight:900; margin:0 0 5px; text-transform:uppercase; }
+.cd-title { color:#1B3358; font-size:26px; font-weight:900; margin:0; }
+.cd-meta { color:#111827; font-size:13px; margin:5px 0 0; }
+.cd-stats { display:grid; grid-template-columns:repeat(3, minmax(120px, 1fr)); gap:12px; min-width:min(100%, 440px); }
+.cd-stat { background:#fff; border:1px solid #E6ECF2; border-radius:6px; box-shadow:0 10px 24px rgba(31,43,62,.08); padding:15px 18px; }
+.cd-stat span { color:#64748B; display:block; font-size:11px; font-weight:900; text-transform:uppercase; }
+.cd-stat strong { color:#1B3358; display:block; font-size:26px; line-height:1; margin-top:8px; }
+.cd-filters { display:flex; align-items:flex-end; gap:16px; margin:0 0 18px; flex-wrap:wrap; }
+.cd-field { flex:0 0 clamp(160px, 18vw, 230px); }
+.cd-field:first-child { flex:1 1 360px; }
+.cd-field label { color:#111827; display:block; font-size:12px; font-weight:800; margin-bottom:6px; }
+.cd-input { width:100%; height:40px; border:1px solid #E6ECF2; border-radius:6px; background:#fff; color:#111827; font:inherit; font-size:13px; padding:0 12px; box-shadow:0 8px 18px rgba(31,43,62,.06); }
+.cd-btn { height:40px; border:0; border-radius:6px; background:#1B3358; color:#fff; cursor:pointer; font-size:12px; font-weight:900; padding:0 18px; }
+.cd-clear { height:40px; border:1px solid #E6ECF2; border-radius:6px; color:#1B3358; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; padding:0 16px; text-decoration:none; }
+.sr-section { margin-bottom:28px; }
+.sr-section-title { color:#1B3358; font-size:18px; font-weight:900; margin:0 0 12px; }
+.sr-table-card { background:#fff; border:1px solid #E6ECF2; border-radius:6px; box-shadow:0 10px 28px rgba(31,43,62,.09); overflow:hidden; }
+.sr-table-scroll { overflow-x:auto; }
+.sr-table { width:100%; min-width:980px; border-collapse:collapse; }
+.sr-table th { background:#1B3358; color:#fff; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.02em; text-align:left; padding:15px 18px; white-space:nowrap; }
+.sr-table td { color:#111827; font-size:12px; padding:17px 18px; border-top:1px solid #E6ECF2; vertical-align:middle; }
+.sr-ref { font-weight:800; white-space:nowrap; }
+.sr-status { display:block; font-weight:700; }
+.sr-table small { color:#111827; display:block; font-size:9px; line-height:1.2; margin-top:2px; }
+.sr-pill { display:inline-flex; align-items:center; justify-content:center; min-width:62px; border-radius:12px; color:#fff; font-size:10px; font-weight:900; padding:4px 10px; }
+.urgency-standard, .urgency-normal { background:#2F7FD6; }
+.urgency-priority { background:#F2C715; color:#111827; }
+.urgency-urgent { background:#FF6A00; }
+.urgency-rush { background:#F20B0B; }
+.sr-action { text-align:center; }
+.sr-action a { color:#34485F; display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; }
+.sr-action svg { width:16px; height:16px; }
+.sr-pages { min-height:64px; display:flex; justify-content:center; align-items:center; gap:8px; color:#111827; font-size:13px; }
+.sr-page-btn { min-width:24px; height:24px; border-radius:4px; color:#111827; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; font-weight:800; }
+.sr-page-btn.current { color:#1B3358; }
+.sr-page-btn.disabled { color:#B8C2CF; }
+.sr-empty { color:#111827; padding:44px; text-align:center; }
+@media (max-width:760px) {
+    .cd-title { font-size:22px; }
+    .cd-stats { grid-template-columns:1fr; }
+    .cd-field, .cd-field:first-child, .cd-btn, .cd-clear { width:100%; flex-basis:100%; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="cd-page">
+    <a class="cd-back" href="{% url 'supervisor:consignee_list' %}">&lt; Back to consignees</a>
+
+    <div class="cd-head">
+        <div>
+            <p class="cd-kicker">Consignee</p>
+            <h1 class="cd-title">{{ consignee.get_full_name|default:consignee.username }}</h1>
+            <p class="cd-meta">{{ consignee.company_name|default:"No company" }} · {{ consignee.email }}</p>
+        </div>
+        <div class="cd-stats">
+            <div class="cd-stat"><span>Total Shipments</span><strong>{{ total_shipments }}</strong></div>
+            <div class="cd-stat"><span>Active</span><strong>{{ active_shipments }}</strong></div>
+            <div class="cd-stat"><span>Flagged</span><strong>{{ flagged_shipments }}</strong></div>
+        </div>
+    </div>
+
+    <form method="GET" class="cd-filters">
+        <div class="cd-field">
+            <label>Shipment Reference No.</label>
+            <input class="cd-input" type="text" name="q" value="{{ q }}" placeholder="e.g. R3PCR-2026-000001">
+        </div>
+        <div class="cd-field">
+            <label>Date From</label>
+            <input class="cd-input" type="date" name="date_from" value="{{ date_from }}">
+        </div>
+        <div class="cd-field">
+            <label>Date To</label>
+            <input class="cd-input" type="date" name="date_to" value="{{ date_to }}">
+        </div>
+        <button class="cd-btn" type="submit">Apply</button>
+        {% if q or date_from or date_to %}
+        <a class="cd-clear" href="{% url 'supervisor:consignee_detail' consignee.id %}">Clear</a>
+        {% endif %}
+    </form>
+
+    <section class="sr-section">
+        <h2 class="sr-section-title">Shipment Records</h2>
+        {% include 'supervisor/_shipment_record_table.html' with records=shipments page_obj=shipments_page.page_obj page_links=shipments_page.page_links prev_url=shipments_page.prev_url next_url=shipments_page.next_url empty_text='No shipments found for this consignee.' %}
+    </section>
+</div>
+{% endblock %}

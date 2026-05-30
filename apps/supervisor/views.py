@@ -1,13 +1,20 @@
+import json
 import logging
 import re
 import threading
+from collections import defaultdict
+from datetime import datetime, timedelta
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField
+from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField, Q
+from django.db.models.functions import TruncDay, TruncMonth, TruncYear
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.core.mail import send_mail
 from django.conf import settings
+from django.core.paginator import Paginator
 
 #  HS Code Section / Chapter Hierarchy 
 _HS_SECTIONS = [
@@ -91,9 +98,17 @@ def dashboard(request):
 def user_management(request):
     users   = User.objects.filter(is_pending_approval=False).order_by('role', 'username')
     pending = User.objects.filter(is_pending_approval=True).order_by('date_joined')
+    user_stats = {
+        'total': users.count(),
+        'consignees': users.filter(role='consignee').count(),
+        'declarants': users.filter(role='declarant').count(),
+        'active': users.filter(is_active=True).count(),
+        'inactive': users.filter(is_active=False).count(),
+    }
     return render(request, 'supervisor/users.html', {
         'users':   users,
         'pending': pending,
+        'user_stats': user_stats,
     })
 
 
@@ -162,28 +177,104 @@ def reject_registration(request, user_id):
 @login_required
 @supervisor_required
 def add_user(request):
+    form_data = {}
     if request.method == 'POST':
         username   = request.POST.get('username', '').strip()
         email      = request.POST.get('email', '').strip()
         first_name = request.POST.get('first_name', '').strip()
         last_name  = request.POST.get('last_name', '').strip()
-        role       = request.POST.get('role')
-        password   = request.POST.get('password')
+        role       = request.POST.get('role', '').strip()
+        phone      = request.POST.get('phone_number', '').strip()
+        company    = request.POST.get('company_name', '').strip()
+        password   = request.POST.get('password', '')
+        confirm    = request.POST.get('confirm_password', '')
+        form_data  = request.POST
 
+        errors = []
+        if not all([first_name, last_name, username, email, role, password, confirm]):
+            errors.append('Please complete all required fields.')
+        if role not in dict(User.ROLE_CHOICES):
+            errors.append('Please select a valid role.')
         if User.objects.filter(username=username).exists():
-            messages.error(request, 'Username already taken.')
-        elif User.objects.filter(email=email).exists():
-            messages.error(request, 'Email already registered.')
+            errors.append('Username already taken.')
+        if User.objects.filter(email=email).exists():
+            errors.append('Email already registered.')
+        if password != confirm:
+            errors.append('Passwords do not match.')
+        if len(password) < 8:
+            errors.append('Password must be at least 8 characters.')
+        if not re.search(r'[a-z]', password):
+            errors.append('Password must include at least one lowercase letter.')
+        if not re.search(r'[A-Z]', password):
+            errors.append('Password must include at least one uppercase letter.')
+        if not re.search(r'\d', password):
+            errors.append('Password must include at least one number.')
+        if not re.search(r'[^A-Za-z0-9]', password):
+            errors.append('Password must include at least one special character.')
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
         else:
             User.objects.create_user(
                 username=username, email=email,
                 first_name=first_name, last_name=last_name,
-                role=role, password=password,
+                role=role, phone_number=phone, company_name=company,
+                password=password,
             )
             messages.success(request, f'User {username} created.')
             return redirect('supervisor:users')
 
-    return render(request, 'supervisor/add_user.html')
+    return render(request, 'supervisor/add_user.html', {
+        'mode': 'add',
+        'form_data': form_data,
+        'role_choices': User.ROLE_CHOICES,
+    })
+
+
+@login_required
+@supervisor_required
+def edit_user(request, user_id):
+    edited_user = get_object_or_404(User, id=user_id)
+    form_data = None
+
+    if request.method == 'POST':
+        username   = request.POST.get('username', '').strip()
+        email      = request.POST.get('email', '').strip()
+        first_name = request.POST.get('first_name', '').strip()
+        last_name  = request.POST.get('last_name', '').strip()
+        phone      = request.POST.get('phone_number', '').strip()
+        company    = request.POST.get('company_name', '').strip()
+        form_data  = request.POST
+
+        errors = []
+        if not all([first_name, last_name, username, email]):
+            errors.append('Please complete all required fields.')
+        if User.objects.filter(username=username).exclude(pk=edited_user.pk).exists():
+            errors.append('Username already taken.')
+        if User.objects.filter(email=email).exclude(pk=edited_user.pk).exists():
+            errors.append('Email already registered.')
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+        else:
+            edited_user.first_name = first_name
+            edited_user.last_name = last_name
+            edited_user.email = email
+            edited_user.phone_number = phone
+            edited_user.company_name = company
+            edited_user.username = username
+            edited_user.save()
+            messages.success(request, f'User {edited_user.username} updated.')
+            return redirect('supervisor:users')
+
+    return render(request, 'supervisor/add_user.html', {
+        'mode': 'edit',
+        'edited_user': edited_user,
+        'form_data': form_data,
+        'role_choices': User.ROLE_CHOICES,
+    })
 
 
 @login_required
@@ -215,6 +306,9 @@ def _analytics_context_response(request):
     date_from        = request.GET.get('date_from', '').strip()
     date_to          = request.GET.get('date_to', '').strip()
     declarant_filter = request.GET.get('declarant', '').strip()
+    overview_period  = request.GET.get('overview_period', 'month').strip().lower()
+    if overview_period not in {'year', 'month', 'week', 'day'}:
+        overview_period = 'month'
 
     chart_qs = all_shipments
     if date_from:
@@ -260,25 +354,37 @@ def _analytics_context_response(request):
         if total_computed_presented else 0
     )
 
-    #  Status breakdown bar chart (respects chart filters) 
+    #  Status breakdown bar chart (respects chart filters) — single grouped query
     _status_colors = {
         'incoming':    '#f59e0b', 'arrived':    '#3b82f6', 'computed':    '#8b5cf6',
         'approved':    '#22c55e', 'rejected':   '#ef4444', 'for_revision':'#f97316',
         'lodgement':   '#38bdf8', 'ongoing':    '#64748b', 'assessed':    '#14b8a6',
         'paid':        '#84cc16', 'released':   '#22d3ee', 'billed':      '#a855f7',
     }
+    # Materialise chart_qs IDs once — reused for status, WMCDA and declarant sections
+    _chart_ids_qs = chart_qs.values_list('id', flat=True)
+    _status_counts_raw = {
+        r['status']: r['count']
+        for r in (
+            Shipment.objects.filter(id__in=_chart_ids_qs)
+            .values('status')
+            .annotate(count=Count('id'))
+        )
+    }
     status_rows = []
     for key, label in Shipment.STATUS_CHOICES:
-        count = chart_qs.filter(status=key).count()
+        count = _status_counts_raw.get(key, 0)
         status_rows.append({
             'key': key, 'label': label, 'count': count,
             'pct': round(count / chart_total * 100, 1) if chart_total else 0,
             'color': _status_colors.get(key, '#475569'),
         })
-    # Pipeline order (workflow sequence)  all 12 statuses
+    # Dashboard display order: 4 rows x 3 columns, matching the supervisor wireframe.
     _pipeline_order = [
-        'incoming', 'arrived', 'computed', 'for_revision', 'rejected',
-        'approved', 'lodgement', 'ongoing', 'assessed', 'paid', 'released', 'billed',
+        'incoming', 'approved', 'assessed',
+        'arrived', 'for_revision', 'paid',
+        'rejected', 'lodgement', 'released',
+        'computed', 'ongoing', 'billed',
     ]
     _status_map = {r['key']: r for r in status_rows}
     pipeline_rows = [_status_map[k] for k in _pipeline_order if k in _status_map]
@@ -295,7 +401,7 @@ def _analytics_context_response(request):
         'arrived':      {'subtitle': 'Awaits ECDT Processing'},
         'computed':     {'subtitle': 'Awaits Consignee Approval'},
         'for_revision': {'subtitle': 'Returned for Revision'},
-        'rejected':     {'subtitle': 'Rejected by Consignee'},
+        'rejected':     {'subtitle': 'Docs Not Complete Update From Declarant'},
         'approved':     {'subtitle': 'Proceeding to Lodgement'},
         'lodgement':    {'subtitle': 'Filed with BOC'},
         'ongoing':      {'subtitle': 'Lined Up for Final Assessment'},
@@ -307,22 +413,37 @@ def _analytics_context_response(request):
     for row in pipeline_rows:
         meta = _status_meta.get(row['key'], {})
         row['subtitle'] = meta.get('subtitle', '')
+        _display_labels = {
+            'for_revision': 'Revision',
+            'rejected': 'Flags',
+        }
+        row['display_label'] = _display_labels.get(row['key'], row['label'])
 
-    # WMCDA Scoreboard (respects chart filters)
+    # WMCDA Scoreboard (respects chart filters) — use materialised IDs
     _wmcda_meta = [
         ('air',  'Air Freight',  '#f59e0b', 'AIR'),
         ('lcl',  'LCL Sea',      '#38bdf8', 'LCL'),
         ('fcl',  'FCL Sea',      '#8b5cf6', 'FCL'),
+        ('land', 'Land Freight', '#84cc16', 'LAND'),
     ]
-    advisory_qs = ShippingAdvisory.objects.filter(shipment__in=chart_qs)
+    advisory_qs = ShippingAdvisory.objects.filter(shipment_id__in=_chart_ids_qs)
     wmcda_total = advisory_qs.filter(recommended_type__isnull=False).count()
+    # Batch count by recommended_type in one query
+    _wmcda_type_counts = {
+        r['recommended_type']: r['cnt']
+        for r in advisory_qs.values('recommended_type').annotate(cnt=Count('id'))
+        if r['recommended_type']
+    }
+    # Batch avg scores in one query
+    _wmcda_avg_agg = advisory_qs.aggregate(
+        avg_air=Avg('air_score'), avg_lcl=Avg('lcl_score'),
+        avg_fcl=Avg('fcl_score'), avg_land=Avg('land_score'),
+    )
     wmcda_scoreboard = []
     for key, label, color, icon in _wmcda_meta:
-        count     = advisory_qs.filter(recommended_type=key).count()
+        count     = _wmcda_type_counts.get(key, 0)
         pct       = round(count / wmcda_total * 100, 1) if wmcda_total else 0
-        avg_score = round(
-            float(advisory_qs.aggregate(avg=Avg(f'{key}_score'))['avg'] or 0) * 100, 1
-        )
+        avg_score = round(float(_wmcda_avg_agg.get(f'avg_{key}') or 0) * 100, 1)
         wmcda_scoreboard.append({
             'key': key, 'label': label, 'color': color, 'icon': icon,
             'count': count, 'pct': pct, 'avg_score': avg_score,
@@ -332,40 +453,64 @@ def _analytics_context_response(request):
     for i, row in enumerate(wmcda_scoreboard):
         row['rank'] = rank_labels[i] if i < len(rank_labels) else f'{i+1}th'
     wmcda_max = wmcda_scoreboard[0]['count'] if wmcda_scoreboard else 1
-    #  Declarant Performance (respects chart filters) 
+    #  Declarant Performance (respects chart filters) — batch queries to avoid N+1
     declarants = User.objects.filter(role='declarant').order_by('first_name', 'username')
+
+    # Single bulk load of all relevant StatusLog rows for declarant performance
+    # Re-uses _chart_ids_qs (lazy queryset) already defined above
+    _perf_logs = (
+        StatusLog.objects
+        .filter(
+            shipment_id__in=_chart_ids_qs,
+            new_status__in=['computed', 'arrived', 'approved', 'for_revision', 'rejected'],
+        )
+        .values('shipment_id', 'new_status', 'changed_at')
+        .order_by('shipment_id', 'changed_at')
+    )
+
+    # Build lookup tables from the single query
+    # shipment_id -> declarant_id  (from chart_qs)
+    _ship_declarant = dict(
+        Shipment.objects.filter(id__in=_chart_ids_qs)
+                        .values_list('id', 'declarant_id')
+    )
+    # Group logs by declarant
+    _dec_logs = defaultdict(lambda: defaultdict(list))  # dec_id -> status -> [log_dicts]
+    for log in _perf_logs:
+        dec_id = _ship_declarant.get(log['shipment_id'])
+        if dec_id:
+            _dec_logs[dec_id][log['new_status']].append(log)
+
     declarant_data = []
     for dec in declarants:
-        d_ships = chart_qs.filter(declarant=dec)
-        computed_logs = (
-            StatusLog.objects
-            .filter(shipment__in=d_ships, new_status='computed')
-            .select_related('shipment').order_by('changed_at')
-        )
+        logs_by_status = _dec_logs.get(dec.id, {})
+
+        # First computed log per shipment
         computed_map = {}
-        for log in computed_logs:
-            computed_map.setdefault(log.shipment_id, log)
+        for log in logs_by_status.get('computed', []):
+            sid = log['shipment_id']
+            if sid not in computed_map or log['changed_at'] < computed_map[sid]['changed_at']:
+                computed_map[sid] = log
+
+        # Most recent arrived log per shipment (for speed calculation)
+        arrived_map = {}
+        for log in logs_by_status.get('arrived', []):
+            sid = log['shipment_id']
+            if sid not in arrived_map or log['changed_at'] > arrived_map[sid]['changed_at']:
+                arrived_map[sid] = log
 
         durations = []
         for sid, c_log in computed_map.items():
-            a_log = (
-                StatusLog.objects
-                .filter(shipment_id=sid, new_status='arrived',
-                        changed_at__lte=c_log.changed_at)
-                .order_by('-changed_at').first()
-            )
-            if a_log:
-                durations.append(c_log.changed_at - a_log.changed_at)
+            a_log = arrived_map.get(sid)
+            if a_log and a_log['changed_at'] <= c_log['changed_at']:
+                durations.append(c_log['changed_at'] - a_log['changed_at'])
 
         total_comp       = len(computed_map)
-        # ECDT approved by consignee (total StatusLog events)
-        ecdt_approved    = StatusLog.objects.filter(
-            shipment__in=d_ships, new_status='approved'
-        ).count()
-        # Total revision/rejection events by consignee
-        revised_rejected = StatusLog.objects.filter(
-            shipment__in=d_ships, new_status__in=['for_revision', 'rejected']
-        ).count()
+        ecdt_approved    = len(logs_by_status.get('approved', []))
+        revised_rejected = (
+            len(logs_by_status.get('for_revision', []))
+            + len(logs_by_status.get('rejected', []))
+        )
         avg_hours = None
         if durations:
             avg_hours = round(
@@ -380,6 +525,239 @@ def _analytics_context_response(request):
             'revised_rejected': revised_rejected,
             'approval_rate':    round(ecdt_approved / total_comp * 100, 1) if total_comp else 0,
         })
+
+    # ── Redesigned dashboard: new context variables ──────────────────────
+
+    # Shipment type KPI counts (all-time)
+    shipment_type_counts = {
+        'air':  all_shipments.filter(shipment_type='air').count(),
+        'land': all_shipments.filter(shipment_type='land').count(),
+        'lcl':  all_shipments.filter(shipment_type='lcl').count(),
+        'fcl':  all_shipments.filter(shipment_type='fcl').count(),
+    }
+
+    # Urgency distribution — normalise 'normal' alias → 'standard' (all-time)
+    _urgency_raw = chart_qs.values('urgency').annotate(count=Count('id'))
+    _urgency_map = {}
+    for _r in _urgency_raw:
+        _key = 'standard' if _r['urgency'] in ('normal', 'standard', None) else _r['urgency']
+        _urgency_map[_key] = _urgency_map.get(_key, 0) + _r['count']
+    urgency_counts = [
+        {'key': 'standard', 'label': 'Standard', 'color': '#3b82f6', 'count': _urgency_map.get('standard', 0)},
+        {'key': 'priority', 'label': 'Priority', 'color': '#f59e0b', 'count': _urgency_map.get('priority', 0)},
+        {'key': 'urgent',   'label': 'Urgent',   'color': '#f97316', 'count': _urgency_map.get('urgent', 0)},
+        {'key': 'rush',     'label': 'Rush',     'color': '#ef4444', 'count': _urgency_map.get('rush', 0)},
+    ]
+    urgency_total = sum(u['count'] for u in urgency_counts)
+    urgency_chart_labels = json.dumps([u['label'] for u in urgency_counts])
+    urgency_chart_data   = json.dumps([u['count'] for u in urgency_counts])
+    urgency_chart_colors = json.dumps([u['color'] for u in urgency_counts])
+    selected_month = (date_from[:7] if date_from else timezone.now().strftime('%Y-%m'))
+
+    def _parse_filter_date(value):
+        try:
+            return datetime.strptime(value, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            return None
+
+    def _add_months(value, months):
+        month_index = value.month - 1 + months
+        year = value.year + month_index // 12
+        month = month_index % 12 + 1
+        return value.replace(year=year, month=month, day=1)
+
+    def _period_date(value):
+        if hasattr(value, 'date'):
+            return value.date()
+        return value
+
+    _today = timezone.localdate()
+    _from_date = _parse_filter_date(date_from)
+    _to_date = _parse_filter_date(date_to)
+    if overview_period == 'week':
+        _range_start = _from_date or _today.replace(day=1)
+        _range_end = _to_date or (_add_months(_range_start.replace(day=1), 1) - timedelta(days=1))
+        _range_start = _range_start.replace(day=1)
+
+        _daily_rows = list(
+            chart_qs
+            .filter(submitted_at__date__gte=_range_start, submitted_at__date__lte=_range_end)
+            .annotate(period=TruncDay('submitted_at'))
+            .values('period')
+            .annotate(count=Count('id'))
+            .order_by('period')
+        )
+        _week_map = defaultdict(int)
+        for row in _daily_rows:
+            _day = _period_date(row['period'])
+            _week_index = ((_day.day - 1) // 7) + 1
+            _week_map[(_day.year, _day.month, _week_index)] += row['count']
+
+        _single_month = _range_start.year == _range_end.year and _range_start.month == _range_end.month
+        _overview_labels = []
+        _overview_data = []
+        _month_cursor = _range_start.replace(day=1)
+        _guard = 0
+        while _month_cursor <= _range_end and _guard < 36:
+            _next_month = _add_months(_month_cursor, 1)
+            _month_end = _next_month - timedelta(days=1)
+            _week_index = 1
+            _week_start = _month_cursor
+            while _week_start <= _month_end:
+                _week_end = min(_week_start + timedelta(days=6), _month_end)
+                if _week_end >= _range_start and _week_start <= _range_end:
+                    _label = f'Week {_week_index}' if _single_month else f'{_month_cursor.strftime("%b")} Week {_week_index}'
+                    _overview_labels.append(_label)
+                    _overview_data.append(_week_map.get((_month_cursor.year, _month_cursor.month, _week_index), 0))
+                _week_index += 1
+                _week_start += timedelta(days=7)
+            _month_cursor = _next_month
+            _guard += 1
+    else:
+        _overview_config = {
+            'year':  (TruncYear,  lambda d: d.replace(month=1, day=1), lambda d: d.replace(year=d.year + 1), '%Y', None),
+            'month': (TruncMonth, lambda d: d.replace(day=1), lambda d: _add_months(d, 1), '%b %Y', 11),
+            'day':   (TruncDay, lambda d: d, lambda d: d + timedelta(days=1), '%b %d', 29),
+        }
+        _trunc, _normalize, _advance, _label_format, _default_back = _overview_config[overview_period]
+
+        overview_qs = chart_qs
+        _default_start = None
+        _default_end = None
+        if not _from_date and not _to_date and _default_back is not None:
+            if overview_period == 'month':
+                _default_start = _add_months(_today.replace(day=1), -_default_back)
+                _default_end = _add_months(_today.replace(day=1), 1) - timedelta(days=1)
+            elif overview_period == 'day':
+                _default_start = _today.replace(day=1)
+                _default_end = _add_months(_default_start, 1) - timedelta(days=1)
+            else:
+                _default_start = _today - timedelta(days=_default_back)
+                _default_end = _today
+            overview_qs = overview_qs.filter(submitted_at__date__gte=_default_start)
+            overview_qs = overview_qs.filter(submitted_at__date__lte=_default_end)
+
+        _overview_rows = list(
+            overview_qs
+            .annotate(period=_trunc('submitted_at'))
+            .values('period')
+            .annotate(count=Count('id'))
+            .order_by('period')
+        )
+        _overview_map = {_period_date(r['period']): r['count'] for r in _overview_rows if r['period']}
+
+        if overview_period == 'year':
+            _anchor_year = (_to_date or _from_date or _today).year
+            _axis_start = _today.replace(year=_anchor_year - 4, month=1, day=1)
+            _axis_end = _today.replace(year=_anchor_year, month=1, day=1)
+            if _overview_map:
+                _axis_start = min(_axis_start, _normalize(min(_overview_map)))
+                _axis_end = max(_axis_end, _normalize(max(_overview_map)))
+            _start = _axis_start
+            _end = _axis_end
+        elif _from_date:
+            _start = _normalize(_from_date)
+        elif _default_start:
+            _start = _normalize(_default_start)
+        elif _overview_map:
+            _start = _normalize(min(_overview_map))
+        else:
+            _fallback_start = _today
+            if _default_back is not None:
+                if overview_period == 'month':
+                    _fallback_start = _add_months(_today.replace(day=1), -_default_back)
+                else:
+                    _fallback_start = _today - timedelta(days=_default_back)
+            _start = _normalize(_fallback_start)
+
+        if overview_period == 'year':
+            pass
+        elif _to_date:
+            _end = _normalize(_to_date)
+        elif _default_end:
+            _end = _normalize(_default_end)
+        elif _overview_map:
+            _end = _normalize(max(_overview_map))
+        else:
+            _end = _normalize(_today)
+
+        _overview_labels = []
+        _overview_data = []
+        _cursor = _start
+        _guard = 0
+        while _cursor <= _end and _guard < 370:
+            _overview_labels.append(_cursor.strftime(_label_format))
+            _overview_data.append(_overview_map.get(_cursor, 0))
+            _cursor = _advance(_cursor)
+            _guard += 1
+
+    monthly_chart_labels = json.dumps(_overview_labels)
+    monthly_chart_data   = json.dumps(_overview_data)
+
+    # Due date monitoring — days-left buckets for active (non-terminal) shipments
+    _terminal_statuses = ['paid', 'released', 'billed']
+    _urgency_days_map  = {'rush': 3, 'urgent': 7, 'priority': 14, 'standard': 30, 'normal': 30}
+    _now = timezone.now()
+    _d1 = _d3 = _d5 = _d5plus = 0
+    _active_qs = chart_qs.exclude(status__in=_terminal_statuses)
+    _due_total = _active_qs.count()
+    for _s in _active_qs.values('urgency', 'submitted_at'):
+        _alloc     = _urgency_days_map.get(_s['urgency'] or 'standard', 30)
+        _deadline  = _s['submitted_at'] + timedelta(days=_alloc)
+        _remaining = (_deadline - _now).total_seconds() / 86400
+        if _remaining <= 1:
+            _d1 += 1
+        elif _remaining <= 3:
+            _d3 += 1
+        elif _remaining <= 5:
+            _d5 += 1
+        else:
+            _d5plus += 1
+    due_date_data = {
+        'one_day': _d1, 'three_days': _d3,
+        'five_days': _d5, 'over_five': _d5plus,
+        'total': _due_total,
+    }
+    due_date_chart_data   = json.dumps([_d1, _d3, _d5, _d5plus])
+    due_date_chart_labels = json.dumps(['1 Day Left', '3 Days Left', '5 Days Left', '5+ Days Left'])
+    due_date_chart_colors = json.dumps(['#dc0000', '#f75b5b', '#f9a1a1', '#ffd6d6'])
+
+    # WMCDA vertical bar chart — fixed order: LCL, Land, Air, FCL
+    _wmcda_bar_order = [
+        ('lcl',  'LCL Sea',      '#38bdf8'),
+        ('land', 'Land Freight', '#84cc16'),
+        ('air',  'Air Freight',  '#f59e0b'),
+        ('fcl',  'FCL Sea',      '#8b5cf6'),
+    ]
+    _wmap = {r['key']: r for r in wmcda_scoreboard}
+    wmcda_bar_labels = json.dumps([b[1] for b in _wmcda_bar_order])
+    wmcda_bar_data   = json.dumps([_wmap.get(b[0], {}).get('count', 0) for b in _wmcda_bar_order])
+    wmcda_bar_colors = json.dumps([b[2] for b in _wmcda_bar_order])
+
+    # Top performing declarant: prioritize real processing volume, then approval quality.
+    top_declarant = None
+    _eligible = [d for d in declarant_data if d['total_processed'] > 0]
+    if _eligible:
+        top_declarant = max(_eligible, key=lambda d: (d['total_processed'], d['approval_rate'], d['ecdt_approved']))
+        _name_parts = [part for part in top_declarant['name'].split() if part]
+        top_declarant['initials'] = ''.join(part[0] for part in _name_parts[:2]).upper()
+
+    # Feedback summary — all-time
+    _fb_qs       = Feedback.objects.all()
+    _fb_total    = _fb_qs.count()
+    _fb_avg      = _fb_qs.aggregate(avg=Avg('rating'))['avg']
+    _fb_positive = _fb_qs.filter(rating__gte=4).count()
+    feedback_summary = {
+        'total':        _fb_total,
+        'avg_rating':   round(float(_fb_avg), 1) if _fb_avg else 0,
+        'positive':     _fb_positive,
+        'positive_pct': round(_fb_positive / _fb_total * 100, 1) if _fb_total else 0,
+    }
+    feedback_summary['filled_stars'] = int(round(feedback_summary['avg_rating'])) if _fb_total else 0
+    feedback_summary['star_rows'] = [
+        {'value': i, 'filled': i <= feedback_summary['filled_stars']}
+        for i in range(1, 6)
+    ]
 
     return render(request, 'supervisor/analytics.html', {
         # KPI strip
@@ -406,6 +784,7 @@ def _analytics_context_response(request):
         'date_from':          date_from,
         'date_to':            date_to,
         'declarant_filter':   declarant_filter,
+        'overview_period':    overview_period,
         'declarants':         declarants,
         # chart data
         'pipeline_rows':      pipeline_rows,
@@ -413,6 +792,25 @@ def _analytics_context_response(request):
         'recent':    table_qs,
         'q':         q,
         'status_f':  status_f,
+        # redesigned dashboard
+        'shipment_type_counts':  shipment_type_counts,
+        'urgency_counts':        urgency_counts,
+        'urgency_total':         urgency_total,
+        'urgency_chart_labels':  urgency_chart_labels,
+        'urgency_chart_data':    urgency_chart_data,
+        'urgency_chart_colors':  urgency_chart_colors,
+        'due_date_data':         due_date_data,
+        'due_date_chart_data':   due_date_chart_data,
+        'due_date_chart_labels': due_date_chart_labels,
+        'due_date_chart_colors': due_date_chart_colors,
+        'monthly_chart_labels':  monthly_chart_labels,
+        'monthly_chart_data':    monthly_chart_data,
+        'top_declarant':         top_declarant,
+        'feedback_summary':      feedback_summary,
+        'selected_month':        selected_month,
+        'wmcda_bar_labels':      wmcda_bar_labels,
+        'wmcda_bar_data':        wmcda_bar_data,
+        'wmcda_bar_colors':      wmcda_bar_colors,
     })
 
 
@@ -446,6 +844,11 @@ def shipment_detail(request, shipment_id):
     status_logs = shipment.status_logs.order_by('-changed_at')
     sad_document = shipment.documents.filter(document_type='sad').first()
     current_sublabel = CONSIGNEE_STATUS_SUBLABELS.get(shipment.status, '')
+    back_url = request.GET.get('return_to') or ''
+    back_label = request.GET.get('return_label') or 'Back to Dashboard'
+    if not url_has_allowed_host_and_scheme(back_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        back_url = reverse('supervisor:dashboard')
+        back_label = 'Back to Dashboard'
 
     explanation = wmcda_scores = wmcda_breakdown = None
     declared_score = declared_breakdown = declared_rating = None
@@ -484,6 +887,8 @@ def shipment_detail(request, shipment_id):
         'status_steps':       build_status_progress(shipment.status, 'consignee'),
         'sad_document':       sad_document,
         'current_sublabel':   current_sublabel,
+        'back_url':           back_url,
+        'back_label':         back_label,
     })
 
 
@@ -608,7 +1013,7 @@ def _get_config():
         'wmcda_w_cost':   '35',
         'wmcda_w_time':   '30',
         'wmcda_w_weight': '20',
-        'wmcda_w_risk':   '15',
+        'wmcda_w_distance': '15',
     }
     rows   = {sc.key: sc.value for sc in SystemConfig.objects.all()}
     merged = {k: rows.get(k, v) for k, v in defaults.items()}
@@ -671,31 +1076,51 @@ def config_global(request):
 @login_required
 @supervisor_required
 def fetch_exchange_rates(request):
-    """Fetch live PHP-based rates from Frankfurter API and save to SystemConfig."""
+    """Fetch live PHP-based rates and save to SystemConfig.
+    Tries open.er-api.com first (reliable, no key), falls back to Frankfurter.
+    Both called with a browser User-Agent to avoid 403 blocks.
+    """
     from django.http import JsonResponse
     import json, urllib.request as urequest
 
-    try:
-        url = 'https://api.frankfurter.app/latest?from=PHP&to=USD,EUR,JPY,HKD,CNY,GBP,SGD'
-        with urequest.urlopen(url, timeout=10) as resp:
-            data = json.loads(resp.read().decode())
+    _H = {'User-Agent': 'Mozilla/5.0 (compatible; R3-PCR/1.0)', 'Accept': 'application/json'}
 
-        rates_raw = data.get('rates', {})
+    def _open_er():
+        req = urequest.Request('https://open.er-api.com/v6/latest/PHP', headers=_H)
+        with urequest.urlopen(req, timeout=12) as r:
+            d = json.loads(r.read().decode())
+        if d.get('result') != 'success':
+            raise ValueError('open.er-api: non-success')
+        return d['rates']  # 1 PHP = X foreign
+
+    def _frankfurter():
+        url = 'https://api.frankfurter.app/latest?from=PHP&to=USD,EUR,JPY,HKD,CNY,GBP,SGD'
+        req = urequest.Request(url, headers=_H)
+        with urequest.urlopen(req, timeout=12) as r:
+            return json.loads(r.read().decode()).get('rates', {})
+
+    try:
+        rates_raw, last_err = None, None
+        for fn in (_open_er, _frankfurter):
+            try:
+                rates_raw = fn(); break
+            except Exception as e:
+                last_err = e
+
+        if not rates_raw:
+            raise Exception(f'All sources failed. Last error: {last_err}')
+
         saved = {}
         _code_to_key = {c['code']: c['key'] for c in _CURRENCY_META}
-
         for code, rate_key in _code_to_key.items():
-            php_per_foreign = rates_raw.get(code)
-            if php_per_foreign:
-                # Frankfurter: 1 PHP = X foreign  invert to: 1 foreign = Y PHP
-                rate_val = round(1.0 / float(php_per_foreign), 4)
+            raw = rates_raw.get(code)
+            if raw:
+                val = round(1.0 / float(raw), 4)  # invert: 1 foreign = Y PHP
                 SystemConfig.objects.update_or_create(
-                    key=rate_key,
-                    defaults={'value': str(rate_val), 'updated_by': request.user},
+                    key=rate_key, defaults={'value': str(val), 'updated_by': request.user}
                 )
-                saved[code] = rate_val
+                saved[code] = val
 
-        # Keep legacy exchange_rate in sync with USD
         if 'USD' in saved:
             SystemConfig.objects.update_or_create(
                 key='exchange_rate',
@@ -711,9 +1136,9 @@ def fetch_exchange_rates(request):
 @supervisor_required
 def config_wmcda(request):
     config = _get_config()
-    meta   = _config_meta(['wmcda_w_cost', 'wmcda_w_time', 'wmcda_w_weight', 'wmcda_w_risk'])
+    meta   = _config_meta(['wmcda_w_cost', 'wmcda_w_time', 'wmcda_w_weight', 'wmcda_w_distance'])
     if request.method == 'POST':
-        for key in ('wmcda_w_cost', 'wmcda_w_time', 'wmcda_w_weight', 'wmcda_w_risk'):
+        for key in ('wmcda_w_cost', 'wmcda_w_time', 'wmcda_w_weight', 'wmcda_w_distance'):
             val = request.POST.get(key, '').strip()
             if val:
                 SystemConfig.objects.update_or_create(
@@ -728,6 +1153,7 @@ def config_wmcda(request):
 @supervisor_required
 def config_hscodes_sections(request):
     """Show all 21 HS sections with chapter/code counts."""
+    q = request.GET.get('q', '').strip()
     hs_list = HSCode.objects.filter(is_active=True).values('chapter')
     chapter_counts = {}
     for hs in hs_list:
@@ -744,13 +1170,31 @@ def config_hscodes_sections(request):
             'total_chapters': len(chapters), 'chapters_with_codes': has_data,
             'total_codes': total_codes,
         })
-    return render(request, 'supervisor/config_hscodes.html', {'sections': sections})
+
+    search_results = []
+    if q:
+        search_results = list(
+            HSCode.objects.filter(
+                Q(code__icontains=q) | Q(description__icontains=q),
+                is_active=True,
+            ).order_by('code')[:60]
+        )
+        for hs in search_results:
+            hs.chapter_num = _chapter_num(hs.chapter)
+
+    return render(request, 'supervisor/config_hscodes.html', {
+        'sections': sections,
+        'q': q,
+        'search_results': search_results,
+    })
 
 
 @login_required
 @supervisor_required
 def config_hscodes_section(request, section_num):
     """List chapters in one section."""
+    from apps.declarant.views import _CHAPTER_TITLES
+
     section_data = next((s for s in _HS_SECTIONS if s[0] == section_num), None)
     if not section_data:
         messages.error(request, 'Section not found.')
@@ -770,6 +1214,7 @@ def config_hscodes_section(request, section_num):
     chapter_list = [
         {
             'num': ch, 'num_str': str(ch).zfill(2),
+            'title': _CHAPTER_TITLES.get(ch, ''),
             'count': chapter_map.get(ch, {}).get('count', 0),
             'samples': chapter_map.get(ch, {}).get('samples', []),
         }
@@ -785,6 +1230,7 @@ def config_hscodes_section(request, section_num):
 @supervisor_required
 def config_hscodes_chapter(request, chapter_num):
     """View/edit all HS codes in a specific chapter."""
+    q = request.GET.get('q', '').strip()
     section_data = next(
         ((num, roman, title) for num, roman, title, chs in _HS_SECTIONS if chapter_num in chs),
         (None, '', '')
@@ -816,6 +1262,7 @@ def config_hscodes_chapter(request, chapter_num):
         'chapter_num_str': str(chapter_num).zfill(2),
         'section_num': section_num, 'section_roman': section_roman,
         'section_title': section_title, 'hs_codes': hs_codes,
+        'q': q,
     })
 
 
@@ -946,3 +1393,530 @@ def reject_feedback(request, feedback_id):
         fb.delete()
         messages.success(request, 'Feedback removed.')
     return redirect('supervisor:feedbacks')
+
+
+#  Shipment Records (dedicated browse page)
+
+@login_required
+@supervisor_required
+def shipment_records(request):
+    q         = request.GET.get('q', '').strip()
+    status_f  = request.GET.get('status_f', '').strip()
+    stype_f   = request.GET.get('stype', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to   = request.GET.get('date_to', '').strip()
+
+    all_shipments = Shipment.objects.select_related('consignee', 'declarant')
+    qs = all_shipments.order_by('-submitted_at')
+    if q:
+        qs = (
+            all_shipments.filter(hawb_number__icontains=q)
+            | all_shipments.filter(consignee__first_name__icontains=q)
+            | all_shipments.filter(consignee__last_name__icontains=q)
+            | all_shipments.filter(consignee__username__icontains=q)
+        ).select_related('consignee', 'declarant').order_by('-submitted_at')
+    if status_f:
+        qs = qs.filter(status=status_f)
+    if stype_f:
+        qs = qs.filter(shipment_type=stype_f)
+    if date_from:
+        qs = qs.filter(submitted_at__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(submitted_at__date__lte=date_to)
+
+    stat_qs = all_shipments
+    urgency_counts = {
+        'standard': stat_qs.filter(urgency__in=['standard', 'normal']).count(),
+        'priority': stat_qs.filter(urgency='priority').count(),
+        'urgent': stat_qs.filter(urgency='urgent').count(),
+        'rush': stat_qs.filter(urgency='rush').count(),
+    }
+    shipment_type_counts = {
+        'air': stat_qs.filter(shipment_type='air').count(),
+        'land': stat_qs.filter(shipment_type='land').count(),
+        'lcl': stat_qs.filter(shipment_type='lcl').count(),
+        'fcl': stat_qs.filter(shipment_type='fcl').count(),
+    }
+    flagged_shipments = qs.filter(has_deficiency=True)
+    revision_shipments = qs.filter(status='for_revision')
+    flagged_count = flagged_shipments.count()
+    revision_count = revision_shipments.count()
+    total_shipments = stat_qs.count()
+    status_summary = [
+        {'key': 'arrived', 'label': 'Arrived', 'count': stat_qs.filter(status='arrived').count(), 'color': '#f59e0b'},
+        {'key': 'lodgement', 'label': 'Lodgement', 'count': stat_qs.filter(status='lodgement').count(), 'color': '#06b6d4'},
+        {'key': 'paid', 'label': 'Paid', 'count': stat_qs.filter(status='paid').count(), 'color': '#166534'},
+        {'key': 'computed', 'label': 'Computed', 'count': stat_qs.filter(status='computed').count(), 'color': '#3b82f6'},
+        {'key': 'ongoing', 'label': 'Ongoing', 'count': stat_qs.filter(status='ongoing').count(), 'color': '#f97316'},
+        {'key': 'released', 'label': 'Released', 'count': stat_qs.filter(status='released').count(), 'color': '#14b8a6'},
+        {'key': 'approved', 'label': 'Approved', 'count': stat_qs.filter(status='approved').count(), 'color': '#22c55e'},
+        {'key': 'assessed', 'label': 'Assessed', 'count': stat_qs.filter(status='assessed').count(), 'color': '#8b5cf6'},
+        {'key': 'billed', 'label': 'Billed', 'count': stat_qs.filter(status='billed').count(), 'color': '#64748b'},
+    ]
+    shipping_type_overview = [
+        {'key': 'fcl', 'label': 'Full Container Load', 'count': shipment_type_counts['fcl'], 'color': '#6f8b9b'},
+        {'key': 'air', 'label': 'Airfreight', 'count': shipment_type_counts['air'], 'color': '#24466e'},
+        {'key': 'lcl', 'label': 'Less Container Load', 'count': shipment_type_counts['lcl'], 'color': '#f59e0b'},
+        {'key': 'land', 'label': 'Land', 'count': shipment_type_counts['land'], 'color': '#22c55e'},
+    ]
+    for row in shipping_type_overview:
+        row['pct'] = round(row['count'] / total_shipments * 100) if total_shipments else 0
+
+    def paginate_records(queryset, param_name):
+        paginator = Paginator(queryset, 6)
+        page_obj = paginator.get_page(request.GET.get(param_name, 1))
+
+        def page_url(page_number):
+            query = request.GET.copy()
+            query[param_name] = page_number
+            return f'?{query.urlencode()}'
+
+        page_links = [
+            {
+                'number': number,
+                'url': page_url(number),
+                'current': number == page_obj.number,
+            }
+            for number in paginator.page_range
+        ]
+        return {
+            'records': page_obj.object_list,
+            'page_obj': page_obj,
+            'page_links': page_links,
+            'prev_url': page_url(page_obj.previous_page_number()) if page_obj.has_previous() else '',
+            'next_url': page_url(page_obj.next_page_number()) if page_obj.has_next() else '',
+        }
+
+    def annotate_hold_preview(records):
+        today = timezone.localdate()
+        for shipment in records:
+            start_at = shipment.deficiency_flagged_at or shipment.submitted_at
+            due_date = start_at.date() + timedelta(days=3)
+            days_left = (due_date - today).days
+            if days_left < 0:
+                shipment.hold_due_label = f'Overdue {abs(days_left)} Day{"s" if abs(days_left) != 1 else ""}'
+            elif days_left == 0:
+                shipment.hold_due_label = 'Due Today'
+            elif days_left == 1:
+                shipment.hold_due_label = '1 Day Left'
+            else:
+                shipment.hold_due_label = f'{days_left} Days Left'
+
+    shipments_page = paginate_records(qs, 'shipments_page')
+    flagged_page = paginate_records(flagged_shipments, 'flagged_page')
+    revision_page = paginate_records(revision_shipments, 'revision_page')
+    annotate_hold_preview(flagged_page['records'])
+
+    return render(request, 'supervisor/shipment_records.html', {
+        'shipments':      shipments_page['records'],
+        'shipments_page': shipments_page,
+        'flagged_shipments': flagged_page['records'],
+        'flagged_page': flagged_page,
+        'flagged_count': flagged_count,
+        'revision_shipments': revision_page['records'],
+        'revision_page': revision_page,
+        'revision_count': revision_count,
+        'total_shipments': total_shipments,
+        'shipment_type_counts': shipment_type_counts,
+        'status_summary': status_summary,
+        'shipping_type_overview': shipping_type_overview,
+        'urgency_counts': urgency_counts,
+        'q':              q,
+        'status_f':       status_f,
+        'stype_f':        stype_f,
+        'date_from':      date_from,
+        'date_to':        date_to,
+        'STATUS_CHOICES': Shipment.STATUS_CHOICES,
+        'TYPE_CHOICES':   Shipment.SHIPMENT_TYPE_CHOICES,
+    })
+
+
+#  Client Lists
+
+@login_required
+@supervisor_required
+def consignee_list(request):
+    q  = request.GET.get('q', '').strip()
+    qs = User.objects.filter(role='consignee', is_pending_approval=False).order_by('first_name', 'username')
+    if q:
+        qs = qs.filter(
+            Q(username__icontains=q) | Q(first_name__icontains=q)
+            | Q(last_name__icontains=q) | Q(email__icontains=q)
+        )
+    qs = qs.annotate(shipment_count=Count('shipments'))
+    terminal_statuses = ['paid', 'released', 'billed']
+    consignee_rows = []
+    for consignee in qs:
+        shipments = Shipment.objects.filter(consignee=consignee).select_related('declarant').order_by('-submitted_at')
+        current = shipments.exclude(status__in=terminal_statuses).first() or shipments.first()
+        consignee_rows.append({
+            'user': consignee,
+            'name': consignee.get_full_name() or consignee.username,
+            'company': consignee.company_name or '-',
+            'total_shipments': shipments.count(),
+            'active_shipments': shipments.exclude(status__in=terminal_statuses).count(),
+            'flagged_shipments': shipments.filter(has_deficiency=True).count(),
+            'current_shipment': current,
+        })
+    return render(request, 'supervisor/consignee_list.html', {
+        'consignees': consignee_rows,
+        'total_consignees': qs.count(),
+        'q': q,
+    })
+
+
+@login_required
+@supervisor_required
+def consignee_detail(request, user_id):
+    consignee = get_object_or_404(
+        User,
+        id=user_id,
+        role='consignee',
+        is_pending_approval=False,
+    )
+    q = request.GET.get('q', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+
+    shipments_qs = (
+        Shipment.objects
+        .filter(consignee=consignee)
+        .select_related('consignee', 'declarant')
+        .order_by('-submitted_at')
+    )
+    if q:
+        shipments_qs = shipments_qs.filter(
+            Q(hawb_number__icontains=q)
+            | Q(import_type__icontains=q)
+            | Q(status__icontains=q)
+            | Q(declarant__first_name__icontains=q)
+            | Q(declarant__last_name__icontains=q)
+            | Q(declarant__username__icontains=q)
+        )
+    if date_from:
+        shipments_qs = shipments_qs.filter(submitted_at__date__gte=date_from)
+    if date_to:
+        shipments_qs = shipments_qs.filter(submitted_at__date__lte=date_to)
+
+    all_shipments = Shipment.objects.filter(consignee=consignee)
+    terminal_statuses = ['paid', 'released', 'billed']
+    paginator = Paginator(shipments_qs, 6)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    def page_url(page_number):
+        query = request.GET.copy()
+        query['page'] = page_number
+        return f'?{query.urlencode()}'
+
+    page_links = [
+        {
+            'number': number,
+            'url': page_url(number),
+            'current': number == page_obj.number,
+        }
+        for number in paginator.page_range
+    ]
+    shipments_page = {
+        'records': page_obj.object_list,
+        'page_obj': page_obj,
+        'page_links': page_links,
+        'prev_url': page_url(page_obj.previous_page_number()) if page_obj.has_previous() else '',
+        'next_url': page_url(page_obj.next_page_number()) if page_obj.has_next() else '',
+    }
+
+    return render(request, 'supervisor/consignee_detail.html', {
+        'consignee': consignee,
+        'shipments': shipments_page['records'],
+        'shipments_page': shipments_page,
+        'detail_return_url': request.get_full_path(),
+        'detail_return_label': 'Back to Shipment Records',
+        'total_shipments': all_shipments.count(),
+        'active_shipments': all_shipments.exclude(status__in=terminal_statuses).count(),
+        'flagged_shipments': all_shipments.filter(has_deficiency=True).count(),
+        'q': q,
+        'date_from': date_from,
+        'date_to': date_to,
+    })
+
+
+@login_required
+@supervisor_required
+def declarant_list(request):
+    q  = request.GET.get('q', '').strip()
+    qs = User.objects.filter(role='declarant', is_pending_approval=False).order_by('first_name', 'username')
+    if q:
+        qs = qs.filter(
+            Q(username__icontains=q) | Q(first_name__icontains=q)
+            | Q(last_name__icontains=q) | Q(email__icontains=q)
+        )
+    terminal_statuses = ['paid', 'released', 'billed']
+    now = timezone.now()
+    declarant_rows = []
+    for declarant in qs:
+        shipments = Shipment.objects.filter(declarant=declarant).select_related('consignee').order_by('-submitted_at')
+        cleared_statuses = ['approved', 'released', 'billed']
+        cleared = shipments.filter(status__in=cleared_statuses).count()
+        handled_consignees = shipments.values('consignee_id').distinct().count()
+        active = shipments.exclude(status__in=terminal_statuses).count()
+        revised = shipments.filter(status='for_revision').count()
+        current = shipments.exclude(status__in=terminal_statuses).first() or shipments.first()
+        incoming_due = 0
+        for shipment in shipments.exclude(status__in=terminal_statuses):
+            days_open = (now - shipment.submitted_at).total_seconds() / 86400
+            if days_open >= 3:
+                incoming_due += 1
+
+        completed_durations = []
+        for shipment in shipments.filter(status__in=cleared_statuses):
+            end_log = (
+                StatusLog.objects
+                .filter(shipment=shipment, new_status__in=cleared_statuses)
+                .order_by('-changed_at')
+                .first()
+            )
+            end_at = (
+                end_log.changed_at if end_log else
+                shipment.processed_at or shipment.updated_at
+            )
+            if end_at and shipment.submitted_at and end_at >= shipment.submitted_at:
+                completed_durations.append(end_at - shipment.submitted_at)
+        avg_days = None
+        if completed_durations:
+            avg_days = round(
+                sum(duration.total_seconds() for duration in completed_durations)
+                / len(completed_durations) / 86400,
+                1,
+            )
+
+        total = shipments.count()
+        clearance_rate = round(cleared / total * 100) if total else 0
+        declarant_rows.append({
+            'user': declarant,
+            'name': declarant.get_full_name() or declarant.username,
+            'initial': (declarant.first_name or declarant.username or '?')[:1].upper(),
+            'cleared_shipments': cleared,
+            'handled_consignees': handled_consignees,
+            'active_count': active,
+            'revised_count': revised,
+            'average_clearance_days': avg_days,
+            'incoming_due': incoming_due,
+            'current_shipment': current,
+            'clearance_rate': clearance_rate,
+        })
+
+    top_declarants = sorted(
+        declarant_rows,
+        key=lambda row: (
+            row['cleared_shipments'],
+            row['clearance_rate'],
+            -(row['average_clearance_days'] or 9999),
+        ),
+        reverse=True,
+    )[:3]
+    rank_labels = ['1st', '2nd', '3rd']
+    for index, row in enumerate(top_declarants):
+        row['rank'] = rank_labels[index]
+
+    return render(request, 'supervisor/declarant_list.html', {
+        'declarants': declarant_rows,
+        'top_declarants': top_declarants,
+        'q': q,
+    })
+
+
+@login_required
+@supervisor_required
+def declarant_detail(request, user_id):
+    declarant = get_object_or_404(
+        User,
+        id=user_id,
+        role='declarant',
+        is_pending_approval=False,
+    )
+    q = request.GET.get('q', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+
+    shipments_qs = (
+        Shipment.objects
+        .filter(declarant=declarant)
+        .select_related('consignee', 'declarant')
+        .order_by('-submitted_at')
+    )
+    if q:
+        shipments_qs = shipments_qs.filter(
+            Q(hawb_number__icontains=q)
+            | Q(import_type__icontains=q)
+            | Q(status__icontains=q)
+            | Q(consignee__first_name__icontains=q)
+            | Q(consignee__last_name__icontains=q)
+            | Q(consignee__username__icontains=q)
+        )
+    if date_from:
+        shipments_qs = shipments_qs.filter(submitted_at__date__gte=date_from)
+    if date_to:
+        shipments_qs = shipments_qs.filter(submitted_at__date__lte=date_to)
+
+    all_shipments = (
+        Shipment.objects
+        .filter(declarant=declarant)
+        .select_related('consignee', 'declarant')
+    )
+    cleared_statuses = ['approved', 'released', 'billed']
+    terminal_statuses = ['paid', 'released', 'billed']
+    now = timezone.now()
+
+    status_counts = {
+        row['status']: row['count']
+        for row in all_shipments.values('status').annotate(count=Count('id'))
+    }
+    status_colors = {
+        'incoming': '#9DB0C5', 'arrived': '#f59e0b', 'computed': '#2F7FD6',
+        'approved': '#20B86F', 'rejected': '#ef4444', 'for_revision': '#F2C715',
+        'lodgement': '#06b6d4', 'ongoing': '#FF6A00', 'assessed': '#7c3aed',
+        'paid': '#166534', 'released': '#14b8a6', 'billed': '#687481',
+    }
+    status_display = {
+        'for_revision': 'Revision',
+        'rejected': 'Flags',
+    }
+    status_subtitles = {
+        'incoming': 'Awaits Declarant Assignment',
+        'arrived': 'Awaits ECDT Processing',
+        'computed': 'Awaits Consignee Approval',
+        'for_revision': 'Returned from Consignee',
+        'rejected': 'Rejected by Consignee',
+        'approved': 'Proceeding to Lodgement',
+        'lodgement': 'Filed with BOC',
+        'ongoing': 'For final assessment',
+        'assessed': 'Awaits payment',
+        'paid': 'Payment received',
+        'released': 'Released shipment',
+        'billed': 'Fully processed',
+    }
+    status_order = [
+        'incoming', 'approved', 'assessed',
+        'arrived', 'for_revision', 'paid',
+        'rejected', 'lodgement', 'released',
+        'computed', 'ongoing', 'billed',
+    ]
+    status_rows = []
+    total_shipments = all_shipments.count()
+    for key in status_order:
+        label = dict(Shipment.STATUS_CHOICES).get(key, key.title())
+        count = status_counts.get(key, 0)
+        status_rows.append({
+            'key': key,
+            'label': status_display.get(key, label),
+            'subtitle': status_subtitles.get(key, ''),
+            'count': count,
+            'pct': round(count / total_shipments * 100, 1) if total_shipments else 0,
+            'color': status_colors.get(key, '#64748B'),
+        })
+
+    type_meta = [
+        ('fcl', 'Full Container Load (FCL)', '#6F8B9B'),
+        ('air', 'Airfreight', '#24466E'),
+        ('lcl', 'Less Container Load (LCL)', '#F59E0B'),
+        ('land', 'Land', '#20B86F'),
+    ]
+    type_counts = {
+        row['shipment_type']: row['count']
+        for row in all_shipments.values('shipment_type').annotate(count=Count('id'))
+    }
+    type_rows = [
+        {'key': key, 'label': label, 'color': color, 'count': type_counts.get(key, 0)}
+        for key, label, color in type_meta
+    ]
+
+    monthly_durations = defaultdict(list)
+    completed_durations = []
+    for shipment in all_shipments.filter(status__in=cleared_statuses):
+        end_log = (
+            StatusLog.objects
+            .filter(shipment=shipment, new_status__in=cleared_statuses)
+            .order_by('-changed_at')
+            .first()
+        )
+        end_at = end_log.changed_at if end_log else shipment.processed_at or shipment.updated_at
+        if end_at and shipment.submitted_at and end_at >= shipment.submitted_at:
+            days = (end_at - shipment.submitted_at).total_seconds() / 86400
+            completed_durations.append(days)
+            if shipment.submitted_at.year == now.year:
+                monthly_durations[shipment.submitted_at.month].append(days)
+
+    average_clearance_days = round(sum(completed_durations) / len(completed_durations), 1) if completed_durations else None
+    on_time_count = sum(1 for days in completed_durations if days <= 3)
+    on_time_rate = round(on_time_count / len(completed_durations) * 100) if completed_durations else 0
+    trend_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    trend_data = [
+        round(sum(monthly_durations[month]) / len(monthly_durations[month]), 1)
+        if monthly_durations.get(month) else 0
+        for month in range(1, 13)
+    ]
+
+    urgency_days_map = {'rush': 3, 'urgent': 7, 'priority': 14, 'standard': 30, 'normal': 30}
+    due_buckets = {'one_day': 0, 'three_days': 0, 'five_days': 0, 'over_five': 0}
+    for shipment in all_shipments.exclude(status__in=terminal_statuses):
+        alloc = urgency_days_map.get(shipment.urgency or 'standard', 30)
+        deadline = shipment.submitted_at + timedelta(days=alloc)
+        remaining = (deadline - now).total_seconds() / 86400
+        if remaining <= 1:
+            due_buckets['one_day'] += 1
+        elif remaining <= 3:
+            due_buckets['three_days'] += 1
+        elif remaining <= 5:
+            due_buckets['five_days'] += 1
+        else:
+            due_buckets['over_five'] += 1
+    due_total = sum(due_buckets.values())
+
+    paginator = Paginator(shipments_qs, 6)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    def page_url(page_number):
+        query = request.GET.copy()
+        query['page'] = page_number
+        return f'?{query.urlencode()}'
+
+    page_links = [
+        {'number': number, 'url': page_url(number), 'current': number == page_obj.number}
+        for number in paginator.page_range
+    ]
+    shipments_page = {
+        'records': page_obj.object_list,
+        'page_obj': page_obj,
+        'page_links': page_links,
+        'prev_url': page_url(page_obj.previous_page_number()) if page_obj.has_previous() else '',
+        'next_url': page_url(page_obj.next_page_number()) if page_obj.has_next() else '',
+    }
+
+    return render(request, 'supervisor/declarant_detail.html', {
+        'declarant': declarant,
+        'shipments': shipments_page['records'],
+        'shipments_page': shipments_page,
+        'total_shipments': total_shipments,
+        'active_shipments': all_shipments.exclude(status__in=terminal_statuses).count(),
+        'cleared_shipments': all_shipments.filter(status__in=cleared_statuses).count(),
+        'handled_consignees': all_shipments.values('consignee_id').distinct().count(),
+        'average_clearance_days': average_clearance_days,
+        'on_time_rate': on_time_rate,
+        'status_rows': status_rows,
+        'type_rows': type_rows,
+        'type_chart_labels': json.dumps([row['label'] for row in type_rows]),
+        'type_chart_data': json.dumps([row['count'] for row in type_rows]),
+        'type_chart_colors': json.dumps([row['color'] for row in type_rows]),
+        'trend_labels': json.dumps(trend_labels),
+        'trend_data': json.dumps(trend_data),
+        'trend_year': now.year,
+        'due_data': due_buckets,
+        'due_total': due_total,
+        'due_chart_labels': json.dumps(['1 Day Left', '3 Days Left', '5 Days Left', '5+ Days Left']),
+        'due_chart_data': json.dumps([due_buckets['one_day'], due_buckets['three_days'], due_buckets['five_days'], due_buckets['over_five']]),
+        'due_chart_colors': json.dumps(['#dc0000', '#f75b5b', '#f9a1a1', '#ffd6d6']),
+        'detail_return_url': request.get_full_path(),
+        'detail_return_label': 'Back to Declarant Records',
+        'q': q,
+        'date_from': date_from,
+        'date_to': date_to,
+    })

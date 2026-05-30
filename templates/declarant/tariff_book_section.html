@@ -1,0 +1,61 @@
+{% extends 'declarant/base_declarant.html' %}
+
+{% block title %}Section {{ section_roman }} HS Codes{% endblock %}
+{% block page_title %}Section {{ section_roman }}{% endblock %}
+{% block nav_tariff %}active{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:18px;">
+    <a href="{% url 'declarant:tariff_book' %}" class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
+            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
+        </svg>
+        Back to Sections
+    </a>
+</div>
+
+<p style="color:#6B7280; font-size:13px; margin-bottom:18px;">
+    <a href="{% url 'declarant:tariff_book' %}" style="color:#1B3358; text-decoration:none; font-weight:700;">Tariff Book 2022</a>
+    <span style="margin:0 8px;">/</span>
+    <span>Section {{ section_roman }}</span>
+</p>
+
+<div style="text-align:center; margin-bottom:28px;">
+    <p style="color:#111827; font-size:18px; font-weight:800; margin:0 0 6px;">SECTION {{ section_roman }}</p>
+    <p style="color:#111827; font-size:18px; margin:0; text-transform:uppercase;">{{ section_title }}</p>
+</div>
+
+{% if chapters %}
+<div class="card" style="padding:0; overflow:hidden;">
+    <table style="width:100%; border-collapse:collapse;">
+        <tbody>
+            {% for ch in chapters %}
+            <tr style="border-top:1px solid #D1D5DB;">
+                <td style="width:150px; padding:14px 16px; border-right:1px solid #D1D5DB;">
+                    <a href="{% url 'declarant:tariff_book_chapter' ch.num %}"
+                       style="color:#0EA5E9; font-size:14px; text-decoration:none;">
+                        Chapter {{ ch.num }}
+                    </a>
+                </td>
+                <td style="padding:14px 16px; color:#111827; font-size:14px; line-height:1.55;">
+                    <a href="{% url 'declarant:tariff_book_chapter' ch.num %}"
+                       style="color:#111827; text-decoration:none;">
+                        {{ ch.title|default:"No chapter title available" }}
+                    </a>
+                    {% if ch.count %}
+                    <span style="color:#6B7280; font-size:12px; margin-left:10px;">
+                        {{ ch.count }} HS code{{ ch.count|pluralize }}
+                    </span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card" style="padding:40px; text-align:center;">
+    <p style="color:#6B7280; font-size:14px;">No chapters found for this section.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -4,321 +4,595 @@
 {% block page_title %}User Management{% endblock %}
 {% block nav_users %}active{% endblock %}
 
+{% block extra_css %}
+.page-heading { display:none; }
+.um-page { color:#111827; max-width: 1240px; margin: 0 auto; padding-top: 48px; }
+.um-cards {
+    display:grid;
+    grid-template-columns: repeat(5, minmax(150px, 1fr));
+    gap:18px;
+    margin-bottom:34px;
+}
+.um-card {
+    min-height:118px;
+    background:#fff;
+    border:1px solid #E6ECF2;
+    border-radius:6px;
+    box-shadow:0 12px 28px rgba(31,43,62,.12);
+    padding:22px 26px;
+}
+.um-card-label {
+    color:#111827;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:13px;
+    font-weight:800;
+    margin:0 0 24px;
+}
+.um-icon {
+    width:30px;
+    height:30px;
+    border-radius:3px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    background:#8BA2B3;
+}
+.um-icon svg { width:17px; height:17px; }
+.um-icon.green { background:#22c55e; }
+.um-icon.red { background:#ef0000; }
+.um-card-value {
+    color:#111827;
+    font-size:32px;
+    line-height:1;
+    font-weight:900;
+    margin:0;
+}
+.um-filters {
+    display:grid;
+    grid-template-columns:minmax(260px,1fr) minmax(150px,230px) minmax(150px,230px) 132px;
+    gap:18px;
+    align-items:end;
+    margin-bottom:38px;
+}
+.um-field label {
+    color:#111827;
+    display:block;
+    font-size:12px;
+    font-weight:800;
+    margin-bottom:7px;
+}
+.um-search { position:relative; }
+.um-input, .um-select {
+    width:100%;
+    height:42px;
+    border:1px solid #E6ECF2;
+    border-radius:6px;
+    background:#fff;
+    color:#111827;
+    font:inherit;
+    font-size:13px;
+    padding:0 40px 0 14px;
+    box-shadow:0 8px 18px rgba(31,43,62,.06);
+}
+.um-search svg {
+    position:absolute;
+    right:13px;
+    top:50%;
+    transform:translateY(-50%);
+    width:17px;
+    height:17px;
+    color:#111827;
+}
+.um-add {
+    height:42px;
+    border-radius:6px;
+    background:#1B3358;
+    color:#fff;
+    text-decoration:none;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:12px;
+    font-weight:900;
+}
+.um-table-card {
+    background:#fff;
+    border:1px solid #E6ECF2;
+    border-radius:6px;
+    box-shadow:0 12px 28px rgba(31,43,62,.12);
+    overflow:hidden;
+    margin-bottom:42px;
+}
+.um-scroll { overflow-x:auto; }
+.um-table { width:100%; min-width:980px; border-collapse:collapse; }
+.um-table th {
+    background:#1B3358;
+    color:#fff;
+    text-align:center;
+    text-transform:uppercase;
+    font-size:10px;
+    font-weight:900;
+    padding:18px 16px;
+}
+.um-table td {
+    color:#111827;
+    text-align:center;
+    font-size:12px;
+    padding:20px 16px;
+    border-top:1px solid #E6ECF2;
+    vertical-align:middle;
+}
+.um-table th:first-child, .um-table td:first-child { text-align:left; padding-left:42px; }
+.um-status { font-weight:900; text-transform:uppercase; font-size:11px; }
+.um-status.active { color:#00B837; }
+.um-status.inactive { color:#F00000; }
+.um-status.pending { color:#FF9F00; }
+.um-actions {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+}
+.um-mini-btn {
+    border:0;
+    border-radius:3px;
+    height:20px;
+    padding:0 10px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    font-size:9px;
+    font-weight:900;
+    text-decoration:none;
+    cursor:pointer;
+}
+.um-mini-btn.activate { background:#22c55e; }
+.um-mini-btn.deactivate { background:#ff6b6b; }
+.um-round {
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    border:0;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    background:#34485F;
+    cursor:pointer;
+}
+.um-round.danger { background:#ef4444; }
+.um-round.success { background:#22c55e; }
+.um-round svg { width:11px; height:11px; }
+.um-pages {
+    min-height:64px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+    color:#111827;
+    font-size:14px;
+}
+.um-pages strong { color:#1B3358; }
+.um-section-title {
+    color:#8A8A8A;
+    font-size:25px;
+    font-weight:900;
+    margin:0 0 18px;
+}
+.um-empty { padding:48px; text-align:center; color:#111827; }
+.um-modal-overlay {
+    display:none;
+    position:fixed;
+    inset:0;
+    z-index:1000;
+    background:rgba(0,0,0,.86);
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+}
+.um-modal {
+    width:min(100%, 520px);
+    background:#fff;
+    border-radius:6px;
+    overflow:hidden;
+    box-shadow:0 22px 60px rgba(0,0,0,.35);
+}
+.um-modal-head {
+    min-height:86px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:24px 34px;
+    border-bottom:1px solid #D6DCE4;
+}
+.um-modal-name {
+    color:#1B3358;
+    font-size:18px;
+    font-weight:900;
+    margin:0 0 2px;
+}
+.um-modal-user {
+    color:#1B3358;
+    font-size:11px;
+    margin:0;
+}
+.um-modal-close {
+    border:0;
+    background:transparent;
+    color:#111827;
+    font-size:28px;
+    line-height:1;
+    cursor:pointer;
+}
+.um-modal-body {
+    padding:34px 62px 46px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:28px 68px;
+}
+.um-info-label {
+    color:#111827;
+    font-size:10px;
+    font-weight:900;
+    text-transform:uppercase;
+    margin:0 0 3px;
+}
+.um-info-value {
+    color:#111827;
+    font-size:10px;
+    margin:0;
+    overflow-wrap:anywhere;
+}
+.um-status-pill {
+    min-width:80px;
+    display:inline-flex;
+    justify-content:center;
+    border-radius:2px;
+    padding:4px 10px;
+    font-size:9px;
+    font-weight:900;
+}
+.um-status-pill.active { background:#9FDEB4; color:#0C7A2F; }
+.um-status-pill.inactive { background:#FFA6AD; color:#D00000; }
+.um-status-pill.pending { background:#FFC79C; color:#C46300; }
+.um-modal-foot {
+    border-top:1px solid #D6DCE4;
+    padding:24px 42px;
+    display:flex;
+    justify-content:center;
+    gap:16px;
+}
+.um-modal-action {
+    min-width:180px;
+    height:34px;
+    border:0;
+    border-radius:5px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    font-size:10px;
+    font-weight:900;
+    text-decoration:none;
+    cursor:pointer;
+}
+.um-modal-action.green { background:#35C85A; }
+.um-modal-action.red { background:#D63B3F; }
+.um-modal-action.blue { background:#1B3358; }
+@media (max-width: 640px) {
+    .um-modal-body { grid-template-columns:1fr; padding:28px 34px; gap:20px; }
+    .um-modal-foot { flex-direction:column; padding:22px 34px; }
+    .um-modal-action { width:100%; }
+}
+@media (max-width: 1100px) {
+    .um-cards { grid-template-columns: repeat(2, minmax(180px,1fr)); }
+    .um-filters { grid-template-columns: 1fr 1fr; }
+    .um-add { width:132px; }
+}
+@media (max-width: 640px) {
+    .um-page { padding-top:16px; }
+    .um-cards, .um-filters { grid-template-columns: 1fr; }
+    .um-add { width:100%; }
+}
+{% endblock %}
+
 {% block content %}
+<div class="um-page">
+    <div class="um-cards">
+        <section class="um-card">
+            <p class="um-card-label"><span class="um-icon"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zm6 10a5 5 0 00-10 0h10zm.5-9a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/></svg></span>Total Users</p>
+            <p class="um-card-value">{{ user_stats.total }}</p>
+        </section>
+        <section class="um-card">
+            <p class="um-card-label"><span class="um-icon"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zm6 9a6 6 0 00-12 0h12z"/></svg></span>Consignee</p>
+            <p class="um-card-value">{{ user_stats.consignees }}</p>
+        </section>
+        <section class="um-card">
+            <p class="um-card-label"><span class="um-icon"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a4 4 0 100 8 4 4 0 000-8zm-7 16a7 7 0 0114 0H3z"/></svg></span>Declarant</p>
+            <p class="um-card-value">{{ user_stats.declarants }}</p>
+        </section>
+        <section class="um-card">
+            <p class="um-card-label"><span class="um-icon green"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zm6 9a6 6 0 00-12 0h12z"/></svg></span>Active</p>
+            <p class="um-card-value">{{ user_stats.active }}</p>
+        </section>
+        <section class="um-card">
+            <p class="um-card-label"><span class="um-icon red"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zm6 9a6 6 0 00-12 0h12z"/></svg></span>Inactive</p>
+            <p class="um-card-value">{{ user_stats.inactive }}</p>
+        </section>
+    </div>
 
-<!--  Pending Registrations  -->
-{% if pending %}
-<div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;
-                          border-color:#d97706;">
-    <div style="padding:14px 20px; background:#FFFBEB; border-bottom:1px solid #d97706;
-                display:flex; align-items:center; justify-content:space-between;">
-        <p class="card-title" style="margin:0; color:#fbbf24;">
-            Pending Registrations
-            <span style="background:#d97706; color:#fff; font-size:11px;
-                         font-weight:700; padding:2px 8px; border-radius:10px;
-                         margin-left:8px;">{{ pending|length }}</span>
-        </p>
-        <span style="color:#92400e; font-size:12px;">Review and approve or reject</span>
+    <div class="um-filters">
+        <div class="um-field">
+            <label>Search (name / username / email)</label>
+            <div class="um-search">
+                <input type="text" id="user-search" class="um-input" placeholder="Elena or elenagsjk@gmail.com" oninput="filterUsers()">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 103.473 9.767l2.38 2.38a.75.75 0 101.061-1.061l-2.38-2.38A5.5 5.5 0 009 3.5zM5 9a4 4 0 118 0 4 4 0 01-8 0z" clip-rule="evenodd"/></svg>
+            </div>
+        </div>
+        <div class="um-field">
+            <label>Role</label>
+            <select id="role-filter" class="um-select" onchange="filterUsers()">
+                <option value="">All Roles</option>
+                <option value="consignee">Consignee</option>
+                <option value="declarant">Declarant</option>
+                <option value="supervisor">Supervisor</option>
+            </select>
+        </div>
+        <div class="um-field">
+            <label>Status</label>
+            <select id="status-filter" class="um-select" onchange="filterUsers()">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
+        </div>
+        <a href="{% url 'supervisor:add_user' %}" class="um-add">+ ADD USER</a>
     </div>
-    <table style="width:100%; border-collapse:collapse;">
-        <thead>
-            <tr style="background:#FFF7ED;">
-                <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Name</th>
-                <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Username</th>
-                <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Email</th>
-                <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Company</th>
-                <th style="padding:10px 16px; text-align:left; color:#92400e; font-size:12px;">Registered</th>
-                <th style="padding:10px 16px; text-align:center; color:#92400e; font-size:12px;">Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for u in pending %}
-            <tr style="border-top:1px solid #FFFBEB;"
-                onmouseover="this.style.background='#FFF7ED'"
-                onmouseout="this.style.background=''">
-                <td style="padding:12px 16px; color:#fbbf24; font-size:13px; font-weight:600;">
-                    {{ u.get_full_name|default:u.username }}
-                </td>
-                <td style="padding:12px 16px; color:#f59e0b; font-size:13px;">{{ u.username }}</td>
-                <td style="padding:12px 16px; color:#6B7280; font-size:12px;">{{ u.email }}</td>
-                <td style="padding:12px 16px; color:#6B7280; font-size:12px;">
-                    {{ u.company_name|default:"" }}
-                </td>
-                <td style="padding:12px 16px; color:#9CA3AF; font-size:12px;">
-                    {{ u.date_joined|timesince }} ago
-                </td>
-                <td style="padding:12px 16px; text-align:center;">
-                    <div style="display:flex; gap:8px; justify-content:center;">
-                        <form method="POST"
-                              action="{% url 'supervisor:approve_registration' u.id %}"
-                              onsubmit="return confirm('Approve {{ u.username }}? This will activate their account.');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-success"
-                                    style="font-size:11px; padding:5px 12px;">
-                                Approve
-                            </button>
-                        </form>
-                        <form method="POST"
-                              action="{% url 'supervisor:reject_registration' u.id %}"
-                              onsubmit="return confirm('Reject and DELETE {{ u.username }}? This cannot be undone.');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-danger"
-                                    style="font-size:11px; padding:5px 12px;">
-                                Reject
-                            </button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endif %}
 
-<!--  Active Users  -->
-<!-- Controls -->
-<div style="display:flex; gap:10px; align-items:flex-end; margin-bottom:20px; flex-wrap:wrap;">
-    <!-- Search -->
-    <div style="flex:1; min-width:200px;">
-        <label style="color:#9CA3AF; font-size:11px; display:block; margin-bottom:4px;">
-            Search (name / username / email)
-        </label>
-        <input type="text" id="user-search"
-               class="form-input" style="padding:7px 12px; font-size:13px;"
-               placeholder="e.g. Elena or bautista@email.com"
-               oninput="filterUsers()">
+    <div class="um-table-card">
+        {% if users %}
+        <div class="um-scroll">
+            <table class="um-table" id="users-table">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr data-name="{{ u.get_full_name|lower }} {{ u.username|lower }}"
+                        data-email="{{ u.email|lower }}"
+                        data-role="{{ u.role|lower }}"
+                        data-status="{% if u.is_active %}active{% else %}inactive{% endif %}"
+                        data-fullname="{{ u.get_full_name|default:u.username }}"
+                        data-username="{{ u.username }}"
+                        data-company="{{ u.company_name|default:'RtripleJ' }}"
+                        data-phone="{{ u.phone_number|default:'+639151824576' }}"
+                        data-roledisplay="{{ u.get_role_display }}"
+                        data-joined="{{ u.date_joined|date:'M d,Y g:i A' }}"
+                        data-editurl="{% url 'supervisor:edit_user' u.id %}"
+                        data-toggleurl="{% url 'supervisor:toggle_user' u.id %}"
+                        data-togglelabel="{% if u.is_active %}Deactivate Account{% else %}Activate Account{% endif %}">
+                        <td>{{ u.get_full_name|default:u.username }}</td>
+                        <td>{{ u.username }}</td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.get_role_display }}</td>
+                        <td><span class="um-status {% if u.is_active %}active{% else %}inactive{% endif %}">{% if u.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+                        <td>{{ u.date_joined|date:"M d,Y g:i A" }}</td>
+                        <td>
+                            <div class="um-actions">
+                                {% if u != request.user %}
+                                <a href="{% url 'supervisor:toggle_user' u.id %}"
+                                   class="um-mini-btn {% if u.is_active %}deactivate{% else %}activate{% endif %}"
+                                   onclick="return confirm('{% if u.is_active %}Deactivate{% else %}Activate{% endif %} {{ u.username }}?')">
+                                    {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
+                                </a>
+                                {% endif %}
+                                <button type="button" class="um-round" title="Details" aria-label="Details" onclick="openUserModal(this.closest('tr'), 'user')">
+                                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 4.5c-4.2 0-7.15 3.22-8.2 4.6a1.5 1.5 0 000 1.8c1.05 1.38 4 4.6 8.2 4.6s7.15-3.22 8.2-4.6a1.5 1.5 0 000-1.8c-1.05-1.38-4-4.6-8.2-4.6zm0 8.5a3 3 0 110-6 3 3 0 010 6zm0-1.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="um-pages"><span>&lt;</span><strong>1</strong><span>&gt;</span></div>
+        {% else %}
+        <div class="um-empty">No users found.</div>
+        {% endif %}
     </div>
-    <!-- Role filter -->
-    <div style="min-width:150px;">
-        <label style="color:#9CA3AF; font-size:11px; display:block; margin-bottom:4px;">Role</label>
-        <select id="role-filter" class="form-input"
-                style="padding:7px 12px; font-size:13px;"
-                onchange="filterUsers()">
-            <option value="">All Roles</option>
-            <option value="consignee">Consignee</option>
-            <option value="declarant">Declarant</option>
-            <option value="supervisor">Supervisor</option>
-        </select>
-    </div>
-    <!-- Status filter -->
-    <div style="min-width:140px;">
-        <label style="color:#9CA3AF; font-size:11px; display:block; margin-bottom:4px;">Status</label>
-        <select id="status-filter" class="form-input"
-                style="padding:7px 12px; font-size:13px;"
-                onchange="filterUsers()">
-            <option value="">All</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-        </select>
-    </div>
-    <div style="align-self:flex-end;">
-        <a href="{% url 'supervisor:add_user' %}" class="btn btn-primary">+ Add User</a>
-    </div>
-</div>
 
-<p id="user-count" style="color:#9CA3AF; font-size:13px; margin-bottom:12px;">
-    {{ users.count }} user(s)
-</p>
-
-<div class="table-container">
-    <table id="users-table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for u in users %}
-            <tr data-name="{{ u.get_full_name|lower }} {{ u.username|lower }}"
-                data-email="{{ u.email|lower }}"
-                data-role="{{ u.role|lower }}"
-                data-status="{% if u.is_active %}active{% else %}inactive{% endif %}"
-                data-fullname="{{ u.get_full_name|default:u.username }}"
-                data-username="{{ u.username }}"
-                data-displayemail="{{ u.email }}"
-                data-company="{{ u.company_name|default:'' }}"
-                data-phone="{{ u.phone_number|default:'' }}"
-                data-roledisplay="{{ u.get_role_display }}"
-                data-joined="{{ u.date_joined|date:'M d, Y' }}"
-                data-isactive="{% if u.is_active %}1{% else %}0{% endif %}"
-                data-toggleurl="{% url 'supervisor:toggle_user' u.id %}"
-                data-togglelabel="{% if u.is_active %}Deactivate{% else %}Activate{% endif %}"
-                data-isself="{% if u == request.user %}1{% else %}0{% endif %}">
-                <td>{{ u.get_full_name|default:u.username }}</td>
-                <td>{{ u.username }}</td>
-                <td>{{ u.email }}</td>
-                <td>
-                    <span class="badge badge-review">{{ u.get_role_display }}</span>
-                </td>
-                <td>
-                    {% if u.is_active %}
-                        <span class="badge badge-approved">Active</span>
-                    {% else %}
-                        <span class="badge badge-rejected">Inactive</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <button type="button"
-                                onclick="openUserDetail(this.closest('tr'))"
-                                class="btn"
-                                style="font-size:11px; padding:5px 12px; background:#FFFFFF; color:#6B7280; border:1px solid #E5E7EB;">
-                            Details
-                        </button>
-                        {% if u != request.user %}
-                        <a href="{% url 'supervisor:toggle_user' u.id %}"
-                           class="btn {% if u.is_active %}btn-danger{% else %}btn-success{% endif %}"
-                           style="font-size:12px; padding:5px 12px;"
-                           onclick="return confirm('{% if u.is_active %}Deactivate{% else %}Activate{% endif %} {{ u.username }}?')">
-                            {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
-                        </a>
-                        {% else %}
-                        <span style="color:#6B7280; font-size:12px;">You</span>
-                        {% endif %}
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <h2 class="um-section-title">Pending: {{ pending|length|stringformat:"02d" }}</h2>
+    <div class="um-table-card">
+        {% if pending %}
+        <div class="um-scroll">
+            <table class="um-table">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in pending %}
+                    <tr data-fullname="{{ u.get_full_name|default:u.username }}"
+                        data-username="{{ u.username }}"
+                        data-email="{{ u.email }}"
+                        data-role="{{ u.role|lower }}"
+                        data-status="pending"
+                        data-company="{{ u.company_name|default:'YG Company' }}"
+                        data-phone="{{ u.phone_number|default:'+639151824576' }}"
+                        data-roledisplay="{{ u.get_role_display }}"
+                        data-joined="{{ u.date_joined|date:'M d,Y g:i A' }}"
+                        data-approveurl="{% url 'supervisor:approve_registration' u.id %}"
+                        data-rejecturl="{% url 'supervisor:reject_registration' u.id %}">
+                        <td>{{ u.get_full_name|default:u.username }}</td>
+                        <td>{{ u.username }}</td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.get_role_display }}</td>
+                        <td><span class="um-status pending">Pending</span></td>
+                        <td>{{ u.date_joined|date:"M d,Y g:i A" }}</td>
+                        <td>
+                            <div class="um-actions">
+                                <button type="button" class="um-round" title="Details" aria-label="Details" onclick="openUserModal(this.closest('tr'), 'pending')">
+                                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 4.5c-4.2 0-7.15 3.22-8.2 4.6a1.5 1.5 0 000 1.8c1.05 1.38 4 4.6 8.2 4.6s7.15-3.22 8.2-4.6a1.5 1.5 0 000-1.8c-1.05-1.38-4-4.6-8.2-4.6zm0 8.5a3 3 0 110-6 3 3 0 010 6zm0-1.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>
+                                </button>
+                                <form method="POST" action="{% url 'supervisor:approve_registration' u.id %}" onsubmit="return confirm('Approve {{ u.username }}?')">
+                                    {% csrf_token %}
+                                    <button class="um-round success" type="submit" title="Approve" aria-label="Approve">
+                                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.543 6.54-6.543a1 1 0 011.42 0z" clip-rule="evenodd"/></svg>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{% url 'supervisor:reject_registration' u.id %}" onsubmit="return confirm('Reject and DELETE {{ u.username }}?')">
+                                    {% csrf_token %}
+                                    <button class="um-round danger" type="submit" title="Reject" aria-label="Reject">
+                                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" clip-rule="evenodd"/></svg>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="um-pages"><span>&lt;</span><strong>1</strong><span>&gt;</span></div>
+        {% else %}
+        <div class="um-empty">No pending registrations.</div>
+        {% endif %}
+    </div>
 </div>
 
-<!--  User Detail Modal  -->
-<div id="user-modal-overlay"
-     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
-            z-index:1000; align-items:center; justify-content:center;"
-     onclick="if(event.target===this) closeUserDetail()">
-    <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:14px;
-                width:100%; max-width:480px; margin:16px; overflow:hidden;">
-        <!-- Header -->
-        <div style="padding:18px 24px; background:#F8FAFC; border-bottom:1px solid #E5E7EB;
-                    display:flex; justify-content:space-between; align-items:center;">
+<div class="um-modal-overlay" id="um-modal-overlay" onclick="if(event.target===this) closeUserModal()">
+    <div class="um-modal">
+        <div class="um-modal-head">
             <div>
-                <p style="font-size:16px; font-weight:700; color:#1A1A2E; margin:0;" id="modal-name"></p>
-                <p style="font-size:12px; color:#9CA3AF; margin:4px 0 0;" id="modal-username"></p>
+                <p class="um-modal-name" id="modal-fullname"></p>
+                <p class="um-modal-user" id="modal-username"></p>
             </div>
-            <button onclick="closeUserDetail()"
-                    style="background:none; border:none; color:#9CA3AF; font-size:20px;
-                           cursor:pointer; padding:4px 8px;">&times;</button>
+            <button type="button" class="um-modal-close" onclick="closeUserModal()" aria-label="Close">&times;</button>
         </div>
-        <!-- Body -->
-        <div style="padding:24px;">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                <div>
-                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Email</p>
-                    <p style="font-size:13px; color:#374151;" id="modal-email"></p>
-                </div>
-                <div>
-                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Phone</p>
-                    <p style="font-size:13px; color:#374151;" id="modal-phone"></p>
-                </div>
-                <div>
-                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Company</p>
-                    <p style="font-size:13px; color:#374151;" id="modal-company"></p>
-                </div>
-                <div>
-                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Role</p>
-                    <p style="font-size:13px;" id="modal-role"></p>
-                </div>
-                <div>
-                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Status</p>
-                    <p id="modal-status"></p>
-                </div>
-                <div>
-                    <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px;">Date Joined</p>
-                    <p style="font-size:13px; color:#374151;" id="modal-joined"></p>
-                </div>
-            </div>
+        <div class="um-modal-body">
+            <div><p class="um-info-label">Role:</p><p class="um-info-value" id="modal-role"></p></div>
+            <div><p class="um-info-label">Company:</p><p class="um-info-value" id="modal-company"></p></div>
+            <div><p class="um-info-label">Email:</p><p class="um-info-value" id="modal-email"></p></div>
+            <div><p class="um-info-label">Phone:</p><p class="um-info-value" id="modal-phone"></p></div>
+            <div><p class="um-info-label">Status:</p><p class="um-info-value" id="modal-status"></p></div>
+            <div><p class="um-info-label">Date Joined:</p><p class="um-info-value" id="modal-joined"></p></div>
         </div>
-        <!-- Footer actions -->
-        <div id="modal-actions" style="padding:16px 24px; border-top:1px solid #E5E7EB; display:flex; justify-content:flex-end; gap:10px;">
-        </div>
+        <div class="um-modal-foot" id="modal-actions"></div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
 function filterUsers() {
-    const q      = document.getElementById('user-search').value.toLowerCase();
-    const role   = document.getElementById('role-filter').value.toLowerCase();
+    const q = document.getElementById('user-search').value.toLowerCase();
+    const role = document.getElementById('role-filter').value.toLowerCase();
     const status = document.getElementById('status-filter').value.toLowerCase();
-    const rows   = document.querySelectorAll('#users-table tbody tr');
-    let visible  = 0;
-
-    rows.forEach(function(row) {
-        const name   = (row.dataset.name   || '').toLowerCase();
-        const email  = (row.dataset.email  || '').toLowerCase();
-        const rRole  = (row.dataset.role   || '').toLowerCase();
-        const rStat  = (row.dataset.status || '').toLowerCase();
-
-        const matchQ      = !q      || name.includes(q) || email.includes(q);
-        const matchRole   = !role   || rRole === role;
-        const matchStatus = !status || rStat === status;
-
-        const show = matchQ && matchRole && matchStatus;
+    document.querySelectorAll('#users-table tbody tr').forEach(function(row) {
+        const name = row.dataset.name || '';
+        const email = row.dataset.email || '';
+        const rowRole = row.dataset.role || '';
+        const rowStatus = row.dataset.status || '';
+        const show = (!q || name.includes(q) || email.includes(q))
+            && (!role || rowRole === role)
+            && (!status || rowStatus === status);
         row.style.display = show ? '' : 'none';
-        if (show) visible++;
     });
-
-    document.getElementById('user-count').textContent = visible + ' user(s)';
 }
 
-function openUserDetail(row) {
+function csrfInput() {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'csrfmiddlewaretoken';
+    input.value = '{{ csrf_token }}';
+    return input;
+}
+
+function postActionButton(label, url, className, confirmText) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = url;
+    form.onsubmit = function() { return confirm(confirmText); };
+    form.appendChild(csrfInput());
+
+    const btn = document.createElement('button');
+    btn.type = 'submit';
+    btn.className = 'um-modal-action ' + className;
+    btn.textContent = label;
+    form.appendChild(btn);
+    return form;
+}
+
+function openUserModal(row, kind) {
     const d = row.dataset;
-    document.getElementById('modal-name').textContent    = d.fullname;
-    document.getElementById('modal-username').textContent = '@' + d.username;
-    document.getElementById('modal-email').textContent   = d.displayemail;
-    document.getElementById('modal-phone').textContent   = d.phone;
-    document.getElementById('modal-company').textContent = d.company;
-    document.getElementById('modal-role').innerHTML      = '<span class="badge badge-review">' + d.roledisplay + '</span>';
-    document.getElementById('modal-joined').textContent  = d.joined;
+    const status = d.status || 'inactive';
+    document.getElementById('modal-fullname').textContent = d.fullname || '-';
+    document.getElementById('modal-username').textContent = '@' + (d.username || '-');
+    document.getElementById('modal-role').textContent = d.roledisplay || '-';
+    document.getElementById('modal-company').textContent = d.company || '-';
+    document.getElementById('modal-email').textContent = d.email || '-';
+    document.getElementById('modal-phone').textContent = d.phone || '-';
+    document.getElementById('modal-joined').textContent = d.joined || '-';
+    document.getElementById('modal-status').innerHTML =
+        '<span class="um-status-pill ' + status + '">' + status.charAt(0).toUpperCase() + status.slice(1) + '</span>';
 
-    const isActive = d.isactive === '1';
-    document.getElementById('modal-status').innerHTML = isActive
-        ? '<span class="badge badge-approved">Active</span>'
-        : '<span class="badge badge-rejected">Inactive</span>';
+    const actions = document.getElementById('modal-actions');
+    actions.innerHTML = '';
 
-    const actionsDiv = document.getElementById('modal-actions');
-    actionsDiv.innerHTML = '';
-
-    // Close button
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'btn';
-    closeBtn.style.cssText = 'background:#FFFFFF; color:#6B7280; border:1px solid #E5E7EB;';
-    closeBtn.textContent = 'Close';
-    closeBtn.onclick = closeUserDetail;
-    actionsDiv.appendChild(closeBtn);
-
-    // Toggle button (skip for self)
-    if (d.isself !== '1') {
-        const toggleBtn = document.createElement('a');
-        toggleBtn.href = d.toggleurl;
-        toggleBtn.className = 'btn ' + (isActive ? 'btn-danger' : 'btn-success');
-        toggleBtn.textContent = d.togglelabel;
-        toggleBtn.onclick = function() {
-            return confirm((isActive ? 'Deactivate ' : 'Activate ') + d.username + '?');
-        };
-        actionsDiv.appendChild(toggleBtn);
+    if (kind === 'pending') {
+        actions.appendChild(postActionButton('APPROVED ACCOUNT', d.approveurl, 'green', 'Approve ' + d.username + '?'));
+        actions.appendChild(postActionButton('DELETE ACCOUNT', d.rejecturl, 'red', 'Reject and DELETE ' + d.username + '?'));
+    } else if (status === 'inactive') {
+        actions.appendChild(Object.assign(document.createElement('a'), {
+            href: d.toggleurl,
+            className: 'um-modal-action green',
+            textContent: 'ACTIVATE ACCOUNT',
+            onclick: function() { return confirm('Activate ' + d.username + '?'); }
+        }));
+        actions.appendChild(Object.assign(document.createElement('a'), {
+            href: '#',
+            className: 'um-modal-action red',
+            textContent: 'DELETE ACCOUNT',
+            onclick: function() { alert('Delete account is not enabled for approved users.'); return false; }
+        }));
+    } else {
+        actions.appendChild(Object.assign(document.createElement('a'), {
+            href: d.editurl,
+            className: 'um-modal-action blue',
+            textContent: 'EDIT ACCOUNT'
+        }));
     }
 
-    document.getElementById('user-modal-overlay').style.display = 'flex';
+    document.getElementById('um-modal-overlay').style.display = 'flex';
 }
 
-function closeUserDetail() {
-    document.getElementById('user-modal-overlay').style.display = 'none';
+function closeUserModal() {
+    document.getElementById('um-modal-overlay').style.display = 'none';
 }
 
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeUserDetail();
+    if (e.key === 'Escape') closeUserModal();
 });
 </script>
 {% endblock %}

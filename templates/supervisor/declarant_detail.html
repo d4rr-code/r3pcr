@@ -1,0 +1,331 @@
+{% extends 'supervisor/base_supervisor.html' %}
+{% block title %}Declarant Performance{% endblock %}
+{% block page_title %}Declarant Performance{% endblock %}
+{% block nav_clients %}has-active-child{% endblock %}
+{% block nav_declarants %}active{% endblock %}
+
+{% block extra_css %}
+.page-heading { display:none; }
+.dd-page { color:#111827; max-width:1180px; margin:0 auto; padding:22px 0 34px; }
+.dd-top { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; margin-bottom:28px; }
+.dd-back { color:#1B3358; display:inline-flex; font-size:12px; font-weight:900; margin-bottom:16px; text-decoration:none; }
+.dd-title { color:#1B3358; font-size:30px; line-height:1; font-weight:900; margin:0; }
+.dd-role { color:#111827; font-size:14px; margin:4px 0 0; }
+.dd-rate { color:#00B050; font-size:13px; font-weight:800; margin:2px 0 0; }
+.dd-actions { display:flex; gap:10px; }
+.dd-icon { width:34px; height:34px; border:1px solid #DCE5EF; border-radius:8px; background:#fff; color:#1B3358; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(31,43,62,.12); }
+.dd-icon svg { width:17px; height:17px; }
+.dd-heading { color:#1B3358; font-size:24px; font-weight:500; margin:0 0 16px; }
+.dd-grid { display:grid; grid-template-columns:1.25fr .8fr; gap:24px; align-items:start; }
+.dd-card { background:#fff; border:1px solid #E6ECF2; border-radius:6px; box-shadow:0 12px 28px rgba(31,43,62,.12); padding:20px 24px; min-width:0; }
+.dd-card-head { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:14px; }
+.dd-card h2 { color:#1B3358; font-size:14px; font-weight:900; margin:0; }
+.dd-chip { border:1px solid #DCE5EF; border-radius:3px; color:#111827; font-size:10px; font-weight:900; padding:4px 8px; background:#fff; }
+.dd-chart { position:relative; height:230px; }
+.dd-donut { position:relative; height:260px; }
+.dd-donut-center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; color:#334155; font-size:20px; font-weight:900; }
+.dd-type-total { color:#111827; font-size:12px; font-weight:800; margin:0 0 10px; }
+.dd-type-grid { display:grid; grid-template-columns:1fr 1fr; border:1px solid #E6ECF2; }
+.dd-type-item { min-height:62px; padding:12px 14px; border-right:1px solid #E6ECF2; border-bottom:1px solid #E6ECF2; }
+.dd-type-item:nth-child(2n) { border-right:0; }
+.dd-type-item:nth-last-child(-n+2) { border-bottom:0; }
+.dd-type-swatch { display:inline-block; width:32px; height:8px; border-radius:2px; margin-right:8px; vertical-align:middle; }
+.dd-type-label { color:#334155; font-size:9px; font-weight:800; }
+.dd-type-count { color:#111827; font-size:18px; font-weight:900; margin:8px 0 0; }
+.dd-wide { grid-column:1 / span 1; }
+.dd-side { grid-column:2; }
+.dd-status-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); border:1px solid #E6ECF2; }
+.dd-status { display:grid; grid-template-columns:28px minmax(0, 1fr) auto; gap:8px; align-items:center; padding:13px 12px; border-right:1px solid #E6ECF2; border-bottom:1px solid #E6ECF2; }
+.dd-status:nth-child(3n) { border-right:0; }
+.dd-status:nth-last-child(-n+3) { border-bottom:0; }
+.dd-status-dot { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--c); color:#fff; font-size:11px; font-weight:900; }
+.dd-status-name { color:var(--c); font-size:11px; font-weight:900; text-transform:uppercase; margin:0; line-height:1.1; }
+.dd-status-sub { color:#64748B; font-size:8px; margin:2px 0 0; line-height:1.2; }
+.dd-status-count { color:var(--c); font-size:17px; font-weight:900; }
+.dd-bar { display:flex; height:14px; border-radius:4px; overflow:hidden; background:#EDF1F5; margin-top:22px; }
+.dd-bar span { min-width:3px; }
+.dd-section-title { color:#1B3358; font-size:16px; font-weight:900; margin:28px 0 14px; padding-top:18px; border-top:1px solid #DCE5EF; }
+.dd-filters { display:flex; align-items:flex-end; gap:16px; margin:0 0 18px; flex-wrap:wrap; }
+.dd-field { flex:0 0 clamp(160px, 18vw, 230px); }
+.dd-field:first-child { flex:1 1 360px; }
+.dd-field label { color:#111827; display:block; font-size:12px; font-weight:800; margin-bottom:6px; }
+.dd-input { width:100%; height:40px; border:1px solid #E6ECF2; border-radius:6px; background:#fff; color:#111827; font:inherit; font-size:13px; padding:0 12px; box-shadow:0 8px 18px rgba(31,43,62,.06); }
+.dd-btn { height:40px; border:0; border-radius:6px; background:#1B3358; color:#fff; cursor:pointer; font-size:12px; font-weight:900; padding:0 18px; }
+.dd-clear { height:40px; border:1px solid #E6ECF2; border-radius:6px; color:#1B3358; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; padding:0 16px; text-decoration:none; }
+.dd-table-card { background:#fff; border:1px solid #E6ECF2; border-radius:6px; box-shadow:0 12px 28px rgba(31,43,62,.12); overflow:hidden; }
+.dd-scroll { overflow-x:auto; }
+.dd-table { width:100%; min-width:980px; border-collapse:collapse; }
+.dd-table th { background:#1B3358; color:#fff; font-size:10px; font-weight:900; text-transform:uppercase; padding:16px 14px; text-align:left; }
+.dd-table td { color:#111827; font-size:12px; padding:18px 14px; border-top:1px solid #E6ECF2; vertical-align:middle; }
+.dd-ref { font-weight:800; white-space:nowrap; }
+.dd-pill { display:inline-flex; align-items:center; justify-content:center; min-width:62px; border-radius:12px; color:#fff; font-size:10px; font-weight:900; padding:4px 10px; }
+.urgency-standard, .urgency-normal { background:#2F7FD6; }
+.urgency-priority { background:#F2C715; color:#111827; }
+.urgency-urgent { background:#FF6A00; }
+.urgency-rush { background:#F20B0B; }
+.dd-status-text { display:block; font-weight:800; }
+.dd-table small { color:#64748B; display:block; font-size:9px; margin-top:2px; }
+.dd-action { text-align:center; }
+.dd-action a { color:#34485F; display:inline-flex; width:24px; height:24px; align-items:center; justify-content:center; }
+.dd-action svg { width:16px; height:16px; }
+.dd-pages { min-height:64px; display:flex; justify-content:center; align-items:center; gap:8px; color:#111827; font-size:13px; }
+.dd-page-btn { min-width:24px; height:24px; border-radius:4px; color:#111827; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; font-weight:800; }
+.dd-page-btn.current { color:#1B3358; }
+.dd-page-btn.disabled { color:#B8C2CF; }
+.dd-empty { color:#111827; padding:44px; text-align:center; }
+@media (max-width:1000px) {
+    .dd-grid { grid-template-columns:1fr; }
+    .dd-wide, .dd-side { grid-column:auto; }
+}
+@media (max-width:760px) {
+    .dd-top { flex-direction:column; }
+    .dd-title { font-size:24px; }
+    .dd-status-grid, .dd-type-grid { grid-template-columns:1fr; }
+    .dd-status, .dd-type-item { border-right:0; }
+    .dd-field, .dd-field:first-child, .dd-btn, .dd-clear { width:100%; flex-basis:100%; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="dd-page">
+    <a class="dd-back" href="{% url 'supervisor:declarant_list' %}">&lt; Back to declarants</a>
+
+    <div class="dd-top">
+        <div>
+            <h1 class="dd-title">{{ declarant.get_full_name|default:declarant.username }}</h1>
+            <p class="dd-role">Declarant</p>
+            <p class="dd-rate">{{ on_time_rate }}% On-Time Clearance Rate</p>
+        </div>
+        <div class="dd-actions">
+            <span class="dd-icon" title="Handled consignees">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zm6 10a5 5 0 00-10 0h10zm.5-9a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/></svg>
+            </span>
+            <span class="dd-icon" title="Supervisor view">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zm.75 12.5h-1.5v-6h1.5v6zm0-7.5h-1.5V5.5h1.5V7z"/></svg>
+            </span>
+        </div>
+    </div>
+
+    <h2 class="dd-heading">Breakdown Shipments and Performances</h2>
+
+    <div class="dd-grid">
+        <section class="dd-card">
+            <div class="dd-card-head">
+                <h2>Average Clearance Time Trend</h2>
+                <span class="dd-chip">{{ trend_year }}</span>
+            </div>
+            <div class="dd-chart"><canvas id="clearanceTrendChart"></canvas></div>
+        </section>
+
+        <section class="dd-card">
+            <div class="dd-card-head">
+                <h2>Shipping Type Overview</h2>
+                <span class="dd-chip">{{ trend_year }}</span>
+            </div>
+            <p class="dd-type-total">Total Shipping <strong>{{ total_shipments }}</strong></p>
+            <div class="dd-type-grid">
+                {% for row in type_rows %}
+                <div class="dd-type-item">
+                    <span class="dd-type-swatch" style="background:{{ row.color }}"></span>
+                    <span class="dd-type-label">{{ row.label }}</span>
+                    <p class="dd-type-count">{{ row.count }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="dd-card dd-wide">
+            <div class="dd-card-head">
+                <div>
+                    <h2>Status Overview</h2>
+                    <p style="color:#64748B;font-size:11px;margin:4px 0 0;">Overall Shipments {{ total_shipments }}</p>
+                </div>
+                <span class="dd-chip">{{ trend_year }}</span>
+            </div>
+            <div class="dd-status-grid">
+                {% for row in status_rows %}
+                <div class="dd-status" style="--c:{{ row.color }};">
+                    <span class="dd-status-dot">{{ row.label|slice:":1" }}</span>
+                    <div>
+                        <p class="dd-status-name">{{ row.label }}</p>
+                        <p class="dd-status-sub">{{ row.subtitle }}</p>
+                    </div>
+                    <strong class="dd-status-count">{{ row.count|stringformat:"02d" }}</strong>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="dd-bar">
+                {% for row in status_rows %}{% if row.count > 0 %}
+                <span style="width:{{ row.pct }}%; background:{{ row.color }};" title="{{ row.label }} {{ row.count }}"></span>
+                {% endif %}{% endfor %}
+            </div>
+            <p style="color:#94A3B8;font-size:11px;margin:12px 0 0;">All shipment status are from this Declarant</p>
+        </section>
+
+        <section class="dd-card dd-side">
+            <div class="dd-card-head">
+                <div>
+                    <h2>Due Date Monitoring</h2>
+                    <p style="color:#64748B;font-size:10px;margin:4px 0 0;">Active shipments approaching due date.</p>
+                </div>
+                <span class="dd-chip">{{ trend_year }}</span>
+            </div>
+            <div class="dd-donut">
+                <canvas id="dueDateChart"></canvas>
+                <div class="dd-donut-center">{{ due_total }}</div>
+            </div>
+            <div style="display:grid;gap:7px;">
+                <div><span class="dd-type-swatch" style="background:#dc0000;width:9px;"></span><span class="dd-type-label">1 Day Left</span><strong style="float:right;">{{ due_data.one_day }}</strong></div>
+                <div><span class="dd-type-swatch" style="background:#f75b5b;width:9px;"></span><span class="dd-type-label">3 Days Left</span><strong style="float:right;">{{ due_data.three_days }}</strong></div>
+                <div><span class="dd-type-swatch" style="background:#f9a1a1;width:9px;"></span><span class="dd-type-label">5 Days Left</span><strong style="float:right;">{{ due_data.five_days }}</strong></div>
+                <div><span class="dd-type-swatch" style="background:#ffd6d6;width:9px;"></span><span class="dd-type-label">5+ Days Left</span><strong style="float:right;">{{ due_data.over_five }}</strong></div>
+            </div>
+        </section>
+    </div>
+
+    <h2 class="dd-section-title">Shipment Records</h2>
+    <form method="GET" class="dd-filters">
+        <div class="dd-field">
+            <label>Shipment Reference No.</label>
+            <input class="dd-input" type="text" name="q" value="{{ q }}" placeholder="e.g. R3PCR-2026-000001">
+        </div>
+        <div class="dd-field">
+            <label>Date From</label>
+            <input class="dd-input" type="date" name="date_from" value="{{ date_from }}">
+        </div>
+        <div class="dd-field">
+            <label>Date To</label>
+            <input class="dd-input" type="date" name="date_to" value="{{ date_to }}">
+        </div>
+        <button class="dd-btn" type="submit">Apply</button>
+        {% if q or date_from or date_to %}
+        <a class="dd-clear" href="{% url 'supervisor:declarant_detail' declarant.id %}">Clear</a>
+        {% endif %}
+    </form>
+
+    <div class="dd-table-card">
+        {% if shipments %}
+        <div class="dd-scroll">
+            <table class="dd-table">
+                <thead>
+                    <tr>
+                        <th>Shipment Reference No.</th>
+                        <th>Import Type</th>
+                        <th>Urgency</th>
+                        <th>Status</th>
+                        <th>Shipment Type</th>
+                        <th>Submitted</th>
+                        <th>Consignee</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in shipments %}
+                    <tr>
+                        <td class="dd-ref">{{ s.hawb_number }}</td>
+                        <td>{{ s.get_import_type_display }}</td>
+                        <td><span class="dd-pill urgency-{{ s.urgency|default:'standard' }}">{{ s.get_urgency_display }}</span></td>
+                        <td>
+                            <span class="dd-status-text">{{ s.get_status_display|default:"-" }}</span>
+                            {% if s.has_deficiency and s.deficiency_notes %}
+                            <small>{{ s.deficiency_notes|truncatechars:38 }}</small>
+                            {% elif s.status == 'for_revision' %}
+                            <small>Revise ECDT Computation</small>
+                            {% elif s.status == 'arrived' %}
+                            <small>Awaits revised invoice</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ s.get_shipment_type_display|default:"-" }}</td>
+                        <td>{{ s.submitted_at|date:"M d,Y g:i A" }}</td>
+                        <td>{{ s.consignee.get_full_name|default:s.consignee.username }}</td>
+                        <td class="dd-action">
+                            <a href="{% url 'supervisor:shipment_detail' s.id %}?return_to={{ detail_return_url|urlencode }}&return_label={{ detail_return_label|urlencode }}" aria-label="View shipment {{ s.hawb_number }}">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 4.5c-4.2 0-7.15 3.22-8.2 4.6a1.5 1.5 0 000 1.8c1.05 1.38 4 4.6 8.2 4.6s7.15-3.22 8.2-4.6a1.5 1.5 0 000-1.8c-1.05-1.38-4-4.6-8.2-4.6zm0 8.5a3 3 0 110-6 3 3 0 010 6zm0-1.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="dd-pages">
+            {% if shipments_page.page_obj.has_previous %}
+            <a class="dd-page-btn" href="{{ shipments_page.prev_url }}">&lt;</a>
+            {% else %}
+            <span class="dd-page-btn disabled">&lt;</span>
+            {% endif %}
+            {% for link in shipments_page.page_links %}
+                {% if link.current %}
+                <strong class="dd-page-btn current">{{ link.number }}</strong>
+                {% else %}
+                <a class="dd-page-btn" href="{{ link.url }}">{{ link.number }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if shipments_page.page_obj.has_next %}
+            <a class="dd-page-btn" href="{{ shipments_page.next_url }}">&gt;</a>
+            {% else %}
+            <span class="dd-page-btn disabled">&gt;</span>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="dd-empty">No shipments found for this declarant.</div>
+        {% endif %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var trendEl = document.getElementById('clearanceTrendChart');
+    if (window.Chart && trendEl) {
+        var trendCtx = trendEl.getContext('2d');
+        var trendGradient = trendCtx.createLinearGradient(0, 0, 0, 230);
+        trendGradient.addColorStop(0, 'rgba(36, 70, 110, .42)');
+        trendGradient.addColorStop(1, 'rgba(36, 70, 110, 0)');
+        new Chart(trendEl, {
+            type: 'line',
+            data: {
+                labels: {{ trend_labels|safe }},
+                datasets: [{
+                    label: 'Avg Clearance Time',
+                    data: {{ trend_data|safe }},
+                    borderColor: '#24466E',
+                    backgroundColor: trendGradient,
+                    fill: true,
+                    borderWidth: 3,
+                    tension: .32,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#24466E',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { displayColors: false, callbacks: { label: function (ctx) { return 'Avg Clearance Time: ' + ctx.parsed.y + ' Days'; } } }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#E4EBF3' }, ticks: { color: '#334155', precision: 0 } },
+                    x: { grid: { color: '#EDF2F7' }, ticks: { color: '#334155' } }
+                }
+            }
+        });
+    }
+
+    var dueEl = document.getElementById('dueDateChart');
+    var dueData = {{ due_chart_data|safe }};
+    if (window.Chart && dueEl) {
+        new Chart(dueEl, {
+            type: 'doughnut',
+            data: {
+                labels: {{ due_chart_labels|safe }},
+                datasets: [{ data: dueData, backgroundColor: {{ due_chart_colors|safe }}, borderColor: '#fff', borderWidth: 8 }]
+            },
+            options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '62%' }
+        });
+    }
+})();
+</script>
+{% endblock %}

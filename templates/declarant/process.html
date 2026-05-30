@@ -1,719 +1,414 @@
-{% extends 'base.html' %}
+{% extends 'declarant/base_declarant.html' %}
 
-{% block title %}Process Ã¢â‚¬â€ {{ shipment.hawb_number }}{% endblock %}
+{% block title %}Process — {{ shipment.hawb_number }}{% endblock %}
 {% block page_title %}Process Shipment{% endblock %}
+{% block nav_queue %}active{% endblock %}
 
 {% block extra_css %}
 <style>
+/* ── Layout ── */
 .process-layout {
     display: grid;
-    grid-template-columns: 1fr 420px;
+    grid-template-columns: 1fr 460px;
     gap: 20px;
     align-items: start;
+    margin-top: 16px;
 }
-.doc-viewer {
-    background: #0f172a;
-    border: 1px solid #1e293b;
-    border-radius: 10px;
-    overflow: hidden;
+@media (max-width: 1100px) { .process-layout { grid-template-columns: 1fr; } }
+
+/* ── Header Card ── */
+.header-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px 24px 14px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.18);
 }
-.doc-viewer-header {
-    padding: 12px 16px;
-    background: #1e293b;
+.shipment-number { color: #0f172a; font-size: 20px; font-weight: 700; margin: 0 0 2px; }
+.shipment-meta   { color: #475569; font-size: 13px; margin: 0; }
+
+/* ── Progress Bar ── */
+.progress-track {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    border-bottom: 1px solid #334155;
-}
-.doc-viewer iframe {
-    width: 100%;
-    height: calc(100vh - 220px);
-    min-height: 500px;
-    border: none;
-    background: #fff;
-}
-.doc-viewer-placeholder {
-    height: 140px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #475569;
-    font-size: 14px;
-    flex-direction: column;
-    gap: 8px;
-}
-.ocr-field {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-    font-size: 12px;
-}
-.ocr-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-.conf-high   { background: #22c55e; }
-.conf-medium { background: #f59e0b; }
-.conf-low    { background: #ef4444; }
-.conf-none   { background: #475569; }
-.quality-dot,
-.progress-dot,
-.field-confidence-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 999px;
-    display: inline-block;
-    flex-shrink: 0;
-}
-.quality-good { background:#22c55e; box-shadow:0 0 8px #22c55e55; }
-.quality-low { background:#f59e0b; box-shadow:0 0 8px #f59e0b55; }
-.quality-poor { background:#ef4444; box-shadow:0 0 8px #ef444455; }
-.quality-none { background:#64748b; }
-.status-alert {
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 12px;
-    font-size: 12px;
-    font-weight: 700;
-}
-.status-alert.revision { background:#422006; color:#fbbf24; border:1px solid #92400e; }
-.status-alert.rejected { background:#450a0a; color:#fca5a5; border:1px solid #991b1b; }
-.status-progress {
-    display: grid;
-    grid-template-columns: repeat(10, minmax(64px, 1fr));
-    gap: 8px;
+    align-items: flex-start;
     overflow-x: auto;
-    padding-bottom: 4px;
+    padding: 14px 0 6px;
+    scrollbar-width: none;
+    gap: 0;
 }
-.status-step {
-    position: relative;
-    min-width: 64px;
+.progress-track::-webkit-scrollbar { display: none; }
+.prog-step {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    color: #64748b;
-    font-size: 10px;
-    text-align: center;
+    position: relative;
+    min-width: 72px;
+    flex: 1;
+    gap: 5px;
 }
-.status-step:before {
+.prog-step::before {
     content: "";
     position: absolute;
-    top: 6px;
-    left: -50%;
+    top: 10px;
+    right: 50%;
     width: 100%;
     height: 2px;
-    background: #334155;
+    background: #e2e8f0;
     z-index: 0;
 }
-.status-step:first-child:before { display:none; }
-.status-step.completed:before,
-.status-step.current:before { background:#2563eb; }
-.progress-dot { position:relative; z-index:1; background:#334155; border:1px solid #475569; }
-.status-step.completed .progress-dot { background:#22c55e; border-color:#22c55e; }
-.status-step.current .progress-dot { background:#3b82f6; border-color:#93c5fd; box-shadow:0 0 12px #3b82f6; }
-.status-step.current span { color:#f1f5f9; font-weight:800; }
-.ocr-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
-.ocr-tab-btn {
-    border:1px solid #334155;
-    background:#0f172a;
-    color:#94a3b8;
-    border-radius:6px;
-    padding:6px 10px;
-    cursor:pointer;
-    font-size:11px;
+.prog-step:first-child::before { display: none; }
+.prog-step.completed::before,
+.prog-step.current::before { background: #2563eb; }
+.prog-dot {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    border: 2px solid #cbd5e1;
+    position: relative; z-index: 1; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s;
 }
-.ocr-tab-btn.active { background:#1d4ed8; color:#fff; border-color:#3b82f6; }
-.ocr-tab-panel { display:none; }
-.ocr-tab-panel.active { display:block; }
-.raw-ocr-text {
-    display:none;
-    white-space:pre-wrap;
-    max-height:260px;
-    overflow:auto;
-    background:#020617;
-    border:1px solid #1e293b;
-    border-radius:8px;
-    color:#cbd5e1;
-    padding:10px;
-    font-size:11px;
+.prog-step.completed .prog-dot { background: #22c55e; border-color: #16a34a; }
+.prog-step.current   .prog-dot { background: #2563eb; border-color: #1d4ed8; box-shadow: 0 0 0 4px #dbeafe; }
+.prog-label {
+    font-size: 9px; font-weight: 700; color: #94a3b8;
+    text-align: center; white-space: nowrap;
+    text-transform: uppercase; letter-spacing: 0.4px;
 }
-.hs-row-confirmed { background:#052e16 !important; }
-.doc-fullscreen-modal {
-    display:none;
-    position:fixed;
-    inset:0;
-    z-index:10000;
-    background:rgba(2,6,23,.94);
-    padding:24px;
+.prog-step.completed .prog-label { color: #16a34a; }
+.prog-step.current   .prog-label { color: #1d4ed8; }
+.prog-step.clickable { cursor: pointer; }
+.prog-step.clickable:hover .prog-dot { transform: scale(1.15); }
+
+/* ── Dark Cards (left panel) ── */
+.dark-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
 }
-.doc-fullscreen-modal.open { display:flex; flex-direction:column; gap:12px; }
-.doc-fullscreen-body {
-    flex:1;
-    min-height:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
+.dark-card-title { color: #f1f5f9; font-size: 14px; font-weight: 700; margin: 0 0 12px; }
+
+/* ── Doc Viewer ── */
+.doc-viewer-wrap { background: #0f172a; border: 1px solid #334155; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+.doc-tabs-row {
+    display: flex; gap: 4px; padding: 10px 12px 0;
+    background: #1e293b; border-bottom: 1px solid #334155; flex-wrap: wrap;
 }
-.doc-fullscreen-body iframe,
-.doc-fullscreen-body img {
-    width:100%;
-    height:100%;
-    max-width:1200px;
-    object-fit:contain;
-    border:0;
-    background:#fff;
+.doc-tab-btn {
+    padding: 7px 14px; border-radius: 8px 8px 0 0;
+    border: 1px solid transparent; border-bottom: none;
+    background: transparent; color: #64748b;
+    font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.doc-tab-btn:hover { background: #0f172a; color: #94a3b8; }
+.doc-tab-btn.active { background: #0f172a; color: #f1f5f9; border-color: #334155; }
+#doc-viewer-area { min-height: 420px; }
+#doc-viewer-area iframe {
+    width: 100%; height: calc(100vh - 260px); min-height: 420px;
+    border: none; display: block; background: #fff;
+}
+.viewer-placeholder {
+    min-height: 420px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; color: #475569; font-size: 13px; gap: 10px;
 }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ OCR Timer Overlay Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
-@keyframes ocr-spin {
-    to { transform: rotate(360deg); }
+
+/* ── OCR panel ── */
+.ocr-tab-btn { padding: 5px 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #64748b; font-size: 11px; cursor: pointer; }
+.ocr-tab-btn.active { background: #1d4ed8; color: #fff; border-color: #3b82f6; }
+.ocr-text-panel { display: none; }
+.ocr-text-panel.active { display: block; }
+.ocr-raw-text {
+    white-space: pre-wrap; max-height: 220px; overflow-y: auto;
+    background: #020617; border: 1px solid #1e293b; border-radius: 8px;
+    color: #94a3b8; padding: 12px; font-size: 11px; font-family: 'Courier New', monospace;
+    line-height: 1.6; margin-top: 10px;
 }
+.conf-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600;
+}
+.conf-good { background: #052e16; color: #86efac; border: 1px solid #166534; }
+.conf-low  { background: #422006; color: #fbbf24; border: 1px solid #92400e; }
+.conf-poor { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; }
+.conf-none { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+
+/* ── Review Card (RIGHT — LIGHT) ── */
+.review-card {
+    background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 12px; overflow: hidden; margin-bottom: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.1);
+}
+.review-card-header {
+    background: #f8fafc; padding: 14px 18px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+}
+.review-card-title { color: #0f172a; font-size: 14px; font-weight: 700; margin: 0; }
+.review-card-body { padding: 16px 18px; }
+
+/* ── Item Table ── */
+.review-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #e2e8f0; }
+.review-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.review-table thead th {
+    background: #e2e8f0; color: #0f172a; font-weight: 700;
+    padding: 9px 8px; text-align: left; border-bottom: 2px solid #cbd5e1; white-space: nowrap;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.review-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background .1s; }
+.review-table tbody tr:hover { background: #f8fafc; }
+.review-table tbody tr:last-child { border-bottom: none; }
+.review-table td { padding: 7px 8px; vertical-align: top; color: #111827; }
+.row-num { color: #6b7280; font-size: 11px; font-weight: 700; text-align: center; }
+
+/* ── Light Inputs ── */
+.light-input {
+    width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px;
+    background: #fff; color: #111827; font-size: 12px; outline: none;
+    transition: border-color .15s, box-shadow .15s; box-sizing: border-box;
+}
+.light-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
+.light-select {
+    width: 100%; padding: 5px 7px; border: 1px solid #d1d5db;
+    border-radius: 6px; background: #fff; color: #111827;
+    font-size: 11px; outline: none; cursor: pointer; box-sizing: border-box;
+}
+.light-select:focus { border-color: #2563eb; }
+
+/* ── HS Recommendation chip (inline, single-line) ── */
+.hs-rec-wrap { margin-bottom: 4px; min-height: 24px; }
+.hs-rec-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 8px; background: #eff6ff; border: 1px solid #bfdbfe;
+    border-radius: 20px; cursor: pointer; transition: background .12s;
+    max-width: 100%;
+}
+.hs-rec-chip:hover { background: #dbeafe; border-color: #2563eb; }
+.hs-rec-chip.applied { background: #dcfce7; border-color: #16a34a; }
+.hs-rec-code { font-size: 12px; font-weight: 800; color: #1d4ed8; white-space: nowrap; }
+.hs-rec-chip.applied .hs-rec-code { color: #166534; }
+.hs-rec-rate { font-size: 10px; font-weight: 700; color: #1e40af; white-space: nowrap; }
+.hs-rec-chip.applied .hs-rec-rate { color: #166534; }
+.hs-rec-loading { font-size: 10px; color: #94a3b8; font-style: italic; }
+.hs-rec-none    { font-size: 10px; color: #d97706; }
+
+/* ── HS Item Row (card-within-card) ── */
+.hs-item-row {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    transition: border-color .15s;
+}
+.hs-item-row:hover { border-color: #cbd5e1; }
+
+/* ── Buttons ── */
+.remove-row-btn {
+    background: none; border: none; color: #ef4444;
+    cursor: pointer; font-size: 14px; padding: 2px 5px; border-radius: 4px; line-height: 1;
+}
+.remove-row-btn:hover { background: #fef2f2; }
+.add-row-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 14px; border: 1px dashed #94a3b8;
+    border-radius: 7px; background: transparent; color: #475569;
+    font-size: 12px; cursor: pointer; transition: all .15s;
+}
+.add-row-btn:hover { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
+.confirm-ecdt-btn {
+    width: 100%; padding: 13px; margin-top: 14px;
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    color: #fff; font-size: 14px; font-weight: 700;
+    border: none; border-radius: 9px; cursor: pointer; letter-spacing: 0.3px; transition: all .15s;
+}
+.confirm-ecdt-btn:hover {
+    background: linear-gradient(135deg, #1e40af, #1d4ed8);
+    transform: translateY(-1px); box-shadow: 0 5px 14px rgba(37,99,235,.35);
+}
+
+/* ── Modals ── */
+.modal-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.6); z-index: 9000;
+    align-items: center; justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+.modal-box {
+    background: #fff; border-radius: 14px;
+    width: 100%; max-width: 440px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.4); overflow: hidden;
+    max-height: 90vh; display: flex; flex-direction: column;
+}
+.modal-header {
+    background: #f8fafc; padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.modal-title { color: #0f172a; font-size: 15px; font-weight: 700; margin: 0; }
+.modal-close { background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; padding: 0; line-height: 1; }
+.modal-close:hover { color: #0f172a; }
+.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+.modal-footer {
+    padding: 14px 20px; border-top: 1px solid #e2e8f0;
+    display: flex; justify-content: flex-end; gap: 10px;
+    background: #f8fafc; flex-shrink: 0;
+}
+.modal-label { display: block; color: #374151; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.modal-select, .modal-textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid #d1d5db;
+    border-radius: 8px; background: #f9fafb; color: #111827;
+    font-size: 13px; outline: none; box-sizing: border-box;
+}
+.modal-select:focus, .modal-textarea:focus { border-color: #2563eb; background: #fff; }
+.modal-textarea { resize: vertical; }
+.btn-cancel { padding: 8px 18px; border: 1px solid #d1d5db; border-radius: 7px; background: #fff; color: #374151; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-cancel:hover { background: #f9fafb; }
+.btn-submit { padding: 8px 20px; border: none; border-radius: 7px; background: #2563eb; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-submit:hover { background: #1d4ed8; }
+.btn-flag-submit { padding: 8px 20px; border: none; border-radius: 7px; background: #7c3aed; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-flag-submit:hover { background: #6d28d9; }
+
+/* ── Status alerts ── */
+.s-alert { border-radius: 8px; padding: 10px 14px; font-size: 12px; font-weight: 700; margin-bottom: 12px; }
+.s-alert.revision { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+.s-alert.rejected { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+/* ── Post-lodge grid ── */
+.post-lodge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
+
+/* ── OCR overlay ── */
+@keyframes ocr-spin { to { transform: rotate(360deg); } }
 #ocr-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.82);
-    z-index: 9999;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.85); z-index: 9999;
+    flex-direction: column; align-items: center; justify-content: center; gap: 6px;
 }
 .ocr-spinner-ring {
-    width: 52px;
-    height: 52px;
-    border: 4px solid #1e293b;
-    border-top-color: #3b82f6;
-    border-radius: 50%;
-    animation: ocr-spin 0.75s linear infinite;
-    margin-bottom: 10px;
+    width: 52px; height: 52px; border: 4px solid #1e293b;
+    border-top-color: #3b82f6; border-radius: 50%;
+    animation: ocr-spin .75s linear infinite; margin-bottom: 10px;
 }
+
+/* ── Fullscreen modal ── */
+.doc-fullscreen-modal { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(2,6,23,.95); padding: 20px; flex-direction: column; gap: 12px; }
+.doc-fullscreen-modal.open { display: flex; }
+.doc-fullscreen-body { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.doc-fullscreen-body iframe, .doc-fullscreen-body img { width: 100%; height: 100%; max-width: 1200px; object-fit: contain; border: 0; background: #fff; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ OCR Timer Overlay Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ -->
+<!-- ══ OCR Overlay ══ -->
 <div id="ocr-overlay">
     <div class="ocr-spinner-ring"></div>
-    <p id="ocr-doc-label" style="color:#f1f5f9; font-size:14px; margin:0; font-weight:500;"></p>
-    <p style="color:#64748b; font-size:12px; margin:0;">
-        Elapsed: <span id="ocr-elapsed" style="color:#94a3b8; font-weight:600;">0:00</span>
-    </p>
-    <p style="color:#475569; font-size:11px; margin-top:4px;">
-        This may take 10Ã¢â‚¬â€œ30 seconds depending on document size.
-    </p>
+    <p id="ocr-doc-label" style="color:#f1f5f9;font-size:14px;margin:0;font-weight:500;"></p>
+    <p style="color:#64748b;font-size:12px;margin:0;">Elapsed: <span id="ocr-elapsed" style="color:#94a3b8;font-weight:600;">0:00</span></p>
+    <p style="color:#475569;font-size:11px;margin-top:4px;">This may take 10–30 seconds depending on document size.</p>
 </div>
 
+<!-- ══ Fullscreen Doc Modal ══ -->
 <div id="doc-fullscreen-modal" class="doc-fullscreen-modal">
-    <div style="display:flex; align-items:center; gap:12px;">
-        <p id="doc-fullscreen-title" style="color:#f1f5f9; font-size:14px; font-weight:700; margin:0;"></p>
-        <button type="button" class="btn btn-secondary" style="margin-left:auto; font-size:12px;"
-                onclick="closeDocFullscreen()">X</button>
+    <div style="display:flex;align-items:center;gap:12px;">
+        <p id="doc-fullscreen-title" style="color:#f1f5f9;font-size:14px;font-weight:700;margin:0;"></p>
+        <button type="button" onclick="closeDocFullscreen()"
+                style="margin-left:auto;background:none;border:1px solid #334155;color:#94a3b8;border-radius:6px;padding:5px 14px;cursor:pointer;font-size:12px;">
+            Close ✕
+        </button>
     </div>
     <div id="doc-fullscreen-body" class="doc-fullscreen-body"></div>
 </div>
 
-{% if ocr_toast %}
-<div style="position:fixed; top:16px; right:16px; z-index:9999; max-width:380px;
-            background:{% if ocr_toast.0 == 'success' %}#052e16{% elif ocr_toast.0 == 'warning' %}#2d1b00{% elif ocr_toast.0 == 'info' %}#0c1a2e{% else %}#2d0a0a{% endif %};
-            border:1px solid {% if ocr_toast.0 == 'success' %}#22c55e{% elif ocr_toast.0 == 'warning' %}#f59e0b{% elif ocr_toast.0 == 'info' %}#3b82f6{% else %}#ef4444{% endif %};
-            border-radius:8px; padding:12px 16px; display:flex; align-items:flex-start; gap:10px;"
-     id="ocr-toast">
-    <span style="font-size:16px; flex-shrink:0;">
-        {% if ocr_toast.0 == 'success' %}Ã¢Å“â€¦{% elif ocr_toast.0 == 'warning' %}Ã¢Å¡Â Ã¯Â¸Â{% elif ocr_toast.0 == 'info' %}Ã°Å¸â€â€ž{% else %}Ã¢ÂÅ’{% endif %}
-    </span>
-    <p style="color:#f1f5f9; font-size:13px; margin:0; line-height:1.4;">{{ ocr_toast.1 }}</p>
-    <button onclick="document.getElementById('ocr-toast').remove()"
-            style="background:none; border:none; color:#64748b; cursor:pointer; font-size:16px;
-                   padding:0; margin-left:auto; flex-shrink:0;">Ã¢Å“â€¢</button>
-</div>
-<script>setTimeout(function(){ var t=document.getElementById('ocr-toast'); if(t) t.remove(); }, 6000);</script>
-{% endif %}
-
-<!-- Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Shipment Header Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ -->
-<div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
-    <div>
-        <h2 style="color:#f1f5f9; font-size:20px; margin:0;">{{ shipment.hawb_number }}</h2>
-        <p style="color:#64748b; font-size:13px; margin:4px 0 0;">
-            {{ shipment.consignee.get_full_name|default:shipment.consignee.username }} Ã‚Â·
-            {{ shipment.import_type|capfirst }} Ã‚Â·
-            {% if shipment.urgency == 'rush' %}
-                <span style="color:#ef4444; font-weight:600;">Ã°Å¸Å¡Â¨ Rush</span>
-            {% elif shipment.urgency == 'urgent' %}
-                <span style="color:#f97316; font-weight:600;">Ã¢Å¡Â¡ Urgent</span>
-            {% elif shipment.urgency == 'priority' %}
-                <span style="color:#f59e0b;">Ã¢ÂÂ© Priority</span>
-            {% else %}
-                Standard
-            {% endif %}
-        </p>
-    </div>
-    <div style="margin-left:auto; display:flex; gap:10px; flex-wrap:wrap;">
-        {% if shipment.computation %}
-        <a href="{% url 'computation:download' shipment.id %}"
-           class="btn btn-secondary" style="font-size:12px;">
-            Ã¢Â¬â€¡ Download Excel
-        </a>
-        <a href="{% url 'computation:download' shipment.id %}?format=pdf"
-           class="btn btn-secondary" style="font-size:12px;">PDF</a>
-        {% endif %}
-        <a href="{% url 'declarant:queue' %}" class="btn btn-secondary" style="font-size:12px;">
-            Ã¢â€ Â Back to Queue
-        </a>
-    </div>
-</div>
-
-<div class="process-layout">
-
-    <!-- Ã¢â€â‚¬Ã¢â€â‚¬ Left: Document Viewer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ -->
-    <div>
-        <div class="doc-viewer">
-            <div class="doc-viewer-header">
-                <span style="color:#94a3b8; font-size:13px;">Document Viewer</span>
-                <span id="viewer-label" style="color:#64748b; font-size:12px; margin-left:4px;"></span>
-            </div>
-            <div id="viewer-area">
-                <div class="doc-viewer-placeholder">
-                    <span style="font-size:40px;">Ã°Å¸â€œâ€š</span>
-                    <span>Click "View" on a document below to load it here</span>
-                </div>
-            </div>
+<!-- ══ Update Status Modal ══ -->
+<div id="status-modal" class="modal-backdrop" onclick="if(event.target===this)closeModal('status-modal')">
+    <div class="modal-box">
+        <div class="modal-header">
+            <p class="modal-title">Update Shipment Status</p>
+            <button class="modal-close" onclick="closeModal('status-modal')">✕</button>
         </div>
-
-        <!-- Documents List -->
-        <div class="card" style="margin-top:16px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-                <p class="card-title" style="margin:0;">Attached Documents</p>
-                {% if documents %}
-                <button type="button"
-                        class="btn btn-primary"
-                        style="font-size:11px; padding:6px 14px;"
-                        title="Run OCR on all documents at once and merge results"
-                        onclick="startOCR('{% url 'computation:ocr_extract_all' shipment.id %}', 'All Documents')">
-                    Ã°Å¸â€Â OCR All Documents
-                </button>
+        <form method="POST" action="{% url 'declarant:update_status' shipment.id %}">
+            {% csrf_token %}
+            <div class="modal-body">
+                {% if shipment.status == 'for_revision' %}
+                <div class="s-alert revision">⚠ Returned for Revision</div>
+                {% elif shipment.status == 'rejected' %}
+                <div class="s-alert rejected">✕ Shipment Rejected</div>
                 {% endif %}
-            </div>
-            {% if documents %}
-            <div style="display:flex; flex-direction:column; gap:10px;">
-                {% for item in ocr_documents %}
-                {% with doc=item.doc %}
-                <div style="display:flex; align-items:center; gap:10px; padding:10px 12px;
-                            background:#0f172a; border-radius:6px; border:1px solid #1e293b;">
-                    <span style="font-size:18px;">
-                        {% if doc.document_type == 'invoice' %}Ã°Å¸â€œâ€ž
-                        {% elif doc.document_type == 'packing_list' %}Ã°Å¸â€œÂ¦
-                        {% elif doc.document_type == 'airway_bill' %}Ã¢Å“Ë†Ã¯Â¸Â
-                        {% else %}Ã°Å¸â€œÅ½{% endif %}
-                    </span>
-                    <div style="flex:1; min-width:0;">
-                        <p style="color:#f1f5f9; font-size:13px; margin:0; font-weight:500; display:flex; align-items:center; gap:7px;">
-                            {% if doc.ocr_ran_at %}
-                                {% if doc.ocr_quality == 'good' %}
-                                <span class="quality-dot quality-good" title="Good"></span>
-                                <span style="color:#86efac; font-size:10px;">Good</span>
-                                {% elif doc.ocr_quality == 'low' %}
-                                <span class="quality-dot quality-low" title="Low Quality"></span>
-                                <span style="color:#fbbf24; font-size:10px;">Low Quality</span>
-                                {% elif doc.ocr_quality == 'poor' %}
-                                <span class="quality-dot quality-poor" title="Illegible"></span>
-                                <span style="color:#fca5a5; font-size:10px;">Illegible</span>
-                                {% else %}
-                                <span class="quality-dot quality-none" title="Not yet scanned"></span>
-                                <span style="color:#94a3b8; font-size:10px;">Not yet scanned</span>
-                                {% endif %}
-                            {% elif doc.document_type in 'invoice,airway_bill,packing_list' %}
-                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%;
-                                             background:conic-gradient(#60a5fa 0%, #1e293b 60%);
-                                             animation:ocr-spin 1s linear infinite; flex-shrink:0;"></span>
-                                <span style="color:#93c5fd; font-size:10px;">ScanningÃ¢â‚¬Â¦</span>
-                            {% else %}
-                                <span class="quality-dot quality-none" title="Not yet scanned"></span>
-                                <span style="color:#94a3b8; font-size:10px;">Not yet scanned</span>
-                            {% endif %}
-                            <span>{{ doc.get_document_type_display }}</span>
-                        </p>
-                        <p style="color:#64748b; font-size:11px; margin:2px 0 0;">
-                            Uploaded {{ doc.uploaded_at|date:"M d, Y" }}
-                            {% if doc.ocr_ran_at %} Ã‚Â· OCR {{ doc.ocr_quality|title }}{% endif %}
-                        </p>
-                        {% if doc.ocr_quality == 'poor' %}
-                        <p style="color:#fca5a5; font-size:11px; margin:5px 0 0;">
-                            Poor quality scan Ã¢â‚¬â€ ask consignee to re-upload a clearer document.
-                        </p>
-                        {% endif %}
-                    </div>
-                    <button onclick="loadDoc('{{ doc.file.url }}', '{{ doc.get_document_type_display }}')"
-                            class="btn btn-secondary" style="font-size:11px; padding:5px 10px; flex-shrink:0;">
-                        View
-                    </button>
-                    <button onclick="openDocFullscreen('{{ doc.file.url }}', '{{ doc.get_document_type_display }}')"
-                            class="btn btn-secondary" style="font-size:11px; padding:5px 10px; flex-shrink:0;">
-                        Full Screen
-                    </button>
-                </div>
-                {% endwith %}
-                {% endfor %}
-            </div>
-            {% else %}
-            <p style="color:#64748b; font-size:13px;">No documents attached.</p>
-            {% endif %}
-        </div>
 
-        <!-- Persisted OCR Results Summary -->
-        {% if ocr_documents %}
-        <div class="card" style="margin-top:16px;">
-            <p class="card-title">Extracted Document Contents</p>
-            <div class="ocr-tabs">
-                {% for item in ocr_documents %}
-                {% if item.doc.ocr_ran_at %}
-                <button type="button" class="ocr-tab-btn {% if forloop.first %}active{% endif %}"
-                        data-tab="ocr-tab-{{ item.doc.id }}" onclick="switchOcrTab(this)">
-                    {% if item.doc.document_type == 'invoice' %}CI
-                    {% elif item.doc.document_type == 'packing_list' %}PL
-                    {% elif item.doc.document_type == 'airway_bill' %}HAWB/BOL
-                    {% else %}{{ item.doc.get_document_type_display }}{% endif %}
-                </button>
-                {% endif %}
-                {% endfor %}
-            </div>
-            {% for item in ocr_documents %}
-            {% if item.doc.ocr_ran_at %}
-            <div id="ocr-tab-{{ item.doc.id }}" class="ocr-tab-panel {% if forloop.first %}active{% endif %}">
-                {% if item.fields %}
-                <div style="display:grid; grid-template-columns:160px 1fr; gap:8px 12px; margin-bottom:12px;">
-                    {% for field in item.fields %}
-                    <div style="display:flex; align-items:center; gap:7px; color:#94a3b8; font-size:12px;">
-                        <span class="field-confidence-dot
-                            {% if field.confidence >= 0.85 %}quality-good
-                            {% elif field.confidence >= 0.70 %}quality-low
-                            {% else %}quality-poor{% endif %}">
-                        </span>
-                        {{ field.name }}
-                    </div>
-                    <div style="color:#f1f5f9; font-size:12px; overflow-wrap:anywhere;">{{ field.value }}</div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p style="color:#64748b; font-size:12px;">No structured fields extracted.</p>
-                {% endif %}
-                <button type="button" class="btn btn-secondary" style="font-size:11px; padding:5px 10px;"
-                        onclick="toggleRawOcr('raw-ocr-{{ item.doc.id }}')">
-                    Show Raw Text
-                </button>
-                <pre id="raw-ocr-{{ item.doc.id }}" class="raw-ocr-text">{{ item.doc.ocr_text }}</pre>
-            </div>
-            {% endif %}
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <!-- Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ OCR Item Review Panel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ -->
-        <div class="card" style="margin-top:16px; border:1px solid #1d4ed855;">
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
-                <p class="card-title" style="margin:0;">Staging Verification Grid</p>
-                <span style="font-size:11px; padding:3px 10px; border-radius:10px; flex-shrink:0;
-                    {% if shipment.shipment_type == 'fcl' %}background:#1a2e4a; color:#93c5fd;
-                    {% elif shipment.shipment_type == 'air' %}background:#1e1a2e; color:#c4b5fd;
-                    {% else %}background:#0a2e2a; color:#6ee7b7;{% endif %}">
-                    {% if shipment.shipment_type == 'fcl' %}Ã°Å¸â€œÂ¦ FCL
-                    {% elif shipment.shipment_type == 'air' %}Ã¢Å“Ë†Ã¯Â¸Â Air
-                    {% else %}Ã°Å¸Å¡Â¢ LCL{% endif %}
-                     Ã¢â‚¬â€ ECDT will be set to this mode
-                </span>
-                <span style="font-size:11px; color:#64748b; margin-left:auto;">
-                    {% if ocr_items_from_docs %}
-                        {{ ocr_items_from_docs|length }} item{{ ocr_items_from_docs|length|pluralize }} found
-                    {% else %}
-                        No items auto-extracted
-                    {% endif %}
-                </span>
-            </div>
-            {% if ocr_items_from_docs %}
-            <p style="color:#64748b; font-size:12px; margin-bottom:14px; line-height:1.5;">
-                Review the OCR extraction below. Select the correct HS code for each row, then click
-                <strong style="color:#f1f5f9;">Proceed to Computation</strong> to save the staged array.
-            </p>
-            {% else %}
-            <p style="color:#64748b; font-size:12px; margin-bottom:14px; line-height:1.5;">
-                No items were automatically extracted from the attached documents.
-                Use <strong style="color:#f1f5f9;">+ Add Row</strong> to enter items manually, then click
-                <strong style="color:#f1f5f9;">Proceed to Computation</strong>.
-            </p>
-            {% endif %}
-            <form id="ocr-items-confirm-form" method="POST"
-                  action="{% url 'declarant:save_ocr_items' shipment.id %}">
-                {% csrf_token %}
-                <div style="overflow-x:auto;">
-                    <table style="width:100%; border-collapse:collapse; font-size:12px;" id="ocr-items-table">
-                        <thead>
-                            <tr style="background:#0f172a; border-bottom:1px solid #334155;">
-                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:240px;">Item Description</th>
-                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:180px;">AI Analysis Score</th>
-                                <th style="text-align:left; padding:8px 6px; color:#64748b; min-width:260px;">Predicted HS Code</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ocr-items-tbody">
-                            {% if not ocr_items_from_docs %}
-                            <tr id="ocr-empty-row">
-                                <td colspan="3" style="padding:18px 12px; text-align:center;
-                                    color:#475569; font-size:12px; font-style:italic;">
-                                    No items extracted Ã¢â‚¬â€ add rows manually using the button below.
-                                </td>
-                            </tr>
-                            {% endif %}
-                            {% for item in ocr_items_from_docs %}
-                            <tr style="border-bottom:1px solid #1e293b;" data-row="{{ forloop.counter0 }}">
-                                <td style="padding:8px 6px; min-width:240px;">
-                                    <div style="color:#cbd5e1; font-size:12px; line-height:1.45; margin-bottom:6px; white-space:pre-wrap;">
-                                        {{ item.raw_extracted_text }}
-                                    </div>
-                                    <input type="text" name="description[]"
-                                           value="{{ item.description }}"
-                                           class="form-input ocr-desc-input"
-                                           style="font-size:11px; padding:5px 7px; width:100%;">
-                                    <input type="hidden" name="quantity[]" value="{{ item.quantity|default:'1' }}">
-                                    <input type="hidden" name="unit[]" value="{{ item.unit }}">
-                                    <input type="hidden" name="total_value[]" value="{{ item.total_value|default:'' }}">
-                                    <input type="hidden" name="raw_extracted_text[]" value="{{ item.raw_extracted_text }}">
-                                    <input type="hidden" name="confidence_pct[]" value="{{ item.confidence_pct }}">
-                                </td>
-                                <td style="padding:8px 6px; vertical-align:top;">
-                                    <span class="badge bg-dark font-monospace text-success">● OCR: {{ item.confidence_pct }}%</span>
-                                </td>
-                                <td style="padding:8px 6px; vertical-align:top;">
-                                    <select name="hs_code_id[]"
-                                            class="form-input ocr-hs-select"
-                                            data-desc="{{ item.description }}"
-                                            style="font-size:11px; padding:5px 7px; width:100%; margin-bottom:3px;">
-                                        <option value="">Loading suggestionsÃ¢â‚¬Â¦</option>
-                                    </select>
-                                    <div style="display:flex; align-items:center; gap:5px;">
-                                        <span style="color:#64748b; font-size:10px;">Duty %:</span>
-                                        <input type="number" name="hs_duty_rate[]"
-                                               class="form-input ocr-hs-rate"
-                                               value="0" step="0.01" min="0"
-                                               style="font-size:11px; padding:3px 6px; width:70px;">
-                                    </div>
-                                    <button type="button"
-                                            style="background:none; border:none; color:#ef4444;
-                                                   cursor:pointer; font-size:11px; padding:4px 0; margin-top:4px;"
-                                            title="Remove row"
-                                            onclick="ocrRemoveRow(this)">Remove</button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div style="display:flex; gap:10px; margin-top:14px; align-items:center; flex-wrap:wrap;">
-                    <button type="button" class="btn btn-secondary"
-                            style="font-size:12px;"
-                            onclick="ocrAddRow()">+ Add Row</button>
-                    <span style="color:#475569; font-size:11px; margin-left:4px;">
-                        Verified values are saved to the staging table before opening ECDT.
-                    </span>
-                    <button type="submit" class="btn btn-primary"
-                            style="font-size:13px; margin-left:auto;">
-                        Proceed to Computation
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- OCR Extracted Fields -->
-        {% if ocr_fields %}
-        <div class="card" style="margin-top:16px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-                <p class="card-title" style="margin:0;">OCR Extracted Fields
-                    <span style="color:#64748b; font-weight:400; font-size:11px; margin-left:6px;">
-                        <span style="color:#22c55e;">Ã¢â€”Â</span> Ã¢â€°Â¥85%
-                        <span style="color:#f59e0b; margin-left:3px;">Ã¢â€”Â</span> Ã¢â€°Â¥70%
-                        <span style="color:#ef4444; margin-left:3px;">Ã¢â€”Â</span> low
-                    </span>
-                </p>
-                <!-- Source legend -->
-                <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                    <span style="font-size:10px; background:#1e293b; color:#93c5fd;
-                                 padding:2px 7px; border-radius:10px;">Ã°Å¸â€œâ€ž Invoice</span>
-                    <span style="font-size:10px; background:#1e293b; color:#86efac;
-                                 padding:2px 7px; border-radius:10px;">Ã¢Å“Ë†Ã¯Â¸Â AWB</span>
-                    <span style="font-size:10px; background:#1e293b; color:#fbbf24;
-                                 padding:2px 7px; border-radius:10px;">Ã°Å¸â€œÂ¦ Packing</span>
-                </div>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 16px;">
-                {% for key, field in ocr_fields.items %}
-                {% if field.value %}
-                <div class="ocr-field">
-                    <span class="ocr-dot
-                        {% if field.confidence >= 0.85 %}conf-high
-                        {% elif field.confidence >= 0.70 %}conf-medium
-                        {% elif field.confidence > 0 %}conf-low
-                        {% else %}conf-none{% endif %}">
-                    </span>
-                    <span style="color:#64748b;">{{ key|title|cut:"_"|cut:" " }}:</span>
-                    <span style="color:#f1f5f9; font-weight:500; overflow:hidden;
-                                 text-overflow:ellipsis; white-space:nowrap; max-width:120px;"
-                          title="{{ field.value }}">{{ field.value }}</span>
-                    <!-- Source badge -->
-                    {% if field.source %}
-                    <span style="font-size:9px; padding:1px 5px; border-radius:8px; flex-shrink:0;
-                        {% if field.source == 'invoice' %}background:#172554; color:#93c5fd;
-                        {% elif field.source == 'airway_bill' %}background:#052e16; color:#86efac;
-                        {% else %}background:#422006; color:#fbbf24;{% endif %}">
-                        {{ field.source|cut:"_"|title|truncatechars:4 }}
-                    </span>
-                    {% endif %}
-                </div>
-                {% endif %}
-                {% endfor %}
-            </div>
-            <a href="{% url 'computation:compute' shipment.id %}?ocr=1"
-               class="btn btn-primary" style="font-size:12px; margin-top:12px; display:block; text-align:center;">
-                Open Computation Tool with OCR data Ã¢â€ â€™
-            </a>
-        </div>
-        {% endif %}
-
-        <!-- Computation + Advisory Card -->
-        <div class="card" style="margin-top:16px;">
-            <p class="card-title">Duty Computation &amp; Shipping Analysis</p>
-            {% if shipment.computation %}
-            <div style="margin-bottom:12px;">
-                <div style="display:flex; justify-content:space-between; padding:8px 10px;
-                            background:#0f172a; border-radius:6px; margin-bottom:6px;">
-                    <span style="color:#94a3b8; font-size:12px;">Total Landed Cost</span>
-                    <span style="color:#3b82f6; font-weight:700; font-size:14px;">
-                        Ã¢â€šÂ±{{ shipment.computation.total_landed_cost|floatformat:2 }}
-                    </span>
-                </div>
-                {% with adv=shipment.shipping_advisory %}
-                {% if adv %}
-                <div style="display:flex; justify-content:space-between; padding:8px 10px;
-                            background:#0f172a; border-radius:6px;">
-                    <span style="color:#94a3b8; font-size:12px;">WMCDA Recommendation</span>
-                    <span style="color:#22c55e; font-weight:700; font-size:13px;">
-                        {% if adv.recommended_type == 'air' %}Ã¢Å“Ë†Ã¯Â¸Â Air Freight
-                        {% elif adv.recommended_type == 'lcl' %}Ã°Å¸Å¡Â¢ LCL
-                        {% elif adv.recommended_type == 'fcl' %}Ã°Å¸â€œÂ¦ FCL
-                        {% else %}{{ adv.recommended_type|upper }}{% endif %}
-                        <span style="color:#475569; font-weight:400; font-size:11px; margin-left:6px;">
-                            (scores: Air {{ adv.air_score|floatformat:3 }} /
-                            LCL {{ adv.lcl_score|floatformat:3 }} /
-                            FCL {{ adv.fcl_score|floatformat:3 }})
-                        </span>
-                    </span>
-                </div>
-                {% endif %}
-                {% endwith %}
-            </div>
-            <div style="display:flex; gap:8px;">
-                <a href="{% url 'computation:download' shipment.id %}"
-                   class="btn btn-secondary" style="font-size:12px;">Ã¢Â¬â€¡ Excel</a>
-                <a href="{% url 'computation:download' shipment.id %}?format=pdf"
-                   class="btn btn-secondary" style="font-size:12px;">PDF</a>
-                <a href="{% url 'computation:compute' shipment.id %}"
-                   class="btn btn-primary" style="font-size:12px;">Edit / Recompute</a>
-            </div>
-            {% else %}
-            <p style="color:#64748b; font-size:13px; margin-bottom:12px;">
-                No computation yet. Open the Computation Tool to enter line items
-                (OCR-assisted) and run ECDT + Shipping Analysis together.
-            </p>
-            <a href="{% url 'computation:compute' shipment.id %}"
-               class="btn btn-primary" style="font-size:13px;">
-                Open Computation Tool Ã¢â€ â€™
-            </a>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Ã¢â€â‚¬Ã¢â€â‚¬ Right: Action Panel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ -->
-    <div>
-
-        <!-- Current Status -->
-        <div class="card" style="margin-bottom:16px;">
-            <p class="card-title">Current Status</p>
-            {% if shipment.status == 'for_revision' %}
-            <div class="status-alert revision">Warning: Returned for Revision</div>
-            {% elif shipment.status == 'rejected' %}
-            <div class="status-alert rejected">Error: Rejected</div>
-            {% endif %}
-            <div class="status-progress" style="margin-bottom:16px;">
-                {% for step in status_steps %}
-                <div class="status-step {{ step.state }}">
-                    <span class="progress-dot"></span>
-                    <span>{{ step.label }}</span>
-                </div>
-                {% endfor %}
-            </div>
-
-            {% if shipment.shipment_type == 'sea' %}
-            <div style="background:#1e3a5f; border:1px solid #3b82f6; border-radius:8px;
-                        padding:14px; margin-bottom:14px;">
-                <p style="color:#93c5fd; font-size:12px; font-weight:700; margin:0 0 10px;
-                           text-transform:uppercase; letter-spacing:0.5px;">
-                    Ã°Å¸Å¡Â¢ Refine Sea Freight Type
-                </p>
-                <p style="color:#64748b; font-size:11px; margin:0 0 10px;">
-                    Consignee selected Sea Freight. Specify the container type:
-                </p>
-                <form method="POST" action="{% url 'declarant:update_shipping_mode' shipment.id %}">
-                    {% csrf_token %}
-                    <div style="display:flex; gap:8px;">
-                        <button type="submit" name="shipment_type" value="lcl"
-                                class="btn btn-secondary" style="flex:1; font-size:12px;">
-                            Ã°Å¸Å¡Â¢ LCL Ã¢â‚¬â€ Shared Container
+                {% if shipment.shipment_type == 'sea' %}
+                <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin-bottom:14px;">
+                    <p style="color:#1e40af;font-size:12px;font-weight:700;margin:0 0 8px;">Refine Sea Freight Type</p>
+                    <p style="color:#3b82f6;font-size:12px;margin:0 0 10px;">Specify the container type before updating status.</p>
+                    <div style="display:flex;gap:8px;">
+                        <button type="button" onclick="refineMode('lcl')"
+                                style="flex:1;padding:8px;border:1px solid #bfdbfe;border-radius:6px;background:#fff;color:#1e40af;font-size:12px;font-weight:600;cursor:pointer;">
+                            LCL — Shared
                         </button>
-                        <button type="submit" name="shipment_type" value="fcl"
-                                class="btn btn-secondary" style="flex:1; font-size:12px;">
-                            Ã°Å¸â€œÂ¦ FCL Ã¢â‚¬â€ Full Container
+                        <button type="button" onclick="refineMode('fcl')"
+                                style="flex:1;padding:8px;border:1px solid #bfdbfe;border-radius:6px;background:#fff;color:#1e40af;font-size:12px;font-weight:600;cursor:pointer;">
+                            FCL — Full Container
                         </button>
                     </div>
-                </form>
-            </div>
-            {% endif %}
+                </div>
+                {% endif %}
 
-            <form method="POST" action="{% url 'declarant:update_status' shipment.id %}">
-                {% csrf_token %}
-                <div class="form-group">
-                    <label class="form-label">Update Status</label>
-                    <select name="new_status" class="form-input">
-                        <option value="">Ã¢â‚¬â€ Select new status Ã¢â‚¬â€</option>
+                <div style="margin-bottom:14px;">
+                    <label class="modal-label">New Status</label>
+                    <select name="new_status" id="status-modal-select" class="modal-select" required>
+                        <option value="">— Select new status —</option>
                         {% for key, label in manual_status_choices %}
                         <option value="{{ key }}">{{ label }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Notes (optional)</label>
-                    <textarea name="notes" class="form-input" rows="2"
-                        placeholder="Reason or remarks..."></textarea>
+                <div>
+                    <label class="modal-label">Notes (optional)</label>
+                    <textarea name="notes" class="modal-textarea" rows="3" placeholder="Reason or remarks..."></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width:100%;">
-                    Update Status
-                </button>
-            </form>
-        </div>
 
-        <!-- 6.2 Deficiency Flagging -->
-        {% if shipment.status == 'arrived' or shipment.status == 'incoming' %}
-        <div class="card" style="margin-bottom:16px; border:1px solid #7c3aed44;">
-            <p class="card-title" style="color:#a78bfa;">Ã¢Å¡Â  Flag Document Deficiency</p>
-            <p style="color:#64748b; font-size:12px; margin-bottom:12px;">
-                Flag a missing or incorrect document. The consignee will be notified immediately.
-            </p>
-            <form method="POST" action="{% url 'declarant:flag_deficiency' shipment.id %}">
-                {% csrf_token %}
-                <div class="form-group">
-                    <label class="form-label" style="font-size:12px;">Deficiency Type</label>
-                    <select name="deficiency_type" class="form-input" style="font-size:13px;" required>
-                        <option value="">Ã¢â‚¬â€ Select issue Ã¢â‚¬â€</option>
+                {% if status_logs %}
+                <div style="margin-top:18px;border-top:1px solid #e2e8f0;padding-top:14px;">
+                    <p style="color:#374151;font-size:12px;font-weight:700;margin:0 0 10px;">Status History</p>
+                    {% for log in status_logs %}
+                    <div style="padding:7px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                        <div>
+                            <span style="color:#0f172a;font-size:11px;font-weight:700;">{{ log.old_status|upper }} → {{ log.new_status|upper }}</span>
+                            {% if log.notes %}<p style="color:#6b7280;font-size:11px;margin:2px 0 0;">{{ log.notes }}</p>{% endif %}
+                            <p style="color:#9ca3af;font-size:10px;margin:1px 0 0;">{{ log.changed_by.get_full_name|default:log.changed_by.username }}</p>
+                        </div>
+                        <span style="color:#9ca3af;font-size:10px;flex-shrink:0;">{{ log.changed_at|date:"M d, H:i" }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('status-modal')">Cancel</button>
+                <button type="submit" class="btn-submit">Update Status</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ══ Flag Deficiency Modal ══ -->
+<div id="flag-modal" class="modal-backdrop" onclick="if(event.target===this)closeModal('flag-modal')">
+    <div class="modal-box" style="max-width:400px;">
+        <div class="modal-header">
+            <p class="modal-title" style="color:#7c3aed;">🚩 Flag Document Deficiency</p>
+            <button class="modal-close" onclick="closeModal('flag-modal')">✕</button>
+        </div>
+        <form method="POST" action="{% url 'declarant:flag_deficiency' shipment.id %}">
+            {% csrf_token %}
+            <div class="modal-body">
+                <p style="color:#6b7280;font-size:13px;margin:0 0 16px;line-height:1.5;">
+                    Flag a missing or incorrect document. The consignee will be notified immediately.
+                </p>
+                <div style="margin-bottom:14px;">
+                    <label class="modal-label">Deficiency Type</label>
+                    <select name="deficiency_type" class="modal-select" required>
+                        <option value="">— Select issue —</option>
                         <option value="missing_invoice">Missing Commercial Invoice</option>
                         <option value="missing_packing">Missing Packing List</option>
                         <option value="missing_awb">Missing Airway Bill / BOL</option>
@@ -723,163 +418,530 @@
                         <option value="other">Other Issue</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" style="font-size:12px;">Notes (optional)</label>
-                    <textarea name="deficiency_notes" class="form-input" rows="2"
-                        style="font-size:13px;"
-                        placeholder="Describe the specific issue or what is needed..."></textarea>
+                <div>
+                    <label class="modal-label">Notes (optional)</label>
+                    <textarea name="deficiency_notes" class="modal-textarea" rows="3"
+                              placeholder="Describe the specific issue or what is needed..."></textarea>
                 </div>
-                <button type="submit" class="btn btn-secondary"
-                        style="width:100%; border-color:#7c3aed; color:#a78bfa;"
-                        onclick="return confirm('Flag deficiency and notify consignee?');">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('flag-modal')">Cancel</button>
+                <button type="submit" class="btn-flag-submit"
+                        onclick="return confirm('Flag this deficiency and notify the consignee?')">
                     Flag &amp; Notify Consignee
                 </button>
-            </form>
-        </div>
-        {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
 
-        <!-- VASP / Etrade Link (lodgement) -->
-        {% if shipment.status == 'lodgement' %}
-        <div class="card" style="margin-bottom:16px; border:1px solid #2563eb44;">
-            <p class="card-title" style="margin-bottom:10px;">BOC Filing Ã¢â‚¬â€ VASP</p>
-            <p style="color:#94a3b8; font-size:12px; margin-bottom:12px; line-height:1.5;">
-                Proceed to the VASP / Etrade portal to file the entry with the Bureau of Customs.
+<!-- ══ OCR Toast ══ -->
+{% if ocr_toast %}
+<div id="ocr-toast" style="position:fixed;top:16px;right:16px;z-index:9999;max-width:380px;
+     background:{% if ocr_toast.0 == 'success' %}#052e16{% elif ocr_toast.0 == 'warning' %}#2d1b00{% elif ocr_toast.0 == 'info' %}#0c1a2e{% else %}#2d0a0a{% endif %};
+     border:1px solid {% if ocr_toast.0 == 'success' %}#22c55e{% elif ocr_toast.0 == 'warning' %}#f59e0b{% elif ocr_toast.0 == 'info' %}#3b82f6{% else %}#ef4444{% endif %};
+     border-radius:8px;padding:12px 16px;display:flex;align-items:flex-start;gap:10px;">
+    <p style="color:#f1f5f9;font-size:13px;margin:0;flex:1;line-height:1.4;">{{ ocr_toast.1 }}</p>
+    <button onclick="document.getElementById('ocr-toast').remove()"
+            style="background:none;border:none;color:#64748b;cursor:pointer;font-size:16px;padding:0;flex-shrink:0;">✕</button>
+</div>
+<script>setTimeout(function(){ var t=document.getElementById('ocr-toast'); if(t) t.remove(); }, 6000);</script>
+{% endif %}
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     HEADER — Shipment Info + Progress Bar
+══════════════════════════════════════════════════════════════════════════════ -->
+<div class="header-card">
+    <!-- Row 1: title + action buttons -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:6px;">
+        <div>
+            <h2 class="shipment-number">{{ shipment.hawb_number }}</h2>
+            <p class="shipment-meta">
+                {{ shipment.consignee.get_full_name|default:shipment.consignee.username }}
+                &nbsp;·&nbsp; {{ shipment.get_import_type_display }}
+                &nbsp;·&nbsp;
+                {% if shipment.urgency == 'rush' %}<span style="color:#dc2626;font-weight:700;">Rush</span>
+                {% elif shipment.urgency == 'urgent' %}<span style="color:#ea580c;font-weight:700;">Urgent</span>
+                {% elif shipment.urgency == 'priority' %}<span style="color:#d97706;font-weight:600;">Priority</span>
+                {% else %}Standard{% endif %}
+                {% if shipment.shipment_type %}
+                &nbsp;·&nbsp; <span style="color:#1d4ed8;font-weight:600;">{{ shipment.get_shipment_type_display }}</span>
+                {% endif %}
             </p>
-            <a href="{{ vasp_url }}" target="_blank" rel="noopener noreferrer"
-               class="btn btn-primary" style="width:100%; text-align:center; display:block;">
-                Open VASP / Etrade Ã¢â€ â€™
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button type="button" onclick="openModal('flag-modal')"
+                    style="padding:8px 14px;border:1px solid #ddd6fe;border-radius:8px;background:#faf5ff;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer;">
+                🚩 Flag Deficiency
+            </button>
+            {% if shipment.computation %}
+            <a href="{% url 'computation:download' shipment.id %}"
+               style="padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#374151;font-size:12px;font-weight:600;text-decoration:none;">
+                Excel
+            </a>
+            <a href="{% url 'computation:download' shipment.id %}?format=pdf"
+               style="padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#374151;font-size:12px;font-weight:600;text-decoration:none;">
+                PDF
+            </a>
+            {% endif %}
+            <a href="{% url 'declarant:queue' %}"
+               style="padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#374151;font-size:12px;font-weight:600;text-decoration:none;">
+                ← Queue
             </a>
         </div>
-        {% endif %}
+    </div>
 
-        <!-- SAD Upload (assessed and beyond) -->
-        {% if shipment.status == 'assessed' or shipment.status == 'paid' or shipment.status == 'released' or shipment.status == 'billed' %}
-        <div class="card" style="margin-bottom:16px; border:1px solid #f59e0b44;">
-            <p class="card-title" style="margin-bottom:10px;">SAD Document</p>
+    <!-- Status alert banners (light-bg, dark text) -->
+    {% if shipment.status == 'for_revision' %}
+    <div class="s-alert revision">⚠ This shipment was returned for revision — address the issues before proceeding.</div>
+    {% elif shipment.status == 'rejected' %}
+    <div class="s-alert rejected">✕ Shipment Rejected</div>
+    {% endif %}
 
-            {% if sad_document %}
-            <div style="background:#0f172a; border:1px solid #166534; border-radius:8px;
-                        padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px;">
-                <span style="font-size:18px;">Ã°Å¸â€œâ€ž</span>
-                <div style="flex:1;">
-                    <p style="color:#22c55e; font-size:12px; font-weight:600; margin:0;">SAD Uploaded</p>
-                    <p style="color:#64748b; font-size:11px; margin:2px 0 0;">{{ sad_document.uploaded_at|date:"M d, Y H:i" }}</p>
-                </div>
-                <a href="{{ sad_document.file.url }}" target="_blank"
-                   class="btn btn-secondary" style="font-size:11px; padding:5px 10px; flex-shrink:0;">View Ã¢â€ â€”</a>
+    <!-- Progress Bar -->
+    <div class="progress-track">
+        {% for step in status_steps %}
+        <div class="prog-step {{ step.state }}{% if step.key in 'lodgement,ongoing,assessed,paid,released,billed' %} clickable{% endif %}"
+             {% if step.key in 'lodgement,ongoing,assessed,paid,released,billed' %}
+             onclick="openStatusModal('{{ step.key }}')"
+             title="Click to update to {{ step.label }}"
+             {% endif %}>
+            <div class="prog-dot">
+                {% if step.state == 'completed' %}
+                <svg viewBox="0 0 12 12" fill="none" style="width:11px;height:11px;">
+                    <path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {% endif %}
             </div>
-            <p style="color:#64748b; font-size:11px; margin-bottom:8px;">Replace SAD document:</p>
-            {% else %}
-            <p style="color:#fbbf24; font-size:12px; margin-bottom:10px; font-weight:600;">
-                Ã¢Å¡Â  SAD not yet uploaded. Upload the BOC Single Administrative Document so the consignee can see the official assessment.
-            </p>
-            {% endif %}
+            <span class="prog-label">{{ step.label }}</span>
+        </div>
+        {% endfor %}
+    </div>
 
-            <form method="POST" enctype="multipart/form-data"
-                  action="{% url 'declarant:upload_sad' shipment.id %}">
-                {% csrf_token %}
-                <div style="display:flex; gap:8px; align-items:flex-end;">
-                    <div style="flex:1;">
-                        <label class="form-label" style="font-size:11px;">Select SAD File (PDF)</label>
-                        <input type="file" name="sad_file" class="form-input"
-                               accept=".pdf,.jpg,.jpeg,.png" required style="font-size:12px;">
+    <!-- Update Status trigger -->
+    <div style="display:flex;justify-content:flex-end;margin-top:4px;">
+        <button type="button" onclick="openModal('status-modal')"
+                style="padding:6px 14px;border:1px solid #bfdbfe;border-radius:7px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:600;cursor:pointer;">
+            Update Status / View History
+        </button>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MAIN TWO-PANEL LAYOUT
+══════════════════════════════════════════════════════════════════════════════ -->
+<div class="process-layout">
+
+    <!-- ══ LEFT PANEL ══ -->
+    <div>
+
+        <!-- 1. Document Viewer (tabbed) -->
+        <div class="doc-viewer-wrap">
+            <div class="doc-tabs-row" id="doc-tabs-row">
+                {% for doc in documents %}{% if doc.document_type != 'sad' %}
+                <button type="button" class="doc-tab-btn"
+                        data-url="{{ doc.file.url }}"
+                        data-label="{{ doc.get_document_type_display }}"
+                        onclick="activateDocTab(this)">
+                    {{ doc.get_document_type_display }}
+                </button>
+                {% endif %}{% endfor %}
+                {% if not documents %}
+                <span style="padding:10px 12px;color:#475569;font-size:12px;">No documents uploaded yet.</span>
+                {% endif %}
+            </div>
+            <div id="doc-viewer-area">
+                <div class="viewer-placeholder" id="viewer-placeholder">
+                    <svg viewBox="0 0 20 20" fill="currentColor" style="width:38px;height:38px;color:#334155;">
+                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/>
+                    </svg>
+                    <span>Select a document tab above to load it here</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Extracted Document Contents (raw OCR text) -->
+        <div class="dark-card">
+            <p class="dark-card-title">Extracted Document Contents</p>
+
+            {% if ocr_documents %}
+            <!-- Tabs -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;" id="ocr-tabs-row">
+                {% for item in ocr_documents %}{% if item.doc.ocr_ran_at %}
+                <button type="button" class="ocr-tab-btn"
+                        data-ocr-tab="ocr-panel-{{ item.doc.id }}"
+                        onclick="switchOcrTab(this)">
+                    {% if item.doc.document_type == 'invoice' %}Invoice
+                    {% elif item.doc.document_type == 'packing_list' %}Packing List
+                    {% elif item.doc.document_type == 'airway_bill' %}HAWB / BL
+                    {% else %}{{ item.doc.get_document_type_display }}{% endif %}
+                </button>
+                {% endif %}{% endfor %}
+            </div>
+
+            <!-- Text panels -->
+            {% for item in ocr_documents %}{% if item.doc.ocr_ran_at %}
+            <div id="ocr-panel-{{ item.doc.id }}" class="ocr-text-panel">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                    {% if item.doc.ocr_quality == 'good' %}<span class="conf-badge conf-good">● Good Quality</span>
+                    {% elif item.doc.ocr_quality == 'low' %}<span class="conf-badge conf-low">● Low Quality</span>
+                    {% elif item.doc.ocr_quality == 'poor' %}<span class="conf-badge conf-poor">● Illegible</span>
+                    {% else %}<span class="conf-badge conf-none">● Scanned</span>{% endif %}
+                    <span style="color:#475569;font-size:11px;">Scanned {{ item.doc.ocr_ran_at|date:"M d, H:i" }}</span>
+                </div>
+                <pre class="ocr-raw-text">{{ item.doc.ocr_text|default:"No text could be extracted from this document." }}</pre>
+            </div>
+            {% endif %}{% endfor %}
+
+            <!-- No OCR results yet fallback -->
+            <p id="ocr-no-results" style="color:#475569;font-size:13px;margin:0;display:none;">
+                No OCR results yet. Click "OCR All Documents" above to scan the uploaded files.
+            </p>
+            {% else %}
+            <p style="color:#475569;font-size:13px;margin:0;">No documents attached yet.</p>
+            {% endif %}
+        </div>
+
+    </div><!-- end left panel -->
+
+
+    <!-- ══ RIGHT PANEL ══ -->
+    <div>
+
+        <!-- HS Codes Card (LIGHT BG) -->
+        <div class="review-card">
+            <div class="review-card-header">
+                <div>
+                    <p class="review-card-title">HS Codes for this Shipment</p>
+                    <p style="color:#6b7280;font-size:11px;margin:3px 0 0;line-height:1.4;">
+                        Review each item's HS code. Green = found directly in the document.
+                    </p>
+                </div>
+                <span style="font-size:11px;padding:4px 10px;border-radius:12px;font-weight:700;flex-shrink:0;
+                    {% if shipment.shipment_type == 'fcl' %}background:#dbeafe;color:#1d4ed8;
+                    {% elif shipment.shipment_type == 'air' %}background:#ede9fe;color:#6d28d9;
+                    {% elif shipment.shipment_type == 'lcl' %}background:#dcfce7;color:#166534;
+                    {% elif shipment.shipment_type == 'land' %}background:#fef9c3;color:#854d0e;
+                    {% else %}background:#f1f5f9;color:#374151;{% endif %}">
+                    {% if shipment.shipment_type %}{{ shipment.get_shipment_type_display }}{% else %}Type TBD{% endif %}
+                </span>
+            </div>
+
+            <div class="review-card-body">
+                <form id="item-review-form" method="POST"
+                      action="{% url 'declarant:save_ocr_items' shipment.id %}">
+                    {% csrf_token %}
+
+                    <!-- Item rows -->
+                    <div id="review-tbody" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+
+                        {% if ocr_items_from_docs %}
+                            {% for item in ocr_items_from_docs %}
+                            <div class="hs-item-row" id="hs-row-{{ forloop.counter0 }}">
+
+                                <!-- Row number + remove -->
+                                <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">
+                                    <span style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;">
+                                        Item {{ forloop.counter }}
+                                    </span>
+                                    <button type="button" class="remove-row-btn"
+                                            onclick="removeReviewRow(this)" title="Remove">&times;</button>
+                                </div>
+
+                                <!-- Description -->
+                                <input type="text" name="description[]"
+                                       class="light-input review-desc"
+                                       value="{{ item.description }}"
+                                       placeholder="Item description…" required
+                                       style="margin-bottom:8px;">
+                                <input type="hidden" name="raw_extracted_text[]" value="{{ item.raw_extracted_text }}">
+                                <input type="hidden" name="confidence_pct[]" value="{{ item.confidence_pct }}">
+
+                                <!-- HS Code recommendation — FOCAL ELEMENT -->
+                                <div class="hs-rec-wrap" style="margin-bottom:6px;">
+                                    <span class="hs-rec-loading">Searching&hellip;</span>
+                                </div>
+                                <select name="hs_code_id[]"
+                                        class="light-select review-hs-select"
+                                        data-desc="{{ item.description }}"
+                                        data-dochs="{{ item.doc_hs_code|default:'' }}"
+                                        style="display:none;">
+                                    <option value="">Loading…</option>
+                                </select>
+                                <input type="hidden" name="hs_duty_rate[]" class="review-hs-rate" value="0">
+
+                                <!-- Secondary fields: Total, Qty, Unit (compact row) -->
+                                <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
+                                    <div style="flex:1;min-width:80px;">
+                                        <label style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px;">Total USD</label>
+                                        <input type="number" name="total_value[]"
+                                               class="light-input review-total"
+                                               value="{{ item.total_value|default:'' }}"
+                                               min="0" step="0.01" placeholder="0.00">
+                                    </div>
+                                    <div style="width:64px;">
+                                        <label style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px;">Qty</label>
+                                        <input type="number" name="quantity[]"
+                                               class="light-input"
+                                               value="{{ item.quantity|default:'1' }}"
+                                               min="0" step="0.01">
+                                    </div>
+                                    <div style="width:56px;">
+                                        <label style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px;">Unit</label>
+                                        <input type="text" name="unit[]"
+                                               class="light-input"
+                                               value="{{ item.unit }}"
+                                               placeholder="PCS"
+                                               style="text-transform:uppercase;">
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div id="empty-review-row"
+                             style="padding:20px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;">
+                            <p style="color:#92400e;font-size:13px;font-weight:600;margin:0 0 4px;">
+                                No items auto-extracted from this document.
+                            </p>
+                            <p style="color:#b45309;font-size:12px;margin:0;line-height:1.5;">
+                                The document may not have standard item rows or HS code labels.
+                                Click <strong>+ Add Item</strong> below, type the product name
+                                (e.g. <em>Incubator IN30</em>), and the system will suggest the correct HS code.
+                            </p>
+                        </div>
+                        {% endif %}
+
+                    </div><!-- end #review-tbody -->
+
+                    <!-- Add Row -->
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+                        <button type="button" class="add-row-btn" onclick="addReviewRow()">
+                            <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px;">
+                                <path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z"/>
+                            </svg>
+                            Add Item
+                        </button>
+                        <span style="color:#9ca3af;font-size:11px;">Items pre-fill the ECDT workspace on confirm.</span>
                     </div>
-                    <button type="submit" class="btn btn-warning" style="flex-shrink:0; font-size:12px;">
-                        Upload SAD
+
+                    <button type="submit" class="confirm-ecdt-btn">
+                        Confirm HS Codes &amp; Open ECDT + Advisory &rarr;
+                    </button>
+                </form>
+
+                <!-- Computation summary (if already computed) -->
+                {% if shipment.computation %}
+                <div style="margin-top:16px;padding:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                    <p style="color:#374151;font-size:12px;font-weight:700;margin:0 0 10px;">Computation Summary</p>
+                    <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #e2e8f0;">
+                        <span style="color:#6b7280;font-size:12px;">Total Landed Cost</span>
+                        <span style="color:#1d4ed8;font-weight:700;font-size:14px;">₱{{ shipment.computation.total_landed_cost|floatformat:2 }}</span>
+                    </div>
+                    {% with adv=shipment.shipping_advisory %}{% if adv %}
+                    <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #e2e8f0;">
+                        <span style="color:#6b7280;font-size:12px;">WMCDA Recommendation</span>
+                        <span style="color:#16a34a;font-weight:700;font-size:12px;">
+                            {% if adv.recommended_type == 'air' %}Air Freight
+                            {% elif adv.recommended_type == 'lcl' %}LCL
+                            {% elif adv.recommended_type == 'fcl' %}FCL
+                            {% elif adv.recommended_type == 'land' %}Land
+                            {% else %}{{ adv.recommended_type|upper }}{% endif %}
+                        </span>
+                    </div>
+                    {% endif %}{% endwith %}
+                    <div style="display:flex;gap:8px;margin-top:10px;">
+                        <a href="{% url 'computation:download' shipment.id %}"
+                           style="padding:7px 12px;border:1px solid #d1d5db;border-radius:7px;background:#fff;color:#374151;font-size:12px;font-weight:600;text-decoration:none;">
+                            Excel
+                        </a>
+                        <a href="{% url 'computation:download' shipment.id %}?format=pdf"
+                           style="padding:7px 12px;border:1px solid #d1d5db;border-radius:7px;background:#fff;color:#374151;font-size:12px;font-weight:600;text-decoration:none;">
+                            PDF
+                        </a>
+                        <a href="{% url 'computation:compute' shipment.id %}"
+                           style="padding:7px 12px;border:none;border-radius:7px;background:#2563eb;color:#fff;font-size:12px;font-weight:600;text-decoration:none;flex:1;text-align:center;">
+                            Edit / Recompute
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sea Freight Refine -->
+        {% if shipment.shipment_type == 'sea' %}
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;margin-bottom:16px;">
+            <p style="color:#1e40af;font-size:13px;font-weight:700;margin:0 0 6px;">Refine Sea Freight Type</p>
+            <p style="color:#3b82f6;font-size:12px;margin:0 0 12px;">Consignee selected Sea Freight — please specify the container type:</p>
+            <form method="POST" action="{% url 'declarant:update_shipping_mode' shipment.id %}">
+                {% csrf_token %}
+                <div style="display:flex;gap:8px;">
+                    <button type="submit" name="shipment_type" value="lcl"
+                            style="flex:1;padding:9px;border:1px solid #bfdbfe;border-radius:7px;background:#fff;color:#1e40af;font-size:12px;font-weight:600;cursor:pointer;">
+                        LCL — Shared Container
+                    </button>
+                    <button type="submit" name="shipment_type" value="fcl"
+                            style="flex:1;padding:9px;border:1px solid #bfdbfe;border-radius:7px;background:#fff;color:#1e40af;font-size:12px;font-weight:600;cursor:pointer;">
+                        FCL — Full Container
                     </button>
                 </div>
             </form>
         </div>
         {% endif %}
 
-        <!-- BOC Tracking -->
-        {% if shipment.status == 'lodgement' or shipment.status == 'ongoing' or shipment.status == 'assessed' or shipment.status == 'paid' or shipment.status == 'released' or shipment.status == 'billed' %}
-        <div class="card" style="margin-bottom:16px;">
-            <p class="card-title">BOC Tracking</p>
-            {% if shipment.boc_reference %}
-            <p style="color:#94a3b8; font-size:12px; margin-bottom:8px;">
-                BOC Ref: <strong style="color:#f1f5f9;">{{ shipment.boc_reference }}</strong>
-            </p>
-            <p style="color:#94a3b8; font-size:12px; margin-bottom:12px;">
-                BOC Status: <strong style="color:#f1f5f9;">{{ shipment.boc_status }}</strong>
-            </p>
-            {% endif %}
-            <a href="{% url 'declarant:boc' shipment.id %}"
-               class="btn btn-secondary" style="width:100%; text-align:center;">
-                {% if shipment.boc_reference %}Update BOC Status{% else %}Enter BOC Details{% endif %}
+    </div><!-- end right panel -->
+
+</div><!-- end process-layout -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     POST-LODGEMENT SECTIONS
+══════════════════════════════════════════════════════════════════════════════ -->
+{% if shipment.status == 'lodgement' or shipment.status == 'ongoing' or shipment.status == 'assessed' or shipment.status == 'paid' or shipment.status == 'released' or shipment.status == 'billed' %}
+<div class="post-lodge-grid">
+
+    {% if shipment.status == 'lodgement' %}
+    <div class="dark-card" style="margin-bottom:0;">
+        <p class="dark-card-title">BOC Filing — VASP / eTrade</p>
+        <p style="color:#94a3b8;font-size:12px;margin:0 0 14px;line-height:1.5;">
+            File the entry with the Bureau of Customs through the VASP / eTrade portal.
+        </p>
+        <a href="{{ vasp_url }}" target="_blank" rel="noopener noreferrer"
+           style="display:block;text-align:center;padding:11px;border-radius:8px;background:#2563eb;color:#fff;font-size:13px;font-weight:700;text-decoration:none;">
+            Open VASP / eTrade →
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="dark-card" style="margin-bottom:0;">
+        <p class="dark-card-title">BOC Tracking</p>
+        {% if shipment.boc_reference %}
+        <p style="color:#94a3b8;font-size:12px;margin:0 0 4px;">BOC Ref: <strong style="color:#f1f5f9;">{{ shipment.boc_reference }}</strong></p>
+        <p style="color:#94a3b8;font-size:12px;margin:0 0 12px;">Status: <strong style="color:#f1f5f9;">{{ shipment.boc_status }}</strong></p>
+        {% else %}
+        <p style="color:#475569;font-size:12px;margin:0 0 12px;">No BOC reference entered yet.</p>
+        {% endif %}
+        <a href="{% url 'declarant:boc' shipment.id %}"
+           style="display:block;text-align:center;padding:9px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#93c5fd;font-size:12px;font-weight:600;text-decoration:none;">
+            {% if shipment.boc_reference %}Update BOC Status{% else %}Enter BOC Details{% endif %}
+        </a>
+    </div>
+
+    {% if shipment.status == 'assessed' or shipment.status == 'paid' or shipment.status == 'released' or shipment.status == 'billed' %}
+    <div class="dark-card" style="margin-bottom:0;">
+        <p class="dark-card-title">SAD Document</p>
+        {% if sad_document %}
+        <div style="background:#052e16;border:1px solid #166534;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+            <div style="flex:1;">
+                <p style="color:#22c55e;font-size:12px;font-weight:600;margin:0;">SAD Uploaded</p>
+                <p style="color:#475569;font-size:11px;margin:2px 0 0;">{{ sad_document.uploaded_at|date:"M d, Y H:i" }}</p>
+            </div>
+            <a href="{{ sad_document.file.url }}" target="_blank"
+               style="padding:5px 10px;border:1px solid #166534;border-radius:6px;background:#0f172a;color:#86efac;font-size:11px;text-decoration:none;flex-shrink:0;">
+                View →
             </a>
         </div>
+        <p style="color:#64748b;font-size:11px;margin:0 0 8px;">Replace SAD document:</p>
+        {% else %}
+        <p style="color:#fbbf24;font-size:12px;font-weight:600;margin:0 0 12px;">
+            SAD not yet uploaded. Upload the BOC Single Administrative Document.
+        </p>
         {% endif %}
-
-        <!-- Status Log -->
-        <div class="card">
-            <p class="card-title">Status History</p>
-            {% if status_logs %}
-            <div style="display:flex; flex-direction:column; gap:10px;">
-                {% for log in status_logs %}
-                <div style="border-left:3px solid #334155; padding-left:12px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="color:#94a3b8; font-size:12px; font-weight:600;">
-                            {{ log.old_status|upper }} Ã¢â€ â€™ {{ log.new_status|upper }}
-                        </span>
-                        <span style="color:#475569; font-size:11px;">
-                            {{ log.changed_at|date:"M d, H:i" }}
-                        </span>
-                    </div>
-                    {% if log.notes %}
-                    <p style="color:#64748b; font-size:11px; margin:3px 0 0;">{{ log.notes }}</p>
-                    {% endif %}
-                    <p style="color:#475569; font-size:11px; margin:2px 0 0;">
-                        by {{ log.changed_by.get_full_name|default:log.changed_by.username }}
-                    </p>
+        <form method="POST" enctype="multipart/form-data" action="{% url 'declarant:upload_sad' shipment.id %}">
+            {% csrf_token %}
+            <div style="display:flex;gap:8px;align-items:flex-end;">
+                <div style="flex:1;">
+                    <label style="display:block;color:#94a3b8;font-size:11px;margin-bottom:4px;">SAD File (PDF/Image)</label>
+                    <input type="file" name="sad_file" class="form-input" accept=".pdf,.jpg,.jpeg,.png" required style="font-size:12px;">
                 </div>
-                {% endfor %}
+                <button type="submit"
+                        style="padding:8px 14px;border:none;border-radius:7px;background:#d97706;color:#fff;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;">
+                    Upload
+                </button>
             </div>
-            {% else %}
-            <p style="color:#64748b; font-size:13px;">No history yet.</p>
-            {% endif %}
-        </div>
-
+        </form>
     </div>
+    {% endif %}
+
 </div>
+{% endif %}
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Document viewer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-function loadDoc(url, label) {
-    var area = document.getElementById('viewer-area');
-    var lbl  = document.getElementById('viewer-label');
-    var ext  = url.split('?')[0].toLowerCase();
-    var isPdf = ext.endsWith('.pdf');
-    var isImg = /\.(jpe?g|png|gif|webp)$/.test(ext);
-
-    lbl.innerHTML = 'Ã¢â‚¬â€ ' + label +
-        ' <a href="' + url + '" target="_blank" ' +
-        'style="color:#3b82f6; font-size:11px; text-decoration:none; margin-left:8px; ' +
-        'padding:2px 8px; border:1px solid #334155; border-radius:4px;">Open in new tab Ã¢â€ â€”</a>';
-
-    if (isPdf) {
-        area.innerHTML =
-            '<iframe src="' + url + '" ' +
-            'style="width:100%; height:calc(100vh - 220px); min-height:500px; border:none; display:block;" ' +
-            'allow="fullscreen"></iframe>';
-    } else if (isImg) {
-        area.innerHTML =
-            '<div style="background:#1e293b; min-height:300px; display:flex; align-items:center; justify-content:center;">' +
-            '<img src="' + url + '" style="max-width:100%; max-height:calc(100vh - 220px); object-fit:contain; display:block;"></div>';
-    } else {
-        area.innerHTML =
-            '<div style="padding:48px; text-align:center;">' +
-            '<p style="color:#94a3b8; font-size:14px; margin:0 0 16px;">Preview not available for this file type.</p>' +
-            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:13px;">Open / Download Ã¢â€ â€”</a></div>';
-    }
+/* ── CSRF ── */
+function getCsrfToken() {
+    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ OCR Timer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+/* ── Modals ── */
+function openModal(id) {
+    document.getElementById(id).classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    document.body.style.overflow = '';
+}
+function openStatusModal(statusKey) {
+    var sel = document.getElementById('status-modal-select');
+    if (sel && statusKey) {
+        for (var i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === statusKey) { sel.selectedIndex = i; break; }
+        }
+    }
+    openModal('status-modal');
+}
+function refineMode(mode) {
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{% url "declarant:update_shipping_mode" shipment.id %}';
+    form.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken" value="' + getCsrfToken() + '">' +
+                     '<input type="hidden" name="shipment_type" value="' + mode + '">';
+    document.body.appendChild(form);
+    form.submit();
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { closeModal('status-modal'); closeModal('flag-modal'); closeDocFullscreen(); }
+});
+
+/* ── Document Viewer ── */
+function activateDocTab(btn) {
+    document.querySelectorAll('.doc-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    loadDocInViewer(btn.dataset.url, btn.dataset.label);
+}
+function activateDocByUrl(url, label) {
+    document.querySelectorAll('.doc-tab-btn').forEach(function(b) {
+        b.classList.remove('active');
+        if (b.dataset.url === url) b.classList.add('active');
+    });
+    loadDocInViewer(url, label);
+}
+function loadDocInViewer(url, label) {
+    var area = document.getElementById('doc-viewer-area');
+    var ext  = url.split('?')[0].toLowerCase();
+    var openLink = '<a href="' + url + '" target="_blank" ' +
+        'style="position:absolute;top:8px;right:8px;padding:4px 10px;background:rgba(30,41,59,.9);' +
+        'border:1px solid #334155;border-radius:5px;color:#93c5fd;font-size:11px;text-decoration:none;z-index:2;">' +
+        'Open in new tab →</a>';
+    if (ext.endsWith('.pdf')) {
+        area.innerHTML = '<div style="position:relative;">' + openLink +
+            '<iframe src="' + url + '" style="width:100%;height:calc(100vh - 260px);min-height:420px;border:none;display:block;background:#fff;" allow="fullscreen"></iframe></div>';
+    } else if (/\.(jpe?g|png|gif|webp)$/.test(ext)) {
+        area.innerHTML = '<div style="background:#1e293b;min-height:420px;display:flex;align-items:center;justify-content:center;position:relative;">' + openLink +
+            '<img src="' + url + '" alt="' + label.replace(/"/g, '&quot;') + '" style="max-width:100%;max-height:calc(100vh - 260px);object-fit:contain;display:block;"></div>';
+    } else {
+        area.innerHTML = '<div style="padding:60px;text-align:center;">' +
+            '<p style="color:#94a3b8;font-size:13px;margin:0 0 16px;">Preview not available for this file type.</p>' +
+            '<a href="' + url + '" target="_blank" style="padding:9px 20px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;">Open / Download →</a></div>';
+    }
+}
 function openDocFullscreen(url, label) {
-    var modal = document.getElementById('doc-fullscreen-modal');
     var body = document.getElementById('doc-fullscreen-body');
     var title = document.getElementById('doc-fullscreen-title');
     var ext = url.split('?')[0].toLowerCase();
@@ -889,175 +951,275 @@ function openDocFullscreen(url, label) {
     } else if (/\.(jpe?g|png|gif|webp)$/.test(ext)) {
         body.innerHTML = '<img src="' + url + '" alt="' + label.replace(/"/g, '&quot;') + '">';
     } else {
-        body.innerHTML = '<a href="' + url + '" target="_blank" class="btn btn-primary">Open / Download</a>';
+        body.innerHTML = '<a href="' + url + '" target="_blank" style="padding:12px 24px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;">Open / Download</a>';
     }
-    modal.classList.add('open');
+    document.getElementById('doc-fullscreen-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
 }
-
 function closeDocFullscreen() {
-    var modal = document.getElementById('doc-fullscreen-modal');
     document.getElementById('doc-fullscreen-body').innerHTML = '';
-    modal.classList.remove('open');
+    document.getElementById('doc-fullscreen-modal').classList.remove('open');
     document.body.style.overflow = '';
 }
 
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeDocFullscreen();
-});
-
+/* ── OCR Text Tabs ── */
 function switchOcrTab(btn) {
-    document.querySelectorAll('.ocr-tab-btn').forEach(function(el) { el.classList.remove('active'); });
-    document.querySelectorAll('.ocr-tab-panel').forEach(function(el) { el.classList.remove('active'); });
+    document.querySelectorAll('.ocr-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.ocr-text-panel').forEach(function(p) { p.classList.remove('active'); });
     btn.classList.add('active');
-    var panel = document.getElementById(btn.dataset.tab);
+    var panel = document.getElementById(btn.dataset.ocrTab);
     if (panel) panel.classList.add('active');
 }
 
-{% if has_pending_ocr %}
-// OCR is running in background Ã¢â‚¬â€ reload page every 15 s until all docs are scanned
-setTimeout(function() { window.location.reload(); }, 15000);
-{% endif %}
-
-function toggleRawOcr(id) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.style.display = el.style.display === 'block' ? 'none' : 'block';
-}
-
-function getCsrfToken() {
-    var input = document.querySelector('[name=csrfmiddlewaretoken]');
-    return input ? input.value : '';
-}
-
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ OCR Item Review: per-item HS suggestions Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+/* ── Item Review Table ── */
 var OCR_HS_URL = "{% url 'computation:hs_suggest' %}";
 
-function ocrFetchHsForRow(selectEl, desc, rateInput) {
-    if (!desc || !selectEl) return;
-    selectEl.innerHTML = '<option value="">SearchingÃ¢â‚¬Â¦</option>';
-    fetch(OCR_HS_URL + '?q=' + encodeURIComponent(desc) + '&limit=5')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            var suggs = data.suggestions || [];
-            selectEl.innerHTML = '<option value="">Ã¢â‚¬â€ Select HS Code Ã¢â‚¬â€</option>';
-            suggs.forEach(function(s) {
-                var opt = document.createElement('option');
-                opt.value = s.id;
-                var shortDesc = s.desc.length > 42 ? s.desc.substring(0, 42) + 'Ã¢â‚¬Â¦' : s.desc;
-                opt.textContent = s.code + ' Ã¢â‚¬â€ ' + shortDesc + '  (' + s.rate.toFixed(2) + '%)';
-                opt.dataset.rate = s.rate;
-                selectEl.appendChild(opt);
-            });
-            if (suggs.length > 0 && selectEl.options.length > 1) {
-                selectEl.selectedIndex = 1;
-                if (rateInput) rateInput.value = suggs[0].rate.toFixed(2);
-            }
-        })
-        .catch(function() {
-            selectEl.innerHTML = '<option value="">Ã¢â‚¬â€ Search failed Ã¢â‚¬â€</option>';
-        });
+/**
+ * Collect all OCR raw text from the page (all scanned document panels).
+ * Passed as context to hs_code_suggest so the backend can recover from
+ * bad extracted descriptions by using the real product text in the document.
+ */
+function getAllOcrText() {
+    var parts = [];
+    document.querySelectorAll('.ocr-raw-text').forEach(function(el) {
+        var t = (el.textContent || '').trim();
+        if (t) parts.push(t.substring(0, 600));
+    });
+    return parts.join(' ').substring(0, 1200);
 }
 
-function ocrInitRow(row) {
-    var selectEl  = row.querySelector('.ocr-hs-select');
-    var rateInput = row.querySelector('.ocr-hs-rate');
-    var descInput = row.querySelector('.ocr-desc-input');
-    if (!selectEl || !descInput) return;
-    // Initial load
-    var initDesc = selectEl.dataset.desc || descInput.value.trim();
-    if (initDesc) ocrFetchHsForRow(selectEl, initDesc, rateInput);
-    // On description blur, refresh suggestions
-    descInput.addEventListener('blur', function() {
-        var d = this.value.trim();
-        if (d) ocrFetchHsForRow(selectEl, d, rateInput);
-    });
-    // On HS select change, update duty rate field
-    selectEl.addEventListener('change', function() {
-        var opt = this.selectedOptions[0];
-        if (opt && rateInput) rateInput.value = opt.dataset.rate ? parseFloat(opt.dataset.rate).toFixed(2) : '0';
-    });
-}
-
-function ocrRemoveRow(btn) {
-    btn.closest('tr').remove();
-    // If no data rows remain, show the empty-state placeholder
-    var tbody = document.querySelector('#ocr-items-tbody');
-    if (!tbody) return;
-    var dataRows = tbody.querySelectorAll('tr:not(#ocr-empty-row)');
-    if (dataRows.length === 0) {
-        var emptyRow = document.getElementById('ocr-empty-row');
-        if (!emptyRow) {
-            emptyRow = document.createElement('tr');
-            emptyRow.id = 'ocr-empty-row';
-            emptyRow.innerHTML = '<td colspan="3" style="padding:18px 12px;text-align:center;color:#475569;font-size:12px;font-style:italic;">No items extracted - add rows manually using the button below.</td>';
-            tbody.appendChild(emptyRow);
-        }
+/* Show/update the recommendation chip in .hs-rec-wrap */
+function _setHsRecChip(wrap, sugg, autoApply) {
+    if (!wrap) return;
+    if (!sugg) {
+        wrap.innerHTML = '<span class="hs-rec-none">No match &mdash; <a href="#" class="hs-override-link" onclick="toggleHsOverride(this);return false;">select manually</a></span>';
+        return;
+    }
+    var fromDoc = (sugg.source === 'document');
+    /* Green styling when HS code came directly from the invoice/packing list */
+    var chipStyle  = fromDoc ? 'background:#f0fdf4;border-color:#22c55e;' : '';
+    var codeStyle  = fromDoc ? 'color:#16a34a;' : '';
+    var rateStyle  = fromDoc ? 'color:#166534;' : '';
+    var labelHtml  = fromDoc
+        ? '<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#16a34a;">From Document</span><br>'
+        : '';
+    wrap.innerHTML =
+        labelHtml +
+        '<span class="hs-rec-chip" onclick="applyHsRec(this)" style="' + chipStyle + '" ' +
+             'data-id="' + sugg.id + '" data-rate="' + sugg.rate + '" data-code="' + sugg.code + '">' +
+            '<span class="hs-rec-code" style="' + codeStyle + '">' + sugg.code + '</span>' +
+            '<span class="hs-rec-rate" style="' + rateStyle + '">&nbsp;&middot;&nbsp;' + sugg.rate.toFixed(1) + '%</span>' +
+        '</span>' +
+        ' <a href="#" class="hs-override-link" onclick="toggleHsOverride(this);return false;" style="font-size:10px;color:#94a3b8;margin-left:4px;">change</a>';
+    if (autoApply) {
+        var chip = wrap.querySelector('.hs-rec-chip');
+        if (chip) applyHsRec(chip);
     }
 }
 
-function ocrAddRow() {
-    var tbody = document.querySelector('#ocr-items-tbody');
-    if (!tbody) return;
-    // Hide the empty-state row if present
-    var emptyRow = document.getElementById('ocr-empty-row');
-    if (emptyRow) emptyRow.remove();
-    var rowIdx = tbody.querySelectorAll('tr').length + 1;
-    var tr = document.createElement('tr');
-    tr.style.borderBottom = '1px solid #1e293b';
-    tr.innerHTML =
-        '<td style="padding:8px 6px;min-width:240px;">' +
-            '<div style="color:#cbd5e1;font-size:12px;line-height:1.45;margin-bottom:6px;">Manual staging row ' + rowIdx + '</div>' +
-            '<input type="text" name="description[]" class="form-input ocr-desc-input" placeholder="Item description..." style="font-size:11px;padding:5px 7px;width:100%;">' +
-            '<input type="hidden" name="quantity[]" value="1">' +
-            '<input type="hidden" name="unit[]" value="">' +
-            '<input type="hidden" name="total_value[]" value="">' +
-            '<input type="hidden" name="raw_extracted_text[]" value="Manual staging row">' +
-            '<input type="hidden" name="confidence_pct[]" value="0">' +
-        '</td>' +
-        '<td style="padding:8px 6px;vertical-align:top;"><span class="badge bg-dark font-monospace text-success">● OCR: 0%</span></td>' +
-        '<td style="padding:8px 6px;vertical-align:top;">' +
-            '<select name="hs_code_id[]" class="form-input ocr-hs-select" style="font-size:11px;padding:5px 7px;width:100%;margin-bottom:3px;" data-desc="">' +
-                '<option value="">Enter description first</option>' +
-            '</select>' +
-            '<div style="display:flex;align-items:center;gap:5px;">' +
-                '<span style="color:#64748b;font-size:10px;">Duty %:</span>' +
-                '<input type="number" name="hs_duty_rate[]" class="form-input ocr-hs-rate" value="0" step="0.01" min="0" style="font-size:11px;padding:3px 6px;width:70px;">' +
-            '</div>' +
-            '<button type="button" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:11px;padding:4px 0;margin-top:4px;" onclick="ocrRemoveRow(this)">Remove</button>' +
-        '</td>';
-    tbody.appendChild(tr);
-    ocrInitRow(tr);
+function toggleHsOverride(link) {
+    var td = link.closest('td, .hs-item-row');
+    var sel = td ? td.querySelector('.review-hs-select') : null;
+    if (!sel) return;
+    if (sel.style.display === 'none' || !sel.style.display) {
+        sel.style.display = 'block';
+        sel.style.marginTop = '4px';
+        link.textContent = 'hide';
+        sel.focus();
+    } else {
+        sel.style.display = 'none';
+        link.textContent = 'change';
+    }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Init per-item HS dropdowns for OCR review panel
-    document.querySelectorAll('#ocr-items-tbody tr:not(#ocr-empty-row)').forEach(ocrInitRow);
-});
+function applyHsRec(chip) {
+    var td        = chip.closest('td, .hs-item-row');   /* supports both table and card layout */
+    var selectEl  = td ? td.querySelector('.review-hs-select') : null;
+    var rateInput = td ? td.querySelector('.review-hs-rate')   : null;
+    var id   = chip.dataset.id;
+    var rate = chip.dataset.rate;
+    /* Sync the hidden select so the form submits the correct hs_code_id */
+    if (selectEl) {
+        for (var i = 0; i < selectEl.options.length; i++) {
+            if (String(selectEl.options[i].value) === String(id)) {
+                selectEl.selectedIndex = i;
+                break;
+            }
+        }
+    }
+    if (rateInput) rateInput.value = parseFloat(rate).toFixed(2);
+    chip.classList.add('applied');
+}
 
+function fetchHsForRow(row) {
+    var descInput = row.querySelector('.review-desc');
+    var selectEl  = row.querySelector('.review-hs-select');
+    var rateInput = row.querySelector('.review-hs-rate');
+    var recWrap   = row.querySelector('.hs-rec-wrap');
+    if (!selectEl) return;
+    var desc = (selectEl.dataset.desc || (descInput ? descInput.value : '') || '').trim();
+    if (!desc) {
+        selectEl.innerHTML = '<option value=""></option>';
+        if (recWrap) recWrap.innerHTML = '<span class="hs-rec-loading">Enter a description first</span>';
+        return;
+    }
+    selectEl.innerHTML = '<option value=""></option>';
+    if (recWrap) recWrap.innerHTML = '<span class="hs-rec-loading">Searching&hellip;</span>';
+
+    /* doc_hs: HS code explicitly printed in the invoice (e.g. "HS CODE: 3923.30") */
+    var docHs      = (selectEl.dataset.dochs || '').trim();
+    var ocrContext = getAllOcrText();
+
+    var fetchUrl = OCR_HS_URL + '?q=' + encodeURIComponent(desc) + '&limit=6';
+    if (docHs)      fetchUrl += '&doc_hs='  + encodeURIComponent(docHs);
+    if (ocrContext) fetchUrl += '&context=' + encodeURIComponent(ocrContext);
+
+    fetch(fetchUrl)
+        .then(function(r) { return r.text(); })         // always read body
+        .then(function(text) {
+            try { return JSON.parse(text); }
+            catch(e) { return {suggestions: []}; }     // gracefully handle HTML error pages
+        })
+        .then(function(data) {
+            var suggs = data.suggestions || [];
+            selectEl.innerHTML = '<option value="">— Select HS Code —</option>';
+            suggs.forEach(function(s) {
+                var opt = document.createElement('option');
+                opt.value = s.id;
+                var shortDesc = s.desc.length > 40 ? s.desc.substring(0, 40) + '…' : s.desc;
+                var srcLabel  = s.source === 'document' ? ' [Document]' : '';
+                opt.textContent = s.code + ' — ' + shortDesc + ' (' + s.rate.toFixed(1) + '%)' + srcLabel;
+                opt.dataset.rate = s.rate;
+                selectEl.appendChild(opt);
+            });
+            if (suggs.length > 0) {
+                /* Auto-apply best match; green chip when from document */
+                _setHsRecChip(recWrap, suggs[0], true);
+            } else {
+                _setHsRecChip(recWrap, null, false);
+            }
+        })
+        .catch(function() {
+            selectEl.innerHTML = '<option value=""></option>';
+            if (recWrap) recWrap.innerHTML = '<span class="hs-rec-none">Search failed</span>';
+        });
+}
+
+function initReviewRow(row) {
+    var descInput = row.querySelector('.review-desc');
+    var selectEl  = row.querySelector('.review-hs-select');
+    if (!selectEl) return;
+    fetchHsForRow(row);
+    if (descInput) {
+        /* Search on blur (click away) */
+        descInput.addEventListener('blur', function() {
+            selectEl.dataset.desc = this.value.trim();
+            fetchHsForRow(row);
+        });
+        /* Also search while typing — debounced 600ms so it doesn't fire on every key */
+        var _hsDebounce = null;
+        descInput.addEventListener('input', function() {
+            clearTimeout(_hsDebounce);
+            var val = this.value.trim();
+            if (val.length < 3) return;   // wait for at least 3 chars
+            _hsDebounce = setTimeout(function() {
+                selectEl.dataset.desc = val;
+                fetchHsForRow(row);
+            }, 600);
+        });
+    }
+    if (selectEl) {
+        selectEl.addEventListener('change', function() {
+            var opt = this.selectedOptions[0];
+            var rateInput = this.closest('td').querySelector('.review-hs-rate');
+            if (opt && rateInput) rateInput.value = opt.dataset.rate ? parseFloat(opt.dataset.rate).toFixed(2) : '0';
+            /* Update chip to show selected code */
+            var recWrap = this.closest('td').querySelector('.hs-rec-wrap');
+            if (opt && opt.value && recWrap) {
+                var chip = recWrap.querySelector('.hs-rec-chip');
+                if (chip) { chip.classList.add('applied'); chip.querySelector('.hs-rec-code').textContent = opt.textContent.split(' — ')[0]; }
+            }
+        });
+    }
+}
+
+function renumberRows() {
+    document.querySelectorAll('#review-tbody .hs-item-row').forEach(function(row, i) {
+        var lbl = row.querySelector('.item-num-label');
+        if (lbl) lbl.textContent = 'Item ' + (i + 1);
+    });
+}
+function removeReviewRow(btn) {
+    var row = btn.closest('.hs-item-row');
+    if (row) row.remove();
+    renumberRows();
+    var tbody = document.getElementById('review-tbody');
+    if (!tbody) return;
+    if (!tbody.querySelectorAll('.hs-item-row').length) {
+        var empty = document.getElementById('empty-review-row');
+        if (!empty) {
+            empty = document.createElement('div');
+            empty.id = 'empty-review-row';
+            empty.style.cssText = 'padding:28px;text-align:center;color:#9ca3af;font-size:12px;font-style:italic;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;';
+            empty.textContent = 'No items — add rows manually below.';
+            tbody.appendChild(empty);
+        }
+    }
+}
+function addReviewRow() {
+    var tbody = document.getElementById('review-tbody');
+    if (!tbody) return;
+    var empty = document.getElementById('empty-review-row');
+    if (empty) empty.remove();
+    var count = tbody.querySelectorAll('.hs-item-row').length + 1;
+    var div = document.createElement('div');
+    div.className = 'hs-item-row';
+    div.innerHTML =
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">' +
+            '<span class="item-num-label" style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;">Item ' + count + '</span>' +
+            '<button type="button" class="remove-row-btn" onclick="removeReviewRow(this)" title="Remove">&times;</button>' +
+        '</div>' +
+        '<input type="text" name="description[]" class="light-input review-desc" placeholder="Item description…" required style="margin-bottom:8px;">' +
+        '<input type="hidden" name="raw_extracted_text[]" value="Manual entry">' +
+        '<input type="hidden" name="confidence_pct[]" value="0">' +
+        '<div class="hs-rec-wrap" style="margin-bottom:6px;"><span class="hs-rec-loading">Enter a description first</span></div>' +
+        '<select name="hs_code_id[]" class="light-select review-hs-select" data-desc="" data-dochs="" style="display:none;"><option value=""></option></select>' +
+        '<input type="hidden" name="hs_duty_rate[]" class="review-hs-rate" value="0">' +
+        '<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">' +
+            '<div style="flex:1;min-width:80px;">' +
+                '<label style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px;">Total USD</label>' +
+                '<input type="number" name="total_value[]" class="light-input review-total" min="0" step="0.01" placeholder="0.00">' +
+            '</div>' +
+            '<div style="width:64px;">' +
+                '<label style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px;">Qty</label>' +
+                '<input type="number" name="quantity[]" class="light-input" value="1" min="0" step="0.01">' +
+            '</div>' +
+            '<div style="width:56px;">' +
+                '<label style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px;">Unit</label>' +
+                '<input type="text" name="unit[]" class="light-input" placeholder="PCS" style="text-transform:uppercase;">' +
+            '</div>' +
+        '</div>';
+    tbody.appendChild(div);
+    initReviewRow(div);
+    div.querySelector('.review-desc').focus();
+}
+
+/* ── OCR Overlay ── */
 var _ocrTimer = null;
-
 function startOCR(url, docLabel) {
-    var overlay  = document.getElementById('ocr-overlay');
-    var elapsed  = document.getElementById('ocr-elapsed');
-    var label    = document.getElementById('ocr-doc-label');
-
-    label.textContent    = 'Extracting: ' + docLabel + '...';
+    var overlay = document.getElementById('ocr-overlay');
+    var elapsed = document.getElementById('ocr-elapsed');
+    var label   = document.getElementById('ocr-doc-label');
+    label.textContent = 'Extracting: ' + docLabel + '…';
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-
     var t0 = Date.now();
     _ocrTimer = setInterval(function() {
         var s = Math.floor((Date.now() - t0) / 1000);
         elapsed.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
     }, 250);
-
     fetch(url, { credentials: 'same-origin' })
-        .then(function() {
-            clearInterval(_ocrTimer);
-            // Brief pause so the user sees the final elapsed time before reload
-            setTimeout(function() { window.location.reload(); }, 400);
-        })
+        .then(function() { clearInterval(_ocrTimer); setTimeout(function() { window.location.reload(); }, 300); })
         .catch(function() {
             clearInterval(_ocrTimer);
             overlay.style.display = 'none';
@@ -1065,5 +1227,30 @@ function startOCR(url, docLabel) {
             alert('OCR request failed. Please try again.');
         });
 }
+
+{% if has_pending_ocr %}
+setTimeout(function() { window.location.reload(); }, 15000);
+{% endif %}
+
+/* ── Init on load ── */
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-load first document tab
+    var firstTab = document.querySelector('.doc-tab-btn');
+    if (firstTab) activateDocTab(firstTab);
+
+    // Init HS suggestions for all pre-populated rows
+    document.querySelectorAll('#review-tbody .hs-item-row').forEach(initReviewRow);
+
+    // Activate first OCR tab or show "no results" fallback
+    var firstOcrTab = document.querySelector('.ocr-tab-btn');
+    if (firstOcrTab) {
+        firstOcrTab.classList.add('active');
+        var firstPanel = document.getElementById(firstOcrTab.dataset.ocrTab);
+        if (firstPanel) firstPanel.classList.add('active');
+    } else {
+        var noResults = document.getElementById('ocr-no-results');
+        if (noResults) noResults.style.display = 'block';
+    }
+});
 </script>
 {% endblock %}

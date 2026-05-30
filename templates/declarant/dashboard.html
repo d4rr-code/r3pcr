@@ -1,14 +1,73 @@
-{% extends 'base.html' %}
+{% extends 'declarant/base_declarant.html' %}
 
 {% block title %}Declarant Dashboard{% endblock %}
 {% block page_title %}Declarant Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
 
 {% block extra_css %}
 <style>
-.kpi-card.purple { border-left-color: #8b5cf6; }
-.kpi-card.purple .kpi-value { color: #8b5cf6; }
-.kpi-card.teal   { border-left-color: #14b8a6; }
-.kpi-card.teal   .kpi-value { color: #14b8a6; }
+.d-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 22px;
+}
+.d-kpi-card {
+    --accent:#1B3358;
+    background:#fff;
+    border:1px solid #E6ECF2;
+    border-left:5px solid var(--accent);
+    border-radius:8px;
+    min-height:108px;
+    padding:18px 18px 16px;
+    box-shadow:0 10px 28px rgba(31,43,62,.10);
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+}
+.d-kpi-top {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+}
+.d-kpi-label {
+    color:#5B6472;
+    font-size:14px;
+    font-weight:900;
+    margin:0;
+    line-height:1.2;
+}
+.d-kpi-icon {
+    width:28px;
+    height:28px;
+    border-radius:5px;
+    background:color-mix(in srgb, var(--accent) 12%, #fff);
+    color:var(--accent);
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+}
+.d-kpi-icon svg {
+    width:15px;
+    height:15px;
+}
+.d-kpi-value {
+    color:#1B3358;
+    font-size:34px;
+    line-height:1;
+    font-weight:900;
+    margin:12px 0 0;
+}
+.d-kpi-card.is-blue { --accent:#3B82F6; }
+.d-kpi-card.is-yellow { --accent:#F59E0B; }
+.d-kpi-card.is-green { --accent:#22C55E; }
+.d-kpi-card.is-red { --accent:#EF4444; }
+.d-kpi-card.is-purple { --accent:#8B5CF6; }
+.d-kpi-card.is-teal { --accent:#14B8A6; }
+.d-kpi-card.is-purple .d-kpi-value { color:#8B5CF6; }
+.d-kpi-card.is-teal .d-kpi-value { color:#14B8A6; }
 
 .dash-filter-bar {
     display: flex;
@@ -31,6 +90,66 @@
 .filter-pill.active-date   { background: #3b82f6; border-color: #3b82f6; color: #fff; }
 .filter-pill.active-urgent { background: #ef4444; border-color: #ef4444; color: #fff; }
 .filter-pill.active-urg    { background: #334155; border-color: #475569; color: #f1f5f9; }
+.perf-title { color:#1B3358; font-size:24px; font-weight:700; margin:28px 0 16px; }
+.perf-grid { display:grid; grid-template-columns:1.25fr .8fr; gap:22px; align-items:start; margin-bottom:24px; }
+.perf-card { background:#fff; border:1px solid #E6ECF2; border-radius:10px; box-shadow:0 12px 28px rgba(31,43,62,.10); padding:20px 24px; min-width:0; }
+.perf-card-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
+.perf-card h2 { color:#1B3358; font-size:14px; font-weight:900; margin:0; }
+.perf-chip { border:1px solid #DCE5EF; border-radius:4px; color:#111827; font-size:10px; font-weight:900; padding:4px 8px; background:#fff; }
+.perf-chart { position:relative; height:230px; }
+.perf-donut { position:relative; height:260px; }
+.perf-donut-center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; color:#334155; font-size:20px; font-weight:900; }
+.perf-type-total { color:#111827; font-size:12px; font-weight:800; margin:0 0 10px; }
+.perf-type-grid { display:grid; grid-template-columns:1fr 1fr; border:1px solid #E6ECF2; }
+.perf-type-item { min-height:62px; padding:12px 14px; border-right:1px solid #E6ECF2; border-bottom:1px solid #E6ECF2; }
+.perf-type-item:nth-child(2n) { border-right:0; }
+.perf-type-item:nth-last-child(-n+2) { border-bottom:0; }
+.perf-swatch { display:inline-block; width:32px; height:8px; border-radius:2px; margin-right:8px; vertical-align:middle; }
+.perf-type-label { color:#334155; font-size:9px; font-weight:800; }
+.perf-type-count { color:#111827; font-size:18px; font-weight:900; margin:8px 0 0; }
+.perf-wide { grid-column:1 / span 1; }
+.perf-side { grid-column:2; }
+.perf-status-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); border:1px solid #E6ECF2; }
+.perf-status { display:grid; grid-template-columns:28px minmax(0, 1fr) auto; gap:8px; align-items:center; padding:13px 12px; border-right:1px solid #E6ECF2; border-bottom:1px solid #E6ECF2; }
+.perf-status:nth-child(3n) { border-right:0; }
+.perf-status:nth-last-child(-n+3) { border-bottom:0; }
+.perf-status-dot { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--c); color:#fff; font-size:11px; font-weight:900; }
+.perf-status-name { color:var(--c); font-size:11px; font-weight:900; text-transform:uppercase; margin:0; line-height:1.1; }
+.perf-status-sub { color:#64748B; font-size:8px; margin:2px 0 0; line-height:1.2; }
+.perf-status-count { color:var(--c); font-size:17px; font-weight:900; }
+.perf-bar { display:flex; height:14px; border-radius:4px; overflow:hidden; background:#EDF1F5; margin-top:22px; }
+.perf-bar span { min-width:3px; }
+.perf-record-title { color:#1B3358; font-size:18px; font-weight:900; margin:28px 0 14px; padding-top:18px; border-top:1px solid #DCE5EF; }
+.perf-table-card { background:#fff; border:1px solid #E6ECF2; border-radius:10px; box-shadow:0 12px 28px rgba(31,43,62,.10); overflow:hidden; }
+.perf-scroll { overflow-x:auto; }
+.perf-table { width:100%; min-width:980px; border-collapse:collapse; }
+.perf-table th { background:#1B3358; color:#fff; font-size:10px; font-weight:900; text-transform:uppercase; padding:16px 14px; text-align:left; }
+.perf-table td { color:#111827; font-size:12px; padding:18px 14px; border-top:1px solid #E6ECF2; vertical-align:middle; }
+.perf-ref { font-weight:800; white-space:nowrap; }
+.perf-pill { display:inline-flex; align-items:center; justify-content:center; min-width:62px; border-radius:12px; color:#fff; font-size:10px; font-weight:900; padding:4px 10px; }
+.urgency-standard, .urgency-normal { background:#2F7FD6; }
+.urgency-priority { background:#F2C715; color:#111827; }
+.urgency-urgent { background:#FF6A00; }
+.urgency-rush { background:#F20B0B; }
+.perf-status-text { display:block; font-weight:800; }
+.perf-table small { color:#64748B; display:block; font-size:9px; margin-top:2px; }
+.perf-action { text-align:center; }
+.perf-action a { color:#34485F; display:inline-flex; width:24px; height:24px; align-items:center; justify-content:center; }
+.perf-action svg { width:16px; height:16px; }
+.perf-empty { color:#64748B; padding:34px; text-align:center; }
+@media (max-width: 1000px) {
+    .d-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .perf-grid { grid-template-columns:1fr; }
+    .perf-wide, .perf-side { grid-column:auto; }
+}
+@media (max-width: 760px) {
+    .d-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .perf-status-grid, .perf-type-grid { grid-template-columns:1fr; }
+    .perf-status, .perf-type-item { border-right:0; }
+}
+@media (max-width: 460px) {
+    .d-kpi-grid { grid-template-columns:1fr; }
+}
 </style>
 {% endblock %}
 
@@ -44,9 +163,10 @@
                 border-left:4px solid
                 {% if ann.category == 'boc' %}#3b82f6{% elif ann.category == 'customs' %}#f59e0b{% elif ann.category == 'shipment' %}#8b5cf6{% else %}#22c55e{% endif %};
                 background:#1e293b; border-right:1px solid #334155; border-top:1px solid #334155; border-bottom:1px solid #334155;">
-        <span style="font-size:18px; flex-shrink:0; margin-top:1px;">
-            {% if ann.category == 'boc' %}🔵{% elif ann.category == 'customs' %}🟡{% elif ann.category == 'shipment' %}🟣{% else %}🟢{% endif %}
-        </span>
+        <svg class="d-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+             style="width:18px; height:18px; flex-shrink:0; margin-top:1px;">
+            <path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6z" clip-rule="evenodd"/>
+        </svg>
         <div style="flex:1; min-width:0;">
             <p style="font-size:13px; font-weight:600; color:#f1f5f9; margin:0 0 3px;">{{ ann.title }}</p>
             <p style="font-size:12px; color:#94a3b8; margin:0; white-space:pre-wrap;">{{ ann.content }}</p>
@@ -58,42 +178,70 @@
 {% endif %}
 
 <!-- ─── KPI Cards ─────────────────────────────────────────────────────────── -->
-<div class="kpi-grid" style="grid-template-columns: repeat(6, 1fr);">
-    <div class="kpi-card blue">
-        <p class="kpi-label">Queue</p>
-        <p class="kpi-value">{{ queue }}</p>
-    </div>
-    <div class="kpi-card yellow">
-        <p class="kpi-label">In Progress</p>
-        <p class="kpi-value">{{ in_progress }}</p>
-    </div>
-    <div class="kpi-card green">
-        <p class="kpi-label">Completed</p>
-        <p class="kpi-value">{{ completed }}</p>
-    </div>
-    <div class="kpi-card red">
-        <p class="kpi-label">Rejected</p>
-        <p class="kpi-value">{{ rejected }}</p>
-    </div>
-    <div class="kpi-card purple">
-        <p class="kpi-label">Avg. Processing</p>
-        <p class="kpi-value">
-            {% if avg_processing_days %}{{ avg_processing_days }}d{% else %}N/A{% endif %}
-        </p>
-    </div>
-    <div class="kpi-card teal">
-        <p class="kpi-label">My Completion</p>
-        <p class="kpi-value">{{ completion_rate }}%</p>
-    </div>
+<!-- ─── Pending Queue ─────────────────────────────────────────────────────── -->
+<div class="d-kpi-grid">
+    <section class="d-kpi-card is-blue">
+        <div class="d-kpi-top">
+            <p class="d-kpi-label">Queue</p>
+            <span class="d-kpi-icon">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 4h12v3H4V4zm0 5h12v3H4V9zm0 5h8v3H4v-3z"/></svg>
+            </span>
+        </div>
+        <p class="d-kpi-value">{{ queue }}</p>
+    </section>
+    <section class="d-kpi-card is-yellow">
+        <div class="d-kpi-top">
+            <p class="d-kpi-label">In Progress</p>
+            <span class="d-kpi-icon">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a8 8 0 018 8h-3a5 5 0 10-5 5v3a8 8 0 010-16z"/><path d="M11 5h-2v6h5V9h-3V5z"/></svg>
+            </span>
+        </div>
+        <p class="d-kpi-value">{{ in_progress }}</p>
+    </section>
+    <section class="d-kpi-card is-green">
+        <div class="d-kpi-top">
+            <p class="d-kpi-label">Completed</p>
+            <span class="d-kpi-icon">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.415 0L3.296 9.217a1 1 0 011.415-1.414l4.035 4.035 6.543-6.548a1 1 0 011.415 0z" clip-rule="evenodd"/></svg>
+            </span>
+        </div>
+        <p class="d-kpi-value">{{ completed }}</p>
+    </section>
+    <section class="d-kpi-card is-red">
+        <div class="d-kpi-top">
+            <p class="d-kpi-label">Rejected</p>
+            <span class="d-kpi-icon">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7.707 6.293L10 8.586l2.293-2.293 1.414 1.414L11.414 10l2.293 2.293-1.414 1.414L10 11.414l-2.293 2.293-1.414-1.414L8.586 10 6.293 7.707l1.414-1.414z" clip-rule="evenodd"/></svg>
+            </span>
+        </div>
+        <p class="d-kpi-value">{{ rejected }}</p>
+    </section>
+    <section class="d-kpi-card is-purple">
+        <div class="d-kpi-top">
+            <p class="d-kpi-label">Avg. Processing</p>
+            <span class="d-kpi-icon">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 8.59V5H9v6.41l4.3 2.58 1.03-1.72L11 10.59z"/></svg>
+            </span>
+        </div>
+        <p class="d-kpi-value">{% if avg_processing_days %}{{ avg_processing_days }}d{% else %}N/A{% endif %}</p>
+    </section>
+    <section class="d-kpi-card is-teal">
+        <div class="d-kpi-top">
+            <p class="d-kpi-label">My Completion</p>
+            <span class="d-kpi-icon">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 13h2v4H3v-4zm4-5h2v9H7V8zm4 3h2v6h-2v-6zm4-8h2v14h-2V3z"/></svg>
+            </span>
+        </div>
+        <p class="d-kpi-value">{{ completion_rate }}%</p>
+    </section>
 </div>
 
-<!-- ─── Pending Queue ─────────────────────────────────────────────────────── -->
 <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center;
                 margin-bottom:14px; flex-wrap:wrap; gap:10px;">
         <p class="card-title" style="margin:0;">Pending Queue</p>
         <a href="{% url 'declarant:queue' %}" class="btn btn-primary" style="font-size:12px;">
-            View Full Queue →
+            View Full Queue
         </a>
     </div>
 
@@ -109,7 +257,7 @@
 
         <!-- Urgency filters -->
         <button class="filter-pill active-urg" id="fu-all"    onclick="filterDash(curDate,'')">All Urgency</button>
-        <button class="filter-pill"            id="fu-urgent" onclick="filterDash(curDate,'urgent')">⚡ Urgent</button>
+        <button class="filter-pill"            id="fu-urgent" onclick="filterDash(curDate,'urgent')">Urgent</button>
         <button class="filter-pill"            id="fu-normal" onclick="filterDash(curDate,'normal')">Normal</button>
 
         <span id="dash-count" style="color:#64748b; font-size:12px; margin-left:auto;"></span>
@@ -136,7 +284,7 @@
                     <td>{{ s.get_import_type_display }}</td>
                     <td>
                         {% if s.urgency == 'urgent' %}
-                            <span class="badge badge-rejected">⚡ Urgent</span>
+                            <span class="badge badge-rejected">Urgent</span>
                         {% else %}
                             <span class="badge badge-review">Normal</span>
                         {% endif %}
@@ -171,10 +319,191 @@
     {% endif %}
 </div>
 
+<h2 class="perf-title">Breakdown Shipments and Performances</h2>
+
+<div class="perf-grid">
+    <section class="perf-card">
+        <div class="perf-card-head">
+            <h2>Average Clearance Time Trend</h2>
+            <span class="perf-chip">{{ trend_year }}</span>
+        </div>
+        <div class="perf-chart"><canvas id="clearanceTrendChart"></canvas></div>
+    </section>
+
+    <section class="perf-card">
+        <div class="perf-card-head">
+            <h2>Shipping Type Overview</h2>
+            <span class="perf-chip">{{ trend_year }}</span>
+        </div>
+        <p class="perf-type-total">Total Shipping <strong>{{ my_total_shipments }}</strong></p>
+        <div class="perf-type-grid">
+            {% for row in type_rows %}
+            <div class="perf-type-item">
+                <span class="perf-swatch" style="background:{{ row.color }}"></span>
+                <span class="perf-type-label">{{ row.label }}</span>
+                <p class="perf-type-count">{{ row.count }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="perf-card perf-wide">
+        <div class="perf-card-head">
+            <div>
+                <h2>Status Overview</h2>
+                <p style="color:#64748B;font-size:11px;margin:4px 0 0;">Overall Shipments {{ my_total_shipments }}</p>
+            </div>
+            <span class="perf-chip">{{ trend_year }}</span>
+        </div>
+        <div class="perf-status-grid">
+            {% for row in status_rows %}
+            <div class="perf-status" style="--c:{{ row.color }};">
+                <span class="perf-status-dot">{{ row.label|slice:":1" }}</span>
+                <div>
+                    <p class="perf-status-name">{{ row.label }}</p>
+                    <p class="perf-status-sub">{{ row.subtitle }}</p>
+                </div>
+                <strong class="perf-status-count">{{ row.count|stringformat:"02d" }}</strong>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="perf-bar">
+            {% for row in status_rows %}{% if row.count > 0 %}
+            <span style="width:{{ row.pct }}%; background:{{ row.color }};" title="{{ row.label }} {{ row.count }}"></span>
+            {% endif %}{% endfor %}
+        </div>
+        <p style="color:#94A3B8;font-size:11px;margin:12px 0 0;">All shipment status are from your handled shipments</p>
+    </section>
+
+    <section class="perf-card perf-side">
+        <div class="perf-card-head">
+            <div>
+                <h2>Due Date Monitoring</h2>
+                <p style="color:#64748B;font-size:10px;margin:4px 0 0;">Active shipments approaching due date.</p>
+            </div>
+            <span class="perf-chip">{{ trend_year }}</span>
+        </div>
+        <div class="perf-donut">
+            <canvas id="dueDateChart"></canvas>
+            <div class="perf-donut-center">{{ due_total }}</div>
+        </div>
+        <div style="display:grid;gap:7px;">
+            <div><span class="perf-swatch" style="background:#dc0000;width:9px;"></span><span class="perf-type-label">1 Day Left</span><strong style="float:right;">{{ due_data.one_day }}</strong></div>
+            <div><span class="perf-swatch" style="background:#f75b5b;width:9px;"></span><span class="perf-type-label">3 Days Left</span><strong style="float:right;">{{ due_data.three_days }}</strong></div>
+            <div><span class="perf-swatch" style="background:#f9a1a1;width:9px;"></span><span class="perf-type-label">5 Days Left</span><strong style="float:right;">{{ due_data.five_days }}</strong></div>
+            <div><span class="perf-swatch" style="background:#ffd6d6;width:9px;"></span><span class="perf-type-label">5+ Days Left</span><strong style="float:right;">{{ due_data.over_five }}</strong></div>
+        </div>
+    </section>
+</div>
+
+<h2 class="perf-record-title">My Shipment Records</h2>
+<div class="perf-table-card">
+    {% if my_records %}
+    <div class="perf-scroll">
+        <table class="perf-table">
+            <thead>
+                <tr>
+                    <th>Shipment Reference No.</th>
+                    <th>Import Type</th>
+                    <th>Urgency</th>
+                    <th>Status</th>
+                    <th>Shipment Type</th>
+                    <th>Submitted</th>
+                    <th>Consignee</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in my_records %}
+                <tr>
+                    <td class="perf-ref">{{ s.hawb_number }}</td>
+                    <td>{{ s.get_import_type_display }}</td>
+                    <td><span class="perf-pill urgency-{{ s.urgency|default:'standard' }}">{{ s.get_urgency_display }}</span></td>
+                    <td>
+                        <span class="perf-status-text">{{ s.get_status_display|default:"-" }}</span>
+                        {% if s.has_deficiency and s.deficiency_notes %}
+                        <small>{{ s.deficiency_notes|truncatechars:38 }}</small>
+                        {% elif s.status == 'for_revision' %}
+                        <small>Revise ECDT Computation</small>
+                        {% elif s.status == 'arrived' %}
+                        <small>Awaits revised invoice</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ s.get_shipment_type_display|default:"-" }}</td>
+                    <td>{{ s.submitted_at|date:"M d,Y g:i A" }}</td>
+                    <td>{{ s.consignee.get_full_name|default:s.consignee.username }}</td>
+                    <td class="perf-action">
+                        <a href="{% url 'declarant:process' s.id %}" aria-label="Process shipment {{ s.hawb_number }}">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 4.5c-4.2 0-7.15 3.22-8.2 4.6a1.5 1.5 0 000 1.8c1.05 1.38 4 4.6 8.2 4.6s7.15-3.22 8.2-4.6a1.5 1.5 0 000-1.8c-1.05-1.38-4-4.6-8.2-4.6zm0 8.5a3 3 0 110-6 3 3 0 010 6zm0-1.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="perf-empty">No handled shipments yet.</div>
+    {% endif %}
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
+if (window.Chart) {
+    var trendEl = document.getElementById('clearanceTrendChart');
+    if (trendEl) {
+        var trendCtx = trendEl.getContext('2d');
+        var trendGradient = trendCtx.createLinearGradient(0, 0, 0, 230);
+        trendGradient.addColorStop(0, 'rgba(36, 70, 110, .42)');
+        trendGradient.addColorStop(1, 'rgba(36, 70, 110, 0)');
+        new Chart(trendEl, {
+            type: 'line',
+            data: {
+                labels: {{ trend_labels|safe }},
+                datasets: [{
+                    label: 'Avg Clearance Time',
+                    data: {{ trend_data|safe }},
+                    borderColor: '#24466E',
+                    backgroundColor: trendGradient,
+                    fill: true,
+                    borderWidth: 3,
+                    tension: .32,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#24466E',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { displayColors: false, callbacks: { label: function (ctx) { return 'Avg Clearance Time: ' + ctx.parsed.y + ' Days'; } } }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#E4EBF3' }, ticks: { color: '#334155', precision: 0 } },
+                    x: { grid: { color: '#EDF2F7' }, ticks: { color: '#334155' } }
+                }
+            }
+        });
+    }
+
+    var dueEl = document.getElementById('dueDateChart');
+    if (dueEl) {
+        new Chart(dueEl, {
+            type: 'doughnut',
+            data: {
+                labels: {{ due_chart_labels|safe }},
+                datasets: [{ data: {{ due_chart_data|safe }}, backgroundColor: {{ due_chart_colors|safe }}, borderColor: '#fff', borderWidth: 8 }]
+            },
+            options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '62%' }
+        });
+    }
+}
+
 var curDate = 'all';
 var curUrg  = '';
 var MS_DAY  = 86400000;
@@ -234,3 +563,4 @@ function filterDash(dateRange, urgency) {
 document.addEventListener('DOMContentLoaded', function() { filterDash('all',''); });
 </script>
 {% endblock %}
+

@@ -81,6 +81,8 @@ def notifications_list(request):
         template = 'consignee/notifications.html'
     elif role == 'supervisor':
         template = 'supervisor/notifications.html'
+    elif role == 'declarant':
+        template = 'declarant/notifications.html'
     else:
         template = 'notifications/list.html'
     return render(request, template, {

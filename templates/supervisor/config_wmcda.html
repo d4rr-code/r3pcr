@@ -4,6 +4,15 @@
 {% block nav_config %}active{% endblock %}
 {% block content %}
 
+<div style="margin-bottom:18px;">
+    <a href="{% url 'supervisor:config' %}" class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
+            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
+        </svg>
+        Back to System Config
+    </a>
+</div>
+
 <!-- Breadcrumb -->
 <p style="color:#9CA3AF; font-size:13px; margin-bottom:24px;">
     <a href="{% url 'supervisor:config' %}" style="color:#8b5cf6; text-decoration:none;">System Config</a>
@@ -94,24 +103,24 @@
                 {% endif %}
             </div>
 
-            <!-- Risk Weight -->
+            <!-- Distance Weight -->
             <div style="margin-bottom:28px;">
                 <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
                     <label style="color:#1A1A2E; font-size:14px; font-weight:600;">
-                        Risk
-                        <span style="color:#9CA3AF; font-weight:400; font-size:12px; margin-left:4px;">cargo damage / loss risk</span>
+                        Distance
+                        <span style="color:#9CA3AF; font-weight:400; font-size:12px; margin-left:4px;">routing distance (km)</span>
                     </label>
-                    <span id="val-risk" style="color:#f87171; font-size:16px; font-weight:700; min-width:44px; text-align:right;">{{ weights.wmcda_w_risk }}%</span>
+                    <span id="val-dist" style="color:#f87171; font-size:16px; font-weight:700; min-width:44px; text-align:right;">{{ weights.wmcda_w_distance }}%</span>
                 </div>
-                <input type="range" name="wmcda_w_risk" id="slider-risk"
-                       min="0" max="100" value="{{ weights.wmcda_w_risk }}"
+                <input type="range" name="wmcda_w_distance" id="slider-dist"
+                       min="0" max="100" value="{{ weights.wmcda_w_distance }}"
                        oninput="updateWmcda()"
                        style="width:100%; accent-color:#f87171; height:6px; cursor:pointer;">
-                {% if config_meta.wmcda_w_risk %}
+                {% if config_meta.wmcda_w_distance %}
                 <p style="color:#9CA3AF; font-size:11px; margin:4px 0 0;">
                     Last updated
-                    {% if config_meta.wmcda_w_risk.updated_by %}by <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_risk.updated_by.username }}</span>{% endif %}
-                    {% if config_meta.wmcda_w_risk.updated_at %}on <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_risk.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_distance.updated_by %}by <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_distance.updated_by.username }}</span>{% endif %}
+                    {% if config_meta.wmcda_w_distance.updated_at %}on <span style="color:#9CA3AF;">{{ config_meta.wmcda_w_distance.updated_at|date:"M d, Y H:i" }}</span>{% endif %}
                 </p>
                 {% endif %}
             </div>
@@ -144,13 +153,13 @@ function updateWmcda() {
     var cost   = parseInt(document.getElementById('slider-cost').value)   || 0;
     var time   = parseInt(document.getElementById('slider-time').value)   || 0;
     var weight = parseInt(document.getElementById('slider-weight').value) || 0;
-    var risk   = parseInt(document.getElementById('slider-risk').value)   || 0;
-    var total  = cost + time + weight + risk;
+    var dist   = parseInt(document.getElementById('slider-dist').value)   || 0;
+    var total  = cost + time + weight + dist;
 
     document.getElementById('val-cost').textContent   = cost   + '%';
     document.getElementById('val-time').textContent   = time   + '%';
     document.getElementById('val-weight').textContent = weight + '%';
-    document.getElementById('val-risk').textContent   = risk   + '%';
+    document.getElementById('val-dist').textContent   = dist   + '%';
 
     var sumEl  = document.getElementById('sum-value');
     var dispEl = document.getElementById('sum-display');

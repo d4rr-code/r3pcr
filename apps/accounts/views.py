@@ -55,13 +55,14 @@ def login_view(request):
             OTP.objects.create(user=user, code=otp_code)
             request.session['pre_auth_user_id'] = user.id
 
-            if settings.DEBUG:
-                # Local development: skip email, print OTP to console
+            _is_local = settings.DEBUG or 'console' in getattr(settings, 'EMAIL_BACKEND', '')
+            if _is_local:
+                # Local development: print OTP to terminal, no email sent
                 print(f'\n{"="*40}')
                 print(f'[DEV OTP] User: {user.username}')
                 print(f'[DEV OTP] Code: {otp_code}')
                 print(f'{"="*40}\n')
-                messages.info(request, f'[DEV] OTP printed to console (email skipped in DEBUG mode).')
+                messages.info(request, f'[DEV] OTP: {otp_code} — check your terminal.')
             else:
                 _send_mail_async(
                     subject='R3-PCR Login OTP',
@@ -406,6 +407,8 @@ def account_settings(request):
         template = 'consignee/settings.html'
     elif role == 'supervisor':
         template = 'supervisor/settings.html'
+    elif role == 'declarant':
+        template = 'declarant/settings.html'
     else:
         template = 'accounts/settings.html'
     return render(request, template)

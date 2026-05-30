@@ -262,12 +262,12 @@
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.weight >= 0.8 %}#22c55e{% elif breakdown.land.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.weight|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #1e293b;">
-                            <td style="padding:12px 14px; color:#f1f5f9; font-weight:500;">🛡 Risk</td>
+                            <td style="padding:12px 14px; color:#f1f5f9; font-weight:500;">📍 Distance</td>
                             <td style="padding:12px 14px; text-align:center; color:#64748b; font-size:12px;">15%</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.risk >= 0.8 %}#22c55e{% elif breakdown.lcl.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.risk|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.risk >= 0.8 %}#22c55e{% elif breakdown.fcl.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.risk|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.risk >= 0.8 %}#22c55e{% elif breakdown.air.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.risk|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.risk >= 0.8 %}#22c55e{% elif breakdown.land.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.risk|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.distance >= 0.8 %}#22c55e{% elif breakdown.lcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.distance|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.distance >= 0.8 %}#22c55e{% elif breakdown.fcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.distance|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.distance >= 0.8 %}#22c55e{% elif breakdown.air.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.distance|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.distance >= 0.8 %}#22c55e{% elif breakdown.land.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.distance|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:2px solid #334155; background:#0f172a;">
                             <td style="padding:12px 14px; color:#f1f5f9; font-weight:700;">Weighted Total</td>
@@ -385,12 +385,12 @@
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.weight >= 0.8 %}#22c55e{% elif breakdown.land.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.weight|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #1e293b;">
-                            <td style="padding:12px 14px; color:#f1f5f9; font-weight:500;">🛡 Risk</td>
+                            <td style="padding:12px 14px; color:#f1f5f9; font-weight:500;">📍 Distance</td>
                             <td style="padding:12px 14px; text-align:center; color:#64748b; font-size:12px;">15%</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.risk >= 0.8 %}#22c55e{% elif breakdown.lcl.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.risk|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.risk >= 0.8 %}#22c55e{% elif breakdown.fcl.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.risk|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.risk >= 0.8 %}#22c55e{% elif breakdown.air.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.risk|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.risk >= 0.8 %}#22c55e{% elif breakdown.land.risk >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.risk|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.distance >= 0.8 %}#22c55e{% elif breakdown.lcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.distance|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.distance >= 0.8 %}#22c55e{% elif breakdown.fcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.distance|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.distance >= 0.8 %}#22c55e{% elif breakdown.air.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.distance|floatformat:3 }}</td>
+                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.distance >= 0.8 %}#22c55e{% elif breakdown.land.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.distance|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:2px solid #334155; background:#0f172a;">
                             <td style="padding:12px 14px; color:#f1f5f9; font-weight:700;">Weighted Total</td>
@@ -421,7 +421,7 @@
             <p style="font-size:36px; margin-bottom:12px;">🚢</p>
             <p style="font-size:14px;">Fill in the parameters and click <strong style="color:#94a3b8;">Compute Recommendation</strong>.</p>
             <p style="font-size:12px; margin-top:8px;">
-                WMCDA scores LCL, FCL, Air Freight, and Land Freight across cost, time, weight/volume, and risk criteria.
+                WMCDA scores LCL, FCL, Air Freight, and Land Freight across cost, time, weight/volume, and distance criteria.
             </p>
         </div>
         {% endif %}

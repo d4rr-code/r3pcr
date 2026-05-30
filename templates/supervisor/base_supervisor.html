@@ -78,7 +78,7 @@
             gap: 10px;
             padding: 10px 0;
             border-radius: 8px;
-            color: #94A3B8;
+            color: #111827;
             text-decoration: none;
             font-size: 13px;
             font-weight: 500;
@@ -87,7 +87,7 @@
             overflow: hidden;
             justify-content: center;
         }
-        .s-nav-item:hover { background: #F3F4F6; color: #1B3358; }
+        .s-nav-item:hover { background: #F3F4F6; color: #111827; }
         .s-nav-item.active { background: #1B3358; color: #fff; font-weight: 600; }
         .s-sidebar.expanded .s-nav-item { justify-content: flex-start; padding: 9px 12px; }
         .s-nav-label {
@@ -99,6 +99,42 @@
         }
         .s-sidebar.expanded .s-nav-label { opacity: 1; max-width: 160px; }
         .s-nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
+        /* ── Sidebar dropdown (Clients & Staff) ── */
+        .s-nav-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+        }
+        .s-nav-btn.has-active-child {
+            background: #EEF2F8;
+            color: #111827;
+        }
+        .s-nav-chevron {
+            display: none;
+            width: 12px; height: 12px;
+            flex-shrink: 0;
+            margin-left: auto;
+            transition: transform 0.2s;
+            color: #111827;
+        }
+        .s-sidebar.expanded .s-nav-chevron { display: block; }
+        .s-nav-chevron.open { transform: rotate(90deg); }
+        .s-nav-submenu {
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.22s ease;
+        }
+        .s-nav-submenu.open { max-height: 120px; }
+        .s-nav-subitem {
+            padding-left: 0;
+        }
+        .s-sidebar.expanded .s-nav-subitem {
+            padding: 7px 12px 7px 34px !important;
+        }
+
         .s-sidebar-bottom {
             padding: 8px;
             border-top: 1px solid #F0F2F5;
@@ -120,7 +156,7 @@
             padding: 12px 16px 16px;
         }
         .s-sidebar-user p { color: #1B3358; font-size: 13px; font-weight: 700; margin: 0 0 2px; white-space: nowrap; }
-        .s-sidebar-user span { color: #9CA3AF; font-size: 11px; white-space: nowrap; }
+        .s-sidebar-user span { color: #111827; font-size: 11px; white-space: nowrap; }
         .sidebar-toggle {
             position: absolute;
             top: 50%;
@@ -164,7 +200,7 @@
             background: #fff;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer;
-            color: #6B7280;
+            color: #111827;
             text-decoration: none;
             position: relative;
             transition: border-color 0.15s, color 0.15s;
@@ -188,7 +224,7 @@
         .form-label, .c-label {
             font-size: 11px;
             font-weight: 600;
-            color: #6B7280;
+            color: #111827;
             margin-bottom: 6px;
             display: block;
         }
@@ -239,7 +275,7 @@
         .badge-rejected, .badge-danger { background: #FEE2E2; color: #B91C1C; }
         .badge-review, .badge-info { background: #DBEAFE; color: #1D4ED8; }
         .badge-warning { background: #FEF3C7; color: #B45309; }
-        .badge-secondary { background: #F3F4F6; color: #6B7280; }
+        .badge-secondary { background: #F3F4F6; color: #111827; }
         .table-container {
             background: #fff;
             border: 1px solid #E5E7EB;
@@ -259,7 +295,7 @@
         }
         .table-container tbody tr, .c-table tbody tr { border-bottom: 1px solid #F3F4F6; }
         .table-container tbody tr:hover, .c-table tbody tr:hover { background: #F8FAFC; }
-        .table-container td, .c-table td { padding: 13px 16px; font-size: 12.5px; color: #374151; }
+        .table-container td, .c-table td { padding: 13px 16px; font-size: 12.5px; color: #111827; }
         .s-msg { padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
         .s-msg.success { background: #ECFDF5; color: #065F46; border: 1px solid #6EE7B7; }
         .s-msg.error { background: #FEF2F2; color: #991B1B; border: 1px solid #FCA5A5; }
@@ -274,7 +310,7 @@
             margin-bottom: 20px;
         }
         .page-heading h1 { color: #1B3358; font-size: 22px; font-weight: 800; margin: 0; }
-        .page-heading p { color: #6B7280; font-size: 13px; margin: 4px 0 0; }
+        .page-heading p { color: #111827; font-size: 13px; margin: 4px 0 0; }
         {% block extra_css %}{% endblock %}
     </style>
 </head>
@@ -294,33 +330,77 @@
             <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
         </svg>
     </button>
+
     <nav class="s-sidebar-nav">
+
+        <!-- 1. Dashboard -->
         <a href="{% url 'supervisor:dashboard' %}" class="s-nav-item {% block nav_dashboard %}{% endblock %}">
             <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
             <span class="s-nav-label">Dashboard</span>
         </a>
+
+        <!-- 2. Shipment Records -->
+        <a href="{% url 'supervisor:shipment_records' %}" class="s-nav-item {% block nav_shipments %}{% endblock %}">
+            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
+            <span class="s-nav-label">Shipment Records</span>
+        </a>
+
+        <!-- 3. Clients & Staff (dropdown) -->
+        <div class="s-nav-group" id="nav-clients-group">
+            <button type="button" id="nav-clients-toggle"
+                    class="s-nav-item s-nav-btn {% block nav_clients %}{% endblock %}"
+                    onclick="toggleClientsNav(this)">
+                <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zM14.5 9a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM1.615 16.428a1.224 1.224 0 01-.01-.138c0-2.587 2.028-4.755 4.75-4.955a8.073 8.073 0 011.07-.005C9.45 11.53 11.5 13.7 11.5 16.29c0 .047-.002.093-.007.138A13.488 13.488 0 017 17c-1.796 0-3.51-.37-5.385-1.572zM13.5 16.5a3.75 3.75 0 01-2.175-.747A4.01 4.01 0 0013 12.25a3.976 3.976 0 00-.435-1.817 2.5 2.5 0 014.43 1.58 2.501 2.501 0 01-2.495 2.487h-1z"/></svg>
+                <span class="s-nav-label">Clients &amp; Staff</span>
+                <svg class="s-nav-chevron" id="nav-clients-chevron" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+            <div class="s-nav-submenu" id="nav-clients-submenu">
+                <a href="{% url 'supervisor:consignee_list' %}" class="s-nav-item s-nav-subitem {% block nav_consignees %}{% endblock %}">
+                    <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z"/></svg>
+                    <span class="s-nav-label">Consignee</span>
+                </a>
+                <a href="{% url 'supervisor:declarant_list' %}" class="s-nav-item s-nav-subitem {% block nav_declarants %}{% endblock %}">
+                    <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-5.5-2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM10 12a5.99 5.99 0 00-4.793 2.39A6.483 6.483 0 0010 16.5a6.483 6.483 0 004.793-2.11A5.99 5.99 0 0010 12z" clip-rule="evenodd"/></svg>
+                    <span class="s-nav-label">Declarant</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- 4. User Management -->
         <a href="{% url 'supervisor:users' %}" class="s-nav-item {% block nav_users %}{% endblock %}">
             <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zM14.5 9a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM1.615 16.428a1.224 1.224 0 01-.01-.138c0-2.587 2.028-4.755 4.75-4.955a8.073 8.073 0 011.07-.005C9.45 11.53 11.5 13.7 11.5 16.29c0 .047-.002.093-.007.138A13.488 13.488 0 017 17c-1.796 0-3.51-.37-5.385-1.572zM13.5 16.5a3.75 3.75 0 01-2.175-.747A4.01 4.01 0 0013 12.25a3.976 3.976 0 00-.435-1.817 2.5 2.5 0 014.43 1.58 2.501 2.501 0 01-2.495 2.487h-1z"/></svg>
             <span class="s-nav-label">User Management</span>
         </a>
+
+        <!-- 5. Notifications -->
+        <a href="{% url 'notifications:list' %}" class="s-nav-item {% block nav_notifications %}{% endblock %}">
+            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6z" clip-rule="evenodd"/></svg>
+            <span class="s-nav-label">Notifications</span>
+        </a>
+
+        <!-- 6. Memos -->
         <a href="{% url 'supervisor:memos' %}" class="s-nav-item {% block nav_memos %}{% endblock %}">
             <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M13.92 3.845a19.361 19.361 0 01-6.3 1.98C6.765 5.942 5.89 6 5 6a4 4 0 000 8c.825 0 1.62-.063 2.402-.2a19.362 19.362 0 016.3 1.98A1 1 0 0015 15V5a1 1 0 00-1.08-1.155zM3 10a2 2 0 012-2c.484 0 .952.044 1.408.124A17.86 17.86 0 003 10zm2 2a2 2 0 01-2-2 17.86 17.86 0 003.408 1.876A2.001 2.001 0 015 12z"/></svg>
             <span class="s-nav-label">Memos</span>
         </a>
+
+        <!-- 7. Feedbacks -->
         <a href="{% url 'supervisor:feedbacks' %}" class="s-nav-item {% block nav_feedbacks %}{% endblock %}">
             <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2c-4.42 0-8 2.91-8 6.5 0 2.12 1.26 4.01 3.21 5.2-.1.86-.38 1.72-.83 2.49a.75.75 0 00.86 1.08 10.43 10.43 0 004.01-2.29c.25.02.5.02.75.02 4.42 0 8-2.91 8-6.5S14.42 2 10 2z" clip-rule="evenodd"/></svg>
             <span class="s-nav-label">Feedbacks</span>
         </a>
+
+        <!-- 8. System Config -->
         <a href="{% url 'supervisor:config' %}" class="s-nav-item {% block nav_config %}{% endblock %}">
             <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.332 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
             <span class="s-nav-label">System Config</span>
         </a>
+
     </nav>
+
     <div class="s-sidebar-bottom">
-        <a href="{% url 'notifications:list' %}" class="s-nav-item">
-            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6z" clip-rule="evenodd"/></svg>
-            <span class="s-nav-label">Notifications</span>
-        </a>
         <a href="{% url 'accounts:settings' %}" class="s-nav-item">
             <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z"/></svg>
             <span class="s-nav-label">Account Settings</span>
@@ -335,6 +415,31 @@
         <span>{{ user.get_role_display|default:'Supervisor' }}</span>
     </div>
 </aside>
+
+<!-- Floating menu for Clients & Staff when sidebar is collapsed -->
+<div id="clients-floating-menu" style="position:fixed; display:none; background:#fff;
+     border:1px solid #E5E7EB; border-radius:10px;
+     box-shadow:0 4px 20px rgba(0,0,0,0.13); z-index:9999; min-width:170px; padding:6px; left:70px;">
+    <a href="{% url 'supervisor:consignee_list' %}"
+       style="display:flex; align-items:center; gap:9px; padding:9px 12px; border-radius:6px;
+              color:#111827; text-decoration:none; font-size:13px; font-weight:500;
+              {% if request.resolver_match.url_name == 'consignee_list' %}background:#1B3358; color:#fff;{% endif %}"
+       onmouseover="if(this.style.background!='rgb(27, 51, 88)')this.style.background='#F3F4F6'"
+       onmouseout="if(this.style.background!='rgb(27, 51, 88)')this.style.background=''">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z"/></svg>
+        Consignee
+    </a>
+    <a href="{% url 'supervisor:declarant_list' %}"
+       style="display:flex; align-items:center; gap:9px; padding:9px 12px; border-radius:6px;
+              color:#111827; text-decoration:none; font-size:13px; font-weight:500;
+              {% if request.resolver_match.url_name == 'declarant_list' %}background:#1B3358; color:#fff;{% endif %}"
+       onmouseover="if(this.style.background!='rgb(27, 51, 88)')this.style.background='#F3F4F6'"
+       onmouseout="if(this.style.background!='rgb(27, 51, 88)')this.style.background=''">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-5.5-2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM10 12a5.99 5.99 0 00-4.793 2.39A6.483 6.483 0 0010 16.5a6.483 6.483 0 004.793-2.11A5.99 5.99 0 0010 12z" clip-rule="evenodd"/></svg>
+        Declarant
+    </a>
+</div>
+
 <div class="s-main" id="s-main">
     <div class="s-topbar">
         <a href="{% url 'notifications:list' %}" class="s-topbar-btn" title="Notifications">
@@ -362,16 +467,64 @@
 (function () {
     var STORAGE_KEY = 'supervisor_sidebar_expanded';
     var sidebar = document.getElementById('s-sidebar');
-    var main = document.getElementById('s-main');
+    var main    = document.getElementById('s-main');
+
+    // Restore saved state
     if (localStorage.getItem(STORAGE_KEY) === '1') {
         sidebar.classList.add('expanded');
         main.classList.add('sidebar-open');
     }
+
     window.toggleSupervisorSidebar = function () {
         var isOpen = sidebar.classList.toggle('expanded');
         main.classList.toggle('sidebar-open', isOpen);
         localStorage.setItem(STORAGE_KEY, isOpen ? '1' : '0');
+        // Close floating menu when sidebar state changes
+        var fp = document.getElementById('clients-floating-menu');
+        if (fp) fp.style.display = 'none';
     };
+
+    // Clients & Staff dropdown toggle
+    window.toggleClientsNav = function (btn) {
+        if (sidebar.classList.contains('expanded')) {
+            // Inline accordion
+            var submenu = document.getElementById('nav-clients-submenu');
+            var chevron = document.getElementById('nav-clients-chevron');
+            var isOpen  = submenu.classList.contains('open');
+            submenu.classList.toggle('open', !isOpen);
+            if (chevron) chevron.classList.toggle('open', !isOpen);
+        } else {
+            // Floating panel
+            var panel = document.getElementById('clients-floating-menu');
+            if (panel.style.display === 'block') {
+                panel.style.display = 'none';
+            } else {
+                var rect = btn.getBoundingClientRect();
+                panel.style.top = rect.top + 'px';
+                panel.style.display = 'block';
+            }
+        }
+    };
+
+    // Close floating menu on outside click
+    document.addEventListener('click', function (e) {
+        var panel  = document.getElementById('clients-floating-menu');
+        var toggle = document.getElementById('nav-clients-toggle');
+        if (panel && panel.style.display === 'block') {
+            if (!panel.contains(e.target) && toggle && !toggle.contains(e.target)) {
+                panel.style.display = 'none';
+            }
+        }
+    });
+
+    // Auto-open accordion if a sub-item is active (page load)
+    var activeSubitem = document.querySelector('#nav-clients-submenu .active');
+    if (activeSubitem) {
+        var sm = document.getElementById('nav-clients-submenu');
+        var ch = document.getElementById('nav-clients-chevron');
+        if (sm) sm.classList.add('open');
+        if (ch) ch.classList.add('open');
+    }
 })();
 </script>
 {% block extra_js %}{% endblock %}

@@ -3,17 +3,120 @@ import json
 import os
 import tempfile
 import threading
+from collections import defaultdict
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.utils import timezone
-from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
+from apps.shipments.models import HSCode, Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
 from apps.notifications.utils import create_notification, notify_shipment_status_change
-from apps.computation.ocr import process_document, _extract_line_items
+from apps.computation.ocr import process_document, _extract_line_items, _extract_hs_anchored_items
 from apps.computation.models import ShipmentLineItem
+from apps.supervisor.views import _HS_SECTIONS, _chapter_num
+
+_CHAPTER_TITLES = {
+    1: 'Live animals',
+    2: 'Meat and edible meat offal',
+    3: 'Fish and crustaceans, molluscs and other aquatic invertebrates',
+    4: "Dairy produce; birds' eggs; natural honey; edible products of animal origin, not elsewhere specified or included",
+    5: 'Products of animal origin, not elsewhere specified or included',
+    6: 'Live trees and other plants; bulbs, roots and the like; cut flowers and ornamental foliage',
+    7: 'Edible vegetables and certain roots and tubers',
+    8: 'Edible fruit and nuts; peel of citrus fruit or melons',
+    9: 'Coffee, tea, mate and spices',
+    10: 'Cereals',
+    11: 'Products of the milling industry; malt; starches; inulin; wheat gluten',
+    12: 'Oil seeds and oleaginous fruits; miscellaneous grains, seeds and fruit; industrial or medicinal plants; straw and fodder',
+    13: 'Lac; gums, resins and other vegetable saps and extracts',
+    14: 'Vegetable plaiting materials; vegetable products not elsewhere specified or included',
+    15: 'Animal, vegetable or microbial fats and oils and their cleavage products; prepared edible fats; animal or vegetable waxes',
+    16: 'Preparations of meat, of fish, crustaceans, molluscs or other aquatic invertebrates, or of insects',
+    17: 'Sugars and sugar confectionery',
+    18: 'Cocoa and cocoa preparations',
+    19: 'Preparations of cereals, flour, starch or milk; pastrycooks products',
+    20: 'Preparations of vegetables, fruit, nuts or other parts of plants',
+    21: 'Miscellaneous edible preparations',
+    22: 'Beverages, spirits and vinegar',
+    23: 'Residues and waste from the food industries; prepared animal fodder',
+    24: 'Tobacco and manufactured tobacco substitutes; nicotine products',
+    25: 'Salt; sulphur; earths and stone; plastering materials, lime and cement',
+    26: 'Ores, slag and ash',
+    27: 'Mineral fuels, mineral oils and products of their distillation; bituminous substances; mineral waxes',
+    28: 'Inorganic chemicals; organic or inorganic compounds of precious metals, rare-earth metals, radioactive elements or isotopes',
+    29: 'Organic chemicals',
+    30: 'Pharmaceutical products',
+    31: 'Fertilisers',
+    32: 'Tanning or dyeing extracts; tannins and derivatives; dyes, pigments, paints, varnishes, putty and inks',
+    33: 'Essential oils and resinoids; perfumery, cosmetic or toilet preparations',
+    34: 'Soap, organic surface-active agents, washing preparations, lubricating preparations, waxes and similar products',
+    35: 'Albuminoidal substances; modified starches; glues; enzymes',
+    36: 'Explosives; pyrotechnic products; matches; pyrophoric alloys; certain combustible preparations',
+    37: 'Photographic or cinematographic goods',
+    38: 'Miscellaneous chemical products',
+    39: 'Plastics and articles thereof',
+    40: 'Rubber and articles thereof',
+    41: 'Raw hides and skins, other than furskins, and leather',
+    42: 'Articles of leather; saddlery and harness; travel goods, handbags and similar containers; articles of animal gut',
+    43: 'Furskins and artificial fur; manufactures thereof',
+    44: 'Wood and articles of wood; wood charcoal',
+    45: 'Cork and articles of cork',
+    46: 'Manufactures of straw, esparto or other plaiting materials; basketware and wickerwork',
+    47: 'Pulp of wood or other fibrous cellulosic material; recovered paper or paperboard',
+    48: 'Paper and paperboard; articles of paper pulp, of paper or of paperboard',
+    49: 'Printed books, newspapers, pictures and other products of the printing industry; manuscripts, typescripts and plans',
+    50: 'Silk',
+    51: 'Wool, fine or coarse animal hair; horsehair yarn and woven fabric',
+    52: 'Cotton',
+    53: 'Other vegetable textile fibres; paper yarn and woven fabrics of paper yarn',
+    54: 'Man-made filaments; strip and the like of man-made textile materials',
+    55: 'Man-made staple fibres',
+    56: 'Wadding, felt and nonwovens; special yarns; twine, cordage, ropes and cables and articles thereof',
+    57: 'Carpets and other textile floor coverings',
+    58: 'Special woven fabrics; tufted textile fabrics; lace; tapestries; trimmings; embroidery',
+    59: 'Impregnated, coated, covered or laminated textile fabrics; textile articles suitable for industrial use',
+    60: 'Knitted or crocheted fabrics',
+    61: 'Articles of apparel and clothing accessories, knitted or crocheted',
+    62: 'Articles of apparel and clothing accessories, not knitted or crocheted',
+    63: 'Other made up textile articles; sets; worn clothing and worn textile articles; rags',
+    64: 'Footwear, gaiters and the like; parts of such articles',
+    65: 'Headgear and parts thereof',
+    66: 'Umbrellas, sun umbrellas, walking-sticks, seat-sticks, whips, riding-crops and parts thereof',
+    67: 'Prepared feathers and down; artificial flowers; articles of human hair',
+    68: 'Articles of stone, plaster, cement, asbestos, mica or similar materials',
+    69: 'Ceramic products',
+    70: 'Glass and glassware',
+    71: 'Natural or cultured pearls, precious or semi-precious stones, precious metals, imitation jewellery; coin',
+    72: 'Iron and steel',
+    73: 'Articles of iron or steel',
+    74: 'Copper and articles thereof',
+    75: 'Nickel and articles thereof',
+    76: 'Aluminium and articles thereof',
+    77: 'Reserved for possible future use in the Harmonized System',
+    78: 'Lead and articles thereof',
+    79: 'Zinc and articles thereof',
+    80: 'Tin and articles thereof',
+    81: 'Other base metals; cermets; articles thereof',
+    82: 'Tools, implements, cutlery, spoons and forks, of base metal; parts thereof',
+    83: 'Miscellaneous articles of base metal',
+    84: 'Nuclear reactors, boilers, machinery and mechanical appliances; parts thereof',
+    85: 'Electrical machinery and equipment and parts thereof; sound recorders and reproducers; television image and sound recorders and reproducers',
+    86: 'Railway or tramway locomotives, rolling-stock and parts thereof; railway or tramway track fixtures and fittings',
+    87: 'Vehicles other than railway or tramway rolling-stock, and parts and accessories thereof',
+    88: 'Aircraft, spacecraft, and parts thereof',
+    89: 'Ships, boats and floating structures',
+    90: 'Optical, photographic, cinematographic, measuring, checking, precision, medical or surgical instruments and apparatus',
+    91: 'Clocks and watches and parts thereof',
+    92: 'Musical instruments; parts and accessories of such articles',
+    93: 'Arms and ammunition; parts and accessories thereof',
+    94: 'Furniture; bedding, mattresses, cushions and similar stuffed furnishings; lamps and lighting fittings; illuminated signs; prefabricated buildings',
+    95: 'Toys, games and sports requisites; parts and accessories thereof',
+    96: 'Miscellaneous manufactured articles',
+    97: 'Works of art, collectors pieces and antiques',
+}
 
 
 # ─── Role Decorator ───────────────────────────────────────────────────────────
@@ -130,6 +233,118 @@ def dashboard(request):
     pending_list = list(shipments.filter(status='incoming').select_related('consignee')[:20])
     _annotate_due(pending_list, today)
 
+    my_shipments = (
+        Shipment.objects
+        .filter(declarant=request.user)
+        .select_related('consignee', 'declarant')
+    )
+    terminal_statuses = ['paid', 'released', 'billed']
+    cleared_statuses = ['approved', 'released', 'billed']
+
+    status_counts = {
+        row['status']: row['count']
+        for row in my_shipments.values('status').annotate(count=Count('id'))
+    }
+    status_order = [
+        'incoming', 'approved', 'assessed',
+        'arrived', 'for_revision', 'paid',
+        'rejected', 'lodgement', 'released',
+        'computed', 'ongoing', 'billed',
+    ]
+    status_colors = {
+        'incoming': '#9DB0C5', 'arrived': '#f59e0b', 'computed': '#2F7FD6',
+        'approved': '#20B86F', 'rejected': '#ef4444', 'for_revision': '#F2C715',
+        'lodgement': '#06b6d4', 'ongoing': '#FF6A00', 'assessed': '#7c3aed',
+        'paid': '#166534', 'released': '#14b8a6', 'billed': '#687481',
+    }
+    status_display = {'for_revision': 'Revision', 'rejected': 'Flags'}
+    status_subtitles = {
+        'incoming': 'Awaits Declarant Assignment',
+        'arrived': 'Awaits ECDT Processing',
+        'computed': 'Awaits Consignee Approval',
+        'for_revision': 'Returned from Consignee',
+        'rejected': 'Rejected by Consignee',
+        'approved': 'Proceeding to Lodgement',
+        'lodgement': 'Filed with BOC',
+        'ongoing': 'For final assessment',
+        'assessed': 'Awaits payment',
+        'paid': 'Payment received',
+        'released': 'Released shipment',
+        'billed': 'Fully processed',
+    }
+    my_total_shipments = my_shipments.count()
+    status_rows = []
+    for key in status_order:
+        label = dict(Shipment.STATUS_CHOICES).get(key, key.title())
+        count = status_counts.get(key, 0)
+        status_rows.append({
+            'key': key,
+            'label': status_display.get(key, label),
+            'subtitle': status_subtitles.get(key, ''),
+            'count': count,
+            'pct': round(count / my_total_shipments * 100, 1) if my_total_shipments else 0,
+            'color': status_colors.get(key, '#64748B'),
+        })
+
+    type_meta = [
+        ('fcl', 'Full Container Load (FCL)', '#6F8B9B'),
+        ('air', 'Airfreight', '#24466E'),
+        ('lcl', 'Less Container Load (LCL)', '#F59E0B'),
+        ('land', 'Land', '#20B86F'),
+    ]
+    type_counts = {
+        row['shipment_type']: row['count']
+        for row in my_shipments.values('shipment_type').annotate(count=Count('id'))
+    }
+    type_rows = [
+        {'key': key, 'label': label, 'color': color, 'count': type_counts.get(key, 0)}
+        for key, label, color in type_meta
+    ]
+
+    now = timezone.now()
+    monthly_durations = defaultdict(list)
+    completed_durations = []
+    for shipment in my_shipments.filter(status__in=cleared_statuses):
+        end_log = (
+            StatusLog.objects
+            .filter(shipment=shipment, new_status__in=cleared_statuses)
+            .order_by('-changed_at')
+            .first()
+        )
+        end_at = end_log.changed_at if end_log else shipment.processed_at or shipment.updated_at
+        if end_at and shipment.submitted_at and end_at >= shipment.submitted_at:
+            days = (end_at - shipment.submitted_at).total_seconds() / 86400
+            completed_durations.append(days)
+            if shipment.submitted_at.year == now.year:
+                monthly_durations[shipment.submitted_at.month].append(days)
+    dashboard_on_time_rate = (
+        round(sum(1 for days in completed_durations if days <= 3) / len(completed_durations) * 100)
+        if completed_durations else 0
+    )
+    trend_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    trend_data = [
+        round(sum(monthly_durations[month]) / len(monthly_durations[month]), 1)
+        if monthly_durations.get(month) else 0
+        for month in range(1, 13)
+    ]
+
+    urgency_days_map = {'rush': 3, 'urgent': 7, 'priority': 14, 'standard': 30, 'normal': 30}
+    due_buckets = {'one_day': 0, 'three_days': 0, 'five_days': 0, 'over_five': 0}
+    for shipment in my_shipments.exclude(status__in=terminal_statuses):
+        alloc = urgency_days_map.get(shipment.urgency or 'standard', 30)
+        deadline = shipment.submitted_at + datetime.timedelta(days=alloc)
+        remaining = (deadline - now).total_seconds() / 86400
+        if remaining <= 1:
+            due_buckets['one_day'] += 1
+        elif remaining <= 3:
+            due_buckets['three_days'] += 1
+        elif remaining <= 5:
+            due_buckets['five_days'] += 1
+        else:
+            due_buckets['over_five'] += 1
+
+    my_records = list(my_shipments.order_by('-submitted_at')[:6])
+
     context = {
         'queue':               queue_count,
         'in_progress':         in_progress,
@@ -138,8 +353,109 @@ def dashboard(request):
         'avg_processing_days': avg_processing_days,
         'completion_rate':     completion_rate,
         'pending_shipments':   pending_list,
+        'my_total_shipments':  my_total_shipments,
+        'my_active_shipments': my_shipments.exclude(status__in=terminal_statuses).count(),
+        'my_cleared_shipments': my_shipments.filter(status__in=cleared_statuses).count(),
+        'my_handled_consignees': my_shipments.values('consignee_id').distinct().count(),
+        'dashboard_on_time_rate': dashboard_on_time_rate,
+        'status_rows':         status_rows,
+        'type_rows':           type_rows,
+        'trend_labels':        json.dumps(trend_labels),
+        'trend_data':          json.dumps(trend_data),
+        'trend_year':          now.year,
+        'due_data':            due_buckets,
+        'due_total':           sum(due_buckets.values()),
+        'due_chart_labels':    json.dumps(['1 Day Left', '3 Days Left', '5 Days Left', '5+ Days Left']),
+        'due_chart_data':      json.dumps([due_buckets['one_day'], due_buckets['three_days'], due_buckets['five_days'], due_buckets['over_five']]),
+        'due_chart_colors':    json.dumps(['#dc0000', '#f75b5b', '#f9a1a1', '#ffd6d6']),
+        'my_records':          my_records,
     }
     return render(request, 'declarant/dashboard.html', context)
+
+
+@login_required
+@declarant_required
+def tariff_book(request):
+    """Read-only tariff book section list for declarants."""
+    hs_list = HSCode.objects.filter(is_active=True).values('chapter')
+    chapter_counts = {}
+    for hs in hs_list:
+        ch = _chapter_num(hs['chapter'])
+        if ch:
+            chapter_counts[ch] = chapter_counts.get(ch, 0) + 1
+
+    sections = []
+    for num, roman, title, chapters in _HS_SECTIONS:
+        total_codes = sum(chapter_counts.get(ch, 0) for ch in chapters)
+        sections.append({
+            'num': num,
+            'roman': roman,
+            'title': title,
+            'total_chapters': len(chapters),
+            'total_codes': total_codes,
+        })
+    return render(request, 'declarant/tariff_book.html', {'sections': sections})
+
+
+@login_required
+@declarant_required
+def tariff_book_section(request, section_num):
+    """Read-only chapter list for one tariff section."""
+    section_data = next((s for s in _HS_SECTIONS if s[0] == section_num), None)
+    if not section_data:
+        messages.error(request, 'Section not found.')
+        return redirect('declarant:tariff_book')
+
+    num, roman, title, chapters = section_data
+    hs_list = HSCode.objects.filter(is_active=True).values('chapter', 'code')
+    chapter_map = {}
+    for hs in hs_list:
+        ch = _chapter_num(hs['chapter'])
+        if ch and ch in chapters:
+            chapter_map.setdefault(ch, {'count': 0, 'samples': []})
+            chapter_map[ch]['count'] += 1
+            if len(chapter_map[ch]['samples']) < 3:
+                chapter_map[ch]['samples'].append(hs['code'])
+
+    chapter_list = [
+        {
+            'num': ch,
+            'num_str': str(ch).zfill(2),
+            'title': _CHAPTER_TITLES.get(ch, ''),
+            'count': chapter_map.get(ch, {}).get('count', 0),
+            'samples': chapter_map.get(ch, {}).get('samples', []),
+        }
+        for ch in chapters
+    ]
+    return render(request, 'declarant/tariff_book_section.html', {
+        'section_num': num,
+        'section_roman': roman,
+        'section_title': title,
+        'chapters': chapter_list,
+    })
+
+
+@login_required
+@declarant_required
+def tariff_book_chapter(request, chapter_num):
+    """Read-only HS code and duty-rate list for one chapter."""
+    section_data = next(
+        ((num, roman, title) for num, roman, title, chs in _HS_SECTIONS if chapter_num in chs),
+        (None, '', '')
+    )
+    section_num, section_roman, section_title = section_data
+
+    all_hs = list(HSCode.objects.filter(is_active=True).order_by('code'))
+    hs_codes = [hs for hs in all_hs if _chapter_num(hs.chapter) == chapter_num]
+
+    return render(request, 'declarant/tariff_book_chapter.html', {
+        'chapter_num': chapter_num,
+        'chapter_num_str': str(chapter_num).zfill(2),
+        'section_num': section_num,
+        'section_roman': section_roman,
+        'section_title': section_title,
+        'hs_codes': hs_codes,
+    })
 
 
 # ─── Shipment Preview (JSON for queue modal) ──────────────────────────────────
@@ -283,6 +599,51 @@ def claim_shipment(request, shipment_id):
     return redirect('declarant:queue')
 
 
+# ─── Synchronous OCR scan (called from queue "Process →" before redirect) ────
+
+@login_required
+@declarant_required
+def run_ocr_sync(request, shipment_id):
+    """Run OCR on all unscanned documents in parallel, then return when done.
+    Called via fetch() from the queue page loading overlay.
+    Returns JSON {done: true, scanned: N} when complete.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    if shipment.declarant != request.user:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    docs_to_scan = [
+        doc for doc in shipment.documents.filter(
+            document_type__in=['invoice', 'airway_bill', 'packing_list']
+        )
+        if not doc.ocr_ran_at
+    ]
+
+    if not docs_to_scan:
+        return JsonResponse({'done': True, 'scanned': 0, 'already_done': True})
+
+    # Run all documents simultaneously — 3 docs take the time of the slowest one
+    # instead of 3× the slowest one.
+    scanned = 0
+    def _scan(doc):
+        try:
+            _run_and_store_document_ocr(doc)
+            return True
+        except Exception as e:
+            print(f'[OCR-SYNC] Failed for doc {doc.id} ({doc.document_type}): {e}')
+            return False
+
+    with ThreadPoolExecutor(max_workers=len(docs_to_scan)) as executor:
+        futures = [executor.submit(_scan, doc) for doc in docs_to_scan]
+        for future in as_completed(futures):
+            if future.result():
+                scanned += 1
+
+    return JsonResponse({'done': True, 'scanned': scanned})
+
+
 # ─── Process Shipment ─────────────────────────────────────────────────────────
 
 @login_required
@@ -296,22 +657,13 @@ def process_shipment(request, shipment_id):
         return redirect('declarant:queue')
 
     documents = shipment.documents.all()
+    # Check if any docs still need OCR (e.g. declarant navigated directly, skipping the queue flow)
     _pending_ocr = [
         doc for doc in documents
         if doc.document_type in ('invoice', 'airway_bill', 'packing_list') and not doc.ocr_ran_at
     ]
-    if _pending_ocr:
-        def _run_ocr_background(docs):
-            for doc in docs:
-                try:
-                    _run_and_store_document_ocr(doc)
-                    print(f'[OCR-AUTO] Completed for document {doc.id} ({doc.document_type})')
-                except Exception as e:
-                    print(f'[OCR-AUTO] Failed for document {doc.id}: {e}')
-        t = threading.Thread(target=_run_ocr_background, args=(_pending_ocr,), daemon=True)
-        t.start()
+    has_pending_ocr = bool(_pending_ocr)  # kept for template auto-reload fallback
 
-    documents = shipment.documents.all()
     status_logs = shipment.status_logs.order_by('-changed_at')[:5]
 
     # ── Extract OCR line items from scanned documents (for review panel) ────────
@@ -326,16 +678,12 @@ def process_shipment(request, shipment_id):
             _docs_by_type.setdefault(_d.document_type, []).append(_d)
     for _doc_type in _priority_doc_types:
         for _doc in _docs_by_type.get(_doc_type, []):
+            # Always re-extract from the stored raw OCR text using the latest
+            # _extract_line_items logic (which includes IBAN/banking filters,
+            # improved patterns, etc.). This avoids serving stale cached __items__
+            # that may contain junk like "IBAN: DE26" from old extractions.
             _items_from_json = []
-            if _doc.ocr_fields_json:
-                try:
-                    _ocr_data = json.loads(_doc.ocr_fields_json)
-                    _items_from_json = _ocr_data.get('__items__', [])
-                except (TypeError, ValueError):
-                    pass
-            # Fallback: re-run improved extraction on stored OCR text when
-            # the previously-stored __items__ list is empty (old or failed run)
-            if not _items_from_json and getattr(_doc, 'ocr_text', None):
+            if getattr(_doc, 'ocr_text', None):
                 _items_from_json = _extract_line_items(_doc.ocr_text)
             for _item in _items_from_json:
                 _desc = (_item.get('description') or '').strip()
@@ -352,6 +700,29 @@ def process_shipment(request, shipment_id):
                         ),
                         confidence_pct=round(float(_item.get('confidence', 0)) * 100, 1),
                     ))
+
+    # ── Fallback: if no items extracted by pattern matching, use the
+    # HS-code-anchored extractor which walks backwards from "HS CODE: XXXX"
+    # labels to reconstruct descriptions. This handles multi-line item
+    # formats that _extract_line_items patterns don't match.
+    if not ocr_items_from_docs:
+        for _doc_type in _priority_doc_types:
+            for _doc in _docs_by_type.get(_doc_type, []):
+                if not getattr(_doc, 'ocr_text', None):
+                    continue
+                _fallback = _extract_hs_anchored_items(_doc.ocr_text)
+                for _item in _fallback:
+                    _desc = (_item.get('description') or '').strip()
+                    if _desc and _desc not in _seen_ocr_desc:
+                        _seen_ocr_desc.add(_desc)
+                        ocr_items_from_docs.append(dict(
+                            _item,
+                            source_doc=_doc_type,
+                            raw_extracted_text=_desc,
+                            confidence_pct=round(float(_item.get('confidence', 0)) * 100, 1),
+                        ))
+            if ocr_items_from_docs:
+                break  # stop at first document type that yields results
 
     ocr_fields = None
     if request.session.get('ocr_shipment_id') == shipment_id:

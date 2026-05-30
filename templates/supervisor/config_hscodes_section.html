@@ -4,6 +4,15 @@
 {% block nav_config %}active{% endblock %}
 {% block content %}
 
+<div style="margin-bottom:18px;">
+    <a href="{% url 'supervisor:config_hscodes_sections' %}" class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
+            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
+        </svg>
+        Back to HS Code Duty Rates
+    </a>
+</div>
+
 <!-- Breadcrumb -->
 <p style="color:#9CA3AF; font-size:13px; margin-bottom:24px;">
     <a href="{% url 'supervisor:config' %}" style="color:#22c55e; text-decoration:none;">System Config</a>
@@ -18,37 +27,40 @@
 </p>
 
 {% if chapters %}
-<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;">
-    {% for ch in chapters %}
-    <a href="{% url 'supervisor:config_hscodes_chapter' ch.num %}" style="text-decoration:none;">
-        <div class="card" style="padding:18px 20px; cursor:pointer; border:1px solid #FFFFFF;
-                                  transition:border-color .2s, transform .15s;"
-             onmouseover="this.style.borderColor='#22c55e'; this.style.transform='translateY(-2px)'"
-             onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-                <span style="color:#22c55e; font-size:18px; font-weight:800; font-family:monospace;">
-                    {{ ch.num_str }}
-                </span>
-                <span style="color:#9CA3AF; font-size:12px;">Chapter {{ ch.num }}</span>
-            </div>
-
-            {% if ch.count %}
-            <p style="color:#22c55e; font-size:13px; font-weight:600; margin:0 0 6px;">
-                {{ ch.count }} HS code{{ ch.count|pluralize }}
-            </p>
-            {% if ch.samples %}
-            <p style="color:#9CA3AF; font-size:11px; margin:0; font-family:monospace; letter-spacing:.02em;">
-                {{ ch.samples|join:", " }}{% if ch.count > 3 %}{% endif %}
-            </p>
-            {% endif %}
-            {% else %}
-            <p style="color:#374151; font-size:12px; margin:0;">No HS codes loaded</p>
-            {% endif %}
-
-            <p style="color:#22c55e; font-size:11px; font-weight:600; margin:10px 0 0;">Edit rates </p>
-        </div>
-    </a>
-    {% endfor %}
+<div class="card" style="padding:0; overflow:hidden;">
+    <table style="width:100%; border-collapse:collapse;">
+        <tbody>
+            {% for ch in chapters %}
+            <tr style="border-top:1px solid #D1D5DB;">
+                <td style="width:150px; padding:14px 16px; border-right:1px solid #D1D5DB;">
+                    <a href="{% url 'supervisor:config_hscodes_chapter' ch.num %}"
+                       style="color:#0EA5E9; font-size:14px; text-decoration:none;">
+                        Chapter {{ ch.num }}
+                    </a>
+                </td>
+                <td style="padding:14px 16px; color:#111827; font-size:14px; line-height:1.55;">
+                    <a href="{% url 'supervisor:config_hscodes_chapter' ch.num %}"
+                       style="color:#111827; text-decoration:none;">
+                        {{ ch.title|default:"No chapter title available" }}
+                    </a>
+                    {% if ch.count %}
+                    <span style="color:#6B7280; font-size:12px; margin-left:10px;">
+                        {{ ch.count }} HS code{{ ch.count|pluralize }}
+                    </span>
+                    {% else %}
+                    <span style="color:#9CA3AF; font-size:12px; margin-left:10px;">No HS codes loaded</span>
+                    {% endif %}
+                </td>
+                <td style="width:110px; padding:14px 16px; text-align:right;">
+                    <a href="{% url 'supervisor:config_hscodes_chapter' ch.num %}"
+                       style="color:#22c55e; font-size:12px; font-weight:700; text-decoration:none;">
+                        Edit rates
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% else %}
 <div class="card" style="padding:40px; text-align:center;">

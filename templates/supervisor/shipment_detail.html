@@ -60,8 +60,8 @@
 
 <!-- Header -->
 <div style="display:flex; align-items:center; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
-    <a href="{% url 'supervisor:dashboard' %}" class="btn btn-secondary" style="font-size:12px;">
-        Back to Dashboard
+    <a href="{{ back_url }}" class="btn btn-secondary" style="font-size:12px;">
+        {{ back_label }}
     </a>
     <div>
         <h2 style="font-size:18px; font-weight:700; color:#1A1A2E; margin:0;">{{ shipment.hawb_number }}</h2>
@@ -91,6 +91,10 @@
             {% if shipment.consignee.company_name %}
             <p style="color:#9CA3AF; font-size:11px; margin:2px 0 0;">{{ shipment.consignee.company_name }}</p>
             {% endif %}
+            <a href="{% url 'supervisor:consignee_detail' shipment.consignee.id %}"
+               style="display:inline-flex; margin-top:7px; color:#1B3358; font-size:11px; font-weight:700; text-decoration:none;">
+                View consignee shipment records
+            </a>
         </div>
     </div>
     <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:14px 18px;
@@ -105,6 +109,10 @@
                 {{ shipment.declarant.get_full_name|default:shipment.declarant.username }}
             </p>
             <p style="color:#9CA3AF; font-size:11px; margin:2px 0 0;">@{{ shipment.declarant.username }}</p>
+            <a href="{% url 'supervisor:declarant_detail' shipment.declarant.id %}"
+               style="display:inline-flex; margin-top:7px; color:#1B3358; font-size:11px; font-weight:700; text-decoration:none;">
+                View declarant records
+            </a>
             {% else %}
             <p style="color:#9CA3AF; font-size:13px; margin:0;">Not yet assigned</p>
             {% endif %}

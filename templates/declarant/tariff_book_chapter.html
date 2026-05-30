@@ -1,0 +1,130 @@
+{% extends 'declarant/base_declarant.html' %}
+
+{% block title %}Chapter {{ chapter_num_str }} HS Codes{% endblock %}
+{% block page_title %}Chapter {{ chapter_num_str }} Duty Rates{% endblock %}
+{% block nav_tariff %}active{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:18px;">
+    <a href="{% if section_num %}{% url 'declarant:tariff_book_section' section_num %}{% else %}{% url 'declarant:tariff_book' %}{% endif %}"
+       class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
+            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
+        </svg>
+        Back to Chapters
+    </a>
+</div>
+
+<p style="color:#6B7280; font-size:13px; margin-bottom:24px;">
+    <a href="{% url 'declarant:tariff_book' %}" style="color:#1B3358; text-decoration:none; font-weight:700;">Tariff Book 2022</a>
+    <span style="margin:0 8px;">/</span>
+    {% if section_num %}
+    <a href="{% url 'declarant:tariff_book_section' section_num %}" style="color:#1B3358; text-decoration:none; font-weight:700;">
+        Section {{ section_roman }}
+    </a>
+    <span style="margin:0 8px;">/</span>
+    {% endif %}
+    <span>Chapter {{ chapter_num_str }}</span>
+</p>
+
+{% if section_title %}
+<p style="color:#6B7280; font-size:13px; margin-bottom:20px;">
+    {{ section_roman }} - {{ section_title }}
+</p>
+{% endif %}
+
+{% if hs_codes %}
+<div style="margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+    <div style="position:relative; flex:1; max-width:420px;">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+             style="position:absolute; left:12px; top:50%; transform:translateY(-50%);
+                    color:#6B7280; pointer-events:none;">
+            <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 103.47 9.77l2.63 2.63a.75.75 0 101.06-1.06l-2.63-2.63A5.5 5.5 0 009 3.5zM5 9a4 4 0 118 0 4 4 0 01-8 0z" clip-rule="evenodd"/>
+        </svg>
+        <input type="text" id="hs-search" placeholder="Search HS code or description"
+               class="form-input"
+               style="padding-left:36px; font-size:13px;"
+               oninput="filterHsCodes(this.value)">
+    </div>
+    <span id="hs-count-label" style="font-size:12px; color:#6B7280;">
+        {{ hs_codes|length }} code{{ hs_codes|length|pluralize }}
+    </span>
+</div>
+
+<div class="card" style="padding:0; overflow:hidden; margin-bottom:16px;">
+    <div style="padding:14px 20px; background:#F8FAFC; border-bottom:1px solid #E5E7EB;">
+        <p class="card-title" style="margin:0;">
+            {{ hs_codes|length }} HS code{{ hs_codes|length|pluralize }} in Chapter {{ chapter_num_str }}
+        </p>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#1B3358;">
+                    <th style="padding:10px 16px; text-align:left; color:#fff; font-size:12px; white-space:nowrap;">HS Code</th>
+                    <th style="padding:10px 16px; text-align:left; color:#fff; font-size:12px;">Description</th>
+                    <th style="padding:10px 16px; text-align:center; color:#fff; font-size:12px; white-space:nowrap;">Duty Rate (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for hs in hs_codes %}
+                <tr class="hs-row" style="border-top:1px solid #F3F4F6;"
+                    data-code="{{ hs.code|lower }}"
+                    data-desc="{{ hs.description|lower }}">
+                    <td style="padding:11px 16px;">
+                        <span style="color:#1B3358; font-size:13px; font-weight:700; font-family:monospace;">
+                            {{ hs.code }}
+                        </span>
+                        {% if hs.chapter %}
+                        <br>
+                        <span style="color:#6B7280; font-size:11px;">Ch. {{ hs.chapter }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:11px 16px; color:#111827; font-size:13px; max-width:560px;">
+                        {{ hs.description|default:"" }}
+                    </td>
+                    <td style="padding:11px 16px; text-align:center;">
+                        <span class="badge badge-info">{{ hs.duty_rate }}%</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="padding:14px 20px; border-top:1px solid #E5E7EB; display:flex; justify-content:flex-end;">
+        <a href="{% if section_num %}{% url 'declarant:tariff_book_section' section_num %}{% else %}{% url 'declarant:tariff_book' %}{% endif %}"
+           class="btn btn-secondary" style="font-size:12px; padding:7px 18px;">
+            Back to Chapters
+        </a>
+    </div>
+</div>
+{% else %}
+<div class="card" style="padding:48px; text-align:center;">
+    <p style="color:#6B7280; font-size:14px; margin:0 0 8px;">No HS codes loaded for Chapter {{ chapter_num_str }}.</p>
+    <p style="color:#9CA3AF; font-size:12px; margin:0;">Supervisors can import and maintain HS code duty rates from System Config.</p>
+</div>
+{% endif %}
+
+<script>
+function filterHsCodes(query) {
+    var q = query.toLowerCase().trim();
+    var rows = document.querySelectorAll('.hs-row');
+    var visible = 0;
+    rows.forEach(function(row) {
+        var code = row.getAttribute('data-code') || '';
+        var desc = row.getAttribute('data-desc') || '';
+        var match = !q || code.includes(q) || desc.includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    var label = document.getElementById('hs-count-label');
+    if (label) {
+        label.textContent = q
+            ? visible + ' of {{ hs_codes|length }} code' + (visible !== 1 ? 's' : '') + ' matched'
+            : '{{ hs_codes|length }} code{{ hs_codes|length|pluralize }}';
+    }
+}
+</script>
+{% endblock %}

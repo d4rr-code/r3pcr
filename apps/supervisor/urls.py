@@ -7,6 +7,7 @@ urlpatterns = [
     path('dashboard/',   views.dashboard,       name='dashboard'),
     path('users/',       views.user_management, name='users'),
     path('users/add/',   views.add_user,        name='add_user'),
+    path('users/<int:user_id>/edit/',           views.edit_user,            name='edit_user'),
     path('users/toggle/<int:user_id>/',         views.toggle_user,           name='toggle_user'),
     path('users/approve/<int:user_id>/',        views.approve_registration,  name='approve_registration'),
     path('users/reject/<int:user_id>/',         views.reject_registration,   name='reject_registration'),
@@ -34,4 +35,11 @@ urlpatterns = [
     path('feedbacks/',                           views.manage_feedbacks,         name='feedbacks'),
     path('feedbacks/approve/<int:feedback_id>/', views.approve_feedback,         name='approve_feedback'),
     path('feedbacks/reject/<int:feedback_id>/',  views.reject_feedback,          name='reject_feedback'),
+
+    # Shipment Records & Client Lists
+    path('shipments/',           views.shipment_records, name='shipment_records'),
+    path('clients/consignees/',  views.consignee_list,   name='consignee_list'),
+    path('clients/consignees/<int:user_id>/', views.consignee_detail, name='consignee_detail'),
+    path('clients/declarants/',  views.declarant_list,   name='declarant_list'),
+    path('clients/declarants/<int:user_id>/', views.declarant_detail, name='declarant_detail'),
 ]

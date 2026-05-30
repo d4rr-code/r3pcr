@@ -7,7 +7,7 @@ try:
 except ImportError:
     _PYTESSERACT_AVAILABLE = False
 
-load_dotenv()
+load_dotenv(override=True)  # always prefer .env values over system env vars
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -118,7 +118,7 @@ STORAGES = {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
     },
 }
 

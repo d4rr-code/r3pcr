@@ -1105,11 +1105,12 @@ def suggest_hs_codes(text, top_n=5):
             seen_kw.add(kw)
             unique_keywords.append(kw)
 
-    # Require at least 2 distinct meaningful keywords
-    if len(unique_keywords) < 2:
+    # Need at least 1 keyword. For single-word searches (e.g. “incubator”),
+    # do a direct icontains match and return the best results.
+    if not unique_keywords:
         return []
 
-    # Layer 1 â€” DB-level OR prefilter (avoids loading all 9,268 rows per call)
+    # Layer 1 — DB-level OR prefilter (avoids loading all 9,268 rows per call)
     q = Q()
     for kw in unique_keywords[:12]:   # cap keyword count to keep query manageable
         q |= Q(description__icontains=kw)
@@ -1271,22 +1272,69 @@ def confirm_hs_code(request, shipment_id):
 def hs_code_suggest(request):
     """
     AJAX endpoint for per-row live suggestions.
-    GET ?q=<description_text>&limit=<n>
-    Returns JSON: { suggestions: [{id, code, desc, rate, chapter}, ...] }
+    GET ?q=<item description>&doc_hs=<HS from document>&context=<OCR text>&limit=<n>
+
+    Priority order:
+    1. doc_hs  — HS code explicitly printed in the invoice/packing list (highest confidence).
+                 Looked up directly in the DB and returned as the first result.
+    2. q alone — keyword search on item description.
+    3. q + context — enriched search using full OCR raw text when q gives < 2 results.
     """
-    q     = request.GET.get('q', '').strip()
-    limit = min(int(request.GET.get('limit', 5) or 5), 10)
-    data  = [
-        {
-            'id':      hs.id,
-            'code':    hs.code,
-            'desc':    hs.description[:80],
-            'rate':    float(hs.duty_rate),
-            'chapter': hs.chapter or '',
-        }
-        for hs in suggest_hs_codes(q, top_n=limit)
-    ]
-    return JsonResponse({'suggestions': data})
+    try:
+        q       = request.GET.get('q', '').strip()
+        doc_hs  = request.GET.get('doc_hs', '').strip()
+        context = request.GET.get('context', '').strip()[:800]   # tighter cap to avoid long URLs
+        limit   = min(int(request.GET.get('limit', 5) or 5), 10)
+
+        seen_ids = set()
+        pinned   = []
+
+        # ── Priority 1: HS code explicitly printed in the document ────────────
+        if doc_hs:
+            hs_obj = (
+                HSCode.objects.filter(code=doc_hs, is_active=True).first()
+                or HSCode.objects.filter(code__icontains=doc_hs, is_active=True).first()
+                or HSCode.objects.filter(
+                    code__startswith=doc_hs.replace('.', ''), is_active=True
+                ).first()
+            )
+            if hs_obj:
+                pinned.append({
+                    'id':      hs_obj.id,
+                    'code':    hs_obj.code,
+                    'desc':    hs_obj.description[:80],
+                    'rate':    float(hs_obj.duty_rate),
+                    'chapter': hs_obj.chapter or '',
+                    'source':  'document',
+                })
+                seen_ids.add(hs_obj.id)
+
+        # ── Priority 2: keyword search on item description ─────────────────────
+        kw_results = suggest_hs_codes(q, top_n=limit)
+
+        # ── Priority 3: enrich with OCR context if description yields < 2 hits
+        if len(kw_results) < 2 and context:
+            kw_results = suggest_hs_codes(q + ' ' + context, top_n=limit)
+
+        remaining_slots = limit - len(pinned)
+        extra = [
+            {
+                'id':      hs.id,
+                'code':    hs.code,
+                'desc':    hs.description[:80],
+                'rate':    float(hs.duty_rate),
+                'chapter': hs.chapter or '',
+                'source':  'suggested',
+            }
+            for hs in kw_results
+            if hs.id not in seen_ids
+        ][:remaining_slots]
+
+        return JsonResponse({'suggestions': pinned + extra})
+
+    except Exception as e:
+        print(f'[hs_code_suggest] Error: {e}')
+        return JsonResponse({'suggestions': [], 'error': str(e)})
 
 
 # â”€â”€â”€ Update ShipmentLineItem HS Code (AJAX PATCH) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1431,40 +1479,47 @@ def compute_wmcda(weight, volume, value, urgency, distance):
         land_weight = land_w if _land_viable else 0.20
 
     # â”€â”€ Risk scores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    lcl_risk  = _lerp(value, 0, 20000, 0.82, 0.40)
-    fcl_risk  = 0.70
-    air_risk  = _lerp(value, 0, 20000, 0.62, 0.92)
-    land_risk = max(0.30, _lerp(distance, 0, 1500, 0.72, 0.38)) if _land_viable else 0.25
+    # Distance scores — normalised to [0,1] using 20 000 km as the practical maximum.
+    # Each mode's score reflects how well-suited it is for the given routing distance:
+    #   Air  — more justified at longer distances where speed vs. cost is critical.
+    #   FCL  — optimal for long ocean routes; score rises with distance.
+    #   LCL  — competitive at medium distances; handling overhead grows on very long routes.
+    #   Land — only viable ≤1 500 km; score falls sharply beyond short-haul range.
+    _D_MAX    = 20_000   # km — full trans-Pacific/Atlantic reference ceiling
+    lcl_dist  = max(0.30, _lerp(distance, 0, _D_MAX, 0.80, 0.50))
+    fcl_dist  = min(0.95, _lerp(distance, 0, _D_MAX, 0.55, 0.92))
+    air_dist  = min(0.95, _lerp(distance, 0, _D_MAX, 0.60, 0.95))
+    land_dist = max(0.10, _lerp(distance, 0, 1500,   0.92, 0.15)) if _land_viable else 0.10
 
     # â”€â”€ Criterion weights from SystemConfig â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
-        w_cost   = float(SystemConfig.get('wmcda_w_cost',   '35')) / 100
-        w_time   = float(SystemConfig.get('wmcda_w_time',   '30')) / 100
-        w_weight = float(SystemConfig.get('wmcda_w_weight', '20')) / 100
-        w_risk   = float(SystemConfig.get('wmcda_w_risk',   '15')) / 100
+        w_cost   = float(SystemConfig.get('wmcda_w_cost',     '35')) / 100
+        w_time   = float(SystemConfig.get('wmcda_w_time',     '30')) / 100
+        w_weight = float(SystemConfig.get('wmcda_w_weight',   '20')) / 100
+        w_dist   = float(SystemConfig.get('wmcda_w_distance', '15')) / 100
     except Exception:
-        w_cost, w_time, w_weight, w_risk = 0.35, 0.30, 0.20, 0.15
+        w_cost, w_time, w_weight, w_dist = 0.35, 0.30, 0.20, 0.15
 
-    def tws(c, t, wt, r):
-        return round(c * w_cost + t * w_time + wt * w_weight + r * w_risk, 4)
+    def tws(c, t, wt, d):
+        return round(c * w_cost + t * w_time + wt * w_weight + d * w_dist, 4)
 
     scores = {
-        'lcl':  tws(lcl_cost,  lcl_time,  lcl_weight,  lcl_risk),
-        'fcl':  tws(fcl_cost,  fcl_time,  fcl_weight,  fcl_risk),
-        'air':  tws(air_cost,  air_time,  air_weight,  air_risk),
-        'land': tws(land_cost, land_time, land_weight, land_risk),
+        'lcl':  tws(lcl_cost,  lcl_time,  lcl_weight,  lcl_dist),
+        'fcl':  tws(fcl_cost,  fcl_time,  fcl_weight,  fcl_dist),
+        'air':  tws(air_cost,  air_time,  air_weight,  air_dist),
+        'land': tws(land_cost, land_time, land_weight, land_dist),
     }
     recommended = max(scores, key=scores.get)
 
     breakdown = {
         'lcl':  {'cost': round(lcl_cost,  3), 'time': round(lcl_time,  3),
-                 'weight': round(lcl_weight,  3), 'risk': round(lcl_risk,  3)},
+                 'weight': round(lcl_weight,  3), 'distance': round(lcl_dist,  3)},
         'fcl':  {'cost': round(fcl_cost,  3), 'time': round(fcl_time,  3),
-                 'weight': round(fcl_weight,  3), 'risk': round(fcl_risk,  3)},
+                 'weight': round(fcl_weight,  3), 'distance': round(fcl_dist,  3)},
         'air':  {'cost': round(air_cost,  3), 'time': round(air_time,  3),
-                 'weight': round(air_weight,  3), 'risk': round(air_risk,  3)},
+                 'weight': round(air_weight,  3), 'distance': round(air_dist,  3)},
         'land': {'cost': round(land_cost, 3), 'time': round(land_time, 3),
-                 'weight': round(land_weight, 3), 'risk': round(land_risk, 3)},
+                 'weight': round(land_weight, 3), 'distance': round(land_dist, 3)},
     }
 
     weight_label = f'{weight:.0f} kg'

@@ -1,0 +1,111 @@
+{% extends 'supervisor/base_supervisor.html' %}
+{% block title %}Consignee List{% endblock %}
+{% block page_title %}Consignees{% endblock %}
+{% block nav_clients %}has-active-child{% endblock %}
+{% block nav_consignees %}active{% endblock %}
+
+{% block extra_css %}
+.page-heading { display:none; }
+.cg-page { color:#111827; max-width: 1180px; margin: 0 auto; padding-top: 22px; }
+.cg-title { color:#8A8A8A; font-size:25px; font-weight:900; margin:0 0 32px 8px; }
+.cg-search { margin:0 0 18px 8px; max-width:520px; }
+.cg-search label { color:#111827; display:block; font-size:12px; font-weight:800; margin-bottom:6px; }
+.cg-search-wrap { position:relative; }
+.cg-input { width:100%; height:38px; border:1px solid #E6ECF2; border-radius:6px; background:#fff; color:#111827; padding:0 42px 0 14px; font:inherit; box-shadow:0 8px 18px rgba(31,43,62,.06); }
+.cg-search button { position:absolute; right:8px; top:50%; transform:translateY(-50%); border:0; background:transparent; color:#111827; cursor:pointer; width:28px; height:28px; }
+.cg-search svg { width:17px; height:17px; }
+.cg-card { background:#fff; border:1px solid #E6ECF2; border-radius:6px; overflow:hidden; box-shadow:0 12px 28px rgba(31,43,62,.12); }
+.cg-scroll { overflow-x:auto; }
+.cg-table { width:100%; min-width:980px; border-collapse:collapse; }
+.cg-table th { background:#1B3358; color:#fff; text-transform:uppercase; font-size:10px; font-weight:900; padding:16px 14px; text-align:center; }
+.cg-table td { color:#111827; font-size:12px; padding:18px 14px; border-top:1px solid #E6ECF2; text-align:center; vertical-align:middle; }
+.cg-table td:first-child, .cg-table th:first-child { text-align:left; padding-left:50px; }
+.cg-status { display:block; color:#111827; font-size:13px; font-weight:900; }
+.cg-sub { display:block; color:#111827; font-size:9px; line-height:1.2; margin-top:2px; }
+.cg-action a { color:#34485F; display:inline-flex; width:24px; height:24px; align-items:center; justify-content:center; }
+.cg-action svg { width:16px; height:16px; }
+.cg-pages { min-height:64px; display:flex; justify-content:center; align-items:center; gap:10px; color:#111827; font-size:14px; }
+.cg-pages strong { color:#1B3358; }
+.cg-empty { color:#111827; padding:48px; text-align:center; }
+@media (max-width: 760px) {
+    .cg-title { margin-left:0; font-size:22px; }
+    .cg-search { margin-left:0; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="cg-page">
+    <h1 class="cg-title">Total Consignee: {{ total_consignees }}</h1>
+
+    <form method="GET" class="cg-search">
+        <label>Search Consignee Name</label>
+        <div class="cg-search-wrap">
+            <input class="cg-input" type="text" name="q" value="{{ q }}" placeholder="e.g Maria">
+            <button type="submit" aria-label="Search consignees">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 103.473 9.767l2.38 2.38a.75.75 0 101.061-1.061l-2.38-2.38A5.5 5.5 0 009 3.5zM5 9a4 4 0 118 0 4 4 0 01-8 0z" clip-rule="evenodd"/></svg>
+            </button>
+        </div>
+    </form>
+
+    <div class="cg-card">
+        {% if consignees %}
+        <div class="cg-scroll">
+            <table class="cg-table">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Company</th>
+                        <th>Total<br>Shipments</th>
+                        <th>Active<br>Shipments</th>
+                        <th>Flagged<br>Shipments</th>
+                        <th>Current Shipment</th>
+                        <th>Current Status</th>
+                        <th>Current Declarant</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in consignees %}
+                    <tr>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.company }}</td>
+                        <td>{{ row.total_shipments }}</td>
+                        <td>{{ row.active_shipments }}</td>
+                        <td>{{ row.flagged_shipments }}</td>
+                        <td>{% if row.current_shipment %}{{ row.current_shipment.hawb_number }}{% else %}-{% endif %}</td>
+                        <td>
+                            {% if row.current_shipment %}
+                            <span class="cg-status">{{ row.current_shipment.get_status_display }}</span>
+                            {% if row.current_shipment.has_deficiency and row.current_shipment.deficiency_notes %}
+                            <span class="cg-sub">{{ row.current_shipment.deficiency_notes|truncatechars:36 }}</span>
+                            {% elif row.current_shipment.status == 'arrived' %}
+                            <span class="cg-sub">Awaits Revised Invoice</span>
+                            {% endif %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.current_shipment and row.current_shipment.declarant %}
+                            {{ row.current_shipment.declarant.get_full_name|default:row.current_shipment.declarant.username }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="cg-action">
+                            <a href="{% url 'supervisor:consignee_detail' row.user.id %}" aria-label="View consignee shipment records">
+                                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 4.5c-4.2 0-7.15 3.22-8.2 4.6a1.5 1.5 0 000 1.8c1.05 1.38 4 4.6 8.2 4.6s7.15-3.22 8.2-4.6a1.5 1.5 0 000-1.8c-1.05-1.38-4-4.6-8.2-4.6zm0 8.5a3 3 0 110-6 3 3 0 010 6zm0-1.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="cg-pages"><span>&lt;</span><strong>1</strong><span>&gt;</span></div>
+        {% else %}
+        <div class="cg-empty">No consignees found.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

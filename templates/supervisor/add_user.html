@@ -1,61 +1,195 @@
 {% extends 'supervisor/base_supervisor.html' %}
 
-{% block title %}Add User{% endblock %}
-{% block page_title %}Add New User{% endblock %}
+{% block title %}{% if mode == 'edit' %}Edit User{% else %}Add User{% endif %}{% endblock %}
+{% block page_title %}{% if mode == 'edit' %}Edit User Details{% else %}Add New User{% endif %}{% endblock %}
 {% block nav_users %}active{% endblock %}
 
+{% block extra_css %}
+.user-form-page {
+    width: min(100%, 860px);
+    margin: 18px 0 0 38px;
+}
+.user-form-page .page-spacer { height: 8px; }
+.user-form {
+    display: grid;
+    gap: 24px 32px;
+}
+.user-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px 32px;
+}
+.user-form-role {
+    width: 230px;
+    margin-bottom: -2px;
+}
+.user-form-field.full { grid-column: 1 / -1; }
+.user-form-label {
+    display: block;
+    color: #111827;
+    font-size: 10px;
+    font-weight: 800;
+    margin: 0 0 7px;
+}
+.user-form-input,
+.user-form-select {
+    width: 100%;
+    height: 48px;
+    border: 1px solid #E6ECF2;
+    border-radius: 6px;
+    background: #fff;
+    color: #1B3358;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 0 18px;
+    box-shadow: 0 10px 22px rgba(31,43,62,.12);
+    outline: none;
+}
+.user-form-select {
+    font-size: 12px;
+    text-transform: uppercase;
+    appearance: auto;
+}
+.user-form-input::placeholder { color: #8FA1B8; }
+.user-form-input:focus,
+.user-form-select:focus {
+    border-color: #1B3358;
+    box-shadow: 0 10px 24px rgba(27,51,88,.18);
+}
+.password-rules {
+    color: #111827;
+    font-size: 9px;
+    line-height: 1.25;
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+}
+.password-rules li::before { content: "-"; }
+.user-form-actions {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 12px;
+}
+.user-form-submit,
+.user-form-cancel {
+    min-width: 150px;
+    height: 38px;
+    border: 0;
+    border-radius: 5px;
+    background: #1B3358;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 900;
+    text-decoration: none;
+    cursor: pointer;
+}
+.user-form-cancel {
+    background: #fff;
+    color: #1B3358;
+    border: 1px solid #1B3358;
+}
+@media (max-width: 900px) {
+    .user-form-page { margin-left: 0; }
+}
+@media (max-width: 720px) {
+    .user-form-grid { grid-template-columns: 1fr; }
+    .user-form-role { width: 100%; }
+    .user-form-actions { flex-direction: column; }
+    .user-form-submit,
+    .user-form-cancel { width: 100%; }
+}
+{% endblock %}
+
 {% block content %}
-<div class="card" style="max-width:600px;">
-
-    {% if messages %}
-        {% for message in messages %}
-        <div class="message {{ message.tags }}" style="margin-bottom:16px;">
-            {{ message }}
-        </div>
-        {% endfor %}
-    {% endif %}
-
-    <form method="POST">
+<div class="user-form-page">
+    <form method="POST" class="user-form">
         {% csrf_token %}
 
-        <div class="form-group">
-            <label class="form-label">First Name *</label>
-            <input type="text" name="first_name" class="form-input" required>
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">Last Name *</label>
-            <input type="text" name="last_name" class="form-input" required>
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">Username *</label>
-            <input type="text" name="username" class="form-input" required>
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">Email *</label>
-            <input type="email" name="email" class="form-input" required>
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">Role *</label>
-            <select name="role" class="form-input" required>
-                <option value="">Select role</option>
-                <option value="consignee">Consignee</option>
-                <option value="declarant">Declarant</option>
-                <option value="supervisor">Supervisor</option>
+        {% if mode == 'add' %}
+        <div class="user-form-field user-form-role">
+            <label class="user-form-label">Select Role</label>
+            <select name="role" class="user-form-select" required>
+                <option value="">-SELECT-</option>
+                {% for value, label in role_choices %}
+                <option value="{{ value }}" {% if form_data.role == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
             </select>
         </div>
+        {% endif %}
 
-        <div class="form-group">
-            <label class="form-label">Password *</label>
-            <input type="password" name="password" class="form-input" required>
+        <div class="user-form-grid">
+            <div class="user-form-field">
+                <label class="user-form-label">First Name</label>
+                <input type="text" name="first_name" class="user-form-input" required
+                       value="{% if form_data %}{{ form_data.first_name }}{% else %}{{ edited_user.first_name|default:'' }}{% endif %}"
+                       placeholder="Maria">
+            </div>
+
+            <div class="user-form-field">
+                <label class="user-form-label">Last Name</label>
+                <input type="text" name="last_name" class="user-form-input" required
+                       value="{% if form_data %}{{ form_data.last_name }}{% else %}{{ edited_user.last_name|default:'' }}{% endif %}"
+                       placeholder="Santos">
+            </div>
+
+            <div class="user-form-field">
+                <label class="user-form-label">Email Address</label>
+                <input type="email" name="email" class="user-form-input" required
+                       value="{% if form_data %}{{ form_data.email }}{% else %}{{ edited_user.email|default:'' }}{% endif %}"
+                       placeholder="example@gmail.com">
+            </div>
+
+            <div class="user-form-field">
+                <label class="user-form-label">Phone Number</label>
+                <input type="text" name="phone_number" class="user-form-input"
+                       value="{% if form_data %}{{ form_data.phone_number }}{% else %}{{ edited_user.phone_number|default:'' }}{% endif %}"
+                       placeholder="+639XXXXXX">
+            </div>
+
+            <div class="user-form-field">
+                <label class="user-form-label">Company Name</label>
+                <input type="text" name="company_name" class="user-form-input"
+                       value="{% if form_data %}{{ form_data.company_name }}{% else %}{{ edited_user.company_name|default:'' }}{% endif %}"
+                       placeholder="Example Company Inc.">
+            </div>
+
+            <div class="user-form-field">
+                <label class="user-form-label">Username</label>
+                <input type="text" name="username" class="user-form-input" required
+                       value="{% if form_data %}{{ form_data.username }}{% else %}{{ edited_user.username|default:'' }}{% endif %}"
+                       placeholder="mariasantos">
+            </div>
+
+            {% if mode == 'add' %}
+            <div class="user-form-field full">
+                <label class="user-form-label">Enter Password</label>
+                <input type="password" name="password" class="user-form-input" required>
+                <ul class="password-rules">
+                    <li>Minimum of 8 characters</li>
+                    <li>At least one uppercase letter</li>
+                    <li>At least one lowercase letter</li>
+                    <li>At least one number</li>
+                    <li>At least one special character</li>
+                </ul>
+            </div>
+
+            <div class="user-form-field full">
+                <label class="user-form-label">Confirm Password</label>
+                <input type="password" name="confirm_password" class="user-form-input" required>
+            </div>
+            {% endif %}
         </div>
 
-        <div style="display:flex; gap:12px; margin-top:24px;">
-            <button type="submit" class="btn btn-primary">Create User</button>
-            <a href="{% url 'supervisor:users' %}" class="btn btn-secondary">Cancel</a>
+        <div class="user-form-actions">
+            <button type="submit" class="user-form-submit">
+                {% if mode == 'edit' %}Update User{% else %}Add User{% endif %}
+            </button>
+            <a href="{% url 'supervisor:users' %}" class="user-form-cancel">Cancel</a>
         </div>
     </form>
 </div>

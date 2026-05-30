@@ -2,66 +2,126 @@
 {% block title %}System Configuration{% endblock %}
 {% block page_title %}System Configuration{% endblock %}
 {% block nav_config %}active{% endblock %}
+{% block extra_css %}
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
+    max-width: 1128px;
+    align-items: stretch;
+}
+.config-link {
+    display: flex;
+    min-width: 0;
+    text-decoration: none;
+}
+.config-card {
+    width: 100%;
+    min-height: 272px;
+    padding: 38px 36px;
+    border: 1px solid #FFFFFF;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    transition: border-color .2s, transform .15s;
+}
+.config-card svg {
+    color: #1B3358;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 24px;
+    flex-shrink: 0;
+}
+.config-card-title {
+    color: #1A1A2E;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0 0 10px;
+}
+.config-card-copy {
+    color: #9CA3AF;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
+}
+.config-card-action {
+    font-size: 12px;
+    font-weight: 600;
+    margin: auto 0 0;
+    padding-top: 18px;
+}
+@media (max-width: 760px) {
+    .config-grid { grid-template-columns: 1fr; gap: 16px; }
+    .config-card { min-height: 220px; padding: 30px 28px; }
+}
+{% endblock %}
 {% block content %}
+
+<div style="margin-bottom:18px;">
+    <a href="{% url 'supervisor:dashboard' %}" class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
+            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
+        </svg>
+        Back to Dashboard
+    </a>
+</div>
 
 <p style="color:#6B7280; font-size:14px; margin-bottom:28px;">
     Select a configuration area to manage.
 </p>
 
-<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:20px; max-width:900px;">
+<div class="config-grid">
 
     <!-- Global Parameters -->
-    <a href="{% url 'supervisor:config_global' %}" style="text-decoration:none;">
-        <div class="card" style="padding:32px 28px; cursor:pointer; border:1px solid #FFFFFF;
-                                  transition:border-color .2s, transform .15s;"
+    <a href="{% url 'supervisor:config_global' %}" class="config-link">
+        <div class="card config-card"
              onmouseover="this.style.borderColor='#3b82f6'; this.style.transform='translateY(-2px)'"
              onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
-            <svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" style="color:#1B3358; margin-bottom:14px;">
+            <svg viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.332 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
             </svg>
-            <p style="color:#1A1A2E; font-size:17px; font-weight:700; margin:0 0 8px;">Global Parameters</p>
-            <p style="color:#9CA3AF; font-size:13px; margin:0; line-height:1.5;">
+            <p class="config-card-title">Global Parameters</p>
+            <p class="config-card-copy">
                 Exchange rate (USD to PHP) and VAT rate used in all duty computations.
             </p>
-            <p style="color:#3b82f6; font-size:12px; margin:14px 0 0; font-weight:600;">
+            <p class="config-card-action" style="color:#3b82f6;">
                 Configure
             </p>
         </div>
     </a>
 
     <!-- WMCDA Criterion Weights -->
-    <a href="{% url 'supervisor:config_wmcda' %}" style="text-decoration:none;">
-        <div class="card" style="padding:32px 28px; cursor:pointer; border:1px solid #FFFFFF;
-                                  transition:border-color .2s, transform .15s;"
+    <a href="{% url 'supervisor:config_wmcda' %}" class="config-link">
+        <div class="card config-card"
              onmouseover="this.style.borderColor='#8b5cf6'; this.style.transform='translateY(-2px)'"
              onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
-            <svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" style="color:#1B3358; margin-bottom:14px;">
+            <svg viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M10 2a.75.75 0 01.75.75v1.5a5.75 5.75 0 015 5h1.5a.75.75 0 010 1.5h-1.5a5.75 5.75 0 01-5 5v1.5a.75.75 0 01-1.5 0v-1.5a5.75 5.75 0 01-5-5h-1.5a.75.75 0 010-1.5h1.5a5.75 5.75 0 015-5v-1.5A.75.75 0 0110 2zm0 3.75a4.25 4.25 0 100 8.5 4.25 4.25 0 000-8.5zm0 2.5a1.75 1.75 0 100 3.5 1.75 1.75 0 000-3.5z" clip-rule="evenodd"/>
             </svg>
-            <p style="color:#1A1A2E; font-size:17px; font-weight:700; margin:0 0 8px;">WMCDA Criterion Weights</p>
-            <p style="color:#9CA3AF; font-size:13px; margin:0; line-height:1.5;">
-                Cost, time, weight/volume, and risk weights for the shipping advisory algorithm. Must total 100%.
+            <p class="config-card-title">WMCDA Criterion Weights</p>
+            <p class="config-card-copy">
+                Cost, time, weight/volume, and distance weights for the shipping advisory algorithm. Must total 100%.
             </p>
-            <p style="color:#8b5cf6; font-size:12px; margin:14px 0 0; font-weight:600;">
+            <p class="config-card-action" style="color:#8b5cf6;">
                 Configure
             </p>
         </div>
     </a>
 
     <!-- HS Code Duty Rates -->
-    <a href="{% url 'supervisor:config_hscodes_sections' %}" style="text-decoration:none;">
-        <div class="card" style="padding:32px 28px; cursor:pointer; border:1px solid #FFFFFF;
-                                  transition:border-color .2s, transform .15s;"
+    <a href="{% url 'supervisor:config_hscodes_sections' %}" class="config-link">
+        <div class="card config-card"
              onmouseover="this.style.borderColor='#22c55e'; this.style.transform='translateY(-2px)'"
              onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
-            <svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" style="color:#1B3358; margin-bottom:14px;">
+            <svg viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M5 4a2 2 0 012-2h6a2 2 0 012 2v1h1a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2h1V4zm2-1h6v2H7V3zM4 7h12v9H4V7zm3 3a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7zm0 3a.75.75 0 000 1.5h4a.75.75 0 000-1.5H7z" clip-rule="evenodd"/>
             </svg>
-            <p style="color:#1A1A2E; font-size:17px; font-weight:700; margin:0 0 8px;">HS Code Duty Rates</p>
-            <p style="color:#9CA3AF; font-size:13px; margin:0; line-height:1.5;">
+            <p class="config-card-title">HS Code Duty Rates</p>
+            <p class="config-card-copy">
                 Browse Sections I-XXI, Chapters, and HS codes. Update duty rates per code.
             </p>
-            <p style="color:#22c55e; font-size:12px; margin:14px 0 0; font-weight:600;">
+            <p class="config-card-action" style="color:#22c55e;">
                 Browse
             </p>
         </div>

@@ -5,6 +5,9 @@ app_name = 'declarant'
 
 urlpatterns = [
     path('dashboard/',                            views.dashboard,          name='dashboard'),
+    path('tariff-book/',                          views.tariff_book,        name='tariff_book'),
+    path('tariff-book/section/<int:section_num>/', views.tariff_book_section, name='tariff_book_section'),
+    path('tariff-book/chapter/<int:chapter_num>/', views.tariff_book_chapter, name='tariff_book_chapter'),
     path('preview/<int:shipment_id>/',            views.shipment_preview,   name='preview'),
     path('queue/', views.queue_manager, name='queue'),
     path('claim/<int:shipment_id>/', views.claim_shipment, name='claim'),
@@ -16,4 +19,5 @@ urlpatterns = [
     path('flag-deficiency/<int:shipment_id>/', views.flag_deficiency, name='flag_deficiency'),
     path('shipment/<int:shipment_id>/upload-sad/', views.upload_sad,       name='upload_sad'),
     path('save-ocr-items/<int:shipment_id>/',     views.save_ocr_items,   name='save_ocr_items'),
+    path('process/<int:shipment_id>/ocr-sync/',   views.run_ocr_sync,     name='run_ocr_sync'),
 ]

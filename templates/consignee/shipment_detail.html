@@ -318,7 +318,7 @@ body {
 .bar-fill.cost { background: #42cf67; }
 .bar-fill.time { background: #3379d6; }
 .bar-fill.weight { background: #ffd72d; }
-.bar-fill.risk { background: #ff620c; }
+.bar-fill.distance { background: #3b82f6; }
 .advisory-foot { color: #69717c; font-size: 10px; margin-top: 28px; }
 .history-list { padding: 24px 34px 34px; }
 .history-item { display: flex; gap: 14px; margin-bottom: 22px; }
@@ -732,8 +732,8 @@ body {
                         <div class="bar-track"><div class="bar-fill weight" style="width:{% widthratio declared_breakdown.weight 1 100 %}%;"></div></div>
                     </div>
                     <div>
-                        <div class="bar-label">Risk Factor {% widthratio declared_breakdown.risk 1 100 %}%</div>
-                        <div class="bar-track"><div class="bar-fill risk" style="width:{% widthratio declared_breakdown.risk 1 100 %}%;"></div></div>
+                        <div class="bar-label">Distance Score {% widthratio declared_breakdown.distance 1 100 %}%</div>
+                        <div class="bar-track"><div class="bar-fill distance" style="width:{% widthratio declared_breakdown.distance 1 100 %}%;"></div></div>
                     </div>
                 </div>
                 {% endif %}
