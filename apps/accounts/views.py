@@ -117,7 +117,18 @@ def verify_otp_view(request):
             messages.error(request, 'Something went wrong. Please try again.')
             return redirect('accounts:login')
 
-    return render(request, 'accounts/verify_otp.html')
+    # ── DEV HINT: surface OTP on screen so testers don't need inbox access ──
+    dev_otp = None
+    try:
+        _hint_user = User.objects.get(id=user_id)
+        _hint_otp  = OTP.objects.filter(user=_hint_user, is_used=False).latest('created_at')
+        if _hint_otp.is_valid():
+            dev_otp = _hint_otp.code
+    except Exception:
+        pass
+    # ── remove the three lines above + dev_otp context key when going live ──
+
+    return render(request, 'accounts/verify_otp.html', {'dev_otp': dev_otp})
 
 
 # ─── Resend OTP ───────────────────────────────────────────────────────────────
