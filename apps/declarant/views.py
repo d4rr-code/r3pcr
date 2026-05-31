@@ -787,11 +787,12 @@ def process_shipment(request, shipment_id):
             if ocr_items_from_docs:
                 break  # stop at first document type that yields results
 
-    # ── HS suggestions from raw OCR text (primary classification source) ────────
-    # Collect raw text from all scanned documents (invoice first, then packing
-    # list, then airway bill).  Feed the combined text into suggest_hs_codes so
-    # that the recommendations reflect what is actually written in the document,
-    # not just the short extracted item descriptions.
+    # ── HS suggestions from raw OCR text ────────────────────────────────────────
+    # Two-pass approach:
+    # Pass 1 (highest confidence): extract HS codes EXPLICITLY printed in the
+    #   document — e.g. "HS CODE: 49111010" or "4911.10.00".  These are looked up
+    #   directly in the tariff table and pinned at the top of the recommendations.
+    # Pass 2: keyword-based matching on the full raw text for any remaining slots.
     ocr_hs_suggestions = []
     _ocr_raw_parts = []
     for _doc_type in ['invoice', 'packing_list', 'airway_bill']:
@@ -799,11 +800,55 @@ def process_shipment(request, shipment_id):
             _rt = getattr(_doc, 'ocr_text', None)
             if _rt:
                 _ocr_raw_parts.append(_rt[:3000])
+
     if _ocr_raw_parts:
         try:
             from apps.computation.views import suggest_hs_codes as _suggest_hs_codes
             _combined_ocr = ' '.join(_ocr_raw_parts)[:5000]
-            ocr_hs_suggestions = _suggest_hs_codes(_combined_ocr, top_n=8)
+            _seen_hs_ids = set()
+            _pinned = []
+
+            # ── Pass 1: explicit HS code patterns in the document ────────────
+            # Matches:  "HS CODE: 49111010"  /  "HS CODE: 4911.10.10"
+            #           standalone dotted    "4911.10.00"
+            #           bare 8-digit         "49111010"
+            _hs_from_text = re.findall(
+                r'HS\s*(?:CODE)?\s*[:\-]?\s*([\d\.]{6,14})',
+                _combined_ocr, re.IGNORECASE
+            )
+            # Also catch bare 8–10 digit runs not already captured
+            _hs_from_text += re.findall(r'\b(\d{8,10})\b', _combined_ocr)
+
+            for _raw in _hs_from_text:
+                _digits = re.sub(r'[\.\s]', '', _raw.strip())
+                if len(_digits) < 6:
+                    continue
+                # Normalise to dotted format: 49111010 → 4911.10.10
+                if len(_digits) == 8:
+                    _norm = f'{_digits[:4]}.{_digits[4:6]}.{_digits[6:]}'
+                elif len(_digits) == 10:
+                    _norm = f'{_digits[:4]}.{_digits[4:6]}.{_digits[6:8]}.{_digits[8:]}'
+                else:
+                    _norm = _raw.strip()
+
+                _hs_obj = (
+                    HSCode.objects.filter(code=_norm, is_active=True).first()
+                    or HSCode.objects.filter(code__startswith=_norm[:7], is_active=True).first()
+                    or HSCode.objects.filter(code__startswith=_digits[:4], is_active=True).first()
+                )
+                if _hs_obj and _hs_obj.id not in _seen_hs_ids:
+                    _pinned.append(_hs_obj)
+                    _seen_hs_ids.add(_hs_obj.id)
+
+            # ── Pass 2: keyword-based matches to fill remaining slots ─────────
+            _kw = _suggest_hs_codes(_combined_ocr, top_n=8)
+            for _hs in _kw:
+                if _hs.id not in _seen_hs_ids:
+                    _pinned.append(_hs)
+                    _seen_hs_ids.add(_hs.id)
+
+            ocr_hs_suggestions = _pinned[:10]
+
         except Exception as _e:
             print(f'[HS-OCR] suggestion error: {_e}')
 
