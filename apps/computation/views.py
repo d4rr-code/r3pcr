@@ -8,6 +8,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
+from django.db import transaction
 from django.db.models import Q, Count
 from django.utils import timezone
 from django.utils import timezone
@@ -557,12 +558,14 @@ def compute_shipment(request, shipment_id):
                     new_status='computed',
                     notes='Duties and taxes computation completed.',
                 )
-                notify_shipment_status_change(
-                    shipment=shipment,
-                    old_status=old_status,
-                    new_status='computed',
-                    changed_by=request.user,
-                    notes='Duties and taxes computation completed.',
+                transaction.on_commit(
+                    lambda shipment=shipment, old_status=old_status, changed_by=request.user: notify_shipment_status_change(
+                        shipment=shipment,
+                        old_status=old_status,
+                        new_status='computed',
+                        changed_by=changed_by,
+                        notes='Duties and taxes computation completed.',
+                    )
                 )
 
             # â”€â”€ Auto-run WMCDA alongside ECDT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -622,6 +625,7 @@ def compute_shipment(request, shipment_id):
             # when the status transitions to 'computed'. No duplicate needed here.
 
             messages.success(request, 'Computation & shipping analysis saved!')
+            return redirect('computation:compute', shipment_id=shipment.id)
 
         except ValueError:
             pass
