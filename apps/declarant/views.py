@@ -212,24 +212,46 @@ def dashboard(request):
     shipments = Shipment.objects.all()
     my = {'declarant': request.user}
 
-    queue_count    = shipments.filter(status='incoming').count()
-    in_progress    = shipments.filter(status='arrived', **my).count()
-    completed      = shipments.filter(status='approved', **my).count()
-    rejected_count = shipments.filter(status='rejected', **my).count()
+    # ── KPI 1: Global pending queue (all incoming, not just mine) ──────────────
+    queue_count = shipments.filter(status='incoming').count()
 
-    # Avg processing time (approved + rejected, using updated_at as proxy)
-    done_qs = list(shipments.filter(status__in=['approved', 'rejected'], **my))
+    # ── KPI 2: My active shipments (arrived → released) ────────────────────────
+    in_progress = shipments.filter(
+        declarant=request.user,
+        status__in=['arrived', 'computed', 'for_revision',
+                    'lodgement', 'ongoing', 'assessed', 'paid', 'released'],
+    ).count()
+
+    # ── KPI 3: ECDTs approved by consignee (approved + all downstream) ─────────
+    ecdt_approved = shipments.filter(
+        declarant=request.user,
+        status__in=['approved', 'lodgement', 'ongoing',
+                    'assessed', 'paid', 'released', 'billed'],
+    ).count()
+
+    # ── KPI 4: Fully billed (true completion) ──────────────────────────────────
+    billed_count = shipments.filter(declarant=request.user, status='billed').count()
+
+    # ── KPI 5: Avg processing time — submitted_at → billed log timestamp ───────
     avg_processing_days = None
-    if done_qs:
-        total_secs = sum(
-            (s.updated_at - s.submitted_at).total_seconds()
-            for s in done_qs
-        )
-        avg_processing_days = round(total_secs / len(done_qs) / 86400, 1)
+    billed_qs = list(shipments.filter(status='billed', **my))
+    if billed_qs:
+        durations = []
+        for s in billed_qs:
+            billed_log = (
+                StatusLog.objects
+                .filter(shipment=s, new_status='billed')
+                .order_by('changed_at').first()
+            )
+            end_at = billed_log.changed_at if billed_log else s.updated_at
+            if end_at and s.submitted_at and end_at >= s.submitted_at:
+                durations.append((end_at - s.submitted_at).total_seconds())
+        if durations:
+            avg_processing_days = round(sum(durations) / len(durations) / 86400, 1)
 
-    # My completion rate: done / (done + arrived)
-    total_handled = len(done_qs) + in_progress
-    completion_rate = round(len(done_qs) / total_handled * 100, 1) if total_handled > 0 else 0
+    # ── KPI 6: Completion rate — billed / total assigned ────────────────────────
+    total_assigned = shipments.filter(**my).count()
+    completion_rate = round(billed_count / total_assigned * 100, 1) if total_assigned > 0 else 0
 
     # Incoming queue for dashboard table (up to 20, annotated with due dates)
     today = timezone.localdate()
@@ -351,8 +373,8 @@ def dashboard(request):
     context = {
         'queue':               queue_count,
         'in_progress':         in_progress,
-        'completed':           completed,
-        'rejected':            rejected_count,
+        'ecdt_approved':       ecdt_approved,
+        'billed':              billed_count,
         'avg_processing_days': avg_processing_days,
         'completion_rate':     completion_rate,
         'pending_shipments':   pending_list,

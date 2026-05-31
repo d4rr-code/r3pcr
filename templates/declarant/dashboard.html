@@ -200,21 +200,21 @@
     </section>
     <section class="d-kpi-card is-green">
         <div class="d-kpi-top">
-            <p class="d-kpi-label">Completed</p>
+            <p class="d-kpi-label">ECDTs Approved</p>
+            <span class="d-kpi-icon">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+            </span>
+        </div>
+        <p class="d-kpi-value">{{ ecdt_approved }}</p>
+    </section>
+    <section class="d-kpi-card is-teal" style="--accent:#14B8A6;">
+        <div class="d-kpi-top">
+            <p class="d-kpi-label">Billed</p>
             <span class="d-kpi-icon">
                 <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.415 0L3.296 9.217a1 1 0 011.415-1.414l4.035 4.035 6.543-6.548a1 1 0 011.415 0z" clip-rule="evenodd"/></svg>
             </span>
         </div>
-        <p class="d-kpi-value">{{ completed }}</p>
-    </section>
-    <section class="d-kpi-card is-red">
-        <div class="d-kpi-top">
-            <p class="d-kpi-label">Rejected</p>
-            <span class="d-kpi-icon">
-                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7.707 6.293L10 8.586l2.293-2.293 1.414 1.414L11.414 10l2.293 2.293-1.414 1.414L10 11.414l-2.293 2.293-1.414-1.414L8.586 10 6.293 7.707l1.414-1.414z" clip-rule="evenodd"/></svg>
-            </span>
-        </div>
-        <p class="d-kpi-value">{{ rejected }}</p>
+        <p class="d-kpi-value" style="color:#14B8A6;">{{ billed }}</p>
     </section>
     <section class="d-kpi-card is-purple">
         <div class="d-kpi-top">
@@ -225,14 +225,14 @@
         </div>
         <p class="d-kpi-value">{% if avg_processing_days %}{{ avg_processing_days }}d{% else %}N/A{% endif %}</p>
     </section>
-    <section class="d-kpi-card is-teal">
+    <section class="d-kpi-card" style="--accent:#0EA5E9;">
         <div class="d-kpi-top">
             <p class="d-kpi-label">My Completion</p>
             <span class="d-kpi-icon">
                 <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 13h2v4H3v-4zm4-5h2v9H7V8zm4 3h2v6h-2v-6zm4-8h2v14h-2V3z"/></svg>
             </span>
         </div>
-        <p class="d-kpi-value">{{ completion_rate }}%</p>
+        <p class="d-kpi-value" style="color:#0EA5E9;">{{ completion_rate }}%</p>
     </section>
 </div>
 
