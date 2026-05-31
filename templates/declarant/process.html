@@ -227,6 +227,43 @@
     background: linear-gradient(135deg, #1e40af, #1d4ed8);
     transform: translateY(-1px); box-shadow: 0 5px 14px rgba(37,99,235,.35);
 }
+.lodgement-ready-card {
+    margin-top: 12px;
+    padding: 14px 16px;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    background: #f0fdf4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.lodgement-ready-title {
+    color: #14532d;
+    font-size: 13px;
+    font-weight: 800;
+    margin: 0 0 3px;
+}
+.lodgement-ready-text {
+    color: #166534;
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 0;
+}
+.lodgement-action-btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #166534;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 3px 10px rgba(22,101,52,.18);
+}
+.lodgement-action-btn:hover { background: #14532d; }
 
 /* ── Modals ── */
 .modal-backdrop {
@@ -518,6 +555,24 @@
         </div>
         {% endfor %}
     </div>
+
+    {% if shipment.status == 'approved' %}
+    <div class="lodgement-ready-card">
+        <div>
+            <p class="lodgement-ready-title">ECDT Approved</p>
+            <p class="lodgement-ready-text">
+                Consignee approval is complete. Proceed to BOC lodgement through eTrade.
+            </p>
+        </div>
+        <form method="POST" action="{% url 'declarant:proceed_to_lodgement' shipment.id %}">
+            {% csrf_token %}
+            <button type="submit" class="lodgement-action-btn"
+                    onclick="return confirm('Proceed to BOC lodgement and mark this shipment as ongoing?')">
+                Proceed to BOC Lodgement
+            </button>
+        </form>
+    </div>
+    {% endif %}
 
     <!-- Update Status trigger -->
     <div style="display:flex;justify-content:flex-end;margin-top:4px;">

@@ -119,6 +119,8 @@ _CHAPTER_TITLES = {
     97: 'Works of art, collectors pieces and antiques',
 }
 
+ETRADE_LODGEMENT_URL = 'https://www.etrade.net.ph/etrade-2.0/login/auth'
+
 
 # ─── Role Decorator ───────────────────────────────────────────────────────────
 
@@ -862,7 +864,7 @@ def process_shipment(request, shipment_id):
     has_pending_ocr = bool(_pending_ocr)
 
     from apps.supervisor.models import SystemConfig
-    vasp_url     = SystemConfig.get('vasp_url', 'https://ictsi-vasp.com.ph')
+    vasp_url     = SystemConfig.get('vasp_url', ETRADE_LODGEMENT_URL)
     sad_document = shipment.documents.filter(document_type='sad').first()
 
     context = {
@@ -878,6 +880,7 @@ def process_shipment(request, shipment_id):
         'manual_status_choices': Shipment.MANUAL_STATUS_CHOICES,
         'status_steps':        build_status_progress(shipment.status, 'declarant'),
         'vasp_url':            vasp_url,
+        'etrade_lodgement_url': ETRADE_LODGEMENT_URL,
         'sad_document':        sad_document,
     }
     return render(request, 'declarant/process.html', context)
@@ -909,6 +912,50 @@ def update_shipping_mode(request, shipment_id):
 
 
 # ─── Update Status ────────────────────────────────────────────────────────────
+
+@login_required
+@declarant_required
+def proceed_to_lodgement(request, shipment_id):
+    if request.method != 'POST':
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
+    if shipment.status != 'approved':
+        messages.error(request, 'Only approved ECDT shipments can proceed to BOC lodgement.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    old_status = shipment.status
+    shipment.status = 'ongoing'
+    shipment.boc_status = shipment.boc_status or 'Under Assessment'
+    shipment.save(update_fields=['status', 'boc_status', 'updated_at'])
+
+    StatusLog.objects.create(
+        shipment=shipment,
+        changed_by=request.user,
+        old_status=old_status,
+        new_status='ongoing',
+        notes='Declarant proceeded to BOC lodgement through eTrade.',
+    )
+
+    create_notification(
+        recipient=shipment.consignee,
+        shipment=shipment,
+        notification_type='status_update',
+        title=f'BOC Lodgement Started - {shipment.hawb_number}',
+        message=(
+            f'Your shipment {shipment.hawb_number} has proceeded to BOC lodgement '
+            f'and is now under customs assessment.'
+        ),
+    )
+
+    messages.success(request, 'Shipment marked ongoing. Continue lodgement in eTrade.')
+    return redirect(ETRADE_LODGEMENT_URL)
+
 
 @login_required
 @declarant_required
