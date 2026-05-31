@@ -1076,8 +1076,6 @@ def config_home(request):
     return render(request, 'supervisor/config.html')
 
 
-@login_required
-@supervisor_required
 _BF_DEFAULT_TIERS = [
     {'max': 10000,    'fee': '1300'},
     {'max': 20000,    'fee': '2000'},
