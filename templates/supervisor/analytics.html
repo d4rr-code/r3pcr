@@ -421,6 +421,10 @@
     .metric-users, .metric-total { min-height: 120px; }
     .chart-fixed { height: 220px; }
 }
+@keyframes live-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+}
 @media (max-width: 420px) {
     .s-content { padding-left: 10px; padding-right: 10px; }
     .dash-grid { gap: 12px; }
@@ -466,7 +470,7 @@
                 <svg width="19" height="19" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 4h6V6H7v2zm0 3h6V9H7v2zm0 3h4v-2H7v2z"/></svg>
             </span>
             <p class="metric-label">Total Shipments</p>
-            <p class="metric-value">{{ total_all }} <span class="metric-delta">+8.6%</span></p>
+            <p class="metric-value"><span id="kpi-total">{{ total_all }}</span> <span class="metric-delta">+8.6%</span></p>
         </section>
 
         <div class="metric-types">
@@ -508,7 +512,13 @@
             <div class="panel-title">
                 <div>
                     <h2>Status Overview</h2>
-                    <p>Overall Shipments {{ chart_total }}</p>
+                    <p>Overall Shipments {{ chart_total }} &nbsp;·&nbsp;
+                        <span id="live-indicator" style="font-size:11px; color:#15803D; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
+                            <span style="width:7px;height:7px;border-radius:50%;background:#15803D;display:inline-block;animation:live-pulse 2s ease-in-out infinite;"></span>
+                            Live
+                        </span>
+                        <span id="live-ts" style="font-size:11px; color:#9CA3AF; margin-left:4px;"></span>
+                    </p>
                 </div>
                 <input class="calendar-chip js-month-filter" type="month" value="{{ selected_month }}" aria-label="Filter status overview by month">
             </div>
@@ -520,7 +530,7 @@
                         <p class="status-name">{{ row.display_label }}</p>
                         <p class="status-sub">{{ row.subtitle }}</p>
                     </div>
-                    <strong class="status-count">{{ row.count|stringformat:"02d" }}</strong>
+                    <strong class="status-count" data-live="{{ row.key }}">{{ row.count|stringformat:"02d" }}</strong>
                 </div>
                 {% endfor %}
             </div>
@@ -923,6 +933,52 @@
             }
         });
     }
+})();
+
+// ─── Live status polling (every 60 s) ────────────────────────────────────────
+(function () {
+    var POLL_URL  = '{% url "supervisor:analytics_status_counts" %}';
+    var INTERVAL  = 60000; // 60 seconds
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function fmt(d) {
+        return d.getHours() + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+    }
+
+    function refresh() {
+        fetch(POLL_URL, { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+            .then(function (data) {
+                // Update total KPI
+                var kpiEl = document.getElementById('kpi-total');
+                if (kpiEl) kpiEl.textContent = data.total;
+
+                // Update each status count cell
+                var cells = document.querySelectorAll('[data-live]');
+                cells.forEach(function (el) {
+                    var key   = el.getAttribute('data-live');
+                    var entry = data.counts[key];
+                    if (entry !== undefined) {
+                        var n = typeof entry === 'object' ? entry.count : entry;
+                        el.textContent = pad2(n);
+                    }
+                });
+
+                // Update timestamp
+                var tsEl = document.getElementById('live-ts');
+                if (tsEl) tsEl.textContent = 'Updated ' + fmt(new Date());
+            })
+            .catch(function () {
+                // Silent fail — no disruption to the user
+            });
+    }
+
+    // Stamp immediately so the label shows on first load
+    var tsEl = document.getElementById('live-ts');
+    if (tsEl) tsEl.textContent = 'Updated ' + fmt(new Date());
+
+    setInterval(refresh, INTERVAL);
 })();
 </script>
 {% endblock %}
