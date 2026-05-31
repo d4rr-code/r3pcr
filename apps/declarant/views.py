@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import re
 import tempfile
 import threading
 from collections import defaultdict
@@ -376,7 +377,63 @@ def dashboard(request):
 @login_required
 @declarant_required
 def tariff_book(request):
-    """Read-only tariff book section list for declarants."""
+    """Read-only tariff book — browse by section or search by code/description/chapter/duty rate."""
+    query = request.GET.get('q', '').strip()
+    search_results = []
+    search_count = 0
+
+    if query:
+        q_filter = Q()
+        query_lower = query.lower()
+
+        # Collect chapters whose titles match the query (section or chapter name)
+        matched_chapters = []
+        for ch_num, ch_title in _CHAPTER_TITLES.items():
+            if query_lower in ch_title.lower():
+                matched_chapters.append(ch_num)
+        for _num, _roman, _title, _chapters in _HS_SECTIONS:
+            if query_lower in _title.lower() or query.upper() == _roman:
+                matched_chapters.extend(_chapters)
+
+        # Determine if query looks like a number (HS code prefix, duty rate, or chapter)
+        clean_num = query.rstrip('%').strip()
+        if re.match(r'^[\d\.]+$', clean_num):
+            # Could be: HS code prefix ("8471", "8471.30"), duty rate ("0", "5"), or chapter ("84")
+            q_filter |= Q(code__icontains=clean_num)
+            try:
+                rate_val = float(clean_num)
+                q_filter |= Q(duty_rate=rate_val)
+            except ValueError:
+                pass
+            try:
+                ch_num = int(clean_num)
+                if 1 <= ch_num <= 99:
+                    matched_chapters.append(ch_num)
+            except ValueError:
+                pass
+        else:
+            # Text search: description + possible duty rate suffix
+            q_filter |= Q(description__icontains=query)
+            try:
+                q_filter |= Q(duty_rate=float(clean_num))
+            except ValueError:
+                pass
+
+        # Include all HS codes from matched chapters
+        for ch in set(matched_chapters):
+            q_filter |= Q(chapter__icontains=str(ch).zfill(2))
+            q_filter |= Q(chapter__icontains=str(ch))
+
+        raw_results = list(
+            HSCode.objects.filter(q_filter, is_active=True).order_by('code')[:60]
+        )
+        # Annotate with resolved chapter number for template URL building
+        for hs in raw_results:
+            hs._chapter_num_resolved = _chapter_num(hs.chapter)
+        search_results = raw_results
+        search_count = len(search_results)
+
+    # Always build sections (used when no query and as breadcrumb context)
     hs_list = HSCode.objects.filter(is_active=True).values('chapter')
     chapter_counts = {}
     for hs in hs_list:
@@ -394,7 +451,12 @@ def tariff_book(request):
             'total_chapters': len(chapters),
             'total_codes': total_codes,
         })
-    return render(request, 'declarant/tariff_book.html', {'sections': sections})
+    return render(request, 'declarant/tariff_book.html', {
+        'sections': sections,
+        'query': query,
+        'search_results': search_results,
+        'search_count': search_count,
+    })
 
 
 @login_required
@@ -724,6 +786,26 @@ def process_shipment(request, shipment_id):
             if ocr_items_from_docs:
                 break  # stop at first document type that yields results
 
+    # ── HS suggestions from raw OCR text (primary classification source) ────────
+    # Collect raw text from all scanned documents (invoice first, then packing
+    # list, then airway bill).  Feed the combined text into suggest_hs_codes so
+    # that the recommendations reflect what is actually written in the document,
+    # not just the short extracted item descriptions.
+    ocr_hs_suggestions = []
+    _ocr_raw_parts = []
+    for _doc_type in ['invoice', 'packing_list', 'airway_bill']:
+        for _doc in _docs_by_type.get(_doc_type, []):
+            _rt = getattr(_doc, 'ocr_text', None)
+            if _rt:
+                _ocr_raw_parts.append(_rt[:3000])
+    if _ocr_raw_parts:
+        try:
+            from apps.computation.views import suggest_hs_codes as _suggest_hs_codes
+            _combined_ocr = ' '.join(_ocr_raw_parts)[:5000]
+            ocr_hs_suggestions = _suggest_hs_codes(_combined_ocr, top_n=8)
+        except Exception as _e:
+            print(f'[HS-OCR] suggestion error: {_e}')
+
     ocr_fields = None
     if request.session.get('ocr_shipment_id') == shipment_id:
         ocr_fields = request.session.get('ocr_fields')
@@ -744,6 +826,7 @@ def process_shipment(request, shipment_id):
         'ocr_fields':          ocr_fields,
         'ocr_documents':       _ocr_display_documents(documents),
         'ocr_items_from_docs': ocr_items_from_docs,
+        'ocr_hs_suggestions':  ocr_hs_suggestions,
         'ocr_toast':           ocr_toast,
         'has_pending_ocr':     has_pending_ocr,
         'manual_status_choices': Shipment.MANUAL_STATUS_CHOICES,

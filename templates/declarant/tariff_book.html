@@ -14,8 +14,134 @@
     </a>
 </div>
 
+<!-- ── Search Bar ── -->
+<form method="GET" action="{% url 'declarant:tariff_book' %}"
+      style="margin-bottom:20px; display:flex; gap:8px; align-items:center;">
+    <div style="position:relative; flex:1; max-width:540px;">
+        <svg viewBox="0 0 20 20" fill="currentColor"
+             style="position:absolute; left:11px; top:50%; transform:translateY(-50%);
+                    width:16px; height:16px; color:#9CA3AF; pointer-events:none;">
+            <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/>
+        </svg>
+        <input type="text" name="q" value="{{ query }}"
+               placeholder="Search by HS code, description, chapter, or duty rate (e.g. &quot;8471&quot;, &quot;machinery&quot;, &quot;5%&quot;)"
+               style="width:100%; padding:9px 12px 9px 34px; border:1px solid #D1D5DB;
+                      border-radius:8px; font-size:13px; color:#111827; background:#fff;
+                      outline:none; box-sizing:border-box;"
+               onfocus="this.style.borderColor='#2563EB'; this.style.boxShadow='0 0 0 3px #DBEAFE';"
+               onblur="this.style.borderColor='#D1D5DB'; this.style.boxShadow='none';">
+    </div>
+    <button type="submit"
+            style="padding:9px 20px; background:#1B3358; color:#fff; border:none;
+                   border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+                   white-space:nowrap;">
+        Search
+    </button>
+    {% if query %}
+    <a href="{% url 'declarant:tariff_book' %}"
+       style="padding:9px 14px; border:1px solid #D1D5DB; border-radius:8px;
+              background:#F9FAFB; color:#6B7280; font-size:13px; font-weight:600;
+              text-decoration:none; white-space:nowrap;">
+        Clear
+    </a>
+    {% endif %}
+</form>
+
+{% if query %}
+<!-- ── Search Results ── -->
+<div style="margin-bottom:8px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+    <p style="color:#1A1A2E; font-size:14px; font-weight:700; margin:0;">
+        Search results for &ldquo;{{ query }}&rdquo;
+    </p>
+    {% if search_count %}
+    <span style="background:#EEF2F8; color:#1B3358; font-size:11px; font-weight:700;
+                 padding:3px 10px; border-radius:12px;">
+        {{ search_count }} result{{ search_count|pluralize }}
+        {% if search_count == 60 %}(showing first 60){% endif %}
+    </span>
+    {% endif %}
+</div>
+
+{% if search_results %}
+<div style="background:#fff; border:1px solid #E2E8F0; border-radius:10px;
+             overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead>
+            <tr style="background:#F1F5F9; border-bottom:2px solid #CBD5E1;">
+                <th style="padding:10px 14px; text-align:left; color:#374151;
+                            font-size:11px; font-weight:700; text-transform:uppercase;
+                            letter-spacing:.5px; white-space:nowrap;">HS Code</th>
+                <th style="padding:10px 14px; text-align:left; color:#374151;
+                            font-size:11px; font-weight:700; text-transform:uppercase;
+                            letter-spacing:.5px;">Description</th>
+                <th style="padding:10px 14px; text-align:left; color:#374151;
+                            font-size:11px; font-weight:700; text-transform:uppercase;
+                            letter-spacing:.5px; white-space:nowrap;">Chapter</th>
+                <th style="padding:10px 14px; text-align:right; color:#374151;
+                            font-size:11px; font-weight:700; text-transform:uppercase;
+                            letter-spacing:.5px; white-space:nowrap;">Duty Rate</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for hs in search_results %}
+            <tr style="border-bottom:1px solid #F1F5F9;
+                        {% if forloop.last %}border-bottom:none;{% endif %}"
+                onmouseover="this.style.background='#F8FAFC'"
+                onmouseout="this.style.background=''">
+                <td style="padding:10px 14px; vertical-align:top;">
+                    {% if hs._chapter_num_resolved %}
+                    <a href="{% url 'declarant:tariff_book_chapter' hs._chapter_num_resolved %}"
+                       style="color:#1D4ED8; font-weight:800; font-size:13px;
+                              text-decoration:none; white-space:nowrap;"
+                       title="View chapter {{ hs._chapter_num_resolved }}">
+                        {{ hs.code }}
+                    </a>
+                    {% else %}
+                    <span style="color:#1D4ED8; font-weight:800; font-size:13px;">{{ hs.code }}</span>
+                    {% endif %}
+                </td>
+                <td style="padding:10px 14px; color:#111827; line-height:1.4;">
+                    {{ hs.description }}
+                </td>
+                <td style="padding:10px 14px; vertical-align:top; white-space:nowrap;">
+                    {% if hs._chapter_num_resolved %}
+                    <a href="{% url 'declarant:tariff_book_chapter' hs._chapter_num_resolved %}"
+                       style="color:#6B7280; font-size:12px; text-decoration:none;">
+                        Ch. {{ hs._chapter_num_resolved|stringformat:"02d" }}
+                    </a>
+                    {% else %}
+                    <span style="color:#9CA3AF; font-size:12px;">—</span>
+                    {% endif %}
+                </td>
+                <td style="padding:10px 14px; text-align:right; vertical-align:top; white-space:nowrap;">
+                    <span style="font-weight:700; font-size:13px;
+                                 {% if hs.duty_rate == 0 %}color:#16A34A;{% elif hs.duty_rate <= 5 %}color:#1D4ED8;{% elif hs.duty_rate <= 15 %}color:#D97706;{% else %}color:#DC2626;{% endif %}">
+                        {{ hs.duty_rate }}%
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<div style="padding:36px; text-align:center; background:#FFF7ED;
+             border:1px solid #FED7AA; border-radius:10px;">
+    <p style="color:#92400E; font-size:14px; font-weight:600; margin:0 0 6px;">
+        No HS codes found for &ldquo;{{ query }}&rdquo;
+    </p>
+    <p style="color:#B45309; font-size:12px; margin:0; line-height:1.5;">
+        Try a different keyword, a partial HS code (e.g. <strong>8471</strong>),
+        a chapter number (e.g. <strong>84</strong>), or a duty rate (e.g. <strong>5</strong>).
+    </p>
+</div>
+{% endif %}
+
+{% else %}
+<!-- ── Sections Browse (default) ── -->
 <p style="color:#6B7280; font-size:13px; margin-bottom:24px;">
-    Browse HS sections to view chapters, HS codes, and duty rates. This tariff book is read-only for declarants.
+    Browse HS sections to view chapters, HS codes, and duty rates — or use the search bar above.
 </p>
 
 <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px;">
@@ -61,4 +187,5 @@
     <p style="color:#6B7280; font-size:14px;">No tariff sections found.</p>
     {% endfor %}
 </div>
+{% endif %}
 {% endblock %}

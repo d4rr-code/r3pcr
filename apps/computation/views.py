@@ -1283,7 +1283,7 @@ def hs_code_suggest(request):
     try:
         q       = request.GET.get('q', '').strip()
         doc_hs  = request.GET.get('doc_hs', '').strip()
-        context = request.GET.get('context', '').strip()[:800]   # tighter cap to avoid long URLs
+        context = request.GET.get('context', '').strip()[:3000]  # raw OCR text — expanded cap
         limit   = min(int(request.GET.get('limit', 5) or 5), 10)
 
         seen_ids = set()
@@ -1309,12 +1309,36 @@ def hs_code_suggest(request):
                 })
                 seen_ids.add(hs_obj.id)
 
-        # ── Priority 2: keyword search on item description ─────────────────────
-        kw_results = suggest_hs_codes(q, top_n=limit)
+        # ── Priority 2: OCR raw text as PRIMARY classification source ──────────
+        # When raw OCR text is available it is far richer than a short extracted
+        # item description.  Run the suggestion engine against the full OCR text
+        # first; then re-rank results by how well they also match the typed
+        # description (q), so description-specific terms bubble to the top.
+        if context:
+            # Combine: OCR text carries the product vocabulary; q refines it
+            search_text = (context + ' ' + q).strip() if q else context
+            kw_results = suggest_hs_codes(search_text, top_n=limit * 2)
 
-        # ── Priority 3: enrich with OCR context if description yields < 2 hits
-        if len(kw_results) < 2 and context:
-            kw_results = suggest_hs_codes(q + ' ' + context, top_n=limit)
+            # Re-rank: items whose descriptions also match q get priority
+            if q and kw_results:
+                q_keywords = [
+                    w for w in re.findall(r'[a-zA-Z]{3,}', q.lower())
+                    if w not in _HS_STOPWORDS
+                ]
+                if q_keywords:
+                    def _desc_hits(hs):
+                        words = set(re.findall(r'[a-zA-Z]{3,}', hs.description.lower()))
+                        return sum(1 for kw in q_keywords if kw in words)
+                    kw_results = sorted(kw_results, key=_desc_hits, reverse=True)
+
+            kw_results = kw_results[:limit]
+
+            # Fallback: if OCR context produced nothing, try description alone
+            if not kw_results and q:
+                kw_results = suggest_hs_codes(q, top_n=limit)
+        else:
+            # No OCR context — use typed description only (original behaviour)
+            kw_results = suggest_hs_codes(q, top_n=limit)
 
         remaining_slots = limit - len(pinned)
         extra = [
