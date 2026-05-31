@@ -686,81 +686,12 @@
                     <!-- Item rows -->
                     <div id="review-tbody" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
 
-                        {% if ocr_items_from_docs %}
-                            {% for item in ocr_items_from_docs %}
-                            <div class="hs-item-row" id="hs-row-{{ forloop.counter0 }}">
-
-                                <!-- Row number + remove -->
-                                <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">
-                                    <span style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;">
-                                        Item {{ forloop.counter }}
-                                    </span>
-                                    <button type="button" class="remove-row-btn"
-                                            onclick="removeReviewRow(this)" title="Remove">&times;</button>
-                                </div>
-
-                                <!-- Description -->
-                                <input type="text" name="description[]"
-                                       class="light-input review-desc"
-                                       value="{{ item.description }}"
-                                       placeholder="Item description…" required
-                                       style="margin-bottom:8px;">
-                                <input type="hidden" name="raw_extracted_text[]" value="{{ item.raw_extracted_text }}">
-                                <input type="hidden" name="confidence_pct[]" value="{{ item.confidence_pct }}">
-
-                                <!-- HS Code recommendation — FOCAL ELEMENT -->
-                                <div class="hs-rec-wrap" style="margin-bottom:6px;">
-                                    <span class="hs-rec-loading">Searching&hellip;</span>
-                                </div>
-                                <select name="hs_code_id[]"
-                                        class="light-select review-hs-select"
-                                        data-desc="{{ item.description }}"
-                                        data-dochs="{{ item.doc_hs_code|default:'' }}"
-                                        style="display:none;">
-                                    <option value="">Loading…</option>
-                                </select>
-                                <input type="hidden" name="hs_duty_rate[]" class="review-hs-rate" value="0">
-
-                                <!-- Secondary fields: Total, Qty, Unit (compact row) -->
-                                <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
-                                    <div style="flex:1;min-width:80px;">
-                                        <label style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px;">Total USD</label>
-                                        <input type="number" name="total_value[]"
-                                               class="light-input review-total"
-                                               value="{{ item.total_value|default:'' }}"
-                                               min="0" step="0.01" placeholder="0.00">
-                                    </div>
-                                    <div style="width:64px;">
-                                        <label style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px;">Qty</label>
-                                        <input type="number" name="quantity[]"
-                                               class="light-input"
-                                               value="{{ item.quantity|default:'1' }}"
-                                               min="0" step="0.01">
-                                    </div>
-                                    <div style="width:56px;">
-                                        <label style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px;">Unit</label>
-                                        <input type="text" name="unit[]"
-                                               class="light-input"
-                                               value="{{ item.unit }}"
-                                               placeholder="PCS"
-                                               style="text-transform:uppercase;">
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
                         <div id="empty-review-row"
-                             style="padding:20px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;">
-                            <p style="color:#92400e;font-size:13px;font-weight:600;margin:0 0 4px;">
-                                No items auto-extracted from this document.
-                            </p>
-                            <p style="color:#b45309;font-size:12px;margin:0;line-height:1.5;">
-                                The document may not have standard item rows or HS code labels.
-                                Click <strong>+ Add Item</strong> below, type the product name
-                                (e.g. <em>Incubator IN30</em>), and the system will suggest the correct HS code.
-                            </p>
+                             style="padding:20px;text-align:center;color:#9ca3af;
+                                    font-size:12px;font-style:italic;background:#f8fafc;
+                                    border-radius:8px;border:1px dashed #e2e8f0;">
+                            No items — add rows manually below.
                         </div>
-                        {% endif %}
 
                     </div><!-- end #review-tbody -->
 
