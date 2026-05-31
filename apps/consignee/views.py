@@ -361,9 +361,9 @@ def upload_receipt(request, shipment_id):
 def submit_feedback(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
 
-    # Only allow feedback on completed shipments
-    if shipment.status not in ('approved', 'rejected'):
-        messages.error(request, 'Feedback can only be submitted for completed shipments.')
+    # Only allow feedback once shipment is fully billed
+    if shipment.status != 'billed':
+        messages.error(request, 'Feedback can only be submitted once your shipment is fully processed.')
         return redirect('consignee:shipment_detail', shipment_id=shipment_id)
 
     # One feedback per shipment

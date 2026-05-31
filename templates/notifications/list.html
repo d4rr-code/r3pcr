@@ -9,22 +9,22 @@
 <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
 
     <!-- Filter Tabs -->
-    <div style="display:flex; background:#0f172a; border:1px solid #1e293b;
+    <div style="display:flex; background:#F8FAFC; border:1px solid #E5E7EB;
                 border-radius:8px; overflow:hidden;">
         <a href="?filter=all"
            style="padding:8px 18px; font-size:13px; text-decoration:none; font-weight:500;
-                  {% if filter_type == 'all' %}background:#1e293b; color:#f1f5f9;
-                  {% else %}color:#64748b;{% endif %}">
+                  {% if filter_type == 'all' %}background:#1B3358; color:#fff;
+                  {% else %}color:#374151;{% endif %}">
             All
         </a>
         <a href="?filter=unread"
            style="padding:8px 18px; font-size:13px; text-decoration:none; font-weight:500;
-                  border-left:1px solid #1e293b;
-                  {% if filter_type == 'unread' %}background:#1e293b; color:#f1f5f9;
-                  {% else %}color:#64748b;{% endif %}">
+                  border-left:1px solid #E5E7EB;
+                  {% if filter_type == 'unread' %}background:#1B3358; color:#fff;
+                  {% else %}color:#374151;{% endif %}">
             Unread
             {% if unread_total %}
-            <span style="background:#3b82f6; color:#fff; font-size:10px; font-weight:700;
+            <span style="background:#1D4ED8; color:#fff; font-size:10px; font-weight:700;
                          padding:1px 6px; border-radius:10px; margin-left:4px;">
                 {{ unread_total }}
             </span>
@@ -32,9 +32,9 @@
         </a>
         <a href="?filter=read"
            style="padding:8px 18px; font-size:13px; text-decoration:none; font-weight:500;
-                  border-left:1px solid #1e293b;
-                  {% if filter_type == 'read' %}background:#1e293b; color:#f1f5f9;
-                  {% else %}color:#64748b;{% endif %}">
+                  border-left:1px solid #E5E7EB;
+                  {% if filter_type == 'read' %}background:#1B3358; color:#fff;
+                  {% else %}color:#374151;{% endif %}">
             Read
         </a>
     </div>
@@ -57,49 +57,51 @@
         {% for notif in notifications %}
         <a href="{% url 'notifications:detail' notif.id %}"
            style="display:flex; align-items:flex-start; gap:14px;
-                  padding:16px 20px; border-bottom:1px solid #1e293b;
-                  background:{% if not notif.is_read %}#0f1f3b{% else %}transparent{% endif %};
+                  padding:16px 20px; border-bottom:1px solid #F3F4F6;
+                  background:{% if not notif.is_read %}#EFF6FF{% else %}transparent{% endif %};
                   text-decoration:none; transition:background 0.15s;"
-           onmouseover="this.style.background='#1e293b'"
-           onmouseout="this.style.background='{% if not notif.is_read %}#0f1f3b{% else %}transparent{% endif %}'">
+           onmouseover="this.style.background='#F8FAFC'"
+           onmouseout="this.style.background='{% if not notif.is_read %}#EFF6FF{% else %}transparent{% endif %}'">
 
             <!-- Unread indicator dot -->
             <div style="margin-top:5px; flex-shrink:0; width:8px; height:8px; border-radius:50%;
-                        background:{% if not notif.is_read %}#3b82f6{% else %}transparent{% endif %};
-                        border:{% if notif.is_read %}1px solid #334155{% else %}none{% endif %};">
+                        background:{% if not notif.is_read %}#1D4ED8{% else %}transparent{% endif %};
+                        border:{% if notif.is_read %}1px solid #E5E7EB{% else %}none{% endif %};">
             </div>
 
             <!-- Content -->
             <div style="flex:1; min-width:0;">
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
-                    <span style="color:{% if not notif.is_read %}#f1f5f9{% else %}#94a3b8{% endif %};
+                    <span style="color:{% if not notif.is_read %}#111827{% else %}#374151{% endif %};
                                  font-size:14px; font-weight:{% if not notif.is_read %}600{% else %}400{% endif %};">
                         {{ notif.title }}
                     </span>
                     <!-- Type badge -->
                     <span style="font-size:10px; padding:2px 7px; border-radius:10px; font-weight:600;
-                        {% if notif.notification_type == 'approved' %}background:#14532d; color:#22c55e;
-                        {% elif notif.notification_type == 'rejected' %}background:#450a0a; color:#ef4444;
-                        {% elif notif.notification_type == 'payment' %}background:#3b1f00; color:#f59e0b;
-                        {% elif notif.notification_type == 'computation' %}background:#1e1b4b; color:#a78bfa;
-                        {% else %}background:#1e293b; color:#64748b;{% endif %}">
+                        {% if notif.notification_type == 'approved' %}background:#DCFCE7; color:#15803D;
+                        {% elif notif.notification_type == 'rejected' %}background:#FEE2E2; color:#B91C1C;
+                        {% elif notif.notification_type == 'payment' %}background:#FEF3C7; color:#B45309;
+                        {% elif notif.notification_type == 'computation' %}background:#EDE9FE; color:#6D28D9;
+                        {% else %}background:#F3F4F6; color:#374151;{% endif %}">
                         {{ notif.get_notification_type_display }}
                     </span>
                 </div>
-                <p style="color:#64748b; font-size:13px; margin:0 0 6px; line-height:1.5;
+                <p style="color:#6B7280; font-size:13px; margin:0 0 6px; line-height:1.5;
                            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:500px;">
                     {{ notif.message }}
                 </p>
-                <p style="color:#475569; font-size:11px; margin:0;">
+                <p style="color:#9CA3AF; font-size:11px; margin:0;">
                     {{ notif.created_at|timesince }} ago &middot; {{ notif.created_at|date:"M d, Y H:i" }}
                     {% if notif.shipment %}
-                    &middot; <span style="color:#3b82f6;">{{ notif.shipment.hawb_number }}</span>
+                    &middot; <span style="color:#1D4ED8;">{{ notif.shipment.hawb_number }}</span>
                     {% endif %}
                 </p>
             </div>
 
             <!-- Chevron -->
-            <div style="flex-shrink:0; color:#475569; font-size:16px; margin-top:4px;">›</div>
+            <div style="flex-shrink:0; color:#9CA3AF; margin-top:6px;">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/></svg>
+            </div>
 
         </a>
         {% endfor %}

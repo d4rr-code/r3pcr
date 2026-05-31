@@ -29,94 +29,97 @@
 
 <!-- ─── PreviewModal ─────────────────────────────────────────────────────── -->
 <div id="preview-modal"
-     style="display:none; position:fixed; inset:0;background:rgba(0,0,0,0.78);
+     style="display:none; position:fixed; inset:0;background:rgba(0,0,0,0.5);
             z-index:9000; align-items:center; justify-content:center;">
-    <div style="background:#1e293b; border:1px solid #334155; border-radius:12px;
+    <div style="background:#fff; border:1px solid #E5E7EB; border-radius:12px;
                 padding:28px 28px 20px; width:540px; max-width:92vw;
-                max-height:88vh; overflow-y:auto; position:relative;">
+                max-height:88vh; overflow-y:auto; position:relative;
+                box-shadow:0 20px 60px rgba(0,0,0,0.15);">
 
         <button onclick="closePreview()"
                 style="position:absolute; top:14px; right:16px;background:none;
-                       border:none; cursor:pointer; color:#64748b; font-size:20px;
-                       line-height:1;">✕</button>
+                       border:none; cursor:pointer; color:#6B7280; font-size:20px;
+                       line-height:1;">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+        </button>
 
-        <h3 id="pm-hawb" style="color:#f1f5f9; font-size:18px; margin:0 0 2px;"></h3>
-        <p id="pm-submitted" style="color:#64748b; font-size:12px; margin:0 0 20px;"></p>
+        <h3 id="pm-hawb" style="color:#111827; font-size:18px; margin:0 0 2px;"></h3>
+        <p id="pm-submitted" style="color:#6B7280; font-size:12px; margin:0 0 20px;"></p>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px 24px; margin-bottom:18px;">
             <div>
-                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Consignee</p>
-                <p id="pm-consignee" style="color:#f1f5f9; font-size:13px; margin:0;"></p>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Consignee</p>
+                <p id="pm-consignee" style="color:#111827; font-size:13px; margin:0;"></p>
             </div>
             <div>
-                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Import Type</p>
-                <p id="pm-type" style="color:#f1f5f9; font-size:13px; margin:0;"></p>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Import Type</p>
+                <p id="pm-type" style="color:#111827; font-size:13px; margin:0;"></p>
             </div>
             <div>
-                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Urgency</p>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Urgency</p>
                 <p id="pm-urgency" style="font-size:13px; margin:0;"></p>
             </div>
             <div>
-                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Due Date</p>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Due Date</p>
                 <p id="pm-due" style="font-size:13px; margin:0; font-weight:600;"></p>
             </div>
             <div>
-                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Declared Value (EXW)</p>
-                <p id="pm-value" style="color:#f1f5f9; font-size:13px; margin:0;"></p>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Declared Value (EXW)</p>
+                <p id="pm-value" style="color:#111827; font-size:13px; margin:0;"></p>
             </div>
             <div>
-                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Gross Weight</p>
-                <p id="pm-weight" style="color:#f1f5f9; font-size:13px; margin:0;"></p>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Gross Weight</p>
+                <p id="pm-weight" style="color:#111827; font-size:13px; margin:0;"></p>
             </div>
         </div>
 
         <div style="margin-bottom:14px;">
-            <p style="color:#64748b; font-size:11px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.05em;">Description</p>
-            <p id="pm-desc" style="color:#94a3b8; font-size:13px; margin:0; line-height:1.5;"></p>
+            <p style="color:#6B7280; font-size:11px; margin:0 0 4px; text-transform:uppercase; letter-spacing:.05em;">Description</p>
+            <p id="pm-desc" style="color:#374151; font-size:13px; margin:0; line-height:1.5;"></p>
         </div>
 
         <!-- Extra fields from AJAX -->
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; margin-bottom:14px;">
             <div>
-                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Declared Shipping Mode</p>
-                <p id="pm-mode" style="color:#f1f5f9; font-size:13px; margin:0;">—</p>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Declared Shipping Mode</p>
+                <p id="pm-mode" style="color:#111827; font-size:13px; margin:0;">—</p>
             </div>
             <div>
-                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Quantity</p>
-                <p id="pm-quantity" style="color:#f1f5f9; font-size:13px; margin:0;">—</p>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Quantity</p>
+                <p id="pm-quantity" style="color:#111827; font-size:13px; margin:0;">—</p>
             </div>
             <div>
-                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Freight Cost</p>
-                <p id="pm-freight" style="color:#f1f5f9; font-size:13px; margin:0;">—</p>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Freight Cost</p>
+                <p id="pm-freight" style="color:#111827; font-size:13px; margin:0;">—</p>
             </div>
             <div>
-                <p style="color:#64748b; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Insurance Cost</p>
-                <p id="pm-insurance" style="color:#f1f5f9; font-size:13px; margin:0;">—</p>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Insurance Cost</p>
+                <p id="pm-insurance" style="color:#111827; font-size:13px; margin:0;">—</p>
             </div>
         </div>
 
         <!-- Line Items -->
-        <div style="margin-bottom:14px; padding:12px 14px;background:#0f172a; border-radius:8px;">
-            <p style="color:#64748b; font-size:11px; margin:0 0 8px; text-transform:uppercase; letter-spacing:.05em;">Line Items</p>
+        <div style="margin-bottom:14px; padding:12px 14px; background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px;">
+            <p style="color:#6B7280; font-size:11px; margin:0 0 8px; text-transform:uppercase; letter-spacing:.05em;">Line Items</p>
             <div id="pm-items">
-                <p style="color:#475569; font-size:12px; margin:0; font-style:italic;">Loading…</p>
+                <p style="color:#6B7280; font-size:12px; margin:0; font-style:italic;">Loading…</p>
             </div>
         </div>
 
-        <div style="margin-bottom:20px; padding:12px 14px;background:#0f172a; border-radius:8px;">
-            <p style="color:#64748b; font-size:11px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.05em;">Documents</p>
-            <p id="pm-docs" style="color:#94a3b8; font-size:13px; margin:0;"></p>
+        <div style="margin-bottom:20px; padding:12px 14px; background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px;">
+            <p style="color:#6B7280; font-size:11px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.05em;">Documents</p>
+            <p id="pm-docs" style="color:#374151; font-size:13px; margin:0;"></p>
         </div>
 
         <div style="display:flex; gap:10px; justify-content:flex-end;
-                    padding-top:16px; border-top:1px solid #334155;">
+                    padding-top:16px; border-top:1px solid #E5E7EB;">
             <button onclick="closePreview()" class="btn btn-secondary" style="font-size:13px;">
                 Close
             </button>
-            <!-- claimUrl and ocrSyncUrl are set dynamically by showPreview() -->
             <button type="button" id="pm-claim-btn" class="btn btn-primary" style="font-size:13px;"
                     onclick="claimThenScanProcess()">
-                Claim &amp; Process →
+                Claim &amp; Process
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style="margin-left:2px;"><path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd"/></svg>
             </button>
         </div>
     </div>
@@ -170,48 +173,50 @@
 
 <!-- ─── Pending Queue ─────────────────────────────────────────────────────── -->
 <div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;">
-    <div style="padding:16px 20px;background:#0f172a; border-bottom:1px solid #1e293b;
+    <div style="padding:16px 20px; background:#F8FAFC; border-bottom:1px solid #E5E7EB;
                 display:flex; align-items:center; justify-content:space-between;">
         <p class="card-title" style="margin:0;">Pending Queue</p>
-        <span id="pending-count" style="color:#64748b; font-size:12px;"></span>
+        <span id="pending-count" style="color:#6B7280; font-size:12px;"></span>
     </div>
 
     {% if pending %}
     <table style="width:100%; border-collapse:collapse;">
         <thead>
-            <tr style="background:#0f172a;">
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px; width:24px;"></th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Shipment Ref. No.</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Consignee</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Type</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Urgency</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Docs</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Due Date</th>
-                <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Action</th>
+            <tr>
+                <th style="padding:10px 16px; text-align:left; font-size:12px; width:24px;"></th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Shipment Ref. No.</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Consignee</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Type</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Urgency</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Docs</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Due Date</th>
+                <th style="padding:10px 16px; text-align:center; font-size:12px;">Action</th>
             </tr>
         </thead>
         <tbody id="pending-tbody">
             {% for s in pending %}
-            <tr style="border-top:1px solid #1e293b;"
+            <tr style="border-top:1px solid #F3F4F6;"
                 data-duedays="{{ s.due_days_left }}"
-                onmouseover="this.style.background='#1e293b'"
+                onmouseover="this.style.background='#F8FAFC'"
                 onmouseout="this.style.background=''">
                 <!-- Expand toggle -->
                 <td style="padding:12px 8px 12px 16px; text-align:center;">
                     {% if s.description %}
                     <button onclick="toggleRow('pd-{{ s.id }}')"
                             style="background:none; border:none; cursor:pointer;
-                                   color:#64748b; font-size:14px; padding:0;"
-                            title="Show description">▶</button>
+                                   color:#6B7280; padding:0; display:inline-flex; align-items:center;"
+                            title="Show description">
+                        <svg id="icon-pd-{{ s.id }}" width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/></svg>
+                    </button>
                     {% endif %}
                 </td>
-                <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:600;">
+                <td style="padding:12px 16px; color:#111827; font-size:13px; font-weight:600;">
                     {{ s.hawb_number }}
                 </td>
-                <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                <td style="padding:12px 16px; color:#374151; font-size:13px;">
                     {{ s.consignee.get_full_name|default:s.consignee.username }}
                 </td>
-                <td style="padding:12px 16px; color:#94a3b8; font-size:12px;">
+                <td style="padding:12px 16px; color:#374151; font-size:12px;">
                     {{ s.import_type|capfirst|default:"—" }}
                 </td>
                 <td style="padding:12px 16px; font-size:12px;">
@@ -287,10 +292,10 @@
             </tr>
             <!-- Expandable description row -->
             {% if s.description %}
-            <tr id="pd-{{ s.id }}" style="display:none;background:#0f172a;">
+            <tr id="pd-{{ s.id }}" style="display:none; background:#F8FAFC;">
                 <td colspan="8" style="padding:10px 20px 14px 52px;">
-                    <p style="color:#94a3b8; font-size:12px; margin:0;">
-                        <strong style="color:#64748b;">Description:</strong>
+                    <p style="color:#374151; font-size:12px; margin:0;">
+                        <strong style="color:#6B7280;">Description:</strong>
                         {{ s.description }}
                     </p>
                 </td>
@@ -300,21 +305,21 @@
         </tbody>
     </table>
     {% if pending.has_other_pages %}
-    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-top:1px solid #1e293b;background:#0f172a;">
-        <span style="color:#64748b; font-size:12px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-top:1px solid #E5E7EB; background:#F8FAFC;">
+        <span style="color:#6B7280; font-size:12px;">
             Page {{ pending.number }} of {{ pending.paginator.num_pages }}
             &nbsp;·&nbsp; {{ pending.paginator.count }} shipment{{ pending.paginator.count|pluralize }} total
         </span>
         <div style="display:flex; gap:8px;">
             {% if pending.has_previous %}
             <a href="?page={{ pending.previous_page_number }}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}{% if due_filter %}&due={{ due_filter }}{% endif %}"
-               style="padding:5px 12px;background:#1e293b; color:#94a3b8; border-radius:6px; font-size:12px; text-decoration:none; border:1px solid #334155;">
+               class="btn btn-secondary" style="padding:5px 12px; font-size:12px;">
                 Previous
             </a>
             {% endif %}
             {% if pending.has_next %}
             <a href="?page={{ pending.next_page_number }}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}{% if due_filter %}&due={{ due_filter }}{% endif %}"
-               style="padding:5px 12px;background:#1e293b; color:#94a3b8; border-radius:6px; font-size:12px; text-decoration:none; border:1px solid #334155;">
+               class="btn btn-secondary" style="padding:5px 12px; font-size:12px;">
                 Next
             </a>
             {% endif %}
@@ -335,7 +340,7 @@
 
 <!-- ─── In Review(My Shipments) ─────────────────────────────────────────── -->
 <div class="card" style="padding:0; overflow:hidden;">
-    <div style="padding:16px 20px;background:#0f172a; border-bottom:1px solid #1e293b;
+    <div style="padding:16px 20px; background:#F8FAFC; border-bottom:1px solid #E5E7EB;
                 display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
         <p class="card-title" style="margin:0;">My In-Review Shipments</p>
         <input type="text" id="review-search"
@@ -348,46 +353,48 @@
     {% if in_review %}
     <table style="width:100%; border-collapse:collapse;">
         <thead>
-            <tr style="background:#0f172a;">
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px; width:24px;"></th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Shipment Ref. No.</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Consignee</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Type</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Urgency</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Docs</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Claimed</th>
-                <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Action</th>
+            <tr>
+                <th style="padding:10px 16px; text-align:left; font-size:12px; width:24px;"></th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Shipment Ref. No.</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Consignee</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Type</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Urgency</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Docs</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Claimed</th>
+                <th style="padding:10px 16px; text-align:center; font-size:12px;">Action</th>
             </tr>
         </thead>
         <tbody id="review-tbody">
             {% for s in in_review %}
-            <tr style="border-top:1px solid #1e293b;"
-                onmouseover="this.style.background='#1e293b'"
+            <tr style="border-top:1px solid #F3F4F6;"
+                onmouseover="this.style.background='#F8FAFC'"
                 onmouseout="this.style.background=''">
                 <td style="padding:12px 8px 12px 16px; text-align:center;">
                     <button onclick="toggleRow('rv-{{ s.id }}')"
                             style="background:none; border:none; cursor:pointer;
-                                   color:#64748b; font-size:14px; padding:0;"
-                            title="Show details">▶</button>
+                                   color:#6B7280; padding:0; display:inline-flex; align-items:center;"
+                            title="Show details">
+                        <svg id="icon-rv-{{ s.id }}" width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/></svg>
+                    </button>
                 </td>
-                <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:600;">
+                <td style="padding:12px 16px; color:#111827; font-size:13px; font-weight:600;">
                     {{ s.hawb_number }}
                 </td>
-                <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                <td style="padding:12px 16px; color:#374151; font-size:13px;">
                     {{ s.consignee.get_full_name|default:s.consignee.username }}
                 </td>
-                <td style="padding:12px 16px; color:#94a3b8; font-size:12px;">
+                <td style="padding:12px 16px; color:#374151; font-size:12px;">
                     {{ s.import_type|capfirst|default:"—" }}
                 </td>
                 <td style="padding:12px 16px; font-size:12px;">
                     {% if s.urgency == 'rush' %}
-                        <span style="color:#ef4444; font-weight:700;">Rush</span>
+                        <span style="color:#DC2626; font-weight:700;">Rush</span>
                     {% elif s.urgency == 'urgent' %}
-                        <span style="color:#f97316; font-weight:700;">Urgent</span>
+                        <span style="color:#EA580C; font-weight:700;">Urgent</span>
                     {% elif s.urgency == 'priority' %}
-                        <span style="color:#3b82f6; font-weight:600;">Priority</span>
+                        <span style="color:#1D4ED8; font-weight:600;">Priority</span>
                     {% else %}
-                        <span style="color:#64748b;">Standard</span>
+                        <span style="color:#6B7280;">Standard</span>
                     {% endif %}
                 </td>
                 <td style="padding:12px 16px; font-size:13px;">
@@ -404,30 +411,31 @@
                     {% endfor %}
                     {% endwith %}
                 </td>
-                <td style="padding:12px 16px; color:#64748b; font-size:12px;">
+                <td style="padding:12px 16px; color:#6B7280; font-size:12px;">
                     {{ s.submitted_at|timesince }} ago
                 </td>
                 <td style="padding:12px 16px; text-align:center;">
                     <button type="button"
                             class="btn btn-primary"
-                            style="font-size:11px; padding:6px 14px;"
+                            style="font-size:11px; padding:6px 14px; display:inline-flex; align-items:center; gap:5px;"
                             onclick="scanThenProcess(
                                 '{% url 'declarant:run_ocr_sync' s.id %}',
                                 '{% url 'declarant:process' s.id %}'
                             )">
-                        Process →
+                        Process
+                        <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd"/></svg>
                     </button>
                 </td>
             </tr>
-            <tr id="rv-{{ s.id }}" style="display:none;background:#081222;">
+            <tr id="rv-{{ s.id }}" style="display:none; background:#F8FAFC; border-top:1px solid #E5E7EB;">
                 <td colspan="8" style="padding:12px 20px 16px 52px;">
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; max-width:860px;">
 
                         <!-- Description + Shipping info -->
                         <div style="grid-column:1 / -1;">
                             {% if s.description %}
-                            <p style="color:#94a3b8; font-size:12px; margin:0 0 8px;">
-                                <strong style="color:#64748b;">Description:</strong>
+                            <p style="color:#374151; font-size:12px; margin:0 0 8px;">
+                                <strong style="color:#6B7280;">Description:</strong>
                                 {{ s.description }}
                             </p>
                             {% endif %}
@@ -443,7 +451,7 @@
                                     {% elif s.shipment_type == 'sea' %}Sea
                                     {% else %}{{ s.get_shipment_type_display|default:"—" }}{% endif %}
                                 </span>
-                                <span style="font-size:11px; padding:2px 9px; border-radius:8px;background:#1e293b; color:#94a3b8;">
+                                <span style="font-size:11px; padding:2px 9px; border-radius:8px; background:#F3F4F6; color:#374151;">
                                     {{ s.get_import_type_display|default:"—" }}
                                 </span>
                             </div>
@@ -451,45 +459,45 @@
 
                         <!-- Consignee-provided values -->
                         <div>
-                            <p style="color:#475569; font-size:10px; text-transform:uppercase; letter-spacing:.05em; margin:0 0 5px;">Consignee Values</p>
-                            <div style="font-size:11px; color:#94a3b8; line-height:1.8;">
-                                <div><span style="color:#475569;">EXW:</span>
+                            <p style="color:#6B7280; font-size:10px; text-transform:uppercase; letter-spacing:.05em; margin:0 0 5px;">Consignee Values</p>
+                            <div style="font-size:11px; color:#374151; line-height:1.8;">
+                                <div><span style="color:#6B7280;">EXW:</span>
                                     {% if s.declared_value %}
-                                    <span style="color:#f1f5f9; font-weight:600;">USD {{ s.declared_value }}</span>
-                                    {% else %}<span style="color:#334155;">—</span>{% endif %}
+                                    <span style="color:#111827; font-weight:600;">USD {{ s.declared_value }}</span>
+                                    {% else %}<span style="color:#9CA3AF;">—</span>{% endif %}
                                 </div>
-                                <div><span style="color:#475569;">Freight:</span>
+                                <div><span style="color:#6B7280;">Freight:</span>
                                     {% if s.freight_cost %}
                                     USD {{ s.freight_cost }}
-                                    {% else %}<span style="color:#334155;">—</span>{% endif %}
+                                    {% else %}<span style="color:#9CA3AF;">—</span>{% endif %}
                                 </div>
-                                <div><span style="color:#475569;">Insurance:</span>
+                                <div><span style="color:#6B7280;">Insurance:</span>
                                     {% if s.insurance_cost %}
                                     USD {{ s.insurance_cost }}
-                                    {% else %}<span style="color:#334155;">—</span>{% endif %}
+                                    {% else %}<span style="color:#9CA3AF;">—</span>{% endif %}
                                 </div>
                                 {% if s.quantity %}
-                                <div><span style="color:#475569;">Qty:</span> {{ s.quantity }}</div>
+                                <div><span style="color:#6B7280;">Qty:</span> {{ s.quantity }}</div>
                                 {% endif %}
                             </div>
                         </div>
 
                         <!-- Computation status -->
                         <div>
-                            <p style="color:#475569; font-size:10px; text-transform:uppercase; letter-spacing:.05em; margin:0 0 5px;">ECDT / Computation</p>
+                            <p style="color:#6B7280; font-size:10px; text-transform:uppercase; letter-spacing:.05em; margin:0 0 5px;">ECDT / Computation</p>
                             {% with comp=s.computation %}
                             {% if comp %}
                             <div style="font-size:11px; line-height:1.8;">
-                                <div style="color:#22c55e; font-weight:600; margin-bottom:3px;">Computed</div>
-                                <div style="color:#94a3b8;">
-                                    BOC: <span style="color:#f1f5f9; font-weight:600;">₱{{ comp.boc_payable|floatformat:2 }}</span>
+                                <div style="color:#15803D; font-weight:600; margin-bottom:3px;">Computed</div>
+                                <div style="color:#6B7280;">
+                                    BOC: <span style="color:#111827; font-weight:600;">₱{{ comp.boc_payable|floatformat:2 }}</span>
                                 </div>
-                                <div style="color:#94a3b8;">
-                                    TLC: <span style="color:#3b82f6; font-weight:600;">₱{{ comp.total_landed_cost|floatformat:2 }}</span>
+                                <div style="color:#6B7280;">
+                                    TLC: <span style="color:#1D4ED8; font-weight:600;">₱{{ comp.total_landed_cost|floatformat:2 }}</span>
                                 </div>
                             </div>
                             {% else %}
-                            <div style="font-size:11px; color:#64748b;">
+                            <div style="font-size:11px; color:#6B7280;">
                                 Pending ECDT computation
                             </div>
                             {% endif %}
@@ -498,28 +506,24 @@
 
                         <!-- Mini status pipeline -->
                         <div>
-                            <p style="color:#475569; font-size:10px; text-transform:uppercase; letter-spacing:.05em; margin:0 0 7px;">Progress</p>
+                            <p style="color:#6B7280; font-size:10px; text-transform:uppercase; letter-spacing:.05em; margin:0 0 7px;">Progress</p>
                             <div>
                                 <span style="display:flex; align-items:center; gap:0;">
-                                    <!-- Arrived (always current for in-review) -->
-                                    <span title="Arrived" style="width:9px; height:9px; border-radius:50%;background:#3b82f6; box-shadow:0 0 8px #3b82f688; flex-shrink:0;"></span>
-                                    <span style="width:20px; height:2px;background:#334155;"></span>
-                                    <!-- Computed -->
+                                    <span title="Arrived" style="width:9px; height:9px; border-radius:50%; background:#1D4ED8; flex-shrink:0;"></span>
+                                    <span style="width:20px; height:2px; background:#E5E7EB;"></span>
                                     <span title="Computed" style="width:9px; height:9px; border-radius:50%;
-                                        {% if s.computation %}background:#22c55e; box-shadow:0 0 6px #22c55e66;
-                                        {% else %}background:#334155;{% endif %} flex-shrink:0;"></span>
-                                    <span style="width:20px; height:2px;background:#334155;"></span>
-                                    <!-- Consignee Approved -->
-                                    <span title="Consignee Approved" style="width:9px; height:9px; border-radius:50%;background:#334155; flex-shrink:0;"></span>
-                                    <span style="width:20px; height:2px;background:#334155;"></span>
-                                    <!-- Filed/Lodgement -->
-                                    <span title="Filed" style="width:9px; height:9px; border-radius:50%;background:#334155; flex-shrink:0;"></span>
+                                        {% if s.computation %}background:#15803D;
+                                        {% else %}background:#E5E7EB;{% endif %} flex-shrink:0;"></span>
+                                    <span style="width:20px; height:2px; background:#E5E7EB;"></span>
+                                    <span title="Consignee Approved" style="width:9px; height:9px; border-radius:50%; background:#E5E7EB; flex-shrink:0;"></span>
+                                    <span style="width:20px; height:2px; background:#E5E7EB;"></span>
+                                    <span title="Filed" style="width:9px; height:9px; border-radius:50%; background:#E5E7EB; flex-shrink:0;"></span>
                                 </span>
                                 <div style="display:flex; gap:9px; margin-top:5px;">
-                                    <span style="font-size:9px; color:#3b82f6; min-width:38px;">Arrived</span>
-                                    <span style="font-size:9px; {% if s.computation %}color:#22c55e;{% else %}color:#334155;{% endif %} min-width:52px;">Computed</span>
-                                    <span style="font-size:9px; color:#334155; min-width:50px;">Approved</span>
-                                    <span style="font-size:9px; color:#334155;">Filed</span>
+                                    <span style="font-size:9px; color:#1D4ED8; min-width:38px;">Arrived</span>
+                                    <span style="font-size:9px; {% if s.computation %}color:#15803D;{% else %}color:#9CA3AF;{% endif %} min-width:52px;">Computed</span>
+                                    <span style="font-size:9px; color:#9CA3AF; min-width:50px;">Approved</span>
+                                    <span style="font-size:9px; color:#9CA3AF;">Filed</span>
                                 </div>
                             </div>
                         </div>
@@ -531,18 +535,21 @@
         </tbody>
     </table>
     {% else %}
-    <div style="padding:32px; text-align:center; color:#64748b;">
-        <p>No shipments currently in review.</p>
+    <div style="padding:40px; text-align:center;">
+        <svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" style="color:#D1D5DB; display:block; margin:0 auto 12px;">
+            <path fill-rule="evenodd" d="M5 4a2 2 0 012-2h6a2 2 0 012 2v1h1a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2h1V4zm2-1h6v2H7V3zM4 7h12v9H4V7zm3 3a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7zm0 3a.75.75 0 000 1.5h4a.75.75 0 000-1.5H7z" clip-rule="evenodd"/>
+        </svg>
+        <p style="color:#6B7280; font-size:13px; margin:0;">No shipments currently in review.</p>
     </div>
     {% endif %}
 </div>
 
 <!-- History (My Processed Shipments) -->
 <div class="card" style="margin-top:24px; padding:0; overflow:hidden;">
-    <div style="padding:16px 20px;background:#0f172a; border-bottom:1px solid #1e293b;
+    <div style="padding:16px 20px; background:#F8FAFC; border-bottom:1px solid #E5E7EB;
                 display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
         <p class="card-title" style="margin:0;">My Processed Shipments
-            <span style="color:#64748b; font-weight:400; font-size:13px;">
+            <span style="color:#6B7280; font-weight:400; font-size:13px;">
                 — {{ history.count }} shipment{{ history.count|pluralize }}
             </span>
         </p>
@@ -556,43 +563,38 @@
     {% if history %}
     <table style="width:100%; border-collapse:collapse;">
         <thead>
-            <tr style="background:#0f172a;">
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Shipment Ref. No.</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Consignee</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Type</th>
-                <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Status</th>
-                <th style="padding:10px 16px; text-align:left; color:#94a3b8; font-size:12px;">Last Updated</th>
-                <th style="padding:10px 16px; text-align:center; color:#94a3b8; font-size:12px;">Action</th>
+            <tr>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Shipment Ref. No.</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Consignee</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Type</th>
+                <th style="padding:10px 16px; text-align:center; font-size:12px;">Status</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Last Updated</th>
+                <th style="padding:10px 16px; text-align:center; font-size:12px;">Action</th>
             </tr>
         </thead>
         <tbody id="history-tbody">
             {% for s in history %}
-            <tr style="border-top:1px solid #1e293b;"
-                onmouseover="this.style.background='#1e293b'"
+            <tr style="border-top:1px solid #F3F4F6;"
+                onmouseover="this.style.background='#F8FAFC'"
                 onmouseout="this.style.background=''">
-                <td style="padding:12px 16px; color:#f1f5f9; font-size:13px; font-weight:600;">
+                <td style="padding:12px 16px; color:#111827; font-size:13px; font-weight:600;">
                     {{ s.hawb_number }}
                 </td>
-                <td style="padding:12px 16px; color:#94a3b8; font-size:13px;">
+                <td style="padding:12px 16px; color:#374151; font-size:13px;">
                     {{ s.consignee.get_full_name|default:s.consignee.username }}
                 </td>
-                <td style="padding:12px 16px; color:#94a3b8; font-size:12px;">
+                <td style="padding:12px 16px; color:#374151; font-size:12px;">
                     {{ s.get_import_type_display|default:"—" }}
                 </td>
                 <td style="padding:12px 16px; text-align:center;">
-                    <span style="display:inline-block; padding:3px 10px; border-radius:999px;
-                                 font-size:11px; font-weight:700;
-                        {% if s.status == 'approved' %}background:#052e16; color:#86efac;
-                        {% elif s.status == 'rejected' %}background:#450a0a; color:#fca5a5;
-                        {% elif s.status == 'lodgement' %}background:#2d1b69; color:#c4b5fd;
-                        {% else %}background:#1c1917; color:#fcd34d;{% endif %}">
-                        {% if s.status == 'approved' %}Approved
-                        {% elif s.status == 'rejected' %}Rejected
-                        {% elif s.status == 'lodgement' %}Lodgement
-                        {% else %}For Payment{% endif %}
+                    <span style="display:inline-flex; align-items:center; gap:5px; padding:3px 10px;
+                                 border-radius:999px; font-size:11px; font-weight:700;
+                                 background:#F0FDF4; color:#15803D; border:1px solid #BBF7D0;">
+                        <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+                        Billed
                     </span>
                 </td>
-                <td style="padding:12px 16px; color:#64748b; font-size:12px;">
+                <td style="padding:12px 16px; color:#6B7280; font-size:12px;">
                     {{ s.updated_at|date:"M d, Y" }}
                     <br><span style="font-size:11px;">{{ s.updated_at|timesince }} ago</span>
                 </td>
@@ -608,9 +610,12 @@
         </tbody>
     </table>
     {% else %}
-    <div style="padding:32px; text-align:center; color:#64748b;">
-        <div style="font-size:32px; margin-bottom:8px;">No items</div>
-        <p>No completed shipments yet. Processed shipments will appear here.</p>
+    <div style="padding:40px; text-align:center;">
+        <svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" style="color:#D1D5DB; display:block; margin:0 auto 12px;">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/>
+        </svg>
+        <p style="color:#6B7280; font-size:13px; margin:0 0 4px; font-weight:600;">No processed shipments yet.</p>
+        <p style="color:#9CA3AF; font-size:12px; margin:0;">Shipments will appear here once they are fully billed.</p>
     </div>
     {% endif %}
 </div>
@@ -625,8 +630,10 @@ function toggleRow(id) {
     if (!row) return;
     var hidden = row.style.display === 'none' || row.style.display === '';
     row.style.display = hidden ? 'table-row' : 'none';
-    var btn = row.previousElementSibling.querySelector('button');
-    if (btn) btn.textContent = hidden ? '▼' : '▶';
+    var prefix = id.split('-')[0]; // 'pd' or 'rv'
+    var itemId = id.split('-').slice(1).join('-');
+    var icon = document.getElementById('icon-' + prefix + '-' + itemId);
+    if (icon) icon.style.transform = hidden ? 'rotate(90deg)' : '';
 }
 
 // ─── Live search ─────────────────────────────────────────────────────────────
@@ -735,20 +742,20 @@ function showPreview(btn) {
                     var qty  = it.quantity || it.qty || '—';
                     var unit = it.unit_price != null ? 'USD ' + parseFloat(it.unit_price).toLocaleString() : '—';
                     var amt  = it.amount != null ? 'USD ' + parseFloat(it.amount).toLocaleString() : '—';
-                    return '<tr style="border-top:1px solid #1e293b;">' +
-                        '<td style="padding:7px 10px; color:#e2e8f0; font-size:12px;">' + desc + '</td>' +
-                        '<td style="padding:7px 10px; color:#94a3b8; font-size:12px; text-align:center;">' + qty + '</td>' +
-                        '<td style="padding:7px 10px; color:#94a3b8; font-size:12px; text-align:right;">' + unit + '</td>' +
-                        '<td style="padding:7px 10px; color:#94a3b8; font-size:12px; text-align:right;">' + amt + '</td>' +
+                    return '<tr style="border-top:1px solid #F3F4F6;">' +
+                        '<td style="padding:7px 10px; color:#111827; font-size:12px;">' + desc + '</td>' +
+                        '<td style="padding:7px 10px; color:#374151; font-size:12px; text-align:center;">' + qty + '</td>' +
+                        '<td style="padding:7px 10px; color:#374151; font-size:12px; text-align:right;">' + unit + '</td>' +
+                        '<td style="padding:7px 10px; color:#374151; font-size:12px; text-align:right;">' + amt + '</td>' +
                         '</tr>';
                 }).join('');
                 itemsEl.innerHTML =
                     '<table style="width:100%; border-collapse:collapse;">' +
-                    '<thead><tr style="background:#0a0f1a;">' +
-                    '<th style="padding:7px 10px; text-align:left; color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:.04em;">Description</th>' +
-                    '<th style="padding:7px 10px; text-align:center; color:#64748b; font-size:10px; text-transform:uppercase;">Qty</th>' +
-                    '<th style="padding:7px 10px; text-align:right; color:#64748b; font-size:10px; text-transform:uppercase;">Unit Price</th>' +
-                    '<th style="padding:7px 10px; text-align:right; color:#64748b; font-size:10px; text-transform:uppercase;">Amount</th>' +
+                    '<thead><tr style="background:#F3F4F6;">' +
+                    '<th style="padding:7px 10px; text-align:left; color:#6B7280; font-size:10px; text-transform:uppercase; letter-spacing:.04em;">Description</th>' +
+                    '<th style="padding:7px 10px; text-align:center; color:#6B7280; font-size:10px; text-transform:uppercase;">Qty</th>' +
+                    '<th style="padding:7px 10px; text-align:right; color:#6B7280; font-size:10px; text-transform:uppercase;">Unit Price</th>' +
+                    '<th style="padding:7px 10px; text-align:right; color:#6B7280; font-size:10px; text-transform:uppercase;">Amount</th>' +
                     '</tr></thead>' +
                     '<tbody>' + rows + '</tbody></table>';
             } else {

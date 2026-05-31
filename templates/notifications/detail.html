@@ -19,10 +19,10 @@
         <div style="display:flex; align-items:flex-start; justify-content:space-between;
                     gap:12px; margin-bottom:20px;">
             <div>
-                <h2 style="color:#f1f5f9; font-size:18px; font-weight:600; margin-bottom:6px;">
+                <h2 style="color:#111827; font-size:18px; font-weight:600; margin-bottom:6px;">
                     {{ notif.title }}
                 </h2>
-                <span style="color:#64748b; font-size:12px;">
+                <span style="color:#6B7280; font-size:12px;">
                     {{ notif.created_at|date:"F d, Y \a\t H:i" }}
                 </span>
             </div>
@@ -32,25 +32,25 @@
         </div>
 
         <!-- Divider -->
-        <hr style="border:none; border-top:1px solid #334155; margin-bottom:20px;">
+        <hr style="border:none; border-top:1px solid #E5E7EB; margin-bottom:20px;">
 
         <!-- Message body -->
-        <p style="color:#94a3b8; font-size:14px; line-height:1.7; margin-bottom:24px;">
+        <p style="color:#374151; font-size:14px; line-height:1.7; margin-bottom:24px;">
             {{ notif.message }}
         </p>
 
         <!-- Shipment reference (if any) -->
         {% if notif.shipment %}
-        <div style="background:#0f172a; border:1px solid #334155; border-radius:8px;
+        <div style="background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px;
                     padding:14px 18px; margin-bottom:20px;">
-            <p style="color:#64748b; font-size:11px; text-transform:uppercase;
+            <p style="color:#6B7280; font-size:11px; text-transform:uppercase;
                       letter-spacing:.06em; margin-bottom:6px;">
                 Shipment Reference
             </p>
-            <p style="color:#f1f5f9; font-size:15px; font-weight:600;">
+            <p style="color:#111827; font-size:15px; font-weight:600;">
                 {{ notif.shipment.hawb_number }}
             </p>
-            <p style="color:#94a3b8; font-size:12px; margin-top:4px;">
+            <p style="color:#374151; font-size:12px; margin-top:4px;">
                 Status:
                 <strong>{{ notif.shipment.get_status_display }}</strong>
                 &nbsp;|&nbsp;

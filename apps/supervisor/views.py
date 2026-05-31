@@ -8,7 +8,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField, Q
+from django.db.models import Count, Avg, Sum, Min, Max, F, ExpressionWrapper, DurationField, Q
 from django.db.models.functions import TruncDay, TruncMonth, TruncYear
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -742,6 +742,43 @@ def _analytics_context_response(request):
         _name_parts = [part for part in top_declarant['name'].split() if part]
         top_declarant['initials'] = ''.join(part[0] for part in _name_parts[:2]).upper()
 
+    # Cost comparison by shipment type — avg/total landed cost per mode
+    _cost_qs = DutyComputation.objects.filter(total_landed_cost__isnull=False)
+    if date_from:
+        _cost_qs = _cost_qs.filter(shipment__submitted_at__date__gte=date_from)
+    if date_to:
+        _cost_qs = _cost_qs.filter(shipment__submitted_at__date__lte=date_to)
+    if declarant_filter:
+        _cost_qs = _cost_qs.filter(shipment__declarant__username=declarant_filter)
+
+    _cost_type_meta = [
+        ('air',  'Air',  '#F59E0B'),
+        ('lcl',  'LCL',  '#38BDF8'),
+        ('fcl',  'FCL',  '#8B5CF6'),
+        ('land', 'Land', '#22C55E'),
+    ]
+    cost_by_type = []
+    for code, label, color in _cost_type_meta:
+        agg = _cost_qs.filter(shipment__shipment_type=code).aggregate(
+            avg=Avg('total_landed_cost'),
+            total=Sum('total_landed_cost'),
+            count=Count('id'),
+            min_val=Min('total_landed_cost'),
+            max_val=Max('total_landed_cost'),
+        )
+        cost_by_type.append({
+            'code': code, 'label': label, 'color': color,
+            'avg':   round(float(agg['avg'] or 0), 2),
+            'total': round(float(agg['total'] or 0), 2),
+            'count': agg['count'],
+            'min_val': round(float(agg['min_val'] or 0), 2),
+            'max_val': round(float(agg['max_val'] or 0), 2),
+        })
+
+    cost_bar_labels = json.dumps([r['label'] for r in cost_by_type])
+    cost_bar_data   = json.dumps([r['avg'] for r in cost_by_type])
+    cost_bar_colors = json.dumps([r['color'] for r in cost_by_type])
+
     # Feedback summary — all-time
     _fb_qs       = Feedback.objects.all()
     _fb_total    = _fb_qs.count()
@@ -811,6 +848,11 @@ def _analytics_context_response(request):
         'wmcda_bar_labels':      wmcda_bar_labels,
         'wmcda_bar_data':        wmcda_bar_data,
         'wmcda_bar_colors':      wmcda_bar_colors,
+        # cost comparison
+        'cost_by_type':          cost_by_type,
+        'cost_bar_labels':       cost_bar_labels,
+        'cost_bar_data':         cost_bar_data,
+        'cost_bar_colors':       cost_bar_colors,
     })
 
 

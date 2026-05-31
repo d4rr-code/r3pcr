@@ -600,15 +600,17 @@ def queue_manager(request):
     page_number  = request.GET.get('page', 1)
     pending_page = paginator.get_page(page_number)
 
-    # Arrived: my claimed shipments (prefetch computation for inline status cards)
+    # In-review: all active shipments from arrived through released
     in_review = Shipment.objects.filter(
-        status='arrived', declarant=request.user
-    ).select_related('consignee').prefetch_related('computation')
+        declarant=request.user,
+        status__in=['arrived', 'computed', 'approved', 'rejected', 'for_revision',
+                    'lodgement', 'ongoing', 'assessed', 'paid', 'released'],
+    ).select_related('consignee').prefetch_related('computation').order_by('-updated_at')
 
-    # History: shipments I processed that are past the arrived stage
+    # Processed: only fully billed shipments
     history = Shipment.objects.filter(
         declarant=request.user,
-        status__in=['computed', 'approved', 'rejected', 'for_revision', 'lodgement', 'ongoing', 'assessed', 'paid', 'released', 'billed'],
+        status='billed',
     ).select_related('consignee').order_by('-updated_at')
 
     context = {

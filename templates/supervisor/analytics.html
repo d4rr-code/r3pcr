@@ -343,6 +343,8 @@
 .wmcda-panel { grid-column: span 7; }
 .top-panel { grid-column: span 2; }
 .feedback-panel { grid-column: span 3; }
+.cost-chart-panel { grid-column: span 8; }
+.cost-table-panel { grid-column: span 4; }
 .chart-fixed { height: clamp(210px, 30vw, 260px); width: 100%; }
 .wmcda-content {
     display: grid;
@@ -400,7 +402,8 @@
 @media (max-width: 1180px) {
     .metric-total, .metric-types, .metric-users, .metric-side,
     .status-panel, .urgency-panel, .due-panel, .monthly-panel,
-    .wmcda-panel, .top-panel, .feedback-panel { grid-column: span 12; }
+    .wmcda-panel, .top-panel, .feedback-panel,
+    .cost-chart-panel, .cost-table-panel { grid-column: span 12; }
     .metric-side { grid-template-columns: repeat(2, 1fr); }
     .top-panel, .feedback-panel { min-height: 240px; }
 }
@@ -601,6 +604,57 @@
             </div>
         </section>
 
+        <!-- Cost Comparison by Shipment Type -->
+        <section class="dash-card panel cost-chart-panel">
+            <div class="panel-title">
+                <div>
+                    <h2>Total Landed Cost by Shipment Type</h2>
+                    <p>Average computed total landed cost per mode (PHP)</p>
+                </div>
+            </div>
+            <div class="chart-fixed" style="height:220px;">
+                <canvas id="costTypeChart"></canvas>
+            </div>
+        </section>
+
+        <section class="dash-card panel cost-table-panel">
+            <div class="panel-title">
+                <div>
+                    <h2>Cost Summary</h2>
+                    <p>Breakdown per shipment mode</p>
+                </div>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                <thead>
+                    <tr style="border-bottom:2px solid #EEF2F6;">
+                        <th style="padding:7px 10px; text-align:left; color:#324056; font-size:11px; font-weight:800;">Mode</th>
+                        <th style="padding:7px 10px; text-align:right; color:#324056; font-size:11px; font-weight:800;">Count</th>
+                        <th style="padding:7px 10px; text-align:right; color:#324056; font-size:11px; font-weight:800;">Avg (₱)</th>
+                        <th style="padding:7px 10px; text-align:right; color:#324056; font-size:11px; font-weight:800;">Max (₱)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in cost_by_type %}
+                    <tr style="border-bottom:1px solid #EEF2F6;">
+                        <td style="padding:8px 10px;">
+                            <span style="display:inline-flex; align-items:center; gap:6px;">
+                                <span style="width:8px; height:8px; border-radius:50%; background:{{ row.color }}; flex-shrink:0;"></span>
+                                <span style="color:#111827; font-weight:700;">{{ row.label }}</span>
+                            </span>
+                        </td>
+                        <td style="padding:8px 10px; text-align:right; color:#324056; font-weight:700;">{{ row.count }}</td>
+                        <td style="padding:8px 10px; text-align:right; color:#111827; font-weight:700;">
+                            {% if row.avg %}{{ row.avg|floatformat:0 }}{% else %}—{% endif %}
+                        </td>
+                        <td style="padding:8px 10px; text-align:right; color:#111827;">
+                            {% if row.max_val %}{{ row.max_val|floatformat:0 }}{% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
         <section class="dash-card panel wmcda-panel">
             <div class="panel-title">
                 <h2>WMCDA Shipping Advisory</h2>
@@ -788,6 +842,63 @@
                         border: { color: '#CCD6E2' },
                         grid: { display: false },
                         ticks: { color: '#334155', font: { size: 12, weight: '700' }, maxRotation: 0, autoSkipPadding: 18 }
+                    }
+                }
+            }
+        });
+    }
+
+    var costTypeEl = document.getElementById('costTypeChart');
+    if (window.Chart && costTypeEl) {
+        new Chart(costTypeEl, {
+            type: 'bar',
+            data: {
+                labels: {{ cost_bar_labels|safe }},
+                datasets: [{
+                    label: 'Avg Total Landed Cost (₱)',
+                    data: {{ cost_bar_data|safe }},
+                    backgroundColor: {{ cost_bar_colors|safe }},
+                    borderRadius: 6,
+                    borderSkipped: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        displayColors: false,
+                        backgroundColor: '#172033',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        cornerRadius: 6,
+                        callbacks: {
+                            label: function(ctx) {
+                                return '₱ ' + Number(ctx.parsed.y).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        border: { display: false },
+                        grid: { color: '#E9EEF4' },
+                        ticks: {
+                            color: '#334155',
+                            font: { size: 11, weight: '700' },
+                            callback: function(val) {
+                                return val >= 1000000 ? '₱' + (val/1000000).toFixed(1) + 'M'
+                                     : val >= 1000    ? '₱' + (val/1000).toFixed(0) + 'K'
+                                     : '₱' + val;
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#334155', font: { size: 12, weight: '700' } }
                     }
                 }
             }

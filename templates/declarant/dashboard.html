@@ -162,15 +162,15 @@
     <div style="border-radius:10px; padding:14px 18px; display:flex; align-items:flex-start; gap:12px;
                 border-left:4px solid
                 {% if ann.category == 'boc' %}#3b82f6{% elif ann.category == 'customs' %}#f59e0b{% elif ann.category == 'shipment' %}#8b5cf6{% else %}#22c55e{% endif %};
-                background:#1e293b; border-right:1px solid #334155; border-top:1px solid #334155; border-bottom:1px solid #334155;">
+                background:#F8FAFC; border-right:1px solid #E5E7EB; border-top:1px solid #E5E7EB; border-bottom:1px solid #E5E7EB;">
         <svg class="d-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
-             style="width:18px; height:18px; flex-shrink:0; margin-top:1px;">
+             style="width:18px; height:18px; flex-shrink:0; margin-top:1px; color:#6B7280;">
             <path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6z" clip-rule="evenodd"/>
         </svg>
         <div style="flex:1; min-width:0;">
-            <p style="font-size:13px; font-weight:600; color:#f1f5f9; margin:0 0 3px;">{{ ann.title }}</p>
-            <p style="font-size:12px; color:#94a3b8; margin:0; white-space:pre-wrap;">{{ ann.content }}</p>
-            <p style="font-size:11px; color:#475569; margin:5px 0 0;">{{ ann.created_at|date:"M d, Y" }}</p>
+            <p style="font-size:13px; font-weight:600; color:#111827; margin:0 0 3px;">{{ ann.title }}</p>
+            <p style="font-size:12px; color:#374151; margin:0; white-space:pre-wrap;">{{ ann.content }}</p>
+            <p style="font-size:11px; color:#9CA3AF; margin:5px 0 0;">{{ ann.created_at|date:"M d, Y" }}</p>
         </div>
     </div>
     {% endfor %}
