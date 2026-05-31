@@ -795,6 +795,49 @@
     </div>
 </div>
 
+<!-- ── HS Code Guide (selected on the process page by the declarant) ─────── -->
+{% if guide_hs_codes %}
+<div class=”card” style=”margin-bottom:14px; padding:12px 14px;” id=”guide-hs-panel”>
+    <div style=”display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;”>
+        <div>
+            <p class=”card-title” style=”margin:0 0 2px; font-size:12px;”>
+                HS Code Guide
+                <span style=”background:#2563eb; color:#fff; font-size:9px; font-weight:700;
+                             padding:2px 7px; border-radius:10px; margin-left:6px;”>
+                    {{ guide_hs_codes|length }}
+                </span>
+            </p>
+            <p style=”color:#475569; font-size:10px; margin:0;”>
+                Codes selected from the document — click a code to apply it to the next empty row
+            </p>
+        </div>
+        <button type=”button”
+                onclick=”document.getElementById('guide-hs-panel').style.display='none'”
+                style=”background:none; border:none; color:#475569; cursor:pointer;
+                       font-size:18px; padding:2px 6px; line-height:1;” title=”Dismiss”>&times;</button>
+    </div>
+    <div style=”display:flex; flex-wrap:wrap; gap:7px;”>
+        {% for g in guide_hs_codes %}
+        <button type=”button”
+                onclick=”applyHsSuggestionToNextEmpty({{ g.id }}, '{{ g.code|escapejs }}', {{ g.duty_rate }})”
+                title=”{{ g.description }}”
+                style=”display:inline-flex; align-items:center; gap:5px;
+                       padding:6px 11px; background:#1e3a5f; border:1px solid #2563eb;
+                       border-radius:8px; cursor:pointer; transition:all .15s; font-size:11px;”
+                onmouseover=”this.style.background='#1d4ed8'; this.style.borderColor='#60a5fa';”
+                onmouseout=”this.style.background='#1e3a5f'; this.style.borderColor='#2563eb';”>
+            <span style=”font-weight:800; color:#60a5fa; white-space:nowrap;”>{{ g.code }}</span>
+            <span style=”color:#94a3b8; overflow:hidden; text-overflow:ellipsis;
+                         white-space:nowrap; max-width:160px;”>{{ g.description|truncatechars:38 }}</span>
+            <span style=”font-size:10px; font-weight:700; color:#fbbf24;
+                         background:#422006; padding:2px 6px; border-radius:4px;
+                         white-space:nowrap; flex-shrink:0;”>{{ g.duty_rate }}%</span>
+        </button>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <!-- â”€â”€ HS Code Suggestions (auto-generated from description) â”€â”€â”€â”€â”€â”€â”€â”€ -->
 {% if hs_suggestions %}
 <div class="card" style="margin-bottom:14px; padding:12px 14px;" id="hs-suggestion-panel">

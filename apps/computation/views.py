@@ -807,6 +807,11 @@ def compute_shipment(request, shipment_id):
     else:
         prefill_freight   = float(shipment.freight_cost   or 0)
         prefill_insurance = float(shipment.insurance_cost or 0)
+    # ── Guide HS codes — set in session by save_ocr_items on the process page ──
+    guide_hs_codes = []
+    if str(request.session.get('guide_shipment_id', '')) == str(shipment_id):
+        guide_hs_codes = request.session.get('guide_hs_codes', [])
+
     context = {
         'shipment':           shipment,
         'hs_codes':           hs_codes,
@@ -827,6 +832,7 @@ def compute_shipment(request, shipment_id):
         'declared_breakdown': declared_breakdown,
         'declared_rating':    declared_rating,
         'hs_suggestions':     hs_suggestions,
+        'guide_hs_codes':     guide_hs_codes,
         'prefill_freight':    prefill_freight,
         'prefill_insurance':  prefill_insurance,
     }

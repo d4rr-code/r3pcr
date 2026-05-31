@@ -1080,12 +1080,17 @@ def flag_deficiency(request, shipment_id):
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
-# ─── Save Confirmed OCR Items → ECDT ─────────────────────────────────────────
+# ─── Save Selected HS Codes → ECDT Guide ─────────────────────────────────────
 
 @login_required
 @declarant_required
 def save_ocr_items(request, shipment_id):
-    """Accept declarant-reviewed OCR item rows, store in session, redirect to ECDT."""
+    """
+    Accept the declarant's selected HS code IDs from the process page.
+    Stores them in session as a guide panel for the ECDT workspace — no item
+    rows are created automatically; the declarant applies each code manually
+    to a row in the computation table.
+    """
     if request.method != 'POST':
         return redirect('declarant:process', shipment_id=shipment_id)
 
@@ -1094,103 +1099,33 @@ def save_ocr_items(request, shipment_id):
         messages.error(request, 'You are not assigned to this shipment.')
         return redirect('declarant:queue')
 
-    descriptions = request.POST.getlist('description[]')
-    quantities   = request.POST.getlist('quantity[]')
-    units        = request.POST.getlist('unit[]')
-    total_values = request.POST.getlist('total_value[]')
-    hs_code_ids  = request.POST.getlist('hs_code_id[]')
-    hs_rates     = request.POST.getlist('hs_duty_rate[]')
-    confidences  = request.POST.getlist('confidence_pct[]')
+    hs_code_ids = [
+        _id for _id in request.POST.getlist('hs_code_id[]')
+        if _id and str(_id).strip().isdigit()
+    ]
 
-    n = len(descriptions)
-    def _pad(lst): return (lst + [''] * n)[:n]
-    quantities   = _pad(quantities)
-    units        = _pad(units)
-    total_values = _pad(total_values)
-    hs_code_ids  = _pad(hs_code_ids)
-    hs_rates     = _pad(hs_rates)
-    confidences  = _pad(confidences)
+    guide_codes = []
+    for hs_id in hs_code_ids:
+        try:
+            hs = HSCode.objects.get(id=int(hs_id), is_active=True)
+            guide_codes.append({
+                'id':          hs.id,
+                'code':        hs.code,
+                'description': hs.description,
+                'duty_rate':   float(hs.duty_rate),
+            })
+        except HSCode.DoesNotExist:
+            pass
 
-    items = []
-    for desc, qty, unit, val, hs_id, hs_rate, confidence_pct in zip(
-        descriptions, quantities, units, total_values, hs_code_ids, hs_rates, confidences
-    ):
-        desc = (desc or '').strip()
-        if not desc:
-            continue
-        try:
-            total_value = float(val) if str(val).strip() else 0.0
-        except (ValueError, TypeError):
-            total_value = 0.0
-        try:
-            hs_rate_val = float(hs_rate) if str(hs_rate).strip() else 0.0
-        except (ValueError, TypeError):
-            hs_rate_val = 0.0
-        try:
-            confidence_val = max(0.0, min(float(confidence_pct) / 100, 1.0))
-        except (ValueError, TypeError):
-            confidence_val = 0.0
-        hs_id_clean = str(hs_id).strip() if hs_id and str(hs_id).strip().isdigit() else ''
-        items.append({
-            'description':  desc,
-            'quantity':     (qty or '').strip() or '1',
-            'unit':         (unit or '').strip().upper(),
-            'total_value':  total_value,
-            'unit_price':   '',
-            'gross_weight': '',
-            'net_weight':   '',
-            'num_packages': '',
-            'source':       'ocr_confirmed',
-            'confidence':   confidence_val,
-            'hs_code_id':   hs_id_clean,
-            'duty_rate':    hs_rate_val,
-        })
-
-    if not items:
-        messages.warning(request, 'No items to load — add at least one row with a description.')
-        return redirect('declarant:process', shipment_id=shipment_id)
-
-    # ── Persist to ShipmentLineItem (DB) so items survive browser close ───────
-    from apps.shipments.models import HSCode
-    ShipmentLineItem.objects.filter(shipment=shipment, source='ocr').delete()
-    for order, it in enumerate(items):
-        hs_obj = None
-        if it.get('hs_code_id'):
-            try:
-                hs_obj = HSCode.objects.get(id=int(it['hs_code_id']), is_active=True)
-            except (HSCode.DoesNotExist, ValueError):
-                pass
-        try:
-            qty_d = __import__('decimal').Decimal(str(it['quantity'])) if it.get('quantity') else None
-        except Exception:
-            qty_d = None
-        try:
-            val_d = __import__('decimal').Decimal(str(it['total_value'])) if it.get('total_value') else None
-        except Exception:
-            val_d = None
-        ShipmentLineItem.objects.create(
-            shipment      = shipment,
-            description   = it['description'],
-            quantity      = qty_d,
-            unit          = it.get('unit', ''),
-            unit_price    = None,
-            total_val_usd = val_d,
-            hs_code       = hs_obj,
-            is_confirmed  = bool(hs_obj),
-            source        = 'ocr',
-            confidence    = __import__('decimal').Decimal(str(it.get('confidence', 0.0))),
-            row_order     = order,
-        )
-
-    # Keep session bridge for backward-compatibility with compute.html OCR pre-fill
-    request.session['ocr_items']       = items
-    request.session['ocr_shipment_id'] = shipment_id
+    # Store in session — compute_shipment reads these to show the guide panel
+    request.session['guide_hs_codes']    = guide_codes
+    request.session['guide_shipment_id'] = str(shipment_id)
     request.session.modified = True
 
     from django.http import HttpResponseRedirect
     from django.urls import reverse
     return HttpResponseRedirect(
-        reverse('computation:compute', kwargs={'shipment_id': shipment_id}) + '?ocr=1'
+        reverse('computation:compute', kwargs={'shipment_id': shipment_id})
     )
 
 
