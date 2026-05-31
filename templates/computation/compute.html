@@ -737,6 +737,10 @@
                     {% if existing.container_type == 'air' or shipment.shipment_type == 'air' %}selected{% endif %}>
                     Air
                 </option>
+                <option value="land"
+                    {% if existing.container_type == 'land' or shipment.shipment_type == 'land' %}selected{% endif %}>
+                    Land
+                </option>
             </select>
         </div>
         <div>
@@ -769,7 +773,7 @@
                    style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
                    value="{{ existing.bank_charges|default:'0' }}" oninput="recalcAll()">
         </div>
-        <div>
+        <div id="cbm-field">
             <label class="form-label" style="font-size:11px;">Cargo Volume (CBM)</label>
             <input type="number" name="cargo_volume" id="cargo_volume" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
@@ -777,138 +781,97 @@
         </div>
     </div>
 
-    <!-- â”€â”€ Port / Terminal / Transport Charges (per shipment type) â”€â”€â”€ -->
-    <div style="margin-top:10px; padding-top:10px; border-top:1px solid #1e293b;">
-        <p style="color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;
-                  letter-spacing:0.5px; margin:0 0 8px;">
-            {% if shipment.shipment_type == 'air' %}
-                Air Terminal Charges
-            {% elif shipment.shipment_type == 'land' %}
-                Transport / Handling Charges
-            {% else %}
-                Port / Terminal Charges
-            {% endif %}
-            <span style="color:#334155; font-weight:400; text-transform:none; letter-spacing:0;">
+    <!-- ── Port / Terminal / Transport Charges — dynamic per mode ──────────── -->
+    <div style=”margin-top:10px; padding-top:10px; border-top:1px solid #1e293b;”>
+        <p id=”port-section-title”
+           style=”color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;
+                  letter-spacing:0.5px; margin:0 0 8px;”>
+            Port / Terminal Charges
+            <span style=”color:#334155; font-weight:400; text-transform:none; letter-spacing:0;”>
                 &mdash; declarant inputs (PHP)
             </span>
         </p>
 
-        {% if shipment.shipment_type == 'air' %}
-        <!-- â”€â”€ AIR: NAIA / air terminal fees â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-            <div>
-                <label class="form-label" style="font-size:11px;">Air Terminal Fee (PHP)
-                    <span style="color:#334155; font-weight:400;">e.g. NAIA handling</span>
-                </label>
-                <input type="number" name="arrastre" id="arrastre" class="form-input"
-                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                       value="{{ existing.arrastre|default:'0' }}" oninput="recalcAll()">
-            </div>
-            <div>
-                <label class="form-label" style="font-size:11px;">Airfreight Handling (PHP)
-                    <span style="color:#334155; font-weight:400;">other terminal charges</span>
-                </label>
-                <input type="number" name="wharfage" id="wharfage" class="form-input"
-                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                       value="{{ existing.wharfage|default:'0' }}" oninput="recalcAll()">
-            </div>
-        </div>
-
-        {% elif shipment.shipment_type == 'land' %}
-        <!-- â”€â”€ LAND: trucking / handling fees â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-            <div>
-                <label class="form-label" style="font-size:11px;">Trucking Fee (PHP)</label>
-                <input type="number" name="arrastre" id="arrastre" class="form-input"
-                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                       value="{{ existing.arrastre|default:'0' }}" oninput="recalcAll()">
-            </div>
-            <div>
-                <label class="form-label" style="font-size:11px;">Handling Fee (PHP)</label>
-                <input type="number" name="wharfage" id="wharfage" class="form-input"
-                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                       value="{{ existing.wharfage|default:'0' }}" oninput="recalcAll()">
-            </div>
-        </div>
-
-        {% elif shipment.shipment_type == 'fcl' %}
-        <!-- â”€â”€ FCL: arrastre + wharfage + CSF (CSF &rarr; BOC only) â”€â”€â”€â”€â”€ -->
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
-            <div>
-                <label class="form-label" style="font-size:11px;">Arrastre (PHP)</label>
-                <input type="number" name="arrastre" id="arrastre" class="form-input"
-                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                       value="{{ existing.arrastre|default:'0' }}" oninput="recalcAll()">
-                <p style="color:#334155; font-size:10px; margin:2px 0 0;">
-                    Ref: 20ft &#8369;5,496 &middot; 40ft &#8369;12,608
-                </p>
-            </div>
-            <div>
-                <label class="form-label" style="font-size:11px;">Wharfage (PHP)</label>
-                <input type="number" name="wharfage" id="wharfage" class="form-input"
-                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                       value="{{ existing.wharfage|default:'0' }}" oninput="recalcAll()">
-                <p style="color:#334155; font-size:10px; margin:2px 0 0;">
-                    Ref: 20ft &#8369;519.35 &middot; 40ft &#8369;779.05
-                </p>
-            </div>
-            <div>
-                <label class="form-label" style="font-size:11px;">
-                    CSF (USD)
-                    <span style="color:#3b82f6; font-weight:400; font-size:10px;">&rarr; BOC fees</span>
-                </label>
-                <input type="number" name="csf_usd" id="csf_usd" class="form-input"
-                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                       value="{{ existing.csf_usd|default:'0' }}" oninput="recalcAll()">
-                <p style="color:#3b82f6; font-size:10px; margin:2px 0 0; font-weight:600;" id="csf-php-preview">
-                    = &#8369;0.00 PHP
-                </p>
-                <p style="color:#334155; font-size:10px; margin:1px 0 0;">
-                    Ref: 20FT = USD 5 &middot; 40FT = USD 10
-                </p>
-            </div>
-        </div>
-        <div style="margin-top:8px;">
-            <label class="form-label" style="font-size:11px;">Container Type</label>
-            <div style="display:flex; gap:14px; margin-top:5px;">
-                <label style="display:flex; align-items:center; gap:6px; color:#f1f5f9; font-size:12px; cursor:pointer;">
-                    <input type="radio" name="container_type" value="20ft"
+        <!-- FCL: Container Type selector (shown only for FCL) -->
+        <div id=”container-type-field” style=”display:none; margin-bottom:10px;”>
+            <label class=”form-label” style=”font-size:11px;”>Container Type</label>
+            <div style=”display:flex; gap:14px; margin-top:5px;”>
+                <label style=”display:flex; align-items:center; gap:6px; color:#f1f5f9; font-size:12px; cursor:pointer;”>
+                    <input type=”radio” name=”container_type” value=”20ft”
                            {% if existing.container_type == '40ft' %}{% else %}checked{% endif %}
-                           onchange="onContainerTypeChange('20ft')">
+                           onchange=”onContainerTypeChange('20ft')”>
                     20FT
                 </label>
-                <label style="display:flex; align-items:center; gap:6px; color:#f1f5f9; font-size:12px; cursor:pointer;">
-                    <input type="radio" name="container_type" value="40ft"
+                <label style=”display:flex; align-items:center; gap:6px; color:#f1f5f9; font-size:12px; cursor:pointer;”>
+                    <input type=”radio” name=”container_type” value=”40ft”
                            {% if existing.container_type == '40ft' %}checked{% endif %}
-                           onchange="onContainerTypeChange('40ft')">
+                           onchange=”onContainerTypeChange('40ft')”>
                     40FT
                 </label>
             </div>
         </div>
 
-        {% else %}
-        <!-- â”€â”€ LCL (default sea): arrastre + wharfage only â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <!-- Arrastre + Wharfage + CSF (labels/hints updated by JS per mode) -->
+        <div id=”port-fees-grid” style=”display:grid; grid-template-columns:1fr 1fr; gap:10px;”>
             <div>
-                <label class="form-label" style="font-size:11px;">Arrastre (PHP)</label>
-                <input type="number" name="arrastre" id="arrastre" class="form-input"
-                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                       value="{{ existing.arrastre|default:'0' }}" oninput="recalcAll()">
-                <p style="color:#334155; font-size:10px; margin:2px 0 0;">
-                    Ref: &#8369;5,496
+                <label id=”arrastre-label” class=”form-label” style=”font-size:11px;”>Arrastre (PHP)</label>
+                <input type=”number” name=”arrastre” id=”arrastre” class=”form-input”
+                       style=”padding:6px 8px; font-size:12px;” step=”0.01” placeholder=”0.00”
+                       value=”{{ existing.arrastre|default:'0' }}” oninput=”recalcAll()”>
+                <p id=”arrastre-hint” style=”color:#475569; font-size:10px; margin:2px 0 0;”>
+                    Ref: &#8369;5,496 &middot; enter actual terminal amount
                 </p>
             </div>
             <div>
-                <label class="form-label" style="font-size:11px;">Wharfage (PHP)</label>
-                <input type="number" name="wharfage" id="wharfage" class="form-input"
-                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                       value="{{ existing.wharfage|default:'0' }}" oninput="recalcAll()">
-                <p style="color:#334155; font-size:10px; margin:2px 0 0;">
-                    Ref: &#8369;519.35
+                <label id=”wharfage-label” class=”form-label” style=”font-size:11px;”>Wharfage (PHP)</label>
+                <input type=”number” name=”wharfage” id=”wharfage” class=”form-input”
+                       style=”padding:6px 8px; font-size:12px;” step=”0.01” placeholder=”0.00”
+                       value=”{{ existing.wharfage|default:'0' }}” oninput=”recalcAll()”>
+                <p id=”wharfage-hint” style=”color:#475569; font-size:10px; margin:2px 0 0;”>
+                    Ref: &#8369;519.35 &middot; enter actual terminal amount
+                </p>
+            </div>
+            <!-- CSF (FCL only, hidden by default) -->
+            <div id=”csf-field” style=”display:none;”>
+                <label class=”form-label” style=”font-size:11px;”>
+                    CSF (USD)
+                    <span style=”color:#3b82f6; font-weight:400; font-size:10px;”>&rarr; BOC</span>
+                </label>
+                <input type=”number” name=”csf_usd” id=”csf_usd” class=”form-input”
+                       style=”padding:6px 8px; font-size:12px;” step=”0.01” placeholder=”0.00”
+                       value=”{{ existing.csf_usd|default:'0' }}” oninput=”recalcAll()”>
+                <p style=”color:#3b82f6; font-size:10px; margin:2px 0 0; font-weight:600;” id=”csf-php-preview”>
+                    = &#8369;0.00 PHP
+                </p>
+                <p style=”color:#475569; font-size:10px; margin:1px 0 0;”>
+                    20FT = USD 5 &middot; 40FT = USD 10
                 </p>
             </div>
         </div>
-        {% endif %}
+
+        <!-- Revenue Ton (LCL only) -->
+        <div id=”rev-ton-display” style=”display:none; margin-top:8px; padding:6px 10px;
+             background:#0f172a; border:1px solid #1e293b; border-radius:6px;”>
+            <span style=”color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;”>
+                Revenue Ton
+            </span>
+            <span style=”color:#94a3b8; font-size:10px; margin-left:6px;”>
+                = max(CBM, GW&divide;1000) =
+                <strong id=”rev-ton-val” style=”color:#60a5fa;”>—</strong> W/M ton
+            </span>
+        </div>
+
+        <!-- Chargeable Weight info (Air only) -->
+        <div id=”chargeable-weight-display” style=”display:none; margin-top:8px; padding:6px 10px;
+             background:#0f172a; border:1px solid #1e293b; border-radius:6px;”>
+            <span style=”color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;”>
+                Chargeable Weight
+            </span>
+            <span style=”color:#94a3b8; font-size:10px; margin-left:6px;”>
+                = max(GW, CBM &times; 167 kg) =
+                <strong id=”chargeable-wt” style=”color:#60a5fa;”>—</strong> kg
+            </span>
+        </div>
     </div>
 </div>
 
@@ -2146,13 +2109,23 @@ function recalcAll() {
     var csfUsd   = csfUsdEl ? (parseFloat(csfUsdEl.value) || 0) : 0;
     var bankChg  = bcEl     ? (parseFloat(bcEl.value)     || 0) : 0;
     var csfPhp   = csfUsd * exchRate;
-    var chargeMode = (document.getElementById('charge_mode') || {}).value || '';
+    var chargeMode  = (document.getElementById('charge_mode') || {}).value || '';
     var cargoVolume = parseFloat((document.getElementById('cargo_volume') || {}).value) || 0;
     var grossWeight = parseFloat('{{ shipment.gross_weight|default:"0" }}') || 0;
-    var revenueTon = Math.max(cargoVolume, grossWeight / 1000);
-    if (chargeMode === 'lcl' && revenueTon > 0) {
-        arrastre = arrastre * revenueTon;
-        wharfage = wharfage * revenueTon;
+    var revenueTon  = Math.max(cargoVolume, grossWeight / 1000);
+    // Arrastre/wharfage are flat total amounts — no per-ton multiplication.
+    // (Verified from RTripleJ CDT Excel: declarant enters the actual terminal charge.)
+
+    // Revenue Ton display (LCL)
+    var revTonEl = document.getElementById('rev-ton-val');
+    if (revTonEl) revTonEl.textContent = revenueTon > 0 ? revenueTon.toFixed(3) + ' W/M' : '—';
+
+    // Chargeable Weight display (Air)
+    var chWtEl = document.getElementById('chargeable-wt');
+    if (chWtEl) {
+        var volWeight       = cargoVolume * 167;
+        var chargeableWeight = Math.max(grossWeight, volWeight);
+        chWtEl.textContent  = (grossWeight > 0 || cargoVolume > 0) ? chargeableWeight.toFixed(1) + ' kg' : '—';
     }
 
     var _fmt = function(n) {
@@ -2225,8 +2198,8 @@ function recalcAll() {
         var liveTlc = totalDvPhp + bankChg + totalCud + liveBf + 130 + liveIpf
                       + arrastre + wharfage;
         var liveVat = liveTlc * 0.12;
-        // BOC = CUD + VAT + CDS + IPF only (CSF is separate, not in BOC)
-        var liveBoc = totalCud + liveVat + 130 + liveIpf;
+        // BOC = CUD + VAT + CDS + IPF + CSF (CSF included for FCL, 0 for others)
+        var liveBoc = totalCud + liveVat + 130 + liveIpf + (chargeMode === 'fcl' ? csfPhp : 0);
 
         document.getElementById('live-bf').textContent      = _fmt(liveBf);
         document.getElementById('live-bf-tier').textContent = getBFTier(totalDvPhp);
@@ -2436,7 +2409,39 @@ function startOCR(url, docLabel) {
         });
 }
 
-// â”€â”€ Container type change &mdash; auto-fill Arrastre / Wharfage / CSF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Per-mode label / hint configuration ────────────────────────────────────────
+var PORT_MODE_CONFIG = {
+    lcl:  {
+        title:    'Port / Terminal Charges',
+        arr:      'Arrastre (PHP)',
+        wh:       'Wharfage (PHP)',
+        arrHint:  'Ref: ₹5,496 · enter actual terminal charge for this shipment',
+        whHint:   'Ref: ₹519.35 · enter actual terminal charge for this shipment',
+    },
+    fcl:  {
+        title:    'Port / Terminal Charges',
+        arr:      'Arrastre (PHP)',
+        wh:       'Wharfage (PHP)',
+        arrHint:  '20ft: ₹5,496 · 40ft: ₹12,608',
+        whHint:   '20ft: ₹519.35 · 40ft: ₹779.05',
+    },
+    air:  {
+        title:    'Air Terminal Charges',
+        arr:      'Air Terminal Fee (PHP)',
+        wh:       'Airfreight Handling (PHP)',
+        arrHint:  'e.g. NAIA/MNL terminal handling — optional',
+        whHint:   'other terminal charges — optional',
+    },
+    land: {
+        title:    'Transport / Handling Charges',
+        arr:      'Trucking Fee (PHP)',
+        wh:       'Handling Fee (PHP)',
+        arrHint:  'optional',
+        whHint:   'optional',
+    },
+};
+
+// ── Container type change — auto-fill Arrastre / Wharfage / CSF ──────────────
 function onContainerTypeChange(type) {
     var arrEl   = document.getElementById('arrastre');
     var wharfEl = document.getElementById('wharfage');
@@ -2453,43 +2458,83 @@ function onContainerTypeChange(type) {
     recalcAll();
 }
 
+// ── Charge mode change — update labels, show/hide sections ───────────────────
 function onChargeModeChange(mode) {
-    var arrEl   = document.getElementById('arrastre');
-    var wharfEl = document.getElementById('wharfage');
-    var csfEl   = document.getElementById('csf_usd');
-    if (mode === 'lcl' || mode === 'sea') {
-        if (arrEl)   arrEl.value = '5496';
-        if (wharfEl) wharfEl.value = '519.35';
-        if (csfEl)   csfEl.value = '0';
-        recalcAll();
-    } else if (mode === 'fcl') {
-        var selectedContainer = document.querySelector('input[name="container_type"]:checked');
-        onContainerTypeChange(selectedContainer ? selectedContainer.value : '20ft');
+    var cfg = PORT_MODE_CONFIG[mode] || PORT_MODE_CONFIG.lcl;
+
+    // Update section title and field labels
+    var titleEl = document.getElementById('port-section-title');
+    var arrLbl  = document.getElementById('arrastre-label');
+    var whLbl   = document.getElementById('wharfage-label');
+    var arrHint = document.getElementById('arrastre-hint');
+    var whHint  = document.getElementById('wharfage-hint');
+    if (titleEl) titleEl.innerHTML = cfg.title +
+        ' <span style=”color:#334155; font-weight:400; text-transform:none; letter-spacing:0;”>&mdash; declarant inputs (PHP)</span>';
+    if (arrLbl)  arrLbl.textContent  = cfg.arr;
+    if (whLbl)   whLbl.textContent   = cfg.wh;
+    if (arrHint) arrHint.textContent = cfg.arrHint;
+    if (whHint)  whHint.textContent  = cfg.whHint;
+
+    // FCL-only fields
+    var csfField = document.getElementById('csf-field');
+    var ctField  = document.getElementById('container-type-field');
+    if (csfField) csfField.style.display = mode === 'fcl' ? '' : 'none';
+    if (ctField)  ctField.style.display  = mode === 'fcl' ? '' : 'none';
+
+    // Grid: 3 columns for FCL (arr + wh + csf), 2 for others
+    var grid = document.getElementById('port-fees-grid');
+    if (grid) grid.style.gridTemplateColumns = mode === 'fcl' ? '1fr 1fr 1fr' : '1fr 1fr';
+
+    // CBM field (LCL + Air only)
+    var cbmWrap = document.getElementById('cbm-field');
+    if (cbmWrap) cbmWrap.style.display = (mode === 'lcl' || mode === 'air') ? '' : 'none';
+
+    // Revenue ton (LCL only)
+    var revTon = document.getElementById('rev-ton-display');
+    if (revTon) revTon.style.display = mode === 'lcl' ? '' : 'none';
+
+    // Chargeable weight info (Air only)
+    var chWt = document.getElementById('chargeable-weight-display');
+    if (chWt) chWt.style.display = mode === 'air' ? '' : 'none';
+
+    // FCL: auto-fill based on selected container type
+    if (mode === 'fcl') {
+        var sel = document.querySelector('input[name=”container_type”]:checked');
+        onContainerTypeChange(sel ? sel.value : '20ft');
+    } else if (mode === 'lcl') {
+        var csfEl = document.getElementById('csf_usd');
+        if (csfEl) csfEl.value = '0';
     } else {
-        recalcAll();
+        var csfEl = document.getElementById('csf_usd');
+        if (csfEl) csfEl.value = '0';
     }
+
+    recalcAll();
 }
 
-// â”€â”€ Auto-fill standard rates on page load based on shipping mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-(function autoFillOnLoad() {
-    var shipmentType = '{{ shipment.shipment_type }}';
-    var hasExisting  = {% if existing %}true{% else %}false{% endif %};
+// ── Initialise workspace on page load ────────────────────────────────────────
+(function initWorkspace() {
+    var INIT_MODE   = '{{ computed_mode }}';
+    var hasExisting = {% if existing %}true{% else %}false{% endif %};
 
-    // Only auto-fill if this is a fresh computation (no saved values yet)
-    if (hasExisting) return;
+    // Apply section visibility / labels for the current mode
+    onChargeModeChange(INIT_MODE);
 
-    var arrEl   = document.getElementById('arrastre');
-    var wharfEl = document.getElementById('wharfage');
-
-    if (shipmentType === 'lcl' || shipmentType === 'sea') {
-        if (arrEl   && (parseFloat(arrEl.value)   || 0) === 0) arrEl.value   = '5496';
-        if (wharfEl && (parseFloat(wharfEl.value) || 0) === 0) wharfEl.value = '519.35';
-        onChargeModeChange('lcl');
-    } else if (shipmentType === 'fcl') {
-        // Default to 20FT on load
-        onChargeModeChange('fcl');
+    // Auto-fill standard rates only for fresh (unsaved) computations
+    if (!hasExisting) {
+        var arrEl   = document.getElementById('arrastre');
+        var wharfEl = document.getElementById('wharfage');
+        if (INIT_MODE === 'lcl') {
+            if (arrEl   && !(parseFloat(arrEl.value)   > 0)) arrEl.value   = '5496';
+            if (wharfEl && !(parseFloat(wharfEl.value) > 0)) wharfEl.value = '519.35';
+        } else if (INIT_MODE === 'fcl') {
+            var savedCt = '{{ existing.container_type|default:”” }}';
+            onContainerTypeChange(savedCt === '40ft' ? '40ft' : '20ft');
+        }
+        // Air / Land: leave blank — charges vary per terminal / route
     }
-    // AIR and LAND: leave blank &mdash; charges vary per terminal
+
+    recalcAll();
 })();
 
 // â”€â”€ Recalc when exchange rate changes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

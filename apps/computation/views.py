@@ -55,15 +55,16 @@ def normalize_charge_mode(value, shipment_type=''):
 
 
 def apply_transport_charges(charge_mode, arrastre, wharfage, gross_weight=0, volume_cbm=0):
-    arrastre = Decimal(str(arrastre or 0))
-    wharfage = Decimal(str(wharfage or 0))
+    arrastre     = Decimal(str(arrastre     or 0))
+    wharfage     = Decimal(str(wharfage     or 0))
     gross_weight = Decimal(str(gross_weight or 0))
-    volume_cbm = Decimal(str(volume_cbm or 0))
-    revenue_ton = max(volume_cbm, gross_weight / Decimal('1000'))
+    volume_cbm   = Decimal(str(volume_cbm   or 0))
+    revenue_ton  = max(volume_cbm, gross_weight / Decimal('1000'))
 
-    if charge_mode == 'lcl' and revenue_ton > 0:
-        return round(arrastre * revenue_ton, 2), round(wharfage * revenue_ton, 2), revenue_ton
-
+    # Arrastre and wharfage are FLAT total amounts entered by the declarant.
+    # Verified from RTripleJ CDT Excel: the declarant enters the actual
+    # terminal charge for the shipment — NOT a per-ton rate to be multiplied.
+    # (The ₱5,496 and ₱519.35 references are starting hints, not multipliers.)
     return arrastre, wharfage, revenue_ton
 
 
@@ -144,10 +145,10 @@ def compute_ecdt(items_data, exchange_rate,
     # VAT = 12% of Total Landed Cost (matches client CDT Excel convention)
     vat = round(total_landed_cost * Decimal('0.12'), 2)
 
-    # BOC total = CUD + VAT + CDS + IPF only.
-    # CSF is a separate port terminal charge â€” displayed in the summary but NOT
-    # counted in TLC or BOC (matches existing client CDT Excel format).
-    boc_total = round(customs_duties + vat + cds + ipf, 2)
+    # BOC total = CUD + VAT + CDS + IPF + CSF (for FCL).
+    # Verified from RTripleJ ECDT_FCL.xlsx: CSF appears in the SUMMARY/TOTAL column.
+    # For LCL/Air/Land, csf_d = 0 so this formula is safe across all modes.
+    boc_total = round(customs_duties + vat + cds + ipf + csf_d, 2)
 
     summary = {
         'taxable_value':    taxable_value,
@@ -807,6 +808,21 @@ def compute_shipment(request, shipment_id):
     else:
         prefill_freight   = float(shipment.freight_cost   or 0)
         prefill_insurance = float(shipment.insurance_cost or 0)
+    # ── Determine initial charge mode for template (drives section visibility) ──
+    if existing:
+        _ct = (existing.container_type or '').lower()
+        if _ct in ('fcl', '20ft', '40ft'):
+            computed_mode = 'fcl'
+        elif _ct == 'air':
+            computed_mode = 'air'
+        elif _ct == 'land':
+            computed_mode = 'land'
+        else:
+            computed_mode = 'lcl'
+    else:
+        _st = (shipment.shipment_type or 'lcl').lower()
+        computed_mode = 'lcl' if _st in ('lcl', 'sea', '') else _st
+
     # ── Guide HS codes — set in session by save_ocr_items on the process page ──
     guide_hs_codes = []
     if str(request.session.get('guide_shipment_id', '')) == str(shipment_id):
@@ -833,6 +849,7 @@ def compute_shipment(request, shipment_id):
         'declared_rating':    declared_rating,
         'hs_suggestions':     hs_suggestions,
         'guide_hs_codes':     guide_hs_codes,
+        'computed_mode':      computed_mode,
         'prefill_freight':    prefill_freight,
         'prefill_insurance':  prefill_insurance,
     }
