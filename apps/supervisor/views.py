@@ -1078,6 +1078,35 @@ def config_home(request):
 
 @login_required
 @supervisor_required
+_BF_DEFAULT_TIERS = [
+    {'max': 10000,    'fee': '1300'},
+    {'max': 20000,    'fee': '2000'},
+    {'max': 30000,    'fee': '2700'},
+    {'max': 40000,    'fee': '3300'},
+    {'max': 50000,    'fee': '3600'},
+    {'max': 60000,    'fee': '4000'},
+    {'max': 100000,   'fee': '4700'},
+    {'max': 200000,   'fee': '5300', 'excess_rate': '0.00125'},
+]
+
+_IPF_DEFAULT_TIERS = [
+    {'max': 25000,    'fee': '250'},
+    {'max': 50000,    'fee': '500'},
+    {'max': 250000,   'fee': '750'},
+    {'max': 500000,   'fee': '1000'},
+    {'max': 750000,   'fee': '1500'},
+    {'max': 99999999, 'fee': '2000'},
+]
+
+
+def _load_tiers(key, defaults):
+    try:
+        raw = SystemConfig.get(key, '')
+        return json.loads(raw) if raw else list(defaults)
+    except Exception:
+        return list(defaults)
+
+
 def config_global(request):
     config   = _get_config()
     all_keys = _CURRENCY_KEYS + ['exchange_rate', 'vat_rate']
@@ -1096,11 +1125,42 @@ def config_global(request):
             SystemConfig.objects.update_or_create(
                 key='exchange_rate', defaults={'value': usd_val, 'updated_by': request.user}
             )
-        # Document template URLs (blank = no template offered)
+        # Document template URLs
         for tmpl_key in ['invoice_template_url', 'packing_list_template_url']:
             tmpl_val = request.POST.get(tmpl_key, '').strip()
             SystemConfig.objects.update_or_create(
                 key=tmpl_key, defaults={'value': tmpl_val, 'updated_by': request.user}
+            )
+        # BF tiers — rebuild JSON from individual fee inputs
+        bf_tiers = _load_tiers('bf_tiers', _BF_DEFAULT_TIERS)
+        bf_changed = False
+        for i, tier in enumerate(bf_tiers):
+            fee_val = request.POST.get(f'bf_fee_{i}', '').strip()
+            if fee_val:
+                bf_tiers[i]['fee'] = fee_val
+                bf_changed = True
+            if 'excess_rate' in tier:
+                er_val = request.POST.get('bf_excess_rate', '').strip()
+                if er_val:
+                    bf_tiers[i]['excess_rate'] = er_val
+                    bf_changed = True
+        if bf_changed:
+            SystemConfig.objects.update_or_create(
+                key='bf_tiers',
+                defaults={'value': json.dumps(bf_tiers), 'updated_by': request.user}
+            )
+        # IPF tiers
+        ipf_tiers = _load_tiers('ipf_tiers', _IPF_DEFAULT_TIERS)
+        ipf_changed = False
+        for i, tier in enumerate(ipf_tiers):
+            fee_val = request.POST.get(f'ipf_fee_{i}', '').strip()
+            if fee_val:
+                ipf_tiers[i]['fee'] = fee_val
+                ipf_changed = True
+        if ipf_changed:
+            SystemConfig.objects.update_or_create(
+                key='ipf_tiers',
+                defaults={'value': json.dumps(ipf_tiers), 'updated_by': request.user}
             )
         messages.success(request, 'Global parameters saved.')
         return redirect('supervisor:config_global')
@@ -1114,12 +1174,45 @@ def config_global(request):
             'meta':  meta.get(row['key']),
         })
 
+    # Build BF display rows: label, fee, optional excess_rate
+    bf_tiers  = _load_tiers('bf_tiers', _BF_DEFAULT_TIERS)
+    ipf_tiers = _load_tiers('ipf_tiers', _IPF_DEFAULT_TIERS)
+
+    bf_rows = []
+    prev = 0
+    for i, tier in enumerate(bf_tiers):
+        row = {
+            'index':       i,
+            'from_val':    prev + 1,
+            'max_val':     tier['max'],
+            'fee':         tier['fee'],
+            'is_last':     i == len(bf_tiers) - 1,
+            'excess_rate': tier.get('excess_rate', ''),
+        }
+        bf_rows.append(row)
+        prev = tier['max']
+
+    ipf_rows = []
+    prev = 0
+    for i, tier in enumerate(ipf_tiers):
+        row = {
+            'index':    i,
+            'from_val': prev + 1,
+            'max_val':  tier['max'],
+            'fee':      tier['fee'],
+            'is_last':  i == len(ipf_tiers) - 1,
+        }
+        ipf_rows.append(row)
+        prev = tier['max']
+
     return render(request, 'supervisor/config_global.html', {
         'config':        config,
         'config_meta':   meta,
         'currency_rows': currency_rows,
         'invoice_template_url':      SystemConfig.get('invoice_template_url', ''),
         'packing_list_template_url': SystemConfig.get('packing_list_template_url', ''),
+        'bf_rows':  bf_rows,
+        'ipf_rows': ipf_rows,
     })
 
 

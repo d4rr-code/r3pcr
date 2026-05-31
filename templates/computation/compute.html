@@ -1352,6 +1352,15 @@ document.body.classList.add('light-mode');
                    style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
                    value="{{ advisory_existing.cargo_volume|default:'0' }}" oninput="recalcAll()">
         </div>
+        <div>
+            <label class="form-label" style="font-size:11px;">
+                Distance (km)
+                <span style="color:#6B7280; font-weight:400; font-size:10px;"> — origin to Manila</span>
+            </label>
+            <input type="number" name="distance_km" id="distance_km" class="form-input"
+                   style="padding:6px 8px; font-size:12px;" step="1" min="1" placeholder="2600"
+                   value="{{ advisory_existing.distance_km|default:'2600' }}">
+        </div>
     </div>
 
     <!-- ── Port / Terminal / Transport Charges — dynamic per mode ──────────── -->

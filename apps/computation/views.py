@@ -21,29 +21,54 @@ from .ocr import process_document
 
 # â”€â”€â”€ Lookup Tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+_BF_DEFAULT_TIERS = [
+    {'max': 10000,    'fee': '1300'},
+    {'max': 20000,    'fee': '2000'},
+    {'max': 30000,    'fee': '2700'},
+    {'max': 40000,    'fee': '3300'},
+    {'max': 50000,    'fee': '3600'},
+    {'max': 60000,    'fee': '4000'},
+    {'max': 100000,   'fee': '4700'},
+    {'max': 200000,   'fee': '5300', 'excess_rate': '0.00125'},
+]
+
+_IPF_DEFAULT_TIERS = [
+    {'max': 25000,    'fee': '250'},
+    {'max': 50000,    'fee': '500'},
+    {'max': 250000,   'fee': '750'},
+    {'max': 500000,   'fee': '1000'},
+    {'max': 750000,   'fee': '1500'},
+    {'max': 99999999, 'fee': '2000'},
+]
+
+
 def get_brokerage_fee(taxable_value):
     tv = float(taxable_value)
-    if tv <= 10000:   return Decimal('1300')
-    if tv <= 20000:   return Decimal('2000')
-    if tv <= 30000:   return Decimal('2700')
-    if tv <= 40000:   return Decimal('3300')
-    if tv <= 50000:   return Decimal('3600')
-    if tv <= 60000:   return Decimal('4000')
-    if tv <= 100000:  return Decimal('4700')
-    if tv <= 200000:  return Decimal('5300')
-    # â‚±5,300 + 0.125% of excess above â‚±200,000
-    excess = Decimal(str(round(tv - 200000, 2)))
-    return Decimal('5300') + round(excess * Decimal('0.00125'), 2)
+    try:
+        raw = SystemConfig.get('bf_tiers', '')
+        tiers = json.loads(raw) if raw else _BF_DEFAULT_TIERS
+    except Exception:
+        tiers = _BF_DEFAULT_TIERS
+    for tier in tiers:
+        if tv <= float(tier['max']):
+            return Decimal(str(tier['fee']))
+    last  = tiers[-1]
+    excess = Decimal(str(round(tv - float(last['max']), 2)))
+    rate   = Decimal(str(last.get('excess_rate', '0.00125')))
+    return Decimal(str(last['fee'])) + round(excess * rate, 2)
 
 
 def get_ipf(taxable_value):
     tv = float(taxable_value)
-    if tv <= 25000:  return Decimal('250')
-    if tv <= 50000:  return Decimal('500')
-    if tv <= 250000: return Decimal('750')
-    if tv <= 500000: return Decimal('1000')
-    if tv <= 750000: return Decimal('1500')
-    return Decimal('2000')
+    try:
+        raw = SystemConfig.get('ipf_tiers', '')
+        tiers = json.loads(raw) if raw else _IPF_DEFAULT_TIERS
+    except Exception:
+        tiers = _IPF_DEFAULT_TIERS
+    for tier in tiers:
+        if tv <= float(tier['max']):
+            return Decimal(str(tier['fee']))
+    return Decimal(str(tiers[-1]['fee']))
 
 
 def normalize_charge_mode(value, shipment_type=''):
