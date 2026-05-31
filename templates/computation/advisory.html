@@ -1,7 +1,46 @@
-{% extends 'base.html' %}
+{% extends 'declarant/base_declarant.html' %}
 
 {% block title %}Shipping Advisory — {{ shipment.hawb_number }}{% endblock %}
 {% block page_title %}Shipping Advisory{% endblock %}
+{% block nav_queue %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+.d-content [style*="background:#1e3a5f"],
+.d-content [style*="background:#172554"] {
+    background: #EFF6FF !important;
+    border-color: #93C5FD !important;
+}
+
+.d-content [style*="background:#052e16"],
+.d-content [style*="background:#14532d"] {
+    background: #ECFDF5 !important;
+    border-color: #86EFAC !important;
+}
+
+.d-content [style*="background:#450a0a"] {
+    background: #FEF2F2 !important;
+    border-color: #FCA5A5 !important;
+}
+
+.d-content [style*="background:#1c1407"],
+.d-content [style*="background:#3b1f00"],
+.d-content [style*="background:#422006"] {
+    background: #FFFBEB !important;
+    border-color: #FCD34D !important;
+}
+
+.d-content [style*="color:#86efac"],
+.d-content [style*="color:#22c55e"] {
+    color: #15803D !important;
+}
+
+.d-content [style*="color:#fca5a5"],
+.d-content [style*="color:#ef4444"] {
+    color: #B91C1C !important;
+}
+</style>
+{% endblock %}
 
 {% block content %}
 

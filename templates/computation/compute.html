@@ -1,10 +1,84 @@
-{% extends 'base.html' %}
+{% extends 'declarant/base_declarant.html' %}
 
 {% block title %}ECDT Computation &mdash; {{ shipment.hawb_number }}{% endblock %}
 {% block page_title %}Duty Computation & Shipping Analysis{% endblock %}
+{% block nav_queue %}active{% endblock %}
 
 {% block extra_css %}
 <style>
+body.light-mode #doc-float-panel,
+body.light-mode .doc-viewer {
+    background: #ffffff;
+    border-color: #E5E7EB;
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
+}
+
+body.light-mode #doc-float-header,
+body.light-mode .doc-viewer-header {
+    background: #F8FAFC;
+    border-color: #E5E7EB;
+    color: #111827;
+}
+
+body.light-mode #doc-float-tabs {
+    background: #ffffff;
+    border-color: #E5E7EB;
+}
+
+body.light-mode .doc-float-tab {
+    background: #ffffff;
+    border-color: #E5E7EB;
+    color: #475569;
+}
+
+body.light-mode .doc-float-tab:hover {
+    background: #F8FAFC;
+    color: #1B3358;
+}
+
+body.light-mode #col-divider::before,
+body.light-mode #col-divider .drag-handle {
+    background: #CBD5E1;
+}
+
+body.light-mode .mode-score-card {
+    background: #ffffff;
+    border-color: #E5E7EB;
+}
+
+body.light-mode .mode-score-card.recommended {
+    background: #ECFDF5;
+    border-color: #22C55E;
+}
+
+body.light-mode .hs-results,
+body.light-mode .row-hs-suggestions {
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+}
+
+body.light-mode .hs-search-input.hs-selected {
+    color: #15803D;
+}
+
+body.light-mode .hs-rate-badge {
+    background: #FEF3C7;
+    color: #B45309;
+}
+
+body.light-mode {
+    --bg-page: #F0F2F5;
+    --bg-card: #ffffff;
+    --bg-hover: #F8FAFC;
+    --bg-input: #ffffff;
+    --bg-header: #F8FAFC;
+    --border: #E5E7EB;
+    --border-light: #CBD5E1;
+    --text-primary: #111827;
+    --text-secondary: #475569;
+    --text-muted: #6B7280;
+    --table-head-bg: #F8FAFC;
+}
+
 /* â”€â”€ Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Left column & divider hidden by default — workspace is full width.
    Declarant opens documents via the floating panel button instead.      */
@@ -512,6 +586,9 @@ body.light-mode .summary-label.total-label { color: #1d4ed8 !important; }
 {% endblock %}
 
 {% block content %}
+<script>
+document.body.classList.add('light-mode');
+</script>
 
 <!-- OCR Overlay -->
 <div id="ocr-overlay">
