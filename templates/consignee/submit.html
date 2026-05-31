@@ -340,22 +340,36 @@
         <label class="sub-label">REQUIRED DOCUMENTS <span class="sub-req">*</span></label>
         <div class="upload-grid-3">
 
+            <!-- Template instructions note -->
+            {% if invoice_template_url or packing_list_template_url %}
+            <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px;
+                        padding:10px 14px; margin-bottom:16px; display:flex; align-items:flex-start; gap:8px;">
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"
+                     style="color:#15803D; flex-shrink:0; margin-top:1px;">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
+                </svg>
+                <p style="font-size:11px; color:#166534; margin:0; line-height:1.5;">
+                    <strong>No documents yet?</strong> Download the Excel templates above, fill them out in Excel or Google Sheets, then export/save as <strong>PDF</strong> before uploading.
+                </p>
+            </div>
+            {% endif %}
+
             <!-- Commercial Invoice -->
             <div>
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                     <p style="font-size:12px; font-weight:600; color:#374151; margin:0;">Commercial Invoice</p>
                     {% if invoice_template_url %}
-                    <a href="{{ invoice_template_url }}" download
+                    <a href="{{ invoice_template_url }}" download="RTripleJ_Commercial_Invoice.xlsx"
                        style="display:inline-flex;align-items:center;gap:4px;font-size:10px;
-                              color:#1B3358;font-weight:600;text-decoration:none;
-                              padding:3px 8px;border:1px solid #D8E0EC;border-radius:5px;
-                              background:#EEF3FA;white-space:nowrap;"
-                       title="Download the RTripleJ invoice template">
+                              color:#15803D;font-weight:600;text-decoration:none;
+                              padding:3px 10px;border:1px solid #BBF7D0;border-radius:5px;
+                              background:#F0FDF4;white-space:nowrap;"
+                       title="Download the RTripleJ Commercial Invoice Excel template — fill it out, save as PDF, then upload below">
                         <svg viewBox="0 0 16 16" fill="currentColor" style="width:11px;height:11px;">
                             <path d="M8 2a.75.75 0 01.75.75v6.69l1.97-2.22a.75.75 0 111.12.996l-3.25 3.65a.75.75 0 01-1.12 0L4.16 8.216a.75.75 0 111.12-.996L7.25 9.44V2.75A.75.75 0 018 2z"/>
                             <path d="M2.5 13.25a.75.75 0 01.75-.75h9.5a.75.75 0 010 1.5h-9.5a.75.75 0 01-.75-.75z"/>
                         </svg>
-                        Download Template
+                        Download Excel Template (.xlsx)
                     </a>
                     {% endif %}
                 </div>
@@ -384,17 +398,17 @@
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                     <p style="font-size:12px; font-weight:600; color:#374151; margin:0;">Packing List</p>
                     {% if packing_list_template_url %}
-                    <a href="{{ packing_list_template_url }}" download
+                    <a href="{{ packing_list_template_url }}" download="RTripleJ_Packing_List.xlsx"
                        style="display:inline-flex;align-items:center;gap:4px;font-size:10px;
-                              color:#1B3358;font-weight:600;text-decoration:none;
-                              padding:3px 8px;border:1px solid #D8E0EC;border-radius:5px;
-                              background:#EEF3FA;white-space:nowrap;"
-                       title="Download the RTripleJ packing list template">
+                              color:#15803D;font-weight:600;text-decoration:none;
+                              padding:3px 10px;border:1px solid #BBF7D0;border-radius:5px;
+                              background:#F0FDF4;white-space:nowrap;"
+                       title="Download the RTripleJ Packing List Excel template — fill it out, save as PDF, then upload below">
                         <svg viewBox="0 0 16 16" fill="currentColor" style="width:11px;height:11px;">
                             <path d="M8 2a.75.75 0 01.75.75v6.69l1.97-2.22a.75.75 0 111.12.996l-3.25 3.65a.75.75 0 01-1.12 0L4.16 8.216a.75.75 0 111.12-.996L7.25 9.44V2.75A.75.75 0 018 2z"/>
                             <path d="M2.5 13.25a.75.75 0 01.75-.75h9.5a.75.75 0 010 1.5h-9.5a.75.75 0 01-.75-.75z"/>
                         </svg>
-                        Download Template
+                        Download Excel Template (.xlsx)
                     </a>
                     {% endif %}
                 </div>
