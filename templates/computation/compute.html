@@ -782,94 +782,94 @@
     </div>
 
     <!-- ── Port / Terminal / Transport Charges — dynamic per mode ──────────── -->
-    <div style=”margin-top:10px; padding-top:10px; border-top:1px solid #1e293b;”>
-        <p id=”port-section-title”
-           style=”color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;
-                  letter-spacing:0.5px; margin:0 0 8px;”>
+    <div style="margin-top:10px; padding-top:10px; border-top:1px solid #1e293b;">
+        <p id="port-section-title"
+           style="color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;
+                  letter-spacing:0.5px; margin:0 0 8px;">
             Port / Terminal Charges
-            <span style=”color:#334155; font-weight:400; text-transform:none; letter-spacing:0;”>
+            <span style="color:#334155; font-weight:400; text-transform:none; letter-spacing:0;">
                 &mdash; declarant inputs (PHP)
             </span>
         </p>
 
         <!-- FCL: Container Type selector (shown only for FCL) -->
-        <div id=”container-type-field” style=”display:none; margin-bottom:10px;”>
-            <label class=”form-label” style=”font-size:11px;”>Container Type</label>
-            <div style=”display:flex; gap:14px; margin-top:5px;”>
-                <label style=”display:flex; align-items:center; gap:6px; color:#f1f5f9; font-size:12px; cursor:pointer;”>
-                    <input type=”radio” name=”container_type” value=”20ft”
+        <div id="container-type-field" style="display:none; margin-bottom:10px;">
+            <label class="form-label" style="font-size:11px;">Container Type</label>
+            <div style="display:flex; gap:14px; margin-top:5px;">
+                <label style="display:flex; align-items:center; gap:6px; color:#f1f5f9; font-size:12px; cursor:pointer;">
+                    <input type="radio" name="container_type" value="20ft"
                            {% if existing.container_type == '40ft' %}{% else %}checked{% endif %}
-                           onchange=”onContainerTypeChange('20ft')”>
+                           onchange="onContainerTypeChange('20ft')">
                     20FT
                 </label>
-                <label style=”display:flex; align-items:center; gap:6px; color:#f1f5f9; font-size:12px; cursor:pointer;”>
-                    <input type=”radio” name=”container_type” value=”40ft”
+                <label style="display:flex; align-items:center; gap:6px; color:#f1f5f9; font-size:12px; cursor:pointer;">
+                    <input type="radio" name="container_type" value="40ft"
                            {% if existing.container_type == '40ft' %}checked{% endif %}
-                           onchange=”onContainerTypeChange('40ft')”>
+                           onchange="onContainerTypeChange('40ft')">
                     40FT
                 </label>
             </div>
         </div>
 
         <!-- Arrastre + Wharfage + CSF (labels/hints updated by JS per mode) -->
-        <div id=”port-fees-grid” style=”display:grid; grid-template-columns:1fr 1fr; gap:10px;”>
+        <div id="port-fees-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
             <div>
-                <label id=”arrastre-label” class=”form-label” style=”font-size:11px;”>Arrastre (PHP)</label>
-                <input type=”number” name=”arrastre” id=”arrastre” class=”form-input”
-                       style=”padding:6px 8px; font-size:12px;” step=”0.01” placeholder=”0.00”
-                       value=”{{ existing.arrastre|default:'0' }}” oninput=”recalcAll()”>
-                <p id=”arrastre-hint” style=”color:#475569; font-size:10px; margin:2px 0 0;”>
+                <label id="arrastre-label" class="form-label" style="font-size:11px;">Arrastre (PHP)</label>
+                <input type="number" name="arrastre" id="arrastre" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.arrastre|default:'0' }}" oninput="recalcAll()">
+                <p id="arrastre-hint" style="color:#475569; font-size:10px; margin:2px 0 0;">
                     Ref: &#8369;5,496 &middot; enter actual terminal amount
                 </p>
             </div>
             <div>
-                <label id=”wharfage-label” class=”form-label” style=”font-size:11px;”>Wharfage (PHP)</label>
-                <input type=”number” name=”wharfage” id=”wharfage” class=”form-input”
-                       style=”padding:6px 8px; font-size:12px;” step=”0.01” placeholder=”0.00”
-                       value=”{{ existing.wharfage|default:'0' }}” oninput=”recalcAll()”>
-                <p id=”wharfage-hint” style=”color:#475569; font-size:10px; margin:2px 0 0;”>
+                <label id="wharfage-label" class="form-label" style="font-size:11px;">Wharfage (PHP)</label>
+                <input type="number" name="wharfage" id="wharfage" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.wharfage|default:'0' }}" oninput="recalcAll()">
+                <p id="wharfage-hint" style="color:#475569; font-size:10px; margin:2px 0 0;">
                     Ref: &#8369;519.35 &middot; enter actual terminal amount
                 </p>
             </div>
             <!-- CSF (FCL only, hidden by default) -->
-            <div id=”csf-field” style=”display:none;”>
-                <label class=”form-label” style=”font-size:11px;”>
+            <div id="csf-field" style="display:none;">
+                <label class="form-label" style="font-size:11px;">
                     CSF (USD)
-                    <span style=”color:#3b82f6; font-weight:400; font-size:10px;”>&rarr; BOC</span>
+                    <span style="color:#3b82f6; font-weight:400; font-size:10px;">&rarr; BOC</span>
                 </label>
-                <input type=”number” name=”csf_usd” id=”csf_usd” class=”form-input”
-                       style=”padding:6px 8px; font-size:12px;” step=”0.01” placeholder=”0.00”
-                       value=”{{ existing.csf_usd|default:'0' }}” oninput=”recalcAll()”>
-                <p style=”color:#3b82f6; font-size:10px; margin:2px 0 0; font-weight:600;” id=”csf-php-preview”>
+                <input type="number" name="csf_usd" id="csf_usd" class="form-input"
+                       style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                       value="{{ existing.csf_usd|default:'0' }}" oninput="recalcAll()">
+                <p style="color:#3b82f6; font-size:10px; margin:2px 0 0; font-weight:600;" id="csf-php-preview">
                     = &#8369;0.00 PHP
                 </p>
-                <p style=”color:#475569; font-size:10px; margin:1px 0 0;”>
+                <p style="color:#475569; font-size:10px; margin:1px 0 0;">
                     20FT = USD 5 &middot; 40FT = USD 10
                 </p>
             </div>
         </div>
 
         <!-- Revenue Ton (LCL only) -->
-        <div id=”rev-ton-display” style=”display:none; margin-top:8px; padding:6px 10px;
-             background:#0f172a; border:1px solid #1e293b; border-radius:6px;”>
-            <span style=”color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;”>
+        <div id="rev-ton-display" style="display:none; margin-top:8px; padding:6px 10px;
+             background:#0f172a; border:1px solid #1e293b; border-radius:6px;">
+            <span style="color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;">
                 Revenue Ton
             </span>
-            <span style=”color:#94a3b8; font-size:10px; margin-left:6px;”>
+            <span style="color:#94a3b8; font-size:10px; margin-left:6px;">
                 = max(CBM, GW&divide;1000) =
-                <strong id=”rev-ton-val” style=”color:#60a5fa;”>—</strong> W/M ton
+                <strong id="rev-ton-val" style="color:#60a5fa;">—</strong> W/M ton
             </span>
         </div>
 
         <!-- Chargeable Weight info (Air only) -->
-        <div id=”chargeable-weight-display” style=”display:none; margin-top:8px; padding:6px 10px;
-             background:#0f172a; border:1px solid #1e293b; border-radius:6px;”>
-            <span style=”color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;”>
+        <div id="chargeable-weight-display" style="display:none; margin-top:8px; padding:6px 10px;
+             background:#0f172a; border:1px solid #1e293b; border-radius:6px;">
+            <span style="color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;">
                 Chargeable Weight
             </span>
-            <span style=”color:#94a3b8; font-size:10px; margin-left:6px;”>
+            <span style="color:#94a3b8; font-size:10px; margin-left:6px;">
                 = max(GW, CBM &times; 167 kg) =
-                <strong id=”chargeable-wt” style=”color:#60a5fa;”>—</strong> kg
+                <strong id="chargeable-wt" style="color:#60a5fa;">—</strong> kg
             </span>
         </div>
     </div>
@@ -877,41 +877,41 @@
 
 <!-- ── HS Code Guide (selected on the process page by the declarant) ─────── -->
 {% if guide_hs_codes %}
-<div class=”card” style=”margin-bottom:14px; padding:12px 14px;” id=”guide-hs-panel”>
-    <div style=”display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;”>
+<div class="card" style="margin-bottom:14px; padding:12px 14px;" id="guide-hs-panel">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
         <div>
-            <p class=”card-title” style=”margin:0 0 2px; font-size:12px;”>
+            <p class="card-title" style="margin:0 0 2px; font-size:12px;">
                 HS Code Guide
-                <span style=”background:#2563eb; color:#fff; font-size:9px; font-weight:700;
-                             padding:2px 7px; border-radius:10px; margin-left:6px;”>
+                <span style="background:#2563eb; color:#fff; font-size:9px; font-weight:700;
+                             padding:2px 7px; border-radius:10px; margin-left:6px;">
                     {{ guide_hs_codes|length }}
                 </span>
             </p>
-            <p style=”color:#475569; font-size:10px; margin:0;”>
+            <p style="color:#475569; font-size:10px; margin:0;">
                 Codes selected from the document — click a code to apply it to the next empty row
             </p>
         </div>
-        <button type=”button”
-                onclick=”document.getElementById('guide-hs-panel').style.display='none'”
-                style=”background:none; border:none; color:#475569; cursor:pointer;
-                       font-size:18px; padding:2px 6px; line-height:1;” title=”Dismiss”>&times;</button>
+        <button type="button"
+                onclick="document.getElementById('guide-hs-panel').style.display='none'"
+                style="background:none; border:none; color:#475569; cursor:pointer;
+                       font-size:18px; padding:2px 6px; line-height:1;" title="Dismiss">&times;</button>
     </div>
-    <div style=”display:flex; flex-wrap:wrap; gap:7px;”>
+    <div style="display:flex; flex-wrap:wrap; gap:7px;">
         {% for g in guide_hs_codes %}
-        <button type=”button”
-                onclick=”applyHsSuggestionToNextEmpty({{ g.id }}, '{{ g.code|escapejs }}', {{ g.duty_rate }})”
-                title=”{{ g.description }}”
-                style=”display:inline-flex; align-items:center; gap:5px;
+        <button type="button"
+                onclick="applyHsSuggestionToNextEmpty({{ g.id }}, '{{ g.code|escapejs }}', {{ g.duty_rate }})"
+                title="{{ g.description }}"
+                style="display:inline-flex; align-items:center; gap:5px;
                        padding:6px 11px; background:#1e3a5f; border:1px solid #2563eb;
-                       border-radius:8px; cursor:pointer; transition:all .15s; font-size:11px;”
-                onmouseover=”this.style.background='#1d4ed8'; this.style.borderColor='#60a5fa';”
-                onmouseout=”this.style.background='#1e3a5f'; this.style.borderColor='#2563eb';”>
-            <span style=”font-weight:800; color:#60a5fa; white-space:nowrap;”>{{ g.code }}</span>
-            <span style=”color:#94a3b8; overflow:hidden; text-overflow:ellipsis;
-                         white-space:nowrap; max-width:160px;”>{{ g.description|truncatechars:38 }}</span>
-            <span style=”font-size:10px; font-weight:700; color:#fbbf24;
+                       border-radius:8px; cursor:pointer; transition:all .15s; font-size:11px;"
+                onmouseover="this.style.background='#1d4ed8'; this.style.borderColor='#60a5fa';"
+                onmouseout="this.style.background='#1e3a5f'; this.style.borderColor='#2563eb';">
+            <span style="font-weight:800; color:#60a5fa; white-space:nowrap;">{{ g.code }}</span>
+            <span style="color:#94a3b8; overflow:hidden; text-overflow:ellipsis;
+                         white-space:nowrap; max-width:160px;">{{ g.description|truncatechars:38 }}</span>
+            <span style="font-size:10px; font-weight:700; color:#fbbf24;
                          background:#422006; padding:2px 6px; border-radius:4px;
-                         white-space:nowrap; flex-shrink:0;”>{{ g.duty_rate }}%</span>
+                         white-space:nowrap; flex-shrink:0;">{{ g.duty_rate }}%</span>
         </button>
         {% endfor %}
     </div>
@@ -2469,7 +2469,7 @@ function onChargeModeChange(mode) {
     var arrHint = document.getElementById('arrastre-hint');
     var whHint  = document.getElementById('wharfage-hint');
     if (titleEl) titleEl.innerHTML = cfg.title +
-        ' <span style=”color:#334155; font-weight:400; text-transform:none; letter-spacing:0;”>&mdash; declarant inputs (PHP)</span>';
+        ' <span style="color:#334155; font-weight:400; text-transform:none; letter-spacing:0;">&mdash; declarant inputs (PHP)</span>';
     if (arrLbl)  arrLbl.textContent  = cfg.arr;
     if (whLbl)   whLbl.textContent   = cfg.wh;
     if (arrHint) arrHint.textContent = cfg.arrHint;
@@ -2499,7 +2499,7 @@ function onChargeModeChange(mode) {
 
     // FCL: auto-fill based on selected container type
     if (mode === 'fcl') {
-        var sel = document.querySelector('input[name=”container_type”]:checked');
+        var sel = document.querySelector('input[name="container_type"]:checked');
         onContainerTypeChange(sel ? sel.value : '20ft');
     } else if (mode === 'lcl') {
         var csfEl = document.getElementById('csf_usd');
@@ -2528,7 +2528,7 @@ function onChargeModeChange(mode) {
             if (arrEl   && !(parseFloat(arrEl.value)   > 0)) arrEl.value   = '5496';
             if (wharfEl && !(parseFloat(wharfEl.value) > 0)) wharfEl.value = '519.35';
         } else if (INIT_MODE === 'fcl') {
-            var savedCt = '{{ existing.container_type|default:”” }}';
+            var savedCt = '{{ existing.container_type|default:"" }}';
             onContainerTypeChange(savedCt === '40ft' ? '40ft' : '20ft');
         }
         // Air / Land: leave blank — charges vary per terminal / route
