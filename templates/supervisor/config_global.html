@@ -125,6 +125,38 @@
         </div>
     </div>
 
+    <!-- Document Templates -->
+    <div class="card" style="padding:28px; margin-bottom:24px;">
+        <p class="card-title" style="margin:0 0 4px;">Document Templates</p>
+        <p style="color:#9CA3AF; font-size:12px; margin:0 0 20px; line-height:1.5;">
+            Provide download links for the RTripleJ Commercial Invoice and Packing List templates.
+            Consignees will see a <strong>Download Template</strong> button on the submission form.
+            Leave blank to hide the button. Upload the template files to your storage and paste the URL here.
+        </p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div>
+                <label class="form-label" style="font-size:12px;">Commercial Invoice Template URL</label>
+                <input type="url" name="invoice_template_url"
+                       value="{{ invoice_template_url }}"
+                       class="form-input" placeholder="https://… or leave blank"
+                       style="font-size:13px;">
+                <p style="color:#9CA3AF; font-size:11px; margin:4px 0 0;">
+                    Direct link to the invoice template file (Excel, PDF, etc.)
+                </p>
+            </div>
+            <div>
+                <label class="form-label" style="font-size:12px;">Packing List Template URL</label>
+                <input type="url" name="packing_list_template_url"
+                       value="{{ packing_list_template_url }}"
+                       class="form-input" placeholder="https://… or leave blank"
+                       style="font-size:13px;">
+                <p style="color:#9CA3AF; font-size:11px; margin:4px 0 0;">
+                    Direct link to the packing list template file (Excel, PDF, etc.)
+                </p>
+            </div>
+        </div>
+    </div>
+
     <!-- Buttons -->
     <div style="display:flex; gap:12px;">
         <button type="submit" class="btn btn-primary" style="padding:10px 28px;">

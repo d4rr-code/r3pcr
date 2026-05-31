@@ -6,23 +6,74 @@
 {% block extra_css %}
 <style>
 /* â”€â”€ Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-.compute-layout {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 0;
-    min-width: 0;
-}
-#col-left {
-    flex: 0 0 auto;
-    width: 55%;
-    min-width: 280px;
-    max-width: calc(100% - 320px);
-}
-#col-right {
-    flex: 1 1 0;
+/* Left column & divider hidden by default — workspace is full width.
+   Declarant opens documents via the floating panel button instead.      */
+.compute-layout { display: block; }
+#col-left    { display: none !important; }
+#col-divider { display: none !important; }
+#col-right   { width: 100%; max-width: 100%; }
+
+/* â”€â”€ Floating Document Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+#doc-float-panel {
+    position: fixed;
+    top: 70px;
+    right: 24px;
+    width: 520px;
+    height: 640px;
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 90px);
     min-width: 300px;
-    padding-left: 0;
+    min-height: 280px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    z-index: 9500;
+    box-shadow: 0 24px 80px rgba(0,0,0,.7);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    resize: both;
+}
+#doc-float-panel.open { display: flex; }
+#doc-float-header {
+    padding: 10px 14px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: move;
+    flex-shrink: 0;
+    user-select: none;
+}
+#doc-float-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #0f172a;
+    border-bottom: 1px solid #1e293b;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+.doc-float-tab {
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid #334155;
+    background: transparent;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+}
+.doc-float-tab:hover { background: #1e293b; color: #94a3b8; }
+.doc-float-tab.active { background: #1d4ed8; color: #fff; border-color: #3b82f6; }
+#float-viewer-area {
+    flex: 1;
+    overflow: hidden;
+    background: #fff;
+    position: relative;
 }
 /* â”€â”€ Drag Divider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #col-divider {
@@ -415,7 +466,22 @@
             {% endif %}
         </p>
     </div>
-    <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+    <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        {% if documents %}
+        <button type="button" onclick="openDocPanel()"
+                style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;
+                       background:#1e293b;border:1px solid #334155;border-radius:8px;
+                       color:#93c5fd;font-size:12px;font-weight:600;cursor:pointer;
+                       transition:all .15s;"
+                onmouseover="this.style.background='#1d4ed8';this.style.borderColor='#3b82f6';"
+                onmouseout="this.style.background='#1e293b';this.style.borderColor='#334155';"
+                title="Open floating document viewer">
+            <svg viewBox="0 0 20 20" fill="currentColor" style="width:14px;height:14px;">
+                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
+            </svg>
+            View Documents
+        </button>
+        {% endif %}
         {% if existing %}
         <a href="{% url 'computation:download' shipment.id %}"
            class="btn btn-secondary" style="font-size:12px;">Excel</a>
@@ -479,9 +545,60 @@
     {% endif %}
 </div>
 
+<!-- ── Floating Document Panel ────────────────────────────────────────────── -->
+<div id="doc-float-panel">
+    <div id="doc-float-header">
+        <svg viewBox="0 0 20 20" fill="currentColor"
+             style="width:14px;height:14px;color:#475569;flex-shrink:0;">
+            <circle cx="5" cy="5" r="1.5"/><circle cx="5" cy="10" r="1.5"/><circle cx="5" cy="15" r="1.5"/>
+            <circle cx="10" cy="5" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="15" r="1.5"/>
+        </svg>
+        <span style="color:#f1f5f9;font-size:13px;font-weight:600;">Documents</span>
+        <span style="color:#475569;font-size:11px;font-family:monospace;">{{ shipment.hawb_number }}</span>
+        {% if documents %}
+        <button type="button"
+                onclick="startOCR('{% url 'computation:ocr_extract_all' shipment.id %}?next=compute','All Documents')"
+                style="margin-left:4px;padding:3px 9px;background:#1d4ed8;border:none;
+                       border-radius:5px;color:#fff;font-size:10px;font-weight:600;cursor:pointer;">
+            OCR All
+        </button>
+        {% endif %}
+        <button type="button" onclick="closeDocPanel()"
+                style="margin-left:auto;background:none;border:none;color:#475569;
+                       cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;flex-shrink:0;"
+                title="Close">&times;</button>
+    </div>
+    <div id="doc-float-tabs">
+        {% for doc in documents %}{% if doc.document_type != 'sad' %}
+        <button type="button" class="doc-float-tab"
+                data-url="{{ doc.file.url }}"
+                data-label="{{ doc.get_document_type_display }}"
+                onclick="activateFloatTab(this)">
+            {% if doc.document_type == 'invoice' %}Invoice
+            {% elif doc.document_type == 'packing_list' %}Packing List
+            {% elif doc.document_type == 'airway_bill' %}HAWB / BL
+            {% else %}{{ doc.get_document_type_display }}{% endif %}
+        </button>
+        {% endif %}{% endfor %}
+        {% if not documents %}
+        <span style="color:#475569;font-size:11px;padding:4px 0;">No documents uploaded.</span>
+        {% endif %}
+    </div>
+    <div id="float-viewer-area">
+        <div style="height:100%;display:flex;align-items:center;justify-content:center;
+                    color:#475569;font-size:13px;background:#0f172a;flex-direction:column;gap:8px;">
+            <svg viewBox="0 0 20 20" fill="currentColor"
+                 style="width:32px;height:32px;color:#334155;">
+                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/>
+            </svg>
+            <span>Select a document tab above</span>
+        </div>
+    </div>
+</div>
+
 <div class="compute-layout">
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+<!--â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
      LEFT &mdash; Document Viewer
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <div id="col-left">
@@ -2181,6 +2298,84 @@ function renumber() {
 }
 
 // â”€â”€ Document viewer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Floating Document Panel ───────────────────────────────────────────────────
+function openDocPanel() {
+    var panel = document.getElementById('doc-float-panel');
+    panel.classList.add('open');
+    // Auto-load first tab if none active
+    var firstTab = document.querySelector('.doc-float-tab');
+    if (firstTab && !firstTab.classList.contains('active')) {
+        activateFloatTab(firstTab);
+    }
+}
+
+function closeDocPanel() {
+    document.getElementById('doc-float-panel').classList.remove('open');
+}
+
+function activateFloatTab(btn) {
+    document.querySelectorAll('.doc-float-tab').forEach(function(b) {
+        b.classList.remove('active');
+    });
+    btn.classList.add('active');
+    loadFloatDoc(btn.dataset.url, btn.dataset.label);
+}
+
+function loadFloatDoc(url, label) {
+    var area = document.getElementById('float-viewer-area');
+    if (!area) return;
+    if (url.startsWith('/')) url = window.location.origin + url;
+    var ext   = url.split('?')[0].toLowerCase();
+    var isPdf = ext.endsWith('.pdf');
+    var isImg = /\.(jpe?g|png|gif|webp)$/.test(ext);
+    if (isPdf) {
+        area.innerHTML =
+            '<iframe src="' + url + '" ' +
+            'style="width:100%;height:100%;border:none;display:block;" allow="fullscreen"></iframe>';
+    } else if (isImg) {
+        area.innerHTML =
+            '<div style="background:#1e293b;height:100%;display:flex;align-items:center;justify-content:center;">' +
+            '<img src="' + url + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block;"></div>';
+    } else {
+        area.innerHTML =
+            '<div style="padding:40px;text-align:center;background:#0f172a;height:100%;' +
+            'display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">' +
+            '<p style="color:#94a3b8;font-size:13px;">Preview not available.</p>' +
+            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:12px;">' +
+            'Open in new tab &nearr;</a></div>';
+    }
+}
+
+// ── Make floating panel draggable ────────────────────────────────────────────
+(function() {
+    var _isDragging = false, _startX, _startY, _origL, _origT;
+    document.addEventListener('DOMContentLoaded', function() {
+        var panel  = document.getElementById('doc-float-panel');
+        var header = document.getElementById('doc-float-header');
+        if (!panel || !header) return;
+        header.addEventListener('mousedown', function(e) {
+            if (e.target.closest('button')) return;
+            _isDragging = true;
+            var rect = panel.getBoundingClientRect();
+            _startX = e.clientX;
+            _startY = e.clientY;
+            _origL  = rect.left;
+            _origT  = rect.top;
+            panel.style.right  = 'auto';
+            panel.style.left   = _origL + 'px';
+            panel.style.top    = _origT + 'px';
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', function(e) {
+            if (!_isDragging) return;
+            panel.style.left = (_origL + e.clientX - _startX) + 'px';
+            panel.style.top  = (_origT + e.clientY - _startY) + 'px';
+        });
+        document.addEventListener('mouseup', function() { _isDragging = false; });
+    });
+})();
+
+// ── Original loadDoc (targets the left-column viewer — kept for compatibility) ──
 function loadDoc(url, label) {
     var area = document.getElementById('viewer-area');
     var lbl  = document.getElementById('viewer-label');

@@ -1054,6 +1054,12 @@ def config_global(request):
             SystemConfig.objects.update_or_create(
                 key='exchange_rate', defaults={'value': usd_val, 'updated_by': request.user}
             )
+        # Document template URLs (blank = no template offered)
+        for tmpl_key in ['invoice_template_url', 'packing_list_template_url']:
+            tmpl_val = request.POST.get(tmpl_key, '').strip()
+            SystemConfig.objects.update_or_create(
+                key=tmpl_key, defaults={'value': tmpl_val, 'updated_by': request.user}
+            )
         messages.success(request, 'Global parameters saved.')
         return redirect('supervisor:config_global')
 
@@ -1070,6 +1076,8 @@ def config_global(request):
         'config':        config,
         'config_meta':   meta,
         'currency_rows': currency_rows,
+        'invoice_template_url':      SystemConfig.get('invoice_template_url', ''),
+        'packing_list_template_url': SystemConfig.get('packing_list_template_url', ''),
     })
 
 

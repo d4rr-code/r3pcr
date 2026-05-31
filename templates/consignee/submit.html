@@ -342,7 +342,23 @@
 
             <!-- Commercial Invoice -->
             <div>
-                <p style="font-size:12px; font-weight:600; color:#374151; margin-bottom:8px;">Commercial Invoice</p>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <p style="font-size:12px; font-weight:600; color:#374151; margin:0;">Commercial Invoice</p>
+                    {% if invoice_template_url %}
+                    <a href="{{ invoice_template_url }}" download
+                       style="display:inline-flex;align-items:center;gap:4px;font-size:10px;
+                              color:#1B3358;font-weight:600;text-decoration:none;
+                              padding:3px 8px;border:1px solid #D8E0EC;border-radius:5px;
+                              background:#EEF3FA;white-space:nowrap;"
+                       title="Download the RTripleJ invoice template">
+                        <svg viewBox="0 0 16 16" fill="currentColor" style="width:11px;height:11px;">
+                            <path d="M8 2a.75.75 0 01.75.75v6.69l1.97-2.22a.75.75 0 111.12.996l-3.25 3.65a.75.75 0 01-1.12 0L4.16 8.216a.75.75 0 111.12-.996L7.25 9.44V2.75A.75.75 0 018 2z"/>
+                            <path d="M2.5 13.25a.75.75 0 01.75-.75h9.5a.75.75 0 010 1.5h-9.5a.75.75 0 01-.75-.75z"/>
+                        </svg>
+                        Download Template
+                    </a>
+                    {% endif %}
+                </div>
                 <div class="upload-zone" id="zone-invoice"
                      onclick="trigFile('f-invoice')"
                      ondragover="dzOver(event,'zone-invoice')"
@@ -365,7 +381,23 @@
 
             <!-- Packing List -->
             <div>
-                <p style="font-size:12px; font-weight:600; color:#374151; margin-bottom:8px;">Packing List</p>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <p style="font-size:12px; font-weight:600; color:#374151; margin:0;">Packing List</p>
+                    {% if packing_list_template_url %}
+                    <a href="{{ packing_list_template_url }}" download
+                       style="display:inline-flex;align-items:center;gap:4px;font-size:10px;
+                              color:#1B3358;font-weight:600;text-decoration:none;
+                              padding:3px 8px;border:1px solid #D8E0EC;border-radius:5px;
+                              background:#EEF3FA;white-space:nowrap;"
+                       title="Download the RTripleJ packing list template">
+                        <svg viewBox="0 0 16 16" fill="currentColor" style="width:11px;height:11px;">
+                            <path d="M8 2a.75.75 0 01.75.75v6.69l1.97-2.22a.75.75 0 111.12.996l-3.25 3.65a.75.75 0 01-1.12 0L4.16 8.216a.75.75 0 111.12-.996L7.25 9.44V2.75A.75.75 0 018 2z"/>
+                            <path d="M2.5 13.25a.75.75 0 01.75-.75h9.5a.75.75 0 010 1.5h-9.5a.75.75 0 01-.75-.75z"/>
+                        </svg>
+                        Download Template
+                    </a>
+                    {% endif %}
+                </div>
                 <div class="upload-zone" id="zone-packing"
                      onclick="trigFile('f-packing')"
                      ondragover="dzOver(event,'zone-packing')"
@@ -409,6 +441,14 @@
                 </div>
             </div>
         </div>
+
+        {% if invoice_template_url or packing_list_template_url %}
+        <p style="font-size:11px;color:#6B7280;margin-top:10px;line-height:1.5;">
+            <strong style="color:#374151;">Don't have your own invoice or packing list?</strong>
+            Download the template above, fill it in, and upload the completed file.
+            If your supplier already provided official documents, upload those directly — no template needed.
+        </p>
+        {% endif %}
     </div>
 
     <!-- ── OTHER SUPPORTING DOCUMENTS ──────────────────────────────────────── -->

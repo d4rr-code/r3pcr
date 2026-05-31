@@ -197,7 +197,13 @@ def submit_shipment(request):
         )
         return redirect('consignee:my_submissions')
 
-    return render(request, 'consignee/submit.html')
+    from apps.supervisor.models import SystemConfig
+    invoice_template_url      = SystemConfig.get('invoice_template_url', '')
+    packing_list_template_url = SystemConfig.get('packing_list_template_url', '')
+    return render(request, 'consignee/submit.html', {
+        'invoice_template_url':      invoice_template_url,
+        'packing_list_template_url': packing_list_template_url,
+    })
 
 
 # ─── My Submissions ───────────────────────────────────────────────────────────
