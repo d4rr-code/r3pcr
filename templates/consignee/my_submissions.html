@@ -176,7 +176,7 @@
                         {% if shipment.has_deficiency %}
                         <br>
                         <span style="font-size:10px; color:#DC2626; font-weight:600;">
-                            ⚠ Deficiency
+                            Deficiency
                         </span>
                         {% endif %}
                     </td>
@@ -289,7 +289,7 @@
     {% elif not flagged_shipments %}
     <!-- Empty state -->
     <div style="padding:64px 32px; text-align:center; color:#9CA3AF;">
-        <div style="font-size:48px; margin-bottom:16px; line-height:1;">📭</div>
+        <div style="font-size:48px; margin-bottom:16px; line-height:1;">No items</div>
         <p style="font-size:16px; font-weight:600; color:#6B7280; margin-bottom:6px;">No submissions found</p>
         <p style="font-size:13px; margin-bottom:24px; max-width:320px; margin-left:auto; margin-right:auto;">
             {% if q or status_filter or date_from or date_to %}

@@ -1116,13 +1116,6 @@ document.body.classList.add('light-mode');
         <span style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;display:block;">Status</span>
         <span class="badge badge-{{ shipment.status }}" style="font-size:11px;">{{ shipment.get_status_display }}</span>
     </div>
-    {% if shipment.boc_reference %}
-    <div style="width:1px;height:28px;background:#1e293b;flex-shrink:0;"></div>
-    <div>
-        <span style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;display:block;">BOC Ref</span>
-        <span style="color:#22c55e;font-size:12px;font-weight:700;font-family:monospace;">{{ shipment.boc_reference }}</span>
-    </div>
-    {% endif %}
 </div>
 
 <!-- ── Floating Document Panel ────────────────────────────────────────────── -->

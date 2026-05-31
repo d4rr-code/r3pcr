@@ -14,7 +14,7 @@
 
 <!-- Profile Section -->
 <div class="card" style="margin-bottom:24px;">
-    <p class="card-title">👤 Profile Information</p>
+    <p class="card-title">Profile Information</p>
     <form method="POST">
         {% csrf_token %}
         <input type="hidden" name="action" value="profile">
@@ -53,7 +53,7 @@
 
 <!-- Username Section -->
 <div class="card" style="margin-bottom:24px;">
-    <p class="card-title">🔖 Change Username</p>
+    <p class="card-title">Change Username</p>
     <form method="POST">
         {% csrf_token %}
         <input type="hidden" name="action" value="username">
@@ -82,7 +82,7 @@
 
 <!-- Password Section -->
 <div class="card">
-    <p class="card-title">🔒 Change Password</p>
+    <p class="card-title">Change Password</p>
     <form method="POST">
         {% csrf_token %}
         <input type="hidden" name="action" value="password">

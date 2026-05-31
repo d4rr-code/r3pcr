@@ -153,8 +153,8 @@
             <select name="due" class="form-input" style="padding:7px 12px; font-size:13px;"
                     onchange="this.form.submit()">
                 <option value="">All Due Dates</option>
-                <option value="-1" {% if due_filter == '-1' %}selected{% endif %}>🔴 Overdue</option>
-                <option value="0"  {% if due_filter == '0'  %}selected{% endif %}>🟠 Due Today</option>
+                <option value="-1" {% if due_filter == '-1' %}selected{% endif %}>Overdue</option>
+                <option value="0"  {% if due_filter == '0'  %}selected{% endif %}>Due Today</option>
                 <option value="2"  {% if due_filter == '2'  %}selected{% endif %}>Due in 2 days</option>
                 <option value="5"  {% if due_filter == '5'  %}selected{% endif %}>Due in 5 days</option>
             </select>
@@ -609,7 +609,7 @@
     </table>
     {% else %}
     <div style="padding:32px; text-align:center; color:#64748b;">
-        <div style="font-size:32px; margin-bottom:8px;">📭</div>
+        <div style="font-size:32px; margin-bottom:8px;">No items</div>
         <p>No completed shipments yet. Processed shipments will appear here.</p>
     </div>
     {% endif %}
@@ -763,7 +763,7 @@ function showPreview(btn) {
                 var docLinks = d.documents.map(function(doc) {
                     return '<a href="' + doc.url + '" target="_blank" ' +
                         'style="color:#3b82f6; font-size:12px; display:block; margin-bottom:4px; text-decoration:none;">' +
-                        '📄 ' + doc.type + '</a>';
+                        '' + doc.type + '</a>';
                 }).join('');
                 document.getElementById('pm-docs').innerHTML = docLinks;
             }

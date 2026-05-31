@@ -214,12 +214,6 @@ class Command(BaseCommand):
                 declared_value=exw_usd,
                 freight_cost=freight,
                 insurance_cost=insurance,
-                boc_reference=f'BOC-{i:05d}' if status in ('lodgement', 'approved', 'rejected') else None,
-                boc_status=(
-                    'Accepted' if status == 'approved' else
-                    'Rejected' if status == 'rejected' else
-                    ('Under Assessment' if status == 'lodgement' else None)
-                ),
             )
 
             # Status log

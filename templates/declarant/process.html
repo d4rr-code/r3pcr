@@ -352,7 +352,7 @@
         <p id="doc-fullscreen-title" style="color:#f1f5f9;font-size:14px;font-weight:700;margin:0;"></p>
         <button type="button" onclick="closeDocFullscreen()"
                 style="margin-left:auto;background:none;border:1px solid #334155;color:#94a3b8;border-radius:6px;padding:5px 14px;cursor:pointer;font-size:12px;">
-            Close ✕
+            Close
         </button>
     </div>
     <div id="doc-fullscreen-body" class="doc-fullscreen-body"></div>
@@ -369,9 +369,9 @@
             {% csrf_token %}
             <div class="modal-body">
                 {% if shipment.status == 'for_revision' %}
-                <div class="s-alert revision">⚠ Returned for Revision</div>
+                <div class="s-alert revision">Returned for Revision</div>
                 {% elif shipment.status == 'rejected' %}
-                <div class="s-alert rejected">✕ Shipment Rejected</div>
+                <div class="s-alert rejected">Shipment Rejected</div>
                 {% endif %}
 
                 {% if shipment.shipment_type == 'sea' %}
@@ -433,7 +433,7 @@
 <div id="flag-modal" class="modal-backdrop" onclick="if(event.target===this)closeModal('flag-modal')">
     <div class="modal-box" style="max-width:400px;">
         <div class="modal-header">
-            <p class="modal-title" style="color:#7c3aed;">🚩 Flag Document Deficiency</p>
+            <p class="modal-title" style="color:#7c3aed;">Flag Document Deficiency</p>
             <button class="modal-close" onclick="closeModal('flag-modal')">✕</button>
         </div>
         <form method="POST" action="{% url 'declarant:flag_deficiency' shipment.id %}">
@@ -510,7 +510,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             <button type="button" onclick="openModal('flag-modal')"
                     style="padding:8px 14px;border:1px solid #ddd6fe;border-radius:8px;background:#faf5ff;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer;">
-                🚩 Flag Deficiency
+                Flag Deficiency
             </button>
             {% if shipment.computation %}
             <a href="{% url 'computation:download' shipment.id %}"
@@ -524,16 +524,16 @@
             {% endif %}
             <a href="{% url 'declarant:queue' %}"
                style="padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#374151;font-size:12px;font-weight:600;text-decoration:none;">
-                ← Queue
+                Queue
             </a>
         </div>
     </div>
 
     <!-- Status alert banners (light-bg, dark text) -->
     {% if shipment.status == 'for_revision' %}
-    <div class="s-alert revision">⚠ This shipment was returned for revision — address the issues before proceeding.</div>
+    <div class="s-alert revision">This shipment was returned for revision - address the issues before proceeding.</div>
     {% elif shipment.status == 'rejected' %}
-    <div class="s-alert rejected">✕ Shipment Rejected</div>
+    <div class="s-alert rejected">Shipment Rejected</div>
     {% endif %}
 
     <!-- Progress Bar -->
@@ -839,20 +839,6 @@
         </a>
     </div>
     {% endif %}
-
-    <div class="dark-card" style="margin-bottom:0;">
-        <p class="dark-card-title">BOC Tracking</p>
-        {% if shipment.boc_reference %}
-        <p style="color:#94a3b8;font-size:12px;margin:0 0 4px;">BOC Ref: <strong style="color:#f1f5f9;">{{ shipment.boc_reference }}</strong></p>
-        <p style="color:#94a3b8;font-size:12px;margin:0 0 12px;">Status: <strong style="color:#f1f5f9;">{{ shipment.boc_status }}</strong></p>
-        {% else %}
-        <p style="color:#475569;font-size:12px;margin:0 0 12px;">No BOC reference entered yet.</p>
-        {% endif %}
-        <a href="{% url 'declarant:boc' shipment.id %}"
-           style="display:block;text-align:center;padding:9px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#93c5fd;font-size:12px;font-weight:600;text-decoration:none;">
-            {% if shipment.boc_reference %}Update BOC Status{% else %}Enter BOC Details{% endif %}
-        </a>
-    </div>
 
     {% if shipment.status == 'assessed' or shipment.status == 'paid' or shipment.status == 'released' or shipment.status == 'billed' %}
     <div class="dark-card" style="margin-bottom:0;">

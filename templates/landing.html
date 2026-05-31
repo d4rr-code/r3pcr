@@ -309,7 +309,7 @@ id="trackingSection">
 
             <div class="track-error">
 
-                ⚠ {{ track_error }}
+                {{ track_error }}
 
             </div>
 
@@ -373,19 +373,6 @@ id="trackingSection">
                     </div>
 
                 </div>
-
-                <!-- OPTIONAL BOC -->
-                {% if track_result.boc_reference %}
-
-                <div class="boc-section">
-
-                    <span class="boc-label">BOC REFERENCE</span>
-
-                    <h4>{{ track_result.boc_reference }}</h4>
-
-                </div>
-
-                {% endif %}
 
                 <!-- DISCLAIMER -->
                 <p class="result-note">

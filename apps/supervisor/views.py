@@ -1293,8 +1293,6 @@ def reset_shipment(request, shipment_id):
 
         shipment.status        = 'incoming'
         shipment.declarant     = None
-        shipment.boc_reference = None
-        shipment.boc_status    = None
         shipment.processed_at  = None
         shipment.save()
 

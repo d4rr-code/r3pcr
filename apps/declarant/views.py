@@ -931,8 +931,7 @@ def proceed_to_lodgement(request, shipment_id):
 
     old_status = shipment.status
     shipment.status = 'ongoing'
-    shipment.boc_status = shipment.boc_status or 'Under Assessment'
-    shipment.save(update_fields=['status', 'boc_status', 'updated_at'])
+    shipment.save(update_fields=['status', 'updated_at'])
 
     StatusLog.objects.create(
         shipment=shipment,
@@ -1176,78 +1175,3 @@ def save_ocr_items(request, shipment_id):
     )
 
 
-# ─── BOC Tracking ─────────────────────────────────────────────────────────────
-
-@login_required
-@declarant_required
-def boc_tracking(request, shipment_id):
-    shipment = get_object_or_404(Shipment, id=shipment_id)
-
-    # Only the assigned declarant may record BOC updates
-    if shipment.declarant != request.user:
-        messages.error(request, 'You are not assigned to this shipment.')
-        return redirect('declarant:queue')
-
-    if request.method == 'POST':
-        boc_reference = request.POST.get('boc_reference', '').strip()
-        boc_status    = request.POST.get('boc_status', '').strip()
-        notes         = request.POST.get('notes', '').strip()
-
-        if not boc_reference or not boc_status:
-            messages.error(request, 'BOC Reference and Status are required.')
-            return redirect('declarant:boc', shipment_id=shipment_id)
-
-        old_status = shipment.status
-        shipment.boc_reference = boc_reference
-        shipment.boc_status    = boc_status
-
-        if boc_status == 'Accepted':
-            shipment.status = 'approved'
-            # Record final processing timestamp
-            if not shipment.processed_at:
-                shipment.processed_at = timezone.now()
-            notif_type  = 'approved'
-            notif_title = f'Shipment Approved — {shipment.hawb_number}'
-            notif_msg   = (
-                f'Great news! Your shipment has been accepted by the Bureau of Customs. '
-                f'BOC Reference: {boc_reference}.'
-            )
-        elif boc_status == 'Rejected':
-            shipment.status = 'rejected'
-            # Record final processing timestamp
-            if not shipment.processed_at:
-                shipment.processed_at = timezone.now()
-            notif_type  = 'rejected'
-            notif_title = f'Shipment Rejected — {shipment.hawb_number}'
-            notif_msg   = (
-                f'Your shipment was rejected by the Bureau of Customs. '
-                f'BOC Reference: {boc_reference}. Notes: {notes}'
-            )
-        else:
-            notif_type  = 'status_update'
-            notif_title = f'BOC Update — {shipment.hawb_number}'
-            notif_msg   = f'BOC Status: {boc_status}. Reference: {boc_reference}. {notes}'.strip()
-
-        shipment.save()
-
-        StatusLog.objects.create(
-            shipment=shipment,
-            changed_by=request.user,
-            old_status=old_status,
-            new_status=shipment.status,
-            notes=f'BOC {boc_status}. Ref: {boc_reference}. {notes}'.strip('. '),
-        )
-
-        notify_shipment_status_change(
-            shipment=shipment,
-            old_status=old_status,
-            new_status=shipment.status,
-            changed_by=request.user,
-            notes=notif_msg,
-        )
-
-        messages.success(request, f'BOC status recorded: {boc_status}.')
-        return redirect('declarant:process', shipment_id=shipment_id)
-
-    context = {'shipment': shipment}
-    return render(request, 'declarant/boc.html', context)
