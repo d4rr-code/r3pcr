@@ -109,6 +109,25 @@
         </div>
     </a>
 
+    <!-- Fee Schedules -->
+    <a href="{% url 'supervisor:config_fees' %}" class="config-link">
+        <div class="card config-card"
+             onmouseover="this.style.borderColor='#f59e0b'; this.style.transform='translateY(-2px)'"
+             onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
+            <svg viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.75 10.818v2.614A3.13 3.13 0 0011.888 13c.482-.315.612-.648.612-.875 0-.227-.13-.56-.612-.875a3.13 3.13 0 00-1.138-.432zM8.33 8.62c.053.055.115.11.184.164.208.16.46.284.736.363V6.603a2.45 2.45 0 00-.35.13c-.14.065-.27.143-.386.233-.377.292-.514.627-.514.86 0 .233.137.568.33.833z"/>
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v.6a4.56 4.56 0 00-1.71.644c-.675.44-1.29 1.163-1.29 2.156 0 .993.614 1.716 1.29 2.157.507.33 1.08.546 1.71.644v2.344a4.56 4.56 0 01-1.116-.47.75.75 0 00-.754 1.295c.508.296 1.09.5 1.87.572v.557a.75.75 0 001.5 0v-.574a4.56 4.56 0 001.663-.634c.657-.43 1.337-1.163 1.337-2.156 0-.993-.68-1.726-1.337-2.157a4.56 4.56 0 00-1.663-.634V8.01c.39.067.75.2 1.045.39a.75.75 0 00.81-1.265 4.56 4.56 0 00-1.855-.585v-.6z" clip-rule="evenodd"/>
+            </svg>
+            <p class="config-card-title">Fee Schedules</p>
+            <p class="config-card-copy">
+                Brokerage Fee (BF) and Import Processing Fee (IPF) tiered tables used in every duty computation.
+            </p>
+            <p class="config-card-action" style="color:#f59e0b;">
+                Configure
+            </p>
+        </div>
+    </a>
+
     <!-- HS Code Duty Rates -->
     <a href="{% url 'supervisor:config_hscodes_sections' %}" class="config-link">
         <div class="card config-card"

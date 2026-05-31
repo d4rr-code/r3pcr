@@ -198,8 +198,15 @@ def submit_shipment(request):
         return redirect('consignee:my_submissions')
 
     from apps.supervisor.models import SystemConfig
-    invoice_template_url      = SystemConfig.get('invoice_template_url', '')
-    packing_list_template_url = SystemConfig.get('packing_list_template_url', '')
+    from django.templatetags.static import static
+    invoice_template_url = (
+        SystemConfig.get('invoice_template_url', '')
+        or static('templates/RTripleJ_Commercial_Invoice.xlsx')
+    )
+    packing_list_template_url = (
+        SystemConfig.get('packing_list_template_url', '')
+        or static('templates/RTripleJ_Packing_List.xlsx')
+    )
     return render(request, 'consignee/submit.html', {
         'invoice_template_url':      invoice_template_url,
         'packing_list_template_url': packing_list_template_url,

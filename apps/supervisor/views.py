@@ -1129,8 +1129,34 @@ def config_global(request):
             SystemConfig.objects.update_or_create(
                 key=tmpl_key, defaults={'value': tmpl_val, 'updated_by': request.user}
             )
-        # BF tiers — rebuild JSON from individual fee inputs
-        bf_tiers = _load_tiers('bf_tiers', _BF_DEFAULT_TIERS)
+        messages.success(request, 'Global parameters saved.')
+        return redirect('supervisor:config_global')
+
+    # Build currency rows for template
+    currency_rows = []
+    for row in _CURRENCY_META:
+        currency_rows.append({
+            **row,
+            'value': getattr(config, row['key'], '0.0000'),
+            'meta':  meta.get(row['key']),
+        })
+
+    return render(request, 'supervisor/config_global.html', {
+        'config':        config,
+        'config_meta':   meta,
+        'currency_rows': currency_rows,
+        'invoice_template_url':      SystemConfig.get('invoice_template_url', ''),
+        'packing_list_template_url': SystemConfig.get('packing_list_template_url', ''),
+    })
+
+
+@login_required
+@supervisor_required
+def config_fees(request):
+    """Brokerage Fee and Import Processing Fee tier editor."""
+    if request.method == 'POST':
+        # BF tiers
+        bf_tiers  = _load_tiers('bf_tiers', _BF_DEFAULT_TIERS)
         bf_changed = False
         for i, tier in enumerate(bf_tiers):
             fee_val = request.POST.get(f'bf_fee_{i}', '').strip()
@@ -1148,7 +1174,7 @@ def config_global(request):
                 defaults={'value': json.dumps(bf_tiers), 'updated_by': request.user}
             )
         # IPF tiers
-        ipf_tiers = _load_tiers('ipf_tiers', _IPF_DEFAULT_TIERS)
+        ipf_tiers  = _load_tiers('ipf_tiers', _IPF_DEFAULT_TIERS)
         ipf_changed = False
         for i, tier in enumerate(ipf_tiers):
             fee_val = request.POST.get(f'ipf_fee_{i}', '').strip()
@@ -1160,57 +1186,31 @@ def config_global(request):
                 key='ipf_tiers',
                 defaults={'value': json.dumps(ipf_tiers), 'updated_by': request.user}
             )
-        messages.success(request, 'Global parameters saved.')
-        return redirect('supervisor:config_global')
+        messages.success(request, 'Fee schedules saved.')
+        return redirect('supervisor:config_fees')
 
-    # Build currency rows for template
-    currency_rows = []
-    for row in _CURRENCY_META:
-        currency_rows.append({
-            **row,
-            'value': getattr(config, row['key'], '0.0000'),
-            'meta':  meta.get(row['key']),
-        })
-
-    # Build BF display rows: label, fee, optional excess_rate
-    bf_tiers  = _load_tiers('bf_tiers', _BF_DEFAULT_TIERS)
+    bf_tiers  = _load_tiers('bf_tiers',  _BF_DEFAULT_TIERS)
     ipf_tiers = _load_tiers('ipf_tiers', _IPF_DEFAULT_TIERS)
 
-    bf_rows = []
-    prev = 0
+    bf_rows, prev = [], 0
     for i, tier in enumerate(bf_tiers):
-        row = {
-            'index':       i,
-            'from_val':    prev + 1,
-            'max_val':     tier['max'],
-            'fee':         tier['fee'],
-            'is_last':     i == len(bf_tiers) - 1,
+        bf_rows.append({
+            'index': i, 'from_val': prev + 1, 'max_val': tier['max'],
+            'fee': tier['fee'], 'is_last': i == len(bf_tiers) - 1,
             'excess_rate': tier.get('excess_rate', ''),
-        }
-        bf_rows.append(row)
+        })
         prev = tier['max']
 
-    ipf_rows = []
-    prev = 0
+    ipf_rows, prev = [], 0
     for i, tier in enumerate(ipf_tiers):
-        row = {
-            'index':    i,
-            'from_val': prev + 1,
-            'max_val':  tier['max'],
-            'fee':      tier['fee'],
-            'is_last':  i == len(ipf_tiers) - 1,
-        }
-        ipf_rows.append(row)
+        ipf_rows.append({
+            'index': i, 'from_val': prev + 1, 'max_val': tier['max'],
+            'fee': tier['fee'], 'is_last': i == len(ipf_tiers) - 1,
+        })
         prev = tier['max']
 
-    return render(request, 'supervisor/config_global.html', {
-        'config':        config,
-        'config_meta':   meta,
-        'currency_rows': currency_rows,
-        'invoice_template_url':      SystemConfig.get('invoice_template_url', ''),
-        'packing_list_template_url': SystemConfig.get('packing_list_template_url', ''),
-        'bf_rows':  bf_rows,
-        'ipf_rows': ipf_rows,
+    return render(request, 'supervisor/config_fees.html', {
+        'bf_rows': bf_rows, 'ipf_rows': ipf_rows,
     })
 
 

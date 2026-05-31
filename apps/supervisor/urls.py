@@ -19,6 +19,7 @@ urlpatterns = [
     path('config/home/',                         views.config_home,              name='config_home'),
     path('config/global/',                       views.config_global,            name='config_global'),
     path('config/global/fetch-rates/',           views.fetch_exchange_rates,     name='fetch_exchange_rates'),
+    path('config/fees/',                         views.config_fees,              name='config_fees'),
     path('config/wmcda/',                        views.config_wmcda,             name='config_wmcda'),
     path('config/hscodes/',                      views.config_hscodes_sections,  name='config_hscodes_sections'),
     path('config/hscodes/<int:section_num>/',    views.config_hscodes_section,   name='config_hscodes_section'),

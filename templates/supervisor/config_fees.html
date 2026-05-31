@@ -1,0 +1,132 @@
+{% extends 'supervisor/base_supervisor.html' %}
+{% block title %}Fee Schedules{% endblock %}
+{% block page_title %}Fee Schedules{% endblock %}
+{% block nav_config %}active{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:18px;">
+    <a href="{% url 'supervisor:config' %}" class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
+            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
+        </svg>
+        Back to System Config
+    </a>
+</div>
+
+<p style="color:#9CA3AF; font-size:13px; margin-bottom:24px;">
+    <a href="{% url 'supervisor:config' %}" style="color:#3b82f6; text-decoration:none;">System Config</a>
+    <span style="margin:0 8px;">/</span>
+    <span style="color:#6B7280;">Fee Schedules</span>
+</p>
+
+<form method="POST" style="max-width:720px;">
+    {% csrf_token %}
+
+    <!-- Brokerage Fee -->
+    <div class="card" style="padding:28px; margin-bottom:24px;">
+        <div style="margin-bottom:20px;">
+            <p class="card-title" style="margin:0 0 4px;">Brokerage Fee (BF) Schedule</p>
+            <p style="color:#9CA3AF; font-size:12px; margin:0; line-height:1.5;">
+                Tiered fee applied to the taxable (dutiable) value.
+                The last tier charges a flat fee plus an excess rate on the amount above ₱200,000.
+            </p>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+                <tr style="border-bottom:2px solid #E5E7EB;">
+                    <th style="padding:9px 12px; text-align:left; color:#374151; font-size:11px; font-weight:700;">Taxable Value Range (₱)</th>
+                    <th style="padding:9px 12px; text-align:right; color:#374151; font-size:11px; font-weight:700;">Brokerage Fee (₱)</th>
+                    <th style="padding:9px 12px; text-align:right; color:#374151; font-size:11px; font-weight:700;">Excess Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in bf_rows %}
+                <tr style="border-bottom:1px solid #F3F4F6;">
+                    <td style="padding:10px 12px; color:#374151; font-size:13px;">
+                        {% if row.is_last %}
+                            Above ₱{{ row.from_val|floatformat:"0g" }}
+                        {% else %}
+                            ₱{{ row.from_val|floatformat:"0g" }} – ₱{{ row.max_val|floatformat:"0g" }}
+                        {% endif %}
+                    </td>
+                    <td style="padding:10px 12px; text-align:right;">
+                        <div style="position:relative; display:inline-flex; align-items:center;">
+                            <span style="position:absolute; left:10px; color:#9CA3AF; font-size:12px; pointer-events:none;">₱</span>
+                            <input type="number" name="bf_fee_{{ row.index }}"
+                                   value="{{ row.fee }}" step="0.01" min="0"
+                                   class="form-input"
+                                   style="padding:7px 10px 7px 24px; font-size:13px; width:140px; text-align:right;">
+                        </div>
+                    </td>
+                    <td style="padding:10px 12px; text-align:right;">
+                        {% if row.excess_rate %}
+                        <div style="display:inline-flex; align-items:center; gap:8px; justify-content:flex-end;">
+                            <input type="number" name="bf_excess_rate"
+                                   value="{{ row.excess_rate }}" step="0.000001" min="0" max="1"
+                                   class="form-input"
+                                   style="padding:7px 8px; font-size:12px; width:120px; text-align:right;">
+                            <span style="color:#6B7280; font-size:12px; white-space:nowrap;">× excess</span>
+                        </div>
+                        {% else %}
+                        <span style="color:#D1D5DB; font-size:12px;">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Import Processing Fee -->
+    <div class="card" style="padding:28px; margin-bottom:28px;">
+        <div style="margin-bottom:20px;">
+            <p class="card-title" style="margin:0 0 4px;">Import Processing Fee (IPF) Schedule</p>
+            <p style="color:#9CA3AF; font-size:12px; margin:0; line-height:1.5;">
+                Flat fee per tier applied to the taxable (dutiable) value per BOC regulations.
+            </p>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+                <tr style="border-bottom:2px solid #E5E7EB;">
+                    <th style="padding:9px 12px; text-align:left; color:#374151; font-size:11px; font-weight:700;">Taxable Value Range (₱)</th>
+                    <th style="padding:9px 12px; text-align:right; color:#374151; font-size:11px; font-weight:700;">Import Processing Fee (₱)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in ipf_rows %}
+                <tr style="border-bottom:1px solid #F3F4F6;">
+                    <td style="padding:10px 12px; color:#374151; font-size:13px;">
+                        {% if row.is_last %}
+                            Above ₱{{ row.from_val|floatformat:"0g" }}
+                        {% else %}
+                            ₱{{ row.from_val|floatformat:"0g" }} – ₱{{ row.max_val|floatformat:"0g" }}
+                        {% endif %}
+                    </td>
+                    <td style="padding:10px 12px; text-align:right;">
+                        <div style="position:relative; display:inline-flex; align-items:center;">
+                            <span style="position:absolute; left:10px; color:#9CA3AF; font-size:12px; pointer-events:none;">₱</span>
+                            <input type="number" name="ipf_fee_{{ row.index }}"
+                                   value="{{ row.fee }}" step="0.01" min="0"
+                                   class="form-input"
+                                   style="padding:7px 10px 7px 24px; font-size:13px; width:140px; text-align:right;">
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="display:flex; gap:12px;">
+        <button type="submit" class="btn btn-primary" style="padding:10px 28px;">
+            Save Fee Schedules
+        </button>
+        <a href="{% url 'supervisor:config' %}" class="btn btn-secondary" style="padding:10px 20px;">
+            Cancel
+        </a>
+    </div>
+</form>
+
+{% endblock %}
