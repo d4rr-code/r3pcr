@@ -338,21 +338,22 @@
     <!-- ── REQUIRED DOCUMENTS ────────────────────────────────────────────────── -->
     <div style="margin-bottom:18px;">
         <label class="sub-label">REQUIRED DOCUMENTS <span class="sub-req">*</span></label>
-        <div class="upload-grid-3">
 
-            <!-- Template instructions note -->
-            {% if invoice_template_url or packing_list_template_url %}
-            <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px;
-                        padding:10px 14px; margin-bottom:16px; display:flex; align-items:flex-start; gap:8px;">
-                <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"
-                     style="color:#15803D; flex-shrink:0; margin-top:1px;">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
-                </svg>
-                <p style="font-size:11px; color:#166534; margin:0; line-height:1.5;">
-                    <strong>No documents yet?</strong> Download the Excel templates above, fill them out in Excel or Google Sheets, then export/save as <strong>PDF</strong> before uploading.
-                </p>
-            </div>
-            {% endif %}
+        <!-- Template instructions note — full width, above the upload grid -->
+        {% if invoice_template_url or packing_list_template_url %}
+        <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px;
+                    padding:10px 14px; margin-bottom:14px; display:flex; align-items:flex-start; gap:8px;">
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"
+                 style="color:#15803D; flex-shrink:0; margin-top:1px;">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
+            </svg>
+            <p style="font-size:11px; color:#166534; margin:0; line-height:1.5;">
+                <strong>No documents yet?</strong> Download the Excel templates next to each document field, fill them out in Excel or Google Sheets, then export/save as <strong>PDF</strong> before uploading.
+            </p>
+        </div>
+        {% endif %}
+
+        <div class="upload-grid-3">
 
             <!-- Commercial Invoice -->
             <div>
