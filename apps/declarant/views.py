@@ -427,9 +427,10 @@ def tariff_book(request):
         raw_results = list(
             HSCode.objects.filter(q_filter, is_active=True).order_by('code')[:60]
         )
-        # Annotate with resolved chapter number for template URL building
+        # Annotate with resolved chapter number for template URL building.
+        # Must NOT use a leading underscore — Django templates block _xxx attributes.
         for hs in raw_results:
-            hs._chapter_num_resolved = _chapter_num(hs.chapter)
+            hs.chapter_num_resolved = _chapter_num(hs.chapter)
         search_results = raw_results
         search_count = len(search_results)
 

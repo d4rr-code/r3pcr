@@ -89,11 +89,11 @@
                 onmouseover="this.style.background='#F8FAFC'"
                 onmouseout="this.style.background=''">
                 <td style="padding:10px 14px; vertical-align:top;">
-                    {% if hs._chapter_num_resolved %}
-                    <a href="{% url 'declarant:tariff_book_chapter' hs._chapter_num_resolved %}"
+                    {% if hs.chapter_num_resolved %}
+                    <a href="{% url 'declarant:tariff_book_chapter' hs.chapter_num_resolved %}"
                        style="color:#1D4ED8; font-weight:800; font-size:13px;
                               text-decoration:none; white-space:nowrap;"
-                       title="View chapter {{ hs._chapter_num_resolved }}">
+                       title="View chapter {{ hs.chapter_num_resolved }}">
                         {{ hs.code }}
                     </a>
                     {% else %}
@@ -104,10 +104,10 @@
                     {{ hs.description }}
                 </td>
                 <td style="padding:10px 14px; vertical-align:top; white-space:nowrap;">
-                    {% if hs._chapter_num_resolved %}
-                    <a href="{% url 'declarant:tariff_book_chapter' hs._chapter_num_resolved %}"
+                    {% if hs.chapter_num_resolved %}
+                    <a href="{% url 'declarant:tariff_book_chapter' hs.chapter_num_resolved %}"
                        style="color:#6B7280; font-size:12px; text-decoration:none;">
-                        Ch. {{ hs._chapter_num_resolved|stringformat:"02d" }}
+                        Ch. {{ hs.chapter_num_resolved|stringformat:"02d" }}
                     </a>
                     {% else %}
                     <span style="color:#9CA3AF; font-size:12px;">—</span>
