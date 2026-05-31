@@ -1701,6 +1701,7 @@ def shipping_advisory(request, shipment_id):
                     'lcl_score':        scores['lcl'],
                     'fcl_score':        scores['fcl'],
                     'air_score':        scores['air'],
+                    'land_score':       scores['land'],
                     'recommended_type': recommended,
                     'computed_by':      request.user,
                 }
