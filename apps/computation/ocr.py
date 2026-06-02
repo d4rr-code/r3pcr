@@ -132,38 +132,77 @@ def _tesseract_confidence(image, config):
     return 0
 
 
+def _tesseract_extract(image, config):
+    """
+    Single Tesseract call that returns (text, confidence) together using
+    image_to_data — avoids the previous pattern of two separate calls
+    (image_to_string + image_to_data) per variant.
+    """
+    try:
+        data = pytesseract.image_to_data(
+            image, config=config, output_type=pytesseract.Output.DICT
+        )
+        words  = data.get('text', [])
+        confs  = data.get('conf', [])
+        text_parts, conf_scores = [], []
+        for w, c in zip(words, confs):
+            try:
+                score = float(c)
+            except (TypeError, ValueError):
+                continue
+            if score >= 0:
+                conf_scores.append(score)
+            if w:
+                text_parts.append(w)
+        text       = ' '.join(text_parts)
+        confidence = sum(conf_scores) / len(conf_scores) if conf_scores else 0
+        return text, confidence
+    except Exception as e:
+        print(f"[OCR] Tesseract extract failed ({config}): {e}")
+        return '', 0
+
+
 def _tesseract_image_to_text(image):
-    original = image.convert('RGB')
+    """
+    Optimised Tesseract path:
+      - Try PSM 6 (uniform block — best for structured invoices) first.
+      - If quality is not poor, accept and return immediately.
+      - Only fall back to PSM 3 (auto) when PSM 6 yields poor output.
+    This replaces the previous 4-variant trial that ran 8 Tesseract calls
+    per page; now we run at most 2 calls per page in the worst case.
+    """
+    original  = image.convert('RGB')
     processed = _preprocess_image_for_ocr(original)
-    variants = [
-        ('processed-psm6', processed, '--psm 6'),
-        ('processed-psm4', processed, '--psm 4'),
-        ('processed-psm3', processed, '--psm 3'),
-        ('original-psm3', original, '--psm 3'),
-    ]
-    best_text = ''
-    best_score = -1
-    for label, candidate, config in variants:
+
+    # Primary attempt — PSM 6 on preprocessed image
+    text, confidence = _tesseract_extract(processed, '--psm 6')
+    useful_chars = len(re.findall(r'[A-Za-z0-9]', text or ''))
+    print(f"[OCR] Tesseract psm6: {len(text)} chars, conf {confidence:.1f}, useful {useful_chars}")
+
+    quality = assess_quality(text)
+    if quality != 'poor':
+        # Good enough — skip fallback variants
         try:
-            text = pytesseract.image_to_string(candidate, config=config)
-            confidence = _tesseract_confidence(candidate, config)
-            useful_chars = len(re.findall(r'[A-Za-z0-9]', text or ''))
-            score = useful_chars + confidence * 4
-            print(f"[OCR] Tesseract {label}: {len(text or '')} chars, conf {confidence:.1f}")
-            if score > best_score:
-                best_score = score
-                best_text = text or ''
-        except Exception as e:
-            print(f"[OCR] Tesseract {label} failed: {e}")
+            processed.close()
+            original.close()
+        except Exception:
+            pass
+        return text
+
+    # Fallback — PSM 3 (fully automatic layout) on original (unprocessed)
+    print("[OCR] psm6 quality poor — falling back to psm3 on original image")
+    fb_text, fb_conf = _tesseract_extract(original, '--psm 3')
+    fb_useful = len(re.findall(r'[A-Za-z0-9]', fb_text or ''))
+    print(f"[OCR] Tesseract psm3 fallback: {len(fb_text)} chars, conf {fb_conf:.1f}, useful {fb_useful}")
+
+    # Pick whichever produced more readable content
+    result = fb_text if fb_useful > useful_chars else text
     try:
         processed.close()
-    except Exception:
-        pass
-    try:
         original.close()
     except Exception:
         pass
-    return best_text
+    return result
 
 
 def _image_to_text(image, api_key=''):
@@ -242,7 +281,7 @@ def extract_text_from_file(file_path):
                 try:
                     images = convert_from_path(
                         file_path,
-                        dpi=300,
+                        dpi=200,
                         first_page=page_num,
                         last_page=page_num,
                         poppler_path=poppler_path,

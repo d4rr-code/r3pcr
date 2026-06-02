@@ -139,10 +139,15 @@ def submit_shipment(request):
             except ValueError:
                 return None
 
-        declared_value = _decimal_or_none('declared_value')
-        freight_cost   = _decimal_or_none('freight_cost')
-        insurance_cost = _decimal_or_none('insurance_cost')
-        quantity       = _decimal_or_none('quantity')
+        declared_value   = _decimal_or_none('declared_value')
+        freight_cost     = _decimal_or_none('freight_cost')
+        insurance_cost   = _decimal_or_none('insurance_cost')
+        quantity         = _decimal_or_none('quantity')
+        invoice_currency = (request.POST.get('invoice_currency', 'USD') or 'USD').strip().upper()
+        # Validate against allowed currencies
+        _allowed = {'USD', 'EUR', 'JPY', 'HKD', 'CNY', 'GBP', 'SGD'}
+        if invoice_currency not in _allowed:
+            invoice_currency = 'USD'
 
         hawb_number = generate_hawb()
 
@@ -158,6 +163,7 @@ def submit_shipment(request):
             freight_cost=freight_cost,
             insurance_cost=insurance_cost,
             quantity=quantity,
+            invoice_currency=invoice_currency,
         )
 
         for doc_type in ['invoice', 'packing_list', 'airway_bill']:

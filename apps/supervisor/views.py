@@ -742,6 +742,33 @@ def _analytics_context_response(request):
         _name_parts = [part for part in top_declarant['name'].split() if part]
         top_declarant['initials'] = ''.join(part[0] for part in _name_parts[:2]).upper()
 
+    # ── Currency usage breakdown ───────────────────────────────────────────────
+    from django.db.models import Count as _Count
+    _cur_colors = {
+        'USD': '#3B82F6', 'EUR': '#8B5CF6', 'JPY': '#F59E0B',
+        'HKD': '#EC4899', 'CNY': '#EF4444', 'GBP': '#14B8A6', 'SGD': '#22C55E',
+    }
+    _cur_qs = (
+        Shipment.objects.filter(id__in=_chart_ids_qs)
+        .exclude(invoice_currency='')
+        .values('invoice_currency')
+        .annotate(count=_Count('id'))
+        .order_by('-count')
+    )
+    currency_total = sum(r['count'] for r in _cur_qs)
+    currency_breakdown = [
+        {
+            'code':  r['invoice_currency'] or 'USD',
+            'count': r['count'],
+            'pct':   round(r['count'] / currency_total * 100, 1) if currency_total else 0,
+            'color': _cur_colors.get(r['invoice_currency'] or 'USD', '#94A3B8'),
+        }
+        for r in _cur_qs
+    ]
+    currency_chart_labels = json.dumps([r['code']  for r in currency_breakdown])
+    currency_chart_data   = json.dumps([r['count'] for r in currency_breakdown])
+    currency_chart_colors = json.dumps([r['color'] for r in currency_breakdown])
+
     # Cost comparison by shipment type — avg/total landed cost per mode
     _cost_qs = DutyComputation.objects.filter(total_landed_cost__isnull=False)
     if date_from:
@@ -853,6 +880,12 @@ def _analytics_context_response(request):
         'cost_bar_labels':       cost_bar_labels,
         'cost_bar_data':         cost_bar_data,
         'cost_bar_colors':       cost_bar_colors,
+        # currency analytics
+        'currency_breakdown':      currency_breakdown,
+        'currency_total':          currency_total,
+        'currency_chart_labels':   currency_chart_labels,
+        'currency_chart_data':     currency_chart_data,
+        'currency_chart_colors':   currency_chart_colors,
     })
 
 

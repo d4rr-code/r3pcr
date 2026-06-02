@@ -1316,15 +1316,35 @@ document.body.classList.add('light-mode');
                 </option>
             </select>
         </div>
+        <!-- Currency selector -->
+        <div style="grid-column:1/-1;">
+            <label class="form-label" style="font-size:11px;">Invoice Currency</label>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <select name="invoice_currency" id="invoice_currency" class="form-input"
+                        style="padding:6px 8px; font-size:12px; width:auto; min-width:180px;"
+                        onchange="onCurrencyChange(this.value)">
+                    {% for code, label in shipment.CURRENCY_CHOICES %}
+                    <option value="{{ code }}" {% if code == invoice_currency %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <span style="font-size:11px; color:#6B7280;">
+                    Set by consignee:
+                    <strong style="color:#1B3358;">{{ shipment.invoice_currency|default:'USD' }}</strong>
+                    &mdash; override here if incorrect.
+                </span>
+            </div>
+        </div>
         <div>
-            <label class="form-label" style="font-size:11px;">Exchange Rate (USD&rarr;PHP)</label>
+            <label class="form-label" style="font-size:11px;">
+                Exchange Rate (<span id="cur-code-label">{{ invoice_currency }}</span>&rarr;PHP)
+            </label>
             <input type="number" name="exchange_rate" id="exchange_rate" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="0.000001"
                    value="{{ existing.exchange_rate|default:default_rate }}" required>
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">
-                Total Freight (USD)
+                Total Freight (<span class="cur-code-lbl">{{ invoice_currency }}</span>)
                 <span style="color:#334155; font-weight:400; font-size:10px;"> &mdash; auto-distribute</span>
             </label>
             <input type="number" name="total_freight" id="total_freight" class="form-input"
@@ -1333,7 +1353,7 @@ document.body.classList.add('light-mode');
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">
-                Total Insurance (USD)
+                Total Insurance (<span class="cur-code-lbl">{{ invoice_currency }}</span>)
                 <span style="color:#334155; font-weight:400; font-size:10px;"> &mdash; auto-distribute</span>
             </label>
             <input type="number" name="total_insurance" id="total_insurance" class="form-input"
@@ -1719,8 +1739,8 @@ document.body.classList.add('light-mode');
         <!-- Row 1: EXW / DV totals -->
         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
             <div>
-                <span style="color:#64748b;">Total EXW:</span>
-                <strong style="color:#f1f5f9; margin-left:4px;" id="total-exw">$0.00</strong>
+                <span style="color:#64748b;">Total EXW (<span class="cur-code-lbl">{{ invoice_currency }}</span>):</span>
+                <strong style="color:#f1f5f9; margin-left:4px;" id="total-exw">0.00</strong>
             </div>
             <div>
                 <span style="color:#64748b;">Total D/V (&#8369;):</span>
@@ -2672,10 +2692,22 @@ function getIPF(dvPhp) {
     return 2000;
 }
 
-// â”€â”€ Live recalculation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Currency auto-fill ────────────────────────────────────────────────────────
+var _CURRENCY_RATES = {{ all_currency_rates|safe }};
+function onCurrencyChange(code) {
+    var rate = _CURRENCY_RATES[code];
+    if (rate) {
+        document.getElementById('exchange_rate').value = rate;
+        recalcAll();
+    }
+    document.getElementById('cur-code-label').textContent = code;
+    document.querySelectorAll('.cur-code-lbl').forEach(function(el) { el.textContent = code; });
+}
+
+// ── Live recalculation ────────────────────────────────────────────────────────
 // D/V = EXW + Freight + Insurance (no O/C)
 // TLC = D/V + Bank Charges + CUD + BF + CDS + IPF + Arrastre + Wharfage + CSF
-// VAT = 12% &times; TLC
+// VAT = 12% * TLC
 // BOC Total = CUD + VAT + CDS + IPF
 function recalcAll() {
     var rows     = document.querySelectorAll('#ecdt-body tr');
@@ -3261,6 +3293,141 @@ initAllHsPickers();
 
     var savedW = localStorage.getItem('compute_left_w');
     if (savedW) colLeft.style.width = savedW + 'px';
+})();
+
+// ── Auto-save (draft) ─────────────────────────────────────────────────────────
+(function () {
+    var CSRF       = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    var SHIP_ID    = {{ shipment.id }};
+    var ITEM_URL   = '{% url "computation:draft_item" shipment.id %}';
+    var DEL_URL    = '/computation/draft-item/{id}/delete/';
+    var GLOBAL_URL = '{% url "computation:draft_globals" shipment.id %}';
+    var _timers    = {};
+    var _statusEl  = null;
+
+    function _status(msg, color) {
+        if (!_statusEl) {
+            _statusEl = document.createElement('span');
+            _statusEl.style.cssText = 'font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;margin-left:12px;transition:opacity .3s;';
+            var btn = document.querySelector('button[type=submit]');
+            if (btn && btn.parentNode) btn.parentNode.insertBefore(_statusEl, btn.nextSibling);
+        }
+        _statusEl.textContent = msg;
+        _statusEl.style.background = color === 'green' ? '#DCFCE7' : color === 'red' ? '#FEE2E2' : '#F3F4F6';
+        _statusEl.style.color      = color === 'green' ? '#15803D' : color === 'red' ? '#B91C1C' : '#6B7280';
+        _statusEl.style.opacity    = '1';
+        if (color !== 'grey') {
+            setTimeout(function() { if (_statusEl) _statusEl.style.opacity = '0'; }, 3000);
+        }
+    }
+
+    function _post(url, body, onDone) {
+        _status('Saving…', 'grey');
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify(body),
+            credentials: 'same-origin',
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            _status('Saved', 'green');
+            if (onDone) onDone(d);
+        })
+        .catch(function() { _status('Save error', 'red'); });
+    }
+
+    function _debounce(key, fn, ms) {
+        clearTimeout(_timers[key]);
+        _timers[key] = setTimeout(fn, ms || 1500);
+    }
+
+    // ── Row auto-save ────────────────────────────────────────────────────────
+    function _rowData(tr) {
+        function v(cls) { var el = tr.querySelector(cls); return el ? el.value : ''; }
+        return {
+            item_id:     tr.dataset.itemId ? parseInt(tr.dataset.itemId) : null,
+            row_order:   Array.from(tr.parentNode.children).indexOf(tr),
+            description: v('.desc-input'),
+            quantity:    v('.qty-input') || null,
+            unit:        v('.unit-input') || '',
+            unit_price:  v('.price-input') || null,
+            exw_value:   v('.exw-input') || null,
+            hs_code_id:  (tr.querySelector('[name*="hs_code_id"]') || {}).value || null,
+        };
+    }
+
+    function saveRow(tr) {
+        var data = _rowData(tr);
+        if (!data.description || data.description === '(draft)') return; // nothing meaningful yet
+        _post(ITEM_URL, data, function(res) {
+            if (res.item_id) tr.dataset.itemId = res.item_id;
+        });
+    }
+
+    function attachRowListeners(tr) {
+        var inputs = tr.querySelectorAll('input, select, textarea');
+        inputs.forEach(function(inp) {
+            inp.addEventListener('input', function() {
+                _debounce('row-' + tr.dataset.rowKey, function() { saveRow(tr); });
+            });
+        });
+    }
+
+    // Attach to existing rows
+    document.querySelectorAll('#ecdt-body tr').forEach(function(tr, i) {
+        tr.dataset.rowKey = i;
+        attachRowListeners(tr);
+    });
+
+    // Hook "Add Row" — re-attach after row is added
+    var origAddRow = window.addEcdtRow;
+    if (typeof origAddRow === 'function') {
+        window.addEcdtRow = function() {
+            origAddRow.apply(this, arguments);
+            var rows = document.querySelectorAll('#ecdt-body tr');
+            var newTr = rows[rows.length - 1];
+            if (newTr) { newTr.dataset.rowKey = rows.length - 1; attachRowListeners(newTr); }
+        };
+    }
+
+    // Hook "Delete Row" — fire delete endpoint
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.remove-row-btn, [data-action="remove-row"]');
+        if (!btn) return;
+        var tr = btn.closest('tr');
+        if (!tr || !tr.dataset.itemId) return;
+        var id = parseInt(tr.dataset.itemId);
+        if (!id) return;
+        fetch(DEL_URL.replace('{id}', id), {
+            method: 'POST', headers: { 'X-CSRFToken': CSRF }, credentials: 'same-origin',
+        }).catch(function() {});
+    });
+
+    // ── Global inputs auto-save ──────────────────────────────────────────────
+    var globalIds = ['exchange_rate', 'total_freight', 'total_insurance', 'bank_charges'];
+    globalIds.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', function() {
+            _debounce('globals', function() {
+                _post(GLOBAL_URL, {
+                    exchange_rate:   (document.getElementById('exchange_rate')   || {}).value || '',
+                    total_freight:   (document.getElementById('total_freight')   || {}).value || '',
+                    total_insurance: (document.getElementById('total_insurance') || {}).value || '',
+                    bank_charges:    (document.getElementById('bank_charges')    || {}).value || '',
+                });
+            });
+        });
+    });
+
+    // ── Warn before unload if save in flight ────────────────────────────────
+    window.addEventListener('beforeunload', function(e) {
+        if (_statusEl && _statusEl.textContent === 'Saving…') {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
 })();
 </script>
 {% endblock %}

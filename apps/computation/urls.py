@@ -15,4 +15,7 @@ urlpatterns = [
     path('advisory/<int:shipment_id>/',                 views.shipping_advisory,       name='advisory'),
     path('save-advisory/<int:shipment_id>/',            views.save_declarant_advisory, name='save_advisory'),
     path('line-item/<int:item_id>/hs/',                 views.update_line_item_hs,     name='update_line_item_hs'),
+    path('draft-item/<int:shipment_id>/',               views.draft_item,               name='draft_item'),
+    path('draft-item/<int:item_id>/delete/',            views.delete_draft_item,        name='delete_draft_item'),
+    path('draft-globals/<int:shipment_id>/',            views.draft_globals,            name='draft_globals'),
 ]

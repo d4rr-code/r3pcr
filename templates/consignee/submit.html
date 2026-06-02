@@ -311,19 +311,36 @@
             Fill in if you have your commercial invoice and airway bill / bill of lading on hand.
             These values are <strong style="color:#374151;">unverified</strong> — your declarant will confirm them against the documents.
         </p>
+        <!-- Currency selector — affects EXW/Freight/Insurance labels -->
+        <div style="margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <label style="font-size:12px; font-weight:700; color:#374151;">Invoice Currency:</label>
+            <select name="invoice_currency" id="invoice_currency" class="c-input"
+                    style="width:auto; min-width:200px; padding:7px 14px;"
+                    onchange="updateCurrencyLabels(this.value)">
+                <option value="USD">US Dollar (USD)</option>
+                <option value="EUR">Euro (EUR)</option>
+                <option value="JPY">Japanese Yen (JPY)</option>
+                <option value="HKD">Hong Kong Dollar (HKD)</option>
+                <option value="CNY">Chinese Yuan (CNY)</option>
+                <option value="GBP">British Pound (GBP)</option>
+                <option value="SGD">Singapore Dollar (SGD)</option>
+            </select>
+            <span style="font-size:11px; color:#9CA3AF;">Select the currency shown on your commercial invoice.</span>
+        </div>
+
         <div class="values-grid">
             <div>
-                <p class="val-label">Declared Value — EXW (USD)</p>
+                <p class="val-label">Declared Value — EXW (<span class="cur-label">USD</span>)</p>
                 <p class="val-sub">From commercial invoice</p>
                 <input type="number" name="declared_value" class="c-input" step="0.01" min="0" placeholder="0.00">
             </div>
             <div>
-                <p class="val-label">Freight Cost (USD)</p>
+                <p class="val-label">Freight Cost (<span class="cur-label">USD</span>)</p>
                 <p class="val-sub">From AWB / BOL</p>
                 <input type="number" name="freight_cost" class="c-input" step="0.01" min="0" placeholder="0.00">
             </div>
             <div>
-                <p class="val-label">Insurance (USD)</p>
+                <p class="val-label">Insurance (<span class="cur-label">USD</span>)</p>
                 <p class="val-sub">Leave blank if none</p>
                 <input type="number" name="insurance_cost" class="c-input" step="0.01" min="0" placeholder="0.00">
             </div>
@@ -333,6 +350,13 @@
                 <input type="number" name="quantity" class="c-input" step="1" min="1" placeholder="0.00">
             </div>
         </div>
+        <script>
+        function updateCurrencyLabels(code) {
+            document.querySelectorAll('.cur-label').forEach(function(el) {
+                el.textContent = code;
+            });
+        }
+        </script>
     </div>
 
     <!-- ── REQUIRED DOCUMENTS ────────────────────────────────────────────────── -->

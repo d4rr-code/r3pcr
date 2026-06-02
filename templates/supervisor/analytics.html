@@ -345,6 +345,7 @@
 .feedback-panel { grid-column: span 3; }
 .cost-chart-panel { grid-column: span 8; }
 .cost-table-panel { grid-column: span 4; }
+.currency-panel   { grid-column: span 4; }
 .chart-fixed { height: clamp(210px, 30vw, 260px); width: 100%; }
 .wmcda-content {
     display: grid;
@@ -403,7 +404,8 @@
     .metric-total, .metric-types, .metric-users, .metric-side,
     .status-panel, .urgency-panel, .due-panel, .monthly-panel,
     .wmcda-panel, .top-panel, .feedback-panel,
-    .cost-chart-panel, .cost-table-panel { grid-column: span 12; }
+    .cost-chart-panel, .cost-table-panel,
+    .currency-panel { grid-column: span 12; }
     .metric-side { grid-template-columns: repeat(2, 1fr); }
     .top-panel, .feedback-panel { min-height: 240px; }
 }
@@ -665,6 +667,36 @@
             </table>
         </section>
 
+        <!-- Invoice Currency Usage -->
+        <section class="dash-card panel currency-panel">
+            <div class="panel-title">
+                <div>
+                    <h2>Invoice Currency Usage</h2>
+                    <p>Currencies declared on shipments</p>
+                </div>
+            </div>
+            <div class="donut-box">
+                <div class="chart-wrap" style="width:180px;min-height:160px;">
+                    <canvas id="currencyChart"></canvas>
+                    <div class="donut-center">
+                        <span>Shipments</span>
+                        <strong>{{ currency_total }}</strong>
+                    </div>
+                </div>
+                <div class="legend" style="margin-top:10px;">
+                    {% for r in currency_breakdown %}
+                    <div class="legend-row">
+                        <span class="legend-swatch" style="background:{{ r.color }}"></span>
+                        <span>{{ r.code }}</span>
+                        <strong>{{ r.count }} &nbsp;<span style="color:#9CA3AF;font-weight:400;font-size:11px;">({{ r.pct }}%)</span></strong>
+                    </div>
+                    {% empty %}
+                    <p style="color:#9CA3AF;font-size:13px;">No currency data yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
         <section class="dash-card panel wmcda-panel">
             <div class="panel-title">
                 <h2>WMCDA Shipping Advisory</h2>
@@ -855,6 +887,18 @@
                     }
                 }
             }
+        });
+    }
+
+    var curEl = document.getElementById('currencyChart');
+    if (window.Chart && curEl && {{ currency_total }} > 0) {
+        new Chart(curEl, {
+            type: 'doughnut',
+            data: {
+                labels: {{ currency_chart_labels|safe }},
+                datasets: [{ data: {{ currency_chart_data|safe }}, backgroundColor: {{ currency_chart_colors|safe }}, borderColor: '#fff', borderWidth: 8, spacing: 2 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '58%' }
         });
     }
 

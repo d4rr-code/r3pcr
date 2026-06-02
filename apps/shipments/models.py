@@ -106,17 +106,34 @@ class Shipment(models.Model):
         blank=True, null=True
     )
     
+    CURRENCY_CHOICES = [
+        ('USD', 'US Dollar (USD)'),
+        ('EUR', 'Euro (EUR)'),
+        ('JPY', 'Japanese Yen (JPY)'),
+        ('HKD', 'Hong Kong Dollar (HKD)'),
+        ('CNY', 'Chinese Yuan (CNY)'),
+        ('GBP', 'British Pound (GBP)'),
+        ('SGD', 'Singapore Dollar (SGD)'),
+    ]
+
     # Financial details
+    invoice_currency = models.CharField(
+        max_length=10,
+        choices=CURRENCY_CHOICES,
+        default='USD',
+        blank=True,
+        help_text='Currency of the commercial invoice'
+    )
     declared_value = models.DecimalField(
-        max_digits=15, decimal_places=2, 
+        max_digits=15, decimal_places=2,
         blank=True, null=True
     )
     freight_cost = models.DecimalField(
-        max_digits=15, decimal_places=2, 
+        max_digits=15, decimal_places=2,
         blank=True, null=True
     )
     insurance_cost = models.DecimalField(
-        max_digits=15, decimal_places=2, 
+        max_digits=15, decimal_places=2,
         blank=True, null=True
     )
     

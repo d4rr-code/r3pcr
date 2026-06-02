@@ -373,7 +373,102 @@ def ocr_extract_all(request, shipment_id):
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
-# â”€â”€â”€ Computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Auto-save (Draft) Endpoints ─────────────────────────────────────────────
+
+@login_required
+@declarant_required
+def draft_item(request, shipment_id):
+    “””Create or update a single ShipmentLineItem (draft save).”””
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    if shipment.declarant != request.user:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    item_id   = data.get('item_id')   # None → create new
+    row_order = int(data.get('row_order', 0))
+    desc      = (data.get('description') or '').strip()
+
+    defaults = {
+        'description':   desc or '(draft)',
+        'quantity':      data.get('quantity')   or None,
+        'unit':          (data.get('unit') or '').strip(),
+        'unit_price':    data.get('unit_price') or None,
+        'total_val_usd': data.get('exw_value')  or None,
+        'row_order':     row_order,
+        'source':        'manual',
+    }
+    hs_id = data.get('hs_code_id')
+    if hs_id:
+        try:
+            defaults['hs_code'] = HSCode.objects.get(id=int(hs_id))
+        except (HSCode.DoesNotExist, (ValueError, TypeError)):
+            pass
+
+    if item_id:
+        obj = ShipmentLineItem.objects.filter(id=item_id, shipment=shipment).first()
+        if obj:
+            for k, v in defaults.items():
+                setattr(obj, k, v)
+            obj.save()
+        else:
+            obj = ShipmentLineItem.objects.create(shipment=shipment, **defaults)
+    else:
+        obj = ShipmentLineItem.objects.create(shipment=shipment, **defaults)
+
+    return JsonResponse({'ok': True, 'item_id': obj.id})
+
+
+@login_required
+@declarant_required
+def delete_draft_item(request, item_id):
+    “””Delete a ShipmentLineItem row.”””
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    deleted, _ = ShipmentLineItem.objects.filter(
+        id=item_id, shipment__declarant=request.user
+    ).delete()
+    return JsonResponse({'ok': True, 'deleted': deleted})
+
+
+@login_required
+@declarant_required
+def draft_globals(request, shipment_id):
+    “””Save global computation inputs to DutyComputation without running the full formula.”””
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    if shipment.declarant != request.user:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    def _d(key, default='0'):
+        try:
+            return Decimal(str(data.get(key) or default))
+        except Exception:
+            return Decimal(default)
+
+    DutyComputation.objects.update_or_create(
+        shipment=shipment,
+        defaults={
+            'exchange_rate':    _d('exchange_rate', '59.1480'),
+            'total_freight':    _d('total_freight'),
+            'total_insurance':  _d('total_insurance'),
+            'bank_charges':     _d('bank_charges'),
+            'computed_by':      request.user,
+        }
+    )
+    return JsonResponse({'ok': True})
+
+
+# ─── Computation ──────────────────────────────────────────────────────────────
 
 @login_required
 def compute_shipment(request, shipment_id):
@@ -397,13 +492,36 @@ def compute_shipment(request, shipment_id):
     wmcda_explanation = None
     wmcda_history     = None
 
-    # â”€â”€ Pull default exchange rate from SystemConfig â”€â”€
-    try:
-        default_rate = SystemConfig.objects.get(key='exchange_rate').value
-    except SystemConfig.DoesNotExist:
-        default_rate = '59.1480'
+    # ── All currency rates from SystemConfig (for JS auto-fill) ──────────────
+    _rate_keys = {
+        'USD': 'rate_USD', 'EUR': 'rate_EUR', 'JPY': 'rate_JPY',
+        'HKD': 'rate_HKD', 'CNY': 'rate_CNY', 'GBP': 'rate_GBP',
+        'SGD': 'rate_SGD',
+    }
+    _rate_defaults = {
+        'USD': '59.1480', 'EUR': '65.0000', 'JPY': '0.3900',
+        'HKD': '7.5700',  'CNY': '8.1500',  'GBP': '74.5000', 'SGD': '43.8000',
+    }
+    all_currency_rates = {}
+    for code, key in _rate_keys.items():
+        try:
+            all_currency_rates[code] = str(SystemConfig.objects.get(key=key).value)
+        except SystemConfig.DoesNotExist:
+            all_currency_rates[code] = _rate_defaults[code]
+
+    # Current invoice currency (consignee-set); declarant can override on POST
+    invoice_currency = (shipment.invoice_currency or 'USD').upper()
+    if invoice_currency not in _rate_keys:
+        invoice_currency = 'USD'
+    default_rate = all_currency_rates.get(invoice_currency, '59.1480')
 
     if request.method == 'POST':
+        posted_currency = (request.POST.get('invoice_currency', '') or '').strip().upper()
+        if posted_currency in _rate_keys:
+            invoice_currency = posted_currency
+            shipment.invoice_currency = invoice_currency
+            shipment.save(update_fields=['invoice_currency'])
+            default_rate = all_currency_rates.get(invoice_currency, default_rate)
         try:
             exchange_rate   = Decimal(request.POST.get('exchange_rate', default_rate) or default_rate)
             arrastre        = Decimal(request.POST.get('arrastre',   '0') or '0')
@@ -877,14 +995,18 @@ def compute_shipment(request, shipment_id):
         'declared_breakdown': declared_breakdown,
         'declared_rating':    declared_rating,
         'hs_suggestions':     hs_suggestions,
-        'guide_hs_codes':     guide_hs_codes,
-        'computed_mode':      computed_mode,
-        'prefill_freight':    prefill_freight,
-        'prefill_insurance':  prefill_insurance,
+        'guide_hs_codes':       guide_hs_codes,
+        'computed_mode':        computed_mode,
+        'prefill_freight':      prefill_freight,
+        'prefill_insurance':    prefill_insurance,
+        'invoice_currency':     invoice_currency,
+        'all_currency_rates':   json.dumps(all_currency_rates),
+        'default_rate':         default_rate,
     }
+    # All saved line items (OCR + manual drafts) ordered for ECDT table restore
     context['confirmed_items'] = ShipmentLineItem.objects.filter(
-        shipment=shipment, source='ocr'
-    ).select_related('hs_code').order_by('row_order')
+        shipment=shipment
+    ).select_related('hs_code').order_by('source', 'row_order')
     return render(request, 'computation/compute.html', context)
 
 
@@ -977,7 +1099,8 @@ def _download_excel_report(shipment, computation):
         ('Date', computation.computed_at.strftime('%Y-%m-%d') if computation.computed_at else ''),
         ('Shipment Mode', computation.container_type or shipment.shipment_type or ''),
         ('Import Type', shipment.get_import_type_display()),
-        ('Exchange Rate', _num(computation.exchange_rate)),
+        ('Invoice Currency', shipment.invoice_currency or 'USD'),
+        ('Exchange Rate (to PHP)', _num(computation.exchange_rate)),
         ('Prepared By', prepared),
     ]
     for row, (label, value) in enumerate(detail_rows, 4):
@@ -1058,7 +1181,8 @@ def _download_pdf_report(request, shipment, computation):
     details = [
         ['HAWB / BOL', shipment.hawb_number, 'Consignee', consignee],
         ['Declarant', declarant, 'Date', computation.computed_at.strftime('%Y-%m-%d') if computation.computed_at else ''],
-        ['Shipment Mode', computation.container_type or shipment.shipment_type or '', 'Exchange Rate', f'{_num(computation.exchange_rate):,.4f}'],
+        ['Shipment Mode', computation.container_type or shipment.shipment_type or '', 'Import Currency', shipment.invoice_currency or 'USD'],
+        ['Exchange Rate (→PHP)', f'{_num(computation.exchange_rate):,.4f}', '', ''],
     ]
     detail_table = Table(details, colWidths=[1.1 * inch, 2.0 * inch, 1.1 * inch, 2.3 * inch])
     detail_table.setStyle(TableStyle([
