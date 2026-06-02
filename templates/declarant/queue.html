@@ -261,13 +261,13 @@
                         ● {{ s.due_date|date:"M d, Y" }}
                     </span>
                     {% if s.due_days_left < 0 %}
-                    <br><span style="color:#ef4444; font-size:11px;">Overdue {{ s.due_days_left|stringformat:"d"|cut:"-" }} day{{ s.due_days_left|stringformat:"d"|cut:"-"|add:"0"|pluralize }}</span>
+                    <br><span style="color:#ef4444; font-size:11px;">Overdue {{ s.due_days_left|stringformat:"d"|cut:"-" }} business day{{ s.due_days_left|stringformat:"d"|cut:"-"|add:"0"|pluralize }}</span>
                     {% elif s.due_days_left == 0 %}
                     <br><span style="color:#f59e0b; font-size:11px;">Due today</span>
                     {% elif s.due_days_left == 1 %}
-                    <br><span style="color:#f59e0b; font-size:11px;">Due tomorrow</span>
+                    <br><span style="color:#f59e0b; font-size:11px;">1 business day left</span>
                     {% else %}
-                    <br><span style="color:#64748b; font-size:11px;">{{ s.due_days_left }} days left</span>
+                    <br><span style="color:#64748b; font-size:11px;">{{ s.due_days_left }} business days left</span>
                     {% endif %}
                 </td>
                 <!-- Action: Previewbutton -->
@@ -284,7 +284,7 @@
                             data-urgencylabel="{{ s.get_urgency_display }}"
                             data-due="{{ s.due_date|date:'M d, Y' }}"
                             data-duecolor="{{ s.due_color }}"
-                            data-duelabel="{% if s.due_days_left < 0 %}Overdue{% elif s.due_days_left == 0 %}Due today{% elif s.due_days_left == 1 %}Due tomorrow{% else %}{{ s.due_days_left }} days left{% endif %}"
+                            data-duelabel="{% if s.due_days_left < 0 %}Overdue {{ s.due_days_left|stringformat:'d'|cut:'-' }} business day{{ s.due_days_left|stringformat:'d'|cut:'-'|add:'0'|pluralize }}{% elif s.due_days_left == 0 %}Due today{% elif s.due_days_left == 1 %}1 business day left{% else %}{{ s.due_days_left }} business days left{% endif %}"
                             data-value="{{ s.declared_value|default:'' }}"
                             data-weight="{{ s.gross_weight|default:'' }}"
                             data-desc="{{ s.description|default:'No description provided.' }}"

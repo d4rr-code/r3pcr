@@ -137,22 +137,45 @@ def declarant_required(view_func):
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
+URGENCY_BUSINESS_DAYS = {
+    'rush': 3, 'urgent': 7, 'priority': 14, 'standard': 30, 'normal': 30,
+}
+
+
 def _add_business_days(start_dt, n):
-    """Return date that is n business days after start_dt."""
+    """Return date that is n business days (Mon–Fri) after start_dt."""
     d = start_dt.date() if hasattr(start_dt, 'date') else start_dt
     added = 0
     while added < n:
         d += datetime.timedelta(days=1)
-        if d.weekday() < 5:  # Mon–Fri
+        if d.weekday() < 5:  # 0=Mon … 4=Fri
             added += 1
     return d
 
 
+def _business_days_diff(from_date, to_date):
+    """Signed count of business days from from_date to to_date.
+    Positive = future (days left), negative = past (overdue)."""
+    from_date = from_date.date() if hasattr(from_date, 'date') else from_date
+    to_date   = to_date.date()   if hasattr(to_date,   'date') else to_date
+    if from_date == to_date:
+        return 0
+    sign = 1 if to_date > from_date else -1
+    a, b = (from_date, to_date) if to_date > from_date else (to_date, from_date)
+    count, d = 0, a
+    while d < b:
+        d += datetime.timedelta(days=1)
+        if d.weekday() < 5:
+            count += 1
+    return sign * count
+
+
 def _annotate_due(shipments, today):
-    """Attach due_date, due_days_left, due_color to each shipment in-place."""
+    """Attach due_date, due_days_left (business days), due_color per shipment."""
     for s in shipments:
-        s.due_date = _add_business_days(s.submitted_at, 3)
-        s.due_days_left = (s.due_date - today).days
+        alloc = URGENCY_BUSINESS_DAYS.get(s.urgency or 'standard', 30)
+        s.due_date      = _add_business_days(s.submitted_at, alloc)
+        s.due_days_left = _business_days_diff(today, s.due_date)
         if s.due_days_left < 0:
             s.due_color = 'red'
         elif s.due_days_left <= 1:
@@ -359,12 +382,12 @@ def dashboard(request):
         for month in range(1, 13)
     ]
 
-    urgency_days_map = {'rush': 3, 'urgent': 7, 'priority': 14, 'standard': 30, 'normal': 30}
     due_buckets = {'one_day': 0, 'three_days': 0, 'five_days': 0, 'over_five': 0}
+    _today_d = now.date()
     for shipment in my_shipments.exclude(status__in=terminal_statuses):
-        alloc = urgency_days_map.get(shipment.urgency or 'standard', 30)
-        deadline = shipment.submitted_at + datetime.timedelta(days=alloc)
-        remaining = (deadline - now).total_seconds() / 86400
+        alloc     = URGENCY_BUSINESS_DAYS.get(shipment.urgency or 'standard', 30)
+        deadline  = _add_business_days(shipment.submitted_at, alloc)
+        remaining = _business_days_diff(_today_d, deadline)
         if remaining <= 1:
             due_buckets['one_day'] += 1
         elif remaining <= 3:

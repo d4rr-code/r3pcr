@@ -3,7 +3,7 @@ import logging
 import re
 import threading
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date as date_type
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
@@ -16,7 +16,42 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.core.paginator import Paginator
 
-#  HS Code Section / Chapter Hierarchy 
+# ─── Business-day helpers ─────────────────────────────────────────────────────
+
+URGENCY_BUSINESS_DAYS = {
+    'rush': 3, 'urgent': 7, 'priority': 14, 'standard': 30, 'normal': 30,
+}
+
+
+def _add_business_days(start_dt, n):
+    """Return date that is n business days (Mon–Fri) after start_dt."""
+    d = start_dt.date() if hasattr(start_dt, 'date') else start_dt
+    added = 0
+    while added < n:
+        d += timedelta(days=1)
+        if d.weekday() < 5:
+            added += 1
+    return d
+
+
+def _business_days_diff(from_date, to_date):
+    """Signed count of business days from from_date to to_date.
+    Positive = future (days left), negative = past (overdue)."""
+    from_date = from_date.date() if hasattr(from_date, 'date') else from_date
+    to_date   = to_date.date()   if hasattr(to_date,   'date') else to_date
+    if from_date == to_date:
+        return 0
+    sign = 1 if to_date > from_date else -1
+    a, b = (from_date, to_date) if to_date > from_date else (to_date, from_date)
+    count, d = 0, a
+    while d < b:
+        d += timedelta(days=1)
+        if d.weekday() < 5:
+            count += 1
+    return sign * count
+
+
+#  HS Code Section / Chapter Hierarchy
 _HS_SECTIONS = [
     (1,  'I',     'Live Animals; Animal Products',                  list(range(1, 6))),
     (2,  'II',    'Vegetable Products',                             list(range(6, 15))),
@@ -704,17 +739,17 @@ def _analytics_context_response(request):
     monthly_chart_labels = json.dumps(_overview_labels)
     monthly_chart_data   = json.dumps(_overview_data)
 
-    # Due date monitoring — days-left buckets for active (non-terminal) shipments
+    # Due date monitoring — business-day buckets for active (non-terminal) shipments
     _terminal_statuses = ['paid', 'released', 'billed']
-    _urgency_days_map  = {'rush': 3, 'urgent': 7, 'priority': 14, 'standard': 30, 'normal': 30}
-    _now = timezone.now()
+    _now    = timezone.now()
+    _today  = _now.date()
     _d1 = _d3 = _d5 = _d5plus = 0
     _active_qs = chart_qs.exclude(status__in=_terminal_statuses)
     _due_total = _active_qs.count()
     for _s in _active_qs.values('urgency', 'submitted_at'):
-        _alloc     = _urgency_days_map.get(_s['urgency'] or 'standard', 30)
-        _deadline  = _s['submitted_at'] + timedelta(days=_alloc)
-        _remaining = (_deadline - _now).total_seconds() / 86400
+        _alloc     = URGENCY_BUSINESS_DAYS.get(_s['urgency'] or 'standard', 30)
+        _deadline  = _add_business_days(_s['submitted_at'], _alloc)
+        _remaining = _business_days_diff(_today, _deadline)
         if _remaining <= 1:
             _d1 += 1
         elif _remaining <= 3:
@@ -1672,15 +1707,15 @@ def shipment_records(request):
     def annotate_hold_preview(records):
         today = timezone.localdate()
         for shipment in records:
-            start_at = shipment.deficiency_flagged_at or shipment.submitted_at
-            due_date = start_at.date() + timedelta(days=3)
-            days_left = (due_date - today).days
+            start_at  = shipment.deficiency_flagged_at or shipment.submitted_at
+            due_date  = _add_business_days(start_at, 3)
+            days_left = _business_days_diff(today, due_date)
             if days_left < 0:
-                shipment.hold_due_label = f'Overdue {abs(days_left)} Day{"s" if abs(days_left) != 1 else ""}'
+                shipment.hold_due_label = f'Overdue {abs(days_left)} Business Day{"s" if abs(days_left) != 1 else ""}'
             elif days_left == 0:
                 shipment.hold_due_label = 'Due Today'
             elif days_left == 1:
-                shipment.hold_due_label = '1 Day Left'
+                shipment.hold_due_label = '1 Business Day Left'
             else:
                 shipment.hold_due_label = f'{days_left} Days Left'
 
@@ -2037,12 +2072,12 @@ def declarant_detail(request, user_id):
         for month in range(1, 13)
     ]
 
-    urgency_days_map = {'rush': 3, 'urgent': 7, 'priority': 14, 'standard': 30, 'normal': 30}
     due_buckets = {'one_day': 0, 'three_days': 0, 'five_days': 0, 'over_five': 0}
+    _today_d = now.date()
     for shipment in all_shipments.exclude(status__in=terminal_statuses):
-        alloc = urgency_days_map.get(shipment.urgency or 'standard', 30)
-        deadline = shipment.submitted_at + timedelta(days=alloc)
-        remaining = (deadline - now).total_seconds() / 86400
+        alloc     = URGENCY_BUSINESS_DAYS.get(shipment.urgency or 'standard', 30)
+        deadline  = _add_business_days(shipment.submitted_at, alloc)
+        remaining = _business_days_diff(_today_d, deadline)
         if remaining <= 1:
             due_buckets['one_day'] += 1
         elif remaining <= 3:
