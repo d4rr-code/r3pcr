@@ -17,6 +17,7 @@ from apps.supervisor.models import SystemConfig
 from apps.notifications.utils import notify_shipment_status_change
 from .models import DutyComputation, ShipmentLineItem, ShippingAdvisory
 from .ocr import process_document
+from apps.declarant.views import declarant_required
 
 
 # â”€â”€â”€ Lookup Tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
