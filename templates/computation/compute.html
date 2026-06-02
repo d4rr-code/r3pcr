@@ -517,10 +517,11 @@ body.light-mode .shipping-analysis-card [style*="height:5px"][style*="background
 #col-right   { width: 100%; max-width: 100%; }
 
 /* ── Side-by-side mode ─────────────────────────────────────────────────────── */
-body.split-mode .compute-layout { display: flex; }
-body.split-mode #col-left    { display: flex !important; }
-body.split-mode #col-divider { display: flex !important; }
-body.split-mode #col-right   { width: auto; max-width: none; flex: 1; min-width: 0; }
+body.split-mode .compute-layout  { display: flex; }
+body.split-mode #col-left        { display: flex !important; flex-direction: column;
+                                    overflow-y: auto; min-height: 0; }
+body.split-mode #col-divider     { display: flex !important; }
+body.split-mode #col-right       { width: auto; max-width: none; flex: 1; min-width: 0; }
 body.split-mode #doc-float-panel { display: none !important; }
 
 /* â”€â”€ Floating Document Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -1056,6 +1057,7 @@ document.body.classList.add('light-mode');
     <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
         {% if documents %}
         <button type="button" onclick="openDocPanel()"
+                id="view-docs-btn"
                 style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;
                        background:#1e293b;border:1px solid #334155;border-radius:8px;
                        color:#93c5fd;font-size:12px;font-weight:600;cursor:pointer;
@@ -1067,6 +1069,18 @@ document.body.classList.add('light-mode');
                 <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
             </svg>
             View Documents
+        </button>
+        <button type="button" id="split-mode-btn" onclick="toggleSplitMode()"
+                style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;
+                       background:#1e293b;border:1px solid #334155;border-radius:8px;
+                       color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;
+                       transition:all .15s;"
+                title="Side by side view">
+            <svg viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px;">
+                <rect x="0" y="0" width="6" height="14" rx="1"/>
+                <rect x="9" y="0" width="6" height="14" rx="1"/>
+            </svg>
+            Side by Side
         </button>
         {% endif %}
         {% if existing %}
@@ -1121,17 +1135,6 @@ document.body.classList.add('light-mode');
         </button>
         {% endif %}
         <div style="margin-left:auto;display:flex;align-items:center;gap:4px;flex-shrink:0;">
-            <button type="button" id="split-mode-btn" onclick="toggleSplitMode()"
-                    title="Side by side"
-                    style="background:#1e293b;border:1px solid #334155;color:#94a3b8;
-                           cursor:pointer;border-radius:5px;padding:3px 8px;font-size:10px;
-                           font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap;">
-                <svg viewBox="0 0 16 16" fill="currentColor" style="width:11px;height:11px;">
-                    <rect x="0" y="0" width="6" height="14" rx="1"/>
-                    <rect x="9" y="0" width="6" height="14" rx="1"/>
-                </svg>
-                Side by Side
-            </button>
             <button type="button" onclick="closeDocPanel()"
                     style="background:none;border:none;color:#475569;
                            cursor:pointer;font-size:20px;line-height:1;padding:2px 8px;"
@@ -1172,10 +1175,26 @@ document.body.classList.add('light-mode');
      LEFT &mdash; Document Viewer
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <div id="col-left">
+    <!-- Exit split-mode bar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:6px 12px;background:#1e293b;border-bottom:1px solid #334155;
+                flex-shrink:0;">
+        <span style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;
+                     letter-spacing:0.5px;">Document Viewer</span>
+        <button type="button" onclick="toggleSplitMode()"
+                style="background:none;border:none;color:#475569;cursor:pointer;
+                       font-size:11px;font-weight:600;padding:2px 6px;display:flex;
+                       align-items:center;gap:4px;"
+                title="Close side-by-side view">
+            <svg viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px;">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+            Close
+        </button>
+    </div>
     <div class="doc-viewer">
         <div class="doc-viewer-header">
-            <span style="color:#94a3b8; font-size:13px;">Document Viewer</span>
-            <span id="viewer-label" style="color:#64748b; font-size:11px; margin-left:4px;"></span>
+            <span id="viewer-label" style="color:#64748b; font-size:11px;"></span>
         </div>
         <div class="doc-viewer-area" id="viewer-area">
             <div class="doc-viewer-placeholder">
@@ -2925,52 +2944,34 @@ function loadFloatDoc(url, label) {
 })();
 
 // ── Side-by-side mode ─────────────────────────────────────────────────────────
+// ── Side-by-side mode toggle (session only — never persisted) ────────────────
 function toggleSplitMode() {
     var isSplit = document.body.classList.toggle('split-mode');
     var btn = document.getElementById('split-mode-btn');
     if (isSplit) {
-        // Activate split: load first doc in left column if none loaded
+        // Auto-load first document into the left column viewer
         var firstTab = document.querySelector('.doc-float-tab');
-        if (firstTab) {
-            var url   = firstTab.dataset.url;
-            var label = firstTab.dataset.label;
-            if (url) loadDoc(url, label);
+        if (firstTab && firstTab.dataset.url) {
+            loadDoc(firstTab.dataset.url, firstTab.dataset.label || '');
         }
         if (btn) {
-            btn.style.background    = '#1d4ed8';
-            btn.style.borderColor   = '#3b82f6';
-            btn.style.color         = '#fff';
-            btn.title               = 'Back to floating panel';
-            btn.querySelector('svg').style.color = '#fff';
+            btn.style.background  = '#1d4ed8';
+            btn.style.borderColor = '#3b82f6';
+            btn.style.color       = '#fff';
+            btn.title             = 'Exit side-by-side';
         }
-        // Save preference
-        try { localStorage.setItem('computeSplitMode', '1'); } catch(e) {}
+        // Close the floating panel if it was open
+        closeDocPanel();
     } else {
         if (btn) {
-            btn.style.background    = '#1e293b';
-            btn.style.borderColor   = '#334155';
-            btn.style.color         = '#94a3b8';
-            btn.title               = 'Side by side';
+            btn.style.background  = '#1e293b';
+            btn.style.borderColor = '#334155';
+            btn.style.color       = '#94a3b8';
+            btn.title             = 'Side by side view';
         }
-        try { localStorage.removeItem('computeSplitMode'); } catch(e) {}
     }
+    // Never persist — always start full-screen on next page load
 }
-
-// Restore split mode preference on load
-document.addEventListener('DOMContentLoaded', function() {
-    try {
-        if (localStorage.getItem('computeSplitMode') === '1') {
-            document.body.classList.add('split-mode');
-            var btn = document.getElementById('split-mode-btn');
-            if (btn) {
-                btn.style.background  = '#1d4ed8';
-                btn.style.borderColor = '#3b82f6';
-                btn.style.color       = '#fff';
-                btn.title             = 'Back to floating panel';
-            }
-        }
-    } catch(e) {}
-});
 
 // ── Original loadDoc (targets the left-column viewer — kept for compatibility) ──
 function loadDoc(url, label) {
