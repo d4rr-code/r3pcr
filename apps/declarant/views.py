@@ -212,40 +212,46 @@ def dashboard(request):
     shipments = Shipment.objects.all()
     my = {'declarant': request.user}
 
-    # ── KPI 1: Global pending queue (all incoming, not just mine) ──────────────
-    queue_count = shipments.filter(status='incoming').count()
+    # ── KPI 1: Incoming — assigned to me but not yet processed ──────────────────
+    incoming_count = shipments.filter(declarant=request.user, status='arrived').count()
 
-    # ── KPI 2: My active shipments (arrived → released) ────────────────────────
+    # ── KPI 2: In Progress — currently being worked on ────────────────────────────
     in_progress = shipments.filter(
         declarant=request.user,
-        status__in=['arrived', 'computed', 'for_revision',
-                    'lodgement', 'ongoing', 'assessed', 'paid', 'released'],
+        status__in=['computed', 'for_revision', 'lodgement', 'ongoing', 'assessed'],
     ).count()
 
-    # ── KPI 3: ECDTs approved by consignee (approved + all downstream) ─────────
-    ecdt_approved = shipments.filter(
+    # ── KPI 3: Approved by consignee — moving to payment ─────────────────────────
+    approved_count = shipments.filter(
         declarant=request.user,
-        status__in=['approved', 'lodgement', 'ongoing',
-                    'assessed', 'paid', 'released', 'billed'],
+        status__in=['approved', 'paid', 'released'],
     ).count()
 
     # ── KPI 4: Fully billed (true completion) ──────────────────────────────────
     billed_count = shipments.filter(declarant=request.user, status='billed').count()
 
-    # ── KPI 5: Avg processing time — submitted_at → billed log timestamp ───────
+    # ── KPI 5: Avg processing time — arrived → billed (actual work time) ──────
     avg_processing_days = None
     billed_qs = list(shipments.filter(status='billed', **my))
     if billed_qs:
         durations = []
         for s in billed_qs:
+            # Get when it transitioned to 'arrived' status
+            arrived_log = (
+                StatusLog.objects
+                .filter(shipment=s, new_status='arrived')
+                .order_by('changed_at').first()
+            )
+            # Get when it transitioned to 'billed' status
             billed_log = (
                 StatusLog.objects
                 .filter(shipment=s, new_status='billed')
                 .order_by('changed_at').first()
             )
+            start_at = arrived_log.changed_at if arrived_log else s.submitted_at
             end_at = billed_log.changed_at if billed_log else s.updated_at
-            if end_at and s.submitted_at and end_at >= s.submitted_at:
-                durations.append((end_at - s.submitted_at).total_seconds())
+            if end_at and start_at and end_at >= start_at:
+                durations.append((end_at - start_at).total_seconds())
         if durations:
             avg_processing_days = round(sum(durations) / len(durations) / 86400, 1)
 
@@ -371,9 +377,9 @@ def dashboard(request):
     my_records = list(my_shipments.order_by('-submitted_at')[:6])
 
     context = {
-        'queue':               queue_count,
+        'queue':               incoming_count,
         'in_progress':         in_progress,
-        'ecdt_approved':       ecdt_approved,
+        'ecdt_approved':       approved_count,
         'billed':              billed_count,
         'avg_processing_days': avg_processing_days,
         'completion_rate':     completion_rate,
