@@ -935,6 +935,53 @@
     </div>
     {% endif %}
 
+    {% if shipment.status == 'billed' %}
+    <div class="dark-card" style="margin-top:16px; margin-bottom:0;">
+        <p class="dark-card-title" style="color:#34d399;">Billing Receipts</p>
+
+        {% with receipts=shipment.documents.filter_receipts %}
+        {% with receipt_docs=shipment.documents.all %}
+        {% with r_docs=receipt_docs|dictsort:"uploaded_at" %}
+
+        {% for doc in shipment.documents.all %}
+        {% if doc.document_type == 'receipt' %}
+        <div style="background:#052e16;border:1px solid #166534;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+            <div style="flex:1;">
+                <p style="color:#22c55e;font-size:12px;font-weight:600;margin:0;">{{ doc.file.name|slice:"20:" }}</p>
+                <p style="color:#475569;font-size:11px;margin:2px 0 0;">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
+            </div>
+            <a href="{{ doc.file.url }}" target="_blank"
+               style="padding:5px 10px;border:1px solid #166534;border-radius:6px;background:#0f172a;color:#86efac;font-size:11px;text-decoration:none;flex-shrink:0;">
+                View →
+            </a>
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        {% endwith %}{% endwith %}{% endwith %}
+
+        <form method="POST" enctype="multipart/form-data" action="{% url 'declarant:upload_receipt' shipment.id %}">
+            {% csrf_token %}
+            <p style="color:#94a3b8;font-size:11px;margin:0 0 8px;">
+                Upload broker fee receipts, payment proofs, or any billing documents for the consignee.
+            </p>
+            <div style="display:flex;gap:8px;align-items:flex-end;">
+                <div style="flex:1;">
+                    <label style="display:block;color:#94a3b8;font-size:11px;margin-bottom:4px;">
+                        Files (PDF/Image — multiple allowed)
+                    </label>
+                    <input type="file" name="receipt_files" class="form-input" multiple
+                           accept=".pdf,.jpg,.jpeg,.png" required style="font-size:12px;">
+                </div>
+                <button type="submit"
+                        style="padding:8px 14px;border:none;border-radius:7px;background:#059669;color:#fff;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;">
+                    Upload
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
 </div>
 {% endif %}
 

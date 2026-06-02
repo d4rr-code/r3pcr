@@ -22,7 +22,8 @@ urlpatterns = [
     path('update-shipping-mode/<int:shipment_id>/', views.update_shipping_mode, name='update_shipping_mode'),
     path('payment/<int:shipment_id>/', views.payment_confirmation, name='payment'),
     path('flag-deficiency/<int:shipment_id>/', views.flag_deficiency, name='flag_deficiency'),
-    path('shipment/<int:shipment_id>/upload-sad/', views.upload_sad,       name='upload_sad'),
+    path('shipment/<int:shipment_id>/upload-sad/',     views.upload_sad,      name='upload_sad'),
+    path('shipment/<int:shipment_id>/upload-receipt/', views.upload_receipt,  name='upload_receipt'),
     path('save-ocr-items/<int:shipment_id>/',     views.save_ocr_items,   name='save_ocr_items'),
     path('process/<int:shipment_id>/ocr-sync/',   views.run_ocr_sync,     name='run_ocr_sync'),
 ]

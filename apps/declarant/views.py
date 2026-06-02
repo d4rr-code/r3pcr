@@ -1301,6 +1301,49 @@ def upload_sad(request, shipment_id):
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
+@login_required
+@declarant_required
+def upload_receipt(request, shipment_id):
+    """Declarant uploads billing receipts / payment proof when billing a shipment."""
+    if request.method != 'POST':
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
+    if shipment.status != 'billed':
+        messages.error(request, 'Billing receipts can only be uploaded once the shipment is billed.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    files = request.FILES.getlist('receipt_files')
+    if not files:
+        messages.error(request, 'Please select at least one file to upload.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    for f in files:
+        ShipmentDocument.objects.create(
+            shipment=shipment,
+            document_type='receipt',
+            file=f,
+        )
+
+    create_notification(
+        recipient=shipment.consignee,
+        shipment=shipment,
+        notification_type='status_update',
+        title=f'Billing Documents Available — {shipment.hawb_number}',
+        message=(
+            'Your declarant has uploaded billing receipts for your shipment. '
+            'Please review your shipment details to view and confirm the billing documents.'
+        ),
+    )
+
+    messages.success(request, f'{len(files)} billing receipt(s) uploaded. The consignee has been notified.')
+    return redirect('declarant:process', shipment_id=shipment_id)
+
+
 # ─── Flag Document Deficiency ────────────────────────────────────────────────
 
 @login_required

@@ -175,6 +175,7 @@ class ShipmentDocument(models.Model):
         ('packing_list', 'Packing List'),
         ('airway_bill', 'Airway Bill / Bill of Lading'),
         ('sad', 'Single Administrative Document (SAD)'),
+        ('receipt', 'Billing Receipt / Payment Proof'),
         ('other', 'Other Supporting Document'),
     ]
 

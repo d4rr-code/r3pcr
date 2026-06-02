@@ -79,6 +79,31 @@ window.addEventListener("click", () => {
 });
 
 /* =========================================
+   HAMBURGER MENU
+========================================= */
+
+const navHamburger = document.getElementById("navHamburger");
+const navRight = document.getElementById("navRight");
+
+navHamburger.addEventListener("click", (e) => {
+
+    e.stopPropagation();
+
+    navHamburger.classList.toggle("open");
+    navRight.classList.toggle("open");
+
+});
+
+window.addEventListener("click", (e) => {
+
+    if(!navRight.contains(e.target) && !navHamburger.contains(e.target)){
+        navHamburger.classList.remove("open");
+        navRight.classList.remove("open");
+    }
+
+});
+
+/* =========================================
    TRACKING TABS
 ========================================= */
 
