@@ -1080,49 +1080,26 @@ document.body.classList.add('light-mode');
     </div>
 </div>
 
-<!-- Shipment Info Strip -->
-<div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px;
-            padding:10px 16px; margin-bottom:14px;
-            display:flex; flex-wrap:wrap; gap:6px 20px; align-items:center;">
-    <div>
-        <span style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;display:block;">Consignee</span>
-        <span style="color:#f1f5f9;font-size:12px;font-weight:600;">{{ shipment.consignee.get_full_name|default:shipment.consignee.username }}</span>
-        {% if shipment.consignee.company_name %}<span style="color:#64748b;font-size:11px;">&mdash; {{ shipment.consignee.company_name }}</span>{% endif %}
-    </div>
-    <div style="width:1px;height:28px;background:#1e293b;flex-shrink:0;"></div>
-    <div>
-        <span style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;display:block;">HBL / HAWB</span>
-        <span style="color:#60a5fa;font-size:12px;font-weight:700;font-family:monospace;">{{ shipment.hawb_number }}</span>
-    </div>
-    <div style="width:1px;height:28px;background:#1e293b;flex-shrink:0;"></div>
-    <div>
-        <span style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;display:block;">Mode</span>
-        <span style="font-size:12px;font-weight:600;color:{% if shipment.shipment_type == 'air' %}#3b82f6{% elif shipment.shipment_type == 'fcl' %}#a78bfa{% elif shipment.shipment_type == 'lcl' or shipment.shipment_type == 'sea' %}#22d3ee{% elif shipment.shipment_type == 'land' %}#f59e0b{% else %}#94a3b8{% endif %};">
-            {{ shipment.get_shipment_type_display|default:"TBD" }}
-        </span>
-    </div>
-    <div style="width:1px;height:28px;background:#1e293b;flex-shrink:0;"></div>
-    <div>
-        <span style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;display:block;">Import Type</span>
-        <span style="color:#f1f5f9;font-size:12px;">{{ shipment.get_import_type_display }}</span>
-    </div>
-    <div style="width:1px;height:28px;background:#1e293b;flex-shrink:0;"></div>
-    <div>
-        <span style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;display:block;">Rate (USD/PHP)</span>
-        <span style="color:#fbbf24;font-size:12px;font-weight:700;">
-            &#8369;{% if existing and existing.exchange_rate %}{{ existing.exchange_rate }}{% elif default_rate %}{{ default_rate }}<span style="color:#475569;font-size:10px;font-weight:400;"> (default)</span>{% endif %}
-        </span>
-    </div>
-    <div style="width:1px;height:28px;background:#1e293b;flex-shrink:0;"></div>
-    <div>
-        <span style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;display:block;">Date Filed</span>
-        <span style="color:#f1f5f9;font-size:12px;">{{ shipment.submitted_at|date:"M d, Y" }}</span>
-    </div>
-    <div style="width:1px;height:28px;background:#1e293b;flex-shrink:0;"></div>
-    <div>
-        <span style="color:#475569;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;display:block;">Status</span>
-        <span class="badge badge-{{ shipment.status }}" style="font-size:11px;">{{ shipment.get_status_display }}</span>
-    </div>
+<!-- Shipment Info Strip (compact) -->
+<div style="background:#0f172a; border:1px solid #1e293b; border-radius:8px;
+            padding:7px 14px; margin-bottom:12px;
+            display:flex; flex-wrap:wrap; gap:4px 16px; align-items:center; font-size:11px;">
+    <span style="color:#64748b;">{{ shipment.consignee.get_full_name|default:shipment.consignee.username }}</span>
+    <span style="color:#1e293b;">·</span>
+    <span style="color:#60a5fa; font-family:monospace; font-weight:700;">{{ shipment.hawb_number }}</span>
+    <span style="color:#1e293b;">·</span>
+    <span style="font-weight:600; color:{% if shipment.shipment_type == 'air' %}#3b82f6{% elif shipment.shipment_type == 'fcl' %}#a78bfa{% elif shipment.shipment_type == 'lcl' or shipment.shipment_type == 'sea' %}#22d3ee{% elif shipment.shipment_type == 'land' %}#f59e0b{% else %}#94a3b8{% endif %};">
+        {{ shipment.get_shipment_type_display|default:"TBD" }}
+    </span>
+    <span style="color:#1e293b;">·</span>
+    <span style="color:#94a3b8;">{{ shipment.get_import_type_display }}</span>
+    <span style="color:#1e293b;">·</span>
+    <span style="color:#fbbf24; font-weight:600;">&#8369;{% if existing and existing.exchange_rate %}{{ existing.exchange_rate }}{% else %}{{ default_rate }}{% endif %}</span>
+    <span style="color:#475569; font-size:10px;">USD/PHP</span>
+    <span style="color:#1e293b;">·</span>
+    <span style="color:#64748b;">{{ shipment.submitted_at|date:"M d, Y" }}</span>
+    <span style="color:#1e293b;">·</span>
+    <span class="badge badge-{{ shipment.status }}" style="font-size:10px; padding:2px 8px;">{{ shipment.get_status_display }}</span>
 </div>
 
 <!-- ── Floating Document Panel ────────────────────────────────────────────── -->
@@ -1311,49 +1288,42 @@ document.body.classList.add('light-mode');
 {% csrf_token %}
 
 <!-- â”€â”€ Parameters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-<div class="card" style="margin-bottom:14px;">
-    <p class="card-title" style="margin-bottom:10px;">Parameters</p>
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+<div class="card" style="margin-bottom:12px;">
+    <p class="card-title" style="margin-bottom:8px;">Parameters</p>
+    <div style="display:grid; grid-template-columns:1fr 2fr; gap:10px; margin-bottom:10px;">
+        <!-- Shipment Mode -->
         <div>
             <label class="form-label" style="font-size:11px;">Shipment Mode</label>
             <select name="charge_mode" id="charge_mode" class="form-input"
                     style="padding:6px 8px; font-size:12px;" onchange="onChargeModeChange(this.value)">
                 <option value="lcl"
-                    {% if existing.container_type == 'lcl' or shipment.shipment_type == 'lcl' or shipment.shipment_type == 'sea' %}selected{% endif %}>
-                    LCL
-                </option>
+                    {% if existing.container_type == 'lcl' or shipment.shipment_type == 'lcl' or shipment.shipment_type == 'sea' %}selected{% endif %}>LCL</option>
                 <option value="fcl"
-                    {% if existing.container_type == 'fcl' or existing.container_type == '20ft' or existing.container_type == '40ft' or shipment.shipment_type == 'fcl' %}selected{% endif %}>
-                    FCL
-                </option>
+                    {% if existing.container_type == 'fcl' or existing.container_type == '20ft' or existing.container_type == '40ft' or shipment.shipment_type == 'fcl' %}selected{% endif %}>FCL</option>
                 <option value="air"
-                    {% if existing.container_type == 'air' or shipment.shipment_type == 'air' %}selected{% endif %}>
-                    Air
-                </option>
+                    {% if existing.container_type == 'air' or shipment.shipment_type == 'air' %}selected{% endif %}>Air</option>
                 <option value="land"
-                    {% if existing.container_type == 'land' or shipment.shipment_type == 'land' %}selected{% endif %}>
-                    Land
-                </option>
+                    {% if existing.container_type == 'land' or shipment.shipment_type == 'land' %}selected{% endif %}>Land</option>
             </select>
         </div>
-        <!-- Currency selector -->
-        <div style="grid-column:1/-1;">
+        <!-- Invoice Currency -->
+        <div>
             <label class="form-label" style="font-size:11px;">Invoice Currency</label>
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:8px;">
                 <select name="invoice_currency" id="invoice_currency" class="form-input"
-                        style="padding:6px 8px; font-size:12px; width:auto; min-width:180px;"
+                        style="padding:6px 8px; font-size:12px; width:auto; min-width:160px;"
                         onchange="onCurrencyChange(this.value)">
                     {% for code, label in shipment.CURRENCY_CHOICES %}
                     <option value="{{ code }}" {% if code == invoice_currency %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
-                <span style="font-size:11px; color:#6B7280;">
-                    Set by consignee:
-                    <strong style="color:#1B3358;">{{ shipment.invoice_currency|default:'USD' }}</strong>
-                    &mdash; override here if incorrect.
+                <span style="font-size:10px; color:#475569; white-space:nowrap;">
+                    Set by consignee: <strong style="color:#64748b;">{{ shipment.invoice_currency|default:'USD' }}</strong> &mdash; override if incorrect.
                 </span>
             </div>
         </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
         <div>
             <label class="form-label" style="font-size:11px;">
                 Exchange Rate (<span id="cur-code-label">{{ invoice_currency }}</span>&rarr;PHP)
@@ -1498,88 +1468,52 @@ document.body.classList.add('light-mode');
 </div>
 
 <!-- ── HS Code Guide (selected on the process page by the declarant) ─────── -->
-{% if guide_hs_codes %}
-<div class="card" style="margin-bottom:14px; padding:12px 14px;" id="guide-hs-panel">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-        <div>
-            <p class="card-title" style="margin:0 0 2px; font-size:12px;">
-                HS Code Guide
-                <span style="background:#2563eb; color:#fff; font-size:9px; font-weight:700;
-                             padding:2px 7px; border-radius:10px; margin-left:6px;">
-                    {{ guide_hs_codes|length }}
-                </span>
-            </p>
-            <p style="color:#475569; font-size:10px; margin:0;">
-                Codes selected from the document — click a code to apply it to the next empty row
-            </p>
-        </div>
-        <button type="button"
-                onclick="document.getElementById('guide-hs-panel').style.display='none'"
-                style="background:none; border:none; color:#475569; cursor:pointer;
-                       font-size:18px; padding:2px 6px; line-height:1;" title="Dismiss">&times;</button>
+{% if guide_hs_codes or hs_suggestions %}
+<div class="card" style="margin-bottom:12px; padding:0; overflow:hidden;" id="hs-assist-card">
+    <div style="display:flex; align-items:center; gap:8px; padding:7px 14px; cursor:pointer; user-select:none;"
+         onclick="(function(){var b=document.getElementById('hs-assist-body');var a=document.getElementById('hs-assist-arrow');var open=b.style.display!=='none';b.style.display=open?'none':'block';a.style.transform=open?'rotate(-90deg)':'rotate(0)';})()">
+        <svg id="hs-assist-arrow" viewBox="0 0 20 20" fill="currentColor"
+             style="width:12px;height:12px;color:#475569;flex-shrink:0;transition:transform .2s;transform:rotate(-90deg);">
+            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+        </svg>
+        <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">HS Code Assist</span>
+        {% if guide_hs_codes %}<span style="background:#2563eb;color:#fff;font-size:9px;font-weight:700;padding:1px 7px;border-radius:8px;">{{ guide_hs_codes|length }} guide</span>{% endif %}
+        {% if hs_suggestions %}<span style="background:#334155;color:#94a3b8;font-size:9px;font-weight:700;padding:1px 7px;border-radius:8px;">{{ hs_suggestions|length }} suggested</span>{% endif %}
+        <span style="margin-left:auto;color:#334155;font-size:10px;">click to expand</span>
     </div>
-    <div style="display:flex; flex-wrap:wrap; gap:7px;">
-        {% for g in guide_hs_codes %}
-        <button type="button"
-                onclick="applyHsSuggestionToNextEmpty({{ g.id }}, '{{ g.code|escapejs }}', {{ g.duty_rate }})"
-                title="{{ g.description }}"
-                style="display:inline-flex; align-items:center; gap:5px;
-                       padding:6px 11px; background:#1e3a5f; border:1px solid #2563eb;
-                       border-radius:8px; cursor:pointer; transition:all .15s; font-size:11px;"
-                onmouseover="this.style.background='#1d4ed8'; this.style.borderColor='#60a5fa';"
-                onmouseout="this.style.background='#1e3a5f'; this.style.borderColor='#2563eb';">
-            <span style="font-weight:800; color:#60a5fa; white-space:nowrap;">{{ g.code }}</span>
-            <span style="color:#94a3b8; overflow:hidden; text-overflow:ellipsis;
-                         white-space:nowrap; max-width:160px;">{{ g.description|truncatechars:38 }}</span>
-            <span style="font-size:10px; font-weight:700; color:#fbbf24;
-                         background:#422006; padding:2px 6px; border-radius:4px;
-                         white-space:nowrap; flex-shrink:0;">{{ g.duty_rate }}%</span>
-        </button>
-        {% endfor %}
+    <div id="hs-assist-body" style="display:none; padding:10px 14px; border-top:1px solid #1e293b;">
+        {% if guide_hs_codes %}
+        <p style="color:#475569;font-size:10px;font-weight:700;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.4px;">Guide — click to apply to next empty row</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;{% if hs_suggestions %}margin-bottom:12px;{% endif %}">
+            {% for g in guide_hs_codes %}
+            <button type="button" onclick="applyHsSuggestionToNextEmpty({{ g.id }},'{{ g.code|escapejs }}',{{ g.duty_rate }})" title="{{ g.description }}"
+                    style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:#1e3a5f;border:1px solid #2563eb;border-radius:7px;cursor:pointer;font-size:11px;"
+                    onmouseover="this.style.background='#1d4ed8';" onmouseout="this.style.background='#1e3a5f';">
+                <span style="font-weight:800;color:#60a5fa;">{{ g.code }}</span>
+                <span style="color:#94a3b8;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ g.description|truncatechars:34 }}</span>
+                <span style="font-size:10px;font-weight:700;color:#fbbf24;background:#422006;padding:1px 5px;border-radius:4px;">{{ g.duty_rate }}%</span>
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if hs_suggestions %}
+        <p style="color:#475569;font-size:10px;font-weight:700;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.4px;">Suggested — based on shipment description</p>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px;">
+            {% for hs in hs_suggestions %}
+            <div class="hs-suggestion-chip" onclick="applyHsSuggestionToNextEmpty({{ hs.id }},'{{ hs.code|escapejs }}',{{ hs.duty_rate }})" title="{{ hs.description }}">
+                <span style="font-size:11px;font-weight:700;color:#3b82f6;">{{ hs.code }}</span>
+                <span style="font-size:10px;color:#94a3b8;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ hs.description|truncatechars:44 }}</span>
+                <span style="font-size:10px;font-weight:700;color:#f59e0b;background:#422006;padding:1px 5px;border-radius:4px;">{{ hs.duty_rate }}%</span>
+            </div>
+            {% endfor %}
+        </div>
+        <p style="color:#334155;font-size:9px;margin:0;">Keyword match against AHTN 2022 + historical frequency. Verify before computing.</p>
+        {% endif %}
     </div>
 </div>
 {% endif %}
 
 <!-- â”€â”€ HS Code Suggestions (auto-generated from description) â”€â”€â”€â”€â”€â”€â”€â”€ -->
-{% if hs_suggestions %}
-<div class="card" style="margin-bottom:14px; padding:12px 14px;" id="hs-suggestion-panel">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-        <div>
-            <p class="card-title" style="margin:0 0 2px; font-size:12px;">
-                Suggested HS Codes
-                <span style="color:#475569; font-size:10px; font-weight:400; margin-left:6px;">
-                    &mdash; based on shipment description
-                </span>
-            </p>
-            <p style="color:#475569; font-size:10px; margin:0;">
-                Click a chip to apply it to the next empty HS Code cell in the table
-            </p>
-        </div>
-        <button type="button"
-                onclick="document.getElementById('hs-suggestion-panel').style.display='none'"
-                style="background:none; border:none; color:#475569; cursor:pointer;
-                       font-size:16px; padding:2px 4px; line-height:1;" title="Dismiss">&times;</button>
-    </div>
-    <div style="display:flex; flex-wrap:wrap; gap:8px;">
-        {% for hs in hs_suggestions %}
-        <div class="hs-suggestion-chip"
-             onclick="applyHsSuggestionToNextEmpty({{ hs.id }}, '{{ hs.code|escapejs }}', {{ hs.duty_rate }})"
-             title="{{ hs.description }}">
-            <span style="font-size:11px; font-weight:700; color:#3b82f6; white-space:nowrap;">{{ hs.code }}</span>
-            <span style="font-size:10px; color:#94a3b8; overflow:hidden; text-overflow:ellipsis;
-                         white-space:nowrap; max-width:180px;">{{ hs.description|truncatechars:48 }}</span>
-            <span style="font-size:10px; font-weight:700; color:#f59e0b; background:#422006;
-                         padding:1px 5px; border-radius:4px; white-space:nowrap;
-                         flex-shrink:0;">{{ hs.duty_rate }}%</span>
-        </div>
-        {% endfor %}
-    </div>
-    <p style="color:#334155; font-size:9px; margin:8px 0 0;">
-        Scores computed from keyword matching against AHTN 2022 tariff descriptions
-        + historical confirmation frequency. Declarant must verify before computing.
-    </p>
-</div>
-{% endif %}
 
 <!-- â”€â”€ ECDT Line Items Table (Excel CDT column order) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
 <div class="card ecdt-table-shell" id="ecdt-table-shell" style="margin-bottom:14px; padding:0; overflow:hidden;">
