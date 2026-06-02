@@ -11,17 +11,24 @@
 
 <!-- ─── OCR Loading Overlay ──────────────────────────────────────────────── -->
 <div id="ocr-scan-overlay"
-     style="display:none; position:fixed; inset:0; background:rgba(2,6,23,.92);
-            z-index:9999; flex-direction:column; align-items:center; justify-content:center; gap:10px;">
-    <div style="width:56px; height:56px; border:4px solid #1e293b; border-top-color:#3b82f6;
-                border-radius:50%; animation:q-spin .75s linear infinite; margin-bottom:8px;"></div>
-    <p id="overlay-title" style="color:#f1f5f9; font-size:16px; font-weight:700; margin:0;">Analyzing Documents…</p>
-    <p id="overlay-sub" style="color:#94a3b8; font-size:13px; margin:0;">
-        Running OCR and identifying HS codes — scanning all documents at once.
-    </p>
-    <p style="color:#e2e8f0; font-size:13px; font-weight:600; margin-top:6px;">
-        Elapsed: <span id="q-elapsed" style="color:#ffffff;">0:00</span>
-    </p>
+     style="display:none; position:fixed; inset:0;
+            background:rgba(240,242,245,.80);
+            backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+            z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#fff; border:1px solid #E5E7EB; border-radius:16px;
+                padding:40px 52px; text-align:center;
+                box-shadow:0 20px 60px rgba(0,0,0,.12);
+                display:flex; flex-direction:column; align-items:center; gap:8px;">
+        <div style="width:52px; height:52px; border:4px solid #E5E7EB; border-top-color:#1B3358;
+                    border-radius:50%; animation:q-spin .75s linear infinite; margin-bottom:8px;"></div>
+        <p id="overlay-title" style="color:#111827; font-size:16px; font-weight:700; margin:0;">Analyzing Documents…</p>
+        <p id="overlay-sub" style="color:#6B7280; font-size:13px; margin:0;">
+            Running OCR and identifying HS codes — scanning all documents at once.
+        </p>
+        <p style="color:#9CA3AF; font-size:12px; margin-top:4px;">
+            Elapsed: <span id="q-elapsed" style="color:#1B3358; font-weight:700;">0:00</span>
+        </p>
+    </div>
 </div>
 <style>
 @keyframes q-spin { to { transform: rotate(360deg); } }
