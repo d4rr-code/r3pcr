@@ -632,47 +632,87 @@
             </div>
         </div>
 
-        <!-- 2. Extracted Document Contents (raw OCR text) -->
-        <div class="dark-card">
-            <p class="dark-card-title">Extracted Document Contents</p>
-
-            {% if ocr_documents %}
-            <!-- Tabs -->
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;" id="ocr-tabs-row">
-                {% for item in ocr_documents %}{% if item.doc.ocr_ran_at %}
-                <button type="button" class="ocr-tab-btn"
-                        data-ocr-tab="ocr-panel-{{ item.doc.id }}"
-                        onclick="switchOcrTab(this)">
-                    {% if item.doc.document_type == 'invoice' %}Invoice
-                    {% elif item.doc.document_type == 'packing_list' %}Packing List
-                    {% elif item.doc.document_type == 'airway_bill' %}HAWB / BL
-                    {% else %}{{ item.doc.get_document_type_display }}{% endif %}
-                </button>
-                {% endif %}{% endfor %}
+        <!-- 2. Extracted Document Contents (raw OCR text — collapsible) -->
+        <div class="dark-card" style="padding:0;overflow:hidden;">
+            <!-- Toggle header -->
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;user-select:none;"
+                 onclick="(function(){
+                     var b=document.getElementById('ocr-text-body');
+                     var a=document.getElementById('ocr-text-arrow');
+                     var open=b.style.display!=='none';
+                     b.style.display=open?'none':'block';
+                     a.style.transform=open?'rotate(-90deg)':'rotate(0deg)';
+                     try{localStorage.setItem('ocrTextOpen',open?'0':'1');}catch(e){}
+                 })()">
+                <svg id="ocr-text-arrow" viewBox="0 0 20 20" fill="currentColor"
+                     style="width:13px;height:13px;color:#475569;flex-shrink:0;transition:transform .2s;transform:rotate(-90deg);">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+                <p class="dark-card-title" style="margin:0;flex:1;">Extracted Document Contents</p>
+                {% if ocr_documents %}
+                <span style="font-size:10px;color:#334155;">
+                    {% for item in ocr_documents %}{% if item.doc.ocr_ran_at %}
+                    <span style="display:inline-block;margin-right:6px;
+                        {% if item.doc.ocr_quality == 'good' %}color:#22c55e;{% elif item.doc.ocr_quality == 'low' %}color:#f59e0b;{% else %}color:#475569;{% endif %}">●
+                        {% if item.doc.document_type == 'invoice' %}INV{% elif item.doc.document_type == 'packing_list' %}PL{% elif item.doc.document_type == 'airway_bill' %}AWB{% else %}DOC{% endif %}
+                    </span>
+                    {% endif %}{% endfor %}
+                </span>
+                {% endif %}
+                <span style="font-size:10px;color:#334155;margin-left:4px;">View raw text</span>
             </div>
 
-            <!-- Text panels -->
-            {% for item in ocr_documents %}{% if item.doc.ocr_ran_at %}
-            <div id="ocr-panel-{{ item.doc.id }}" class="ocr-text-panel">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                    {% if item.doc.ocr_quality == 'good' %}<span class="conf-badge conf-good">● Good Quality</span>
-                    {% elif item.doc.ocr_quality == 'low' %}<span class="conf-badge conf-low">● Low Quality</span>
-                    {% elif item.doc.ocr_quality == 'poor' %}<span class="conf-badge conf-poor">● Illegible</span>
-                    {% else %}<span class="conf-badge conf-none">● Scanned</span>{% endif %}
-                    <span style="color:#475569;font-size:11px;">Scanned {{ item.doc.ocr_ran_at|date:"M d, H:i" }}</span>
+            <!-- Collapsible body (hidden by default) -->
+            <div id="ocr-text-body" style="display:none;padding:0 14px 14px;border-top:1px solid #1e293b;">
+                {% if ocr_documents %}
+                <!-- Tabs -->
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 10px;" id="ocr-tabs-row">
+                    {% for item in ocr_documents %}{% if item.doc.ocr_ran_at %}
+                    <button type="button" class="ocr-tab-btn"
+                            data-ocr-tab="ocr-panel-{{ item.doc.id }}"
+                            onclick="switchOcrTab(this)">
+                        {% if item.doc.document_type == 'invoice' %}Invoice
+                        {% elif item.doc.document_type == 'packing_list' %}Packing List
+                        {% elif item.doc.document_type == 'airway_bill' %}HAWB / BL
+                        {% else %}{{ item.doc.get_document_type_display }}{% endif %}
+                    </button>
+                    {% endif %}{% endfor %}
                 </div>
-                <pre class="ocr-raw-text">{{ item.doc.ocr_text|default:"No text could be extracted from this document." }}</pre>
-            </div>
-            {% endif %}{% endfor %}
 
-            <!-- No OCR results yet fallback -->
-            <p id="ocr-no-results" style="color:#475569;font-size:13px;margin:0;display:none;">
-                No OCR results yet. Click "OCR All Documents" above to scan the uploaded files.
-            </p>
-            {% else %}
-            <p style="color:#475569;font-size:13px;margin:0;">No documents attached yet.</p>
-            {% endif %}
+                <!-- Text panels -->
+                {% for item in ocr_documents %}{% if item.doc.ocr_ran_at %}
+                <div id="ocr-panel-{{ item.doc.id }}" class="ocr-text-panel">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                        {% if item.doc.ocr_quality == 'good' %}<span class="conf-badge conf-good">● Good Quality</span>
+                        {% elif item.doc.ocr_quality == 'low' %}<span class="conf-badge conf-low">● Low Quality</span>
+                        {% elif item.doc.ocr_quality == 'poor' %}<span class="conf-badge conf-poor">● Illegible</span>
+                        {% else %}<span class="conf-badge conf-none">● Scanned</span>{% endif %}
+                        <span style="color:#475569;font-size:11px;">Scanned {{ item.doc.ocr_ran_at|date:"M d, H:i" }}</span>
+                    </div>
+                    <pre class="ocr-raw-text">{{ item.doc.ocr_text|default:"No text could be extracted from this document." }}</pre>
+                </div>
+                {% endif %}{% endfor %}
+
+                <p id="ocr-no-results" style="color:#475569;font-size:13px;margin:0;display:none;">
+                    No OCR results yet. Click "OCR All Documents" above to scan the uploaded files.
+                </p>
+                {% else %}
+                <p style="color:#475569;font-size:13px;margin:12px 0 0;">No documents attached yet.</p>
+                {% endif %}
+            </div>
         </div>
+
+        <script>
+        // Restore expand state from localStorage
+        (function(){
+            try {
+                if (localStorage.getItem('ocrTextOpen') === '1') {
+                    document.getElementById('ocr-text-body').style.display = 'block';
+                    document.getElementById('ocr-text-arrow').style.transform = 'rotate(0deg)';
+                }
+            } catch(e) {}
+        })();
+        </script>
 
     </div><!-- end left panel -->
 
