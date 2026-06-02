@@ -120,33 +120,38 @@ body.light-mode #chargeable-weight-display strong {
     color: #1D4ED8 !important;
 }
 
+/* ── HS Assist chips in light mode ─────────────────────────────────────────── */
+body.light-mode #hs-assist-card button[onclick*="applyHsSuggestion"],
 body.light-mode #guide-hs-panel button[onclick*="applyHsSuggestion"],
 body.light-mode #hs-suggestion-panel .hs-suggestion-chip {
-    background: #F8FAFC !important;
-    border-color: #D1D5DB !important;
+    background: #EFF6FF !important;
+    border-color: #BFDBFE !important;
     color: #111827 !important;
 }
-
+body.light-mode #hs-assist-card button[onclick*="applyHsSuggestion"]:hover,
 body.light-mode #guide-hs-panel button[onclick*="applyHsSuggestion"]:hover,
 body.light-mode #hs-suggestion-panel .hs-suggestion-chip:hover {
-    background: #EFF6FF !important;
+    background: #DBEAFE !important;
     border-color: #93C5FD !important;
 }
-
+/* HS code span */
+body.light-mode #hs-assist-card button[onclick*="applyHsSuggestion"] span:nth-child(1),
 body.light-mode #guide-hs-panel button[onclick*="applyHsSuggestion"] span:nth-child(1),
 body.light-mode #hs-suggestion-panel .hs-suggestion-chip span:nth-child(1) {
     color: #1D4ED8 !important;
 }
-
+/* Description span */
+body.light-mode #hs-assist-card button[onclick*="applyHsSuggestion"] span:nth-child(2),
 body.light-mode #guide-hs-panel button[onclick*="applyHsSuggestion"] span:nth-child(2),
 body.light-mode #hs-suggestion-panel .hs-suggestion-chip span:nth-child(2) {
-    color: #475569 !important;
+    color: #374151 !important;
 }
-
+/* Rate badge */
+body.light-mode #hs-assist-card button[onclick*="applyHsSuggestion"] span:nth-child(3),
 body.light-mode #guide-hs-panel button[onclick*="applyHsSuggestion"] span:nth-child(3),
 body.light-mode #hs-suggestion-panel .hs-suggestion-chip span:nth-child(3) {
     background: #FEF3C7 !important;
-    color: #B45309 !important;
+    color: #92400E !important;
 }
 
 body.light-mode #ecdt-table-shell > div:first-child {
