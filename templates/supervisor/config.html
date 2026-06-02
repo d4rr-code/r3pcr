@@ -5,9 +5,8 @@
 {% block extra_css %}
 .config-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: 1fr 1fr;
     gap: 24px;
-    max-width: 1128px;
     align-items: stretch;
 }
 .config-link {
@@ -17,43 +16,78 @@
 }
 .config-card {
     width: 100%;
-    min-height: 272px;
-    padding: 38px 36px;
-    border: 1px solid #FFFFFF;
+    padding: 0;
+    border: 1px solid #E5E7EB;
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    transition: border-color .2s, transform .15s;
+    overflow: hidden;
+    transition: border-color .2s, box-shadow .2s, transform .15s;
 }
-.config-card svg {
-    color: #1B3358;
-    width: 40px;
-    height: 40px;
-    margin-bottom: 24px;
+.config-card:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,.08);
+    transform: translateY(-2px);
+}
+.config-card-accent {
+    height: 5px;
     flex-shrink: 0;
+}
+.config-card-body {
+    padding: 32px 36px 28px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+.config-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+}
+.config-card-icon svg {
+    width: 24px;
+    height: 24px;
 }
 .config-card-title {
     color: #1A1A2E;
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 700;
     line-height: 1.25;
     margin: 0 0 10px;
 }
 .config-card-copy {
-    color: #9CA3AF;
+    color: #6B7280;
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.6;
     margin: 0;
+    flex: 1;
 }
 .config-card-action {
-    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
     font-weight: 600;
-    margin: auto 0 0;
-    padding-top: 18px;
+    margin-top: 24px;
 }
-@media (max-width: 760px) {
-    .config-grid { grid-template-columns: 1fr; gap: 16px; }
-    .config-card { min-height: 220px; padding: 30px 28px; }
+.config-card-action svg {
+    width: 14px;
+    height: 14px;
+    transition: transform .15s;
+}
+.config-card:hover .config-card-action svg {
+    transform: translateX(3px);
+}
+@media (max-width: 900px) {
+    .config-grid { grid-template-columns: 1fr 1fr; gap: 18px; }
+    .config-card-body { padding: 24px 28px 20px; }
+}
+@media (max-width: 600px) {
+    .config-grid { grid-template-columns: 1fr; gap: 14px; }
 }
 {% endblock %}
 {% block content %}
@@ -75,74 +109,82 @@
 
     <!-- Global Parameters -->
     <a href="{% url 'supervisor:config_global' %}" class="config-link">
-        <div class="card config-card"
-             onmouseover="this.style.borderColor='#3b82f6'; this.style.transform='translateY(-2px)'"
-             onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
-            <svg viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.332 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
-            </svg>
-            <p class="config-card-title">Global Parameters</p>
-            <p class="config-card-copy">
-                Exchange rate (USD to PHP) and VAT rate used in all duty computations.
-            </p>
-            <p class="config-card-action" style="color:#3b82f6;">
-                Configure
-            </p>
+        <div class="card config-card">
+            <div class="config-card-accent" style="background:#3b82f6;"></div>
+            <div class="config-card-body">
+                <div class="config-card-icon" style="background:#EFF6FF;">
+                    <svg viewBox="0 0 20 20" fill="currentColor" style="color:#3b82f6;">
+                        <path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.332 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <p class="config-card-title">Global Parameters</p>
+                <p class="config-card-copy">Set exchange rates for USD, EUR, JPY, HKD, CNY, GBP, and SGD to PHP. Also configure the VAT rate applied in all duty computations.</p>
+                <span class="config-card-action" style="color:#3b82f6;">
+                    Configure
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd"/></svg>
+                </span>
+            </div>
         </div>
     </a>
 
     <!-- WMCDA Criterion Weights -->
     <a href="{% url 'supervisor:config_wmcda' %}" class="config-link">
-        <div class="card config-card"
-             onmouseover="this.style.borderColor='#8b5cf6'; this.style.transform='translateY(-2px)'"
-             onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
-            <svg viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 2a.75.75 0 01.75.75v1.5a5.75 5.75 0 015 5h1.5a.75.75 0 010 1.5h-1.5a5.75 5.75 0 01-5 5v1.5a.75.75 0 01-1.5 0v-1.5a5.75 5.75 0 01-5-5h-1.5a.75.75 0 010-1.5h1.5a5.75 5.75 0 015-5v-1.5A.75.75 0 0110 2zm0 3.75a4.25 4.25 0 100 8.5 4.25 4.25 0 000-8.5zm0 2.5a1.75 1.75 0 100 3.5 1.75 1.75 0 000-3.5z" clip-rule="evenodd"/>
-            </svg>
-            <p class="config-card-title">WMCDA Criterion Weights</p>
-            <p class="config-card-copy">
-                Cost, time, weight/volume, and distance weights for the shipping advisory algorithm. Must total 100%.
-            </p>
-            <p class="config-card-action" style="color:#8b5cf6;">
-                Configure
-            </p>
+        <div class="card config-card">
+            <div class="config-card-accent" style="background:#8b5cf6;"></div>
+            <div class="config-card-body">
+                <div class="config-card-icon" style="background:#F5F3FF;">
+                    <svg viewBox="0 0 20 20" fill="currentColor" style="color:#8b5cf6;">
+                        <path fill-rule="evenodd" d="M10 2a.75.75 0 01.75.75v1.5a5.75 5.75 0 015 5h1.5a.75.75 0 010 1.5h-1.5a5.75 5.75 0 01-5 5v1.5a.75.75 0 01-1.5 0v-1.5a5.75 5.75 0 01-5-5h-1.5a.75.75 0 010-1.5h1.5a5.75 5.75 0 015-5v-1.5A.75.75 0 0110 2zm0 3.75a4.25 4.25 0 100 8.5 4.25 4.25 0 000-8.5zm0 2.5a1.75 1.75 0 100 3.5 1.75 1.75 0 000-3.5z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <p class="config-card-title">WMCDA Criterion Weights</p>
+                <p class="config-card-copy">Adjust Cost, Time, Weight, and Distance weights for the shipping type advisory algorithm. All four weights must add up to exactly 100%.</p>
+                <span class="config-card-action" style="color:#8b5cf6;">
+                    Configure
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd"/></svg>
+                </span>
+            </div>
         </div>
     </a>
 
     <!-- Fee Schedules -->
     <a href="{% url 'supervisor:config_fees' %}" class="config-link">
-        <div class="card config-card"
-             onmouseover="this.style.borderColor='#f59e0b'; this.style.transform='translateY(-2px)'"
-             onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
-            <svg viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10.75 10.818v2.614A3.13 3.13 0 0011.888 13c.482-.315.612-.648.612-.875 0-.227-.13-.56-.612-.875a3.13 3.13 0 00-1.138-.432zM8.33 8.62c.053.055.115.11.184.164.208.16.46.284.736.363V6.603a2.45 2.45 0 00-.35.13c-.14.065-.27.143-.386.233-.377.292-.514.627-.514.86 0 .233.137.568.33.833z"/>
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v.6a4.56 4.56 0 00-1.71.644c-.675.44-1.29 1.163-1.29 2.156 0 .993.614 1.716 1.29 2.157.507.33 1.08.546 1.71.644v2.344a4.56 4.56 0 01-1.116-.47.75.75 0 00-.754 1.295c.508.296 1.09.5 1.87.572v.557a.75.75 0 001.5 0v-.574a4.56 4.56 0 001.663-.634c.657-.43 1.337-1.163 1.337-2.156 0-.993-.68-1.726-1.337-2.157a4.56 4.56 0 00-1.663-.634V8.01c.39.067.75.2 1.045.39a.75.75 0 00.81-1.265 4.56 4.56 0 00-1.855-.585v-.6z" clip-rule="evenodd"/>
-            </svg>
-            <p class="config-card-title">Fee Schedules</p>
-            <p class="config-card-copy">
-                Brokerage Fee (BF) and Import Processing Fee (IPF) tiered tables used in every duty computation.
-            </p>
-            <p class="config-card-action" style="color:#f59e0b;">
-                Configure
-            </p>
+        <div class="card config-card">
+            <div class="config-card-accent" style="background:#f59e0b;"></div>
+            <div class="config-card-body">
+                <div class="config-card-icon" style="background:#FFFBEB;">
+                    <svg viewBox="0 0 20 20" fill="currentColor" style="color:#f59e0b;">
+                        <path d="M10.75 10.818v2.614A3.13 3.13 0 0011.888 13c.482-.315.612-.648.612-.875 0-.227-.13-.56-.612-.875a3.13 3.13 0 00-1.138-.432zM8.33 8.62c.053.055.115.11.184.164.208.16.46.284.736.363V6.603a2.45 2.45 0 00-.35.13c-.14.065-.27.143-.386.233-.377.292-.514.627-.514.86 0 .233.137.568.33.833z"/>
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v.6a4.56 4.56 0 00-1.71.644c-.675.44-1.29 1.163-1.29 2.156 0 .993.614 1.716 1.29 2.157.507.33 1.08.546 1.71.644v2.344a4.56 4.56 0 01-1.116-.47.75.75 0 00-.754 1.295c.508.296 1.09.5 1.87.572v.557a.75.75 0 001.5 0v-.574a4.56 4.56 0 001.663-.634c.657-.43 1.337-1.163 1.337-2.156 0-.993-.68-1.726-1.337-2.157a4.56 4.56 0 00-1.663-.634V8.01c.39.067.75.2 1.045.39a.75.75 0 00.81-1.265 4.56 4.56 0 00-1.855-.585v-.6z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <p class="config-card-title">Fee Schedules</p>
+                <p class="config-card-copy">Configure tiered Brokerage Fee (BF) and Import Processing Fee (IPF) tables. These rates are automatically applied to every duty computation.</p>
+                <span class="config-card-action" style="color:#f59e0b;">
+                    Configure
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd"/></svg>
+                </span>
+            </div>
         </div>
     </a>
 
     <!-- HS Code Duty Rates -->
     <a href="{% url 'supervisor:config_hscodes_sections' %}" class="config-link">
-        <div class="card config-card"
-             onmouseover="this.style.borderColor='#22c55e'; this.style.transform='translateY(-2px)'"
-             onmouseout="this.style.borderColor='#FFFFFF'; this.style.transform='translateY(0)'">
-            <svg viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M5 4a2 2 0 012-2h6a2 2 0 012 2v1h1a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2h1V4zm2-1h6v2H7V3zM4 7h12v9H4V7zm3 3a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7zm0 3a.75.75 0 000 1.5h4a.75.75 0 000-1.5H7z" clip-rule="evenodd"/>
-            </svg>
-            <p class="config-card-title">HS Code Duty Rates</p>
-            <p class="config-card-copy">
-                Browse Sections I-XXI, Chapters, and HS codes. Update duty rates per code.
-            </p>
-            <p class="config-card-action" style="color:#22c55e;">
-                Browse
-            </p>
+        <div class="card config-card">
+            <div class="config-card-accent" style="background:#22c55e;"></div>
+            <div class="config-card-body">
+                <div class="config-card-icon" style="background:#F0FDF4;">
+                    <svg viewBox="0 0 20 20" fill="currentColor" style="color:#22c55e;">
+                        <path fill-rule="evenodd" d="M5 4a2 2 0 012-2h6a2 2 0 012 2v1h1a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2h1V4zm2-1h6v2H7V3zM4 7h12v9H4V7zm3 3a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7zm0 3a.75.75 0 000 1.5h4a.75.75 0 000-1.5H7z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <p class="config-card-title">HS Code Duty Rates</p>
+                <p class="config-card-copy">Browse all 21 Tariff Book sections, view chapters and individual HS codes. Update duty rates per classification code as needed.</p>
+                <span class="config-card-action" style="color:#22c55e;">
+                    Browse
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd"/></svg>
+                </span>
+            </div>
         </div>
     </a>
 
