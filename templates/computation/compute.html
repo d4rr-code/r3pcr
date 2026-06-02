@@ -516,6 +516,13 @@ body.light-mode .shipping-analysis-card [style*="height:5px"][style*="background
 #col-divider { display: none !important; }
 #col-right   { width: 100%; max-width: 100%; }
 
+/* ── Side-by-side mode ─────────────────────────────────────────────────────── */
+body.split-mode .compute-layout { display: flex; }
+body.split-mode #col-left    { display: flex !important; }
+body.split-mode #col-divider { display: flex !important; }
+body.split-mode #col-right   { width: auto; max-width: none; flex: 1; min-width: 0; }
+body.split-mode #doc-float-panel { display: none !important; }
+
 /* â”€â”€ Floating Document Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #doc-float-panel {
     position: fixed;
@@ -1136,10 +1143,23 @@ document.body.classList.add('light-mode');
             OCR All
         </button>
         {% endif %}
-        <button type="button" onclick="closeDocPanel()"
-                style="margin-left:auto;background:none;border:none;color:#475569;
-                       cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;flex-shrink:0;"
-                title="Close">&times;</button>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:4px;flex-shrink:0;">
+            <button type="button" id="split-mode-btn" onclick="toggleSplitMode()"
+                    title="Side by side"
+                    style="background:#1e293b;border:1px solid #334155;color:#94a3b8;
+                           cursor:pointer;border-radius:5px;padding:3px 8px;font-size:10px;
+                           font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                <svg viewBox="0 0 16 16" fill="currentColor" style="width:11px;height:11px;">
+                    <rect x="0" y="0" width="6" height="14" rx="1"/>
+                    <rect x="9" y="0" width="6" height="14" rx="1"/>
+                </svg>
+                Side by Side
+            </button>
+            <button type="button" onclick="closeDocPanel()"
+                    style="background:none;border:none;color:#475569;
+                           cursor:pointer;font-size:20px;line-height:1;padding:2px 8px;"
+                    title="Close">&times;</button>
+        </div>
     </div>
     <div id="doc-float-tabs">
         {% for doc in documents %}{% if doc.document_type != 'sad' %}
@@ -2933,9 +2953,10 @@ function loadFloatDoc(url, label) {
     }
 }
 
-// ── Make floating panel draggable ────────────────────────────────────────────
+// ── Make floating panel draggable (with viewport clamping) ───────────────────
 (function() {
     var _isDragging = false, _startX, _startY, _origL, _origT;
+    var MIN_TOP = 10;   // px from top — keeps header + close btn always reachable
     document.addEventListener('DOMContentLoaded', function() {
         var panel  = document.getElementById('doc-float-panel');
         var header = document.getElementById('doc-float-header');
@@ -2955,12 +2976,67 @@ function loadFloatDoc(url, label) {
         });
         document.addEventListener('mousemove', function(e) {
             if (!_isDragging) return;
-            panel.style.left = (_origL + e.clientX - _startX) + 'px';
-            panel.style.top  = (_origT + e.clientY - _startY) + 'px';
+            var newLeft = _origL + e.clientX - _startX;
+            var newTop  = _origT + e.clientY - _startY;
+            // Clamp so panel never goes off-screen or above viewport
+            var panelW  = panel.offsetWidth;
+            var panelH  = panel.offsetHeight;
+            newLeft = Math.max(0, Math.min(newLeft, window.innerWidth  - panelW));
+            newTop  = Math.max(MIN_TOP, Math.min(newTop,  window.innerHeight - 60));
+            panel.style.left = newLeft + 'px';
+            panel.style.top  = newTop  + 'px';
         });
         document.addEventListener('mouseup', function() { _isDragging = false; });
     });
 })();
+
+// ── Side-by-side mode ─────────────────────────────────────────────────────────
+function toggleSplitMode() {
+    var isSplit = document.body.classList.toggle('split-mode');
+    var btn = document.getElementById('split-mode-btn');
+    if (isSplit) {
+        // Activate split: load first doc in left column if none loaded
+        var firstTab = document.querySelector('.doc-float-tab');
+        if (firstTab) {
+            var url   = firstTab.dataset.url;
+            var label = firstTab.dataset.label;
+            if (url) loadDoc(url, label);
+        }
+        if (btn) {
+            btn.style.background    = '#1d4ed8';
+            btn.style.borderColor   = '#3b82f6';
+            btn.style.color         = '#fff';
+            btn.title               = 'Back to floating panel';
+            btn.querySelector('svg').style.color = '#fff';
+        }
+        // Save preference
+        try { localStorage.setItem('computeSplitMode', '1'); } catch(e) {}
+    } else {
+        if (btn) {
+            btn.style.background    = '#1e293b';
+            btn.style.borderColor   = '#334155';
+            btn.style.color         = '#94a3b8';
+            btn.title               = 'Side by side';
+        }
+        try { localStorage.removeItem('computeSplitMode'); } catch(e) {}
+    }
+}
+
+// Restore split mode preference on load
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        if (localStorage.getItem('computeSplitMode') === '1') {
+            document.body.classList.add('split-mode');
+            var btn = document.getElementById('split-mode-btn');
+            if (btn) {
+                btn.style.background  = '#1d4ed8';
+                btn.style.borderColor = '#3b82f6';
+                btn.style.color       = '#fff';
+                btn.title             = 'Back to floating panel';
+            }
+        }
+    } catch(e) {}
+});
 
 // ── Original loadDoc (targets the left-column viewer — kept for compatibility) ──
 function loadDoc(url, label) {
