@@ -471,24 +471,24 @@ def system_wmcda(request):
 
     criteria_meta = [
         {
-            'key': 'wmcda_distance_weight',
+            'key': 'wmcda_w_cost',
+            'label': 'Cost',
+            'description': 'Weighs the total landed cost (freight + duties + fees) of each shipping mode. Higher weight favors the most cost-efficient option.',
+        },
+        {
+            'key': 'wmcda_w_time',
+            'label': 'Time',
+            'description': 'Weighs transit time and urgency level of the shipment (Rush/Urgent/Normal). Higher weight favors faster shipping modes.',
+        },
+        {
+            'key': 'wmcda_w_weight',
+            'label': 'Weight',
+            'description': 'Weighs the gross cargo weight when scoring modes. Higher weight prioritizes modes suited for heavier shipments (FCL/Land).',
+        },
+        {
+            'key': 'wmcda_w_distance',
             'label': 'Distance',
-            'description': 'Measures transport distance impact on mode selection. Higher weight prioritizes shorter transit routes (Air/Land over Sea).',
-        },
-        {
-            'key': 'wmcda_urgency_weight',
-            'label': 'Urgency',
-            'description': 'Measures time criticality of shipments (rush/urgent/normal). Higher weight emphasizes speed for time-critical shipments.',
-        },
-        {
-            'key': 'wmcda_weight_weight',
-            'label': 'Cargo Weight',
-            'description': 'Measures gross weight ratio for cost estimation. Higher weight factors cargo weight into mode cost-efficiency calculation.',
-        },
-        {
-            'key': 'wmcda_volume_weight',
-            'label': 'Cargo Volume',
-            'description': 'Measures container utilization factor (CBM). Higher weight factors CBM into container utilization (LCL vs FCL decision).',
+            'description': 'Weighs transport route distance. Higher weight prioritizes shorter transit routes and proximity to the destination port.',
         },
     ]
 
