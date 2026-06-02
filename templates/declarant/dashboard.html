@@ -168,6 +168,34 @@
 .perf-action a { color:#34485F; display:inline-flex; width:24px; height:24px; align-items:center; justify-content:center; }
 .perf-action svg { width:16px; height:16px; }
 .perf-empty { color:#64748B; padding:34px; text-align:center; }
+
+/* ── Clickable links ─────────────────────────────────────────────────────── */
+a.d-kpi-card {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: box-shadow 0.18s ease, transform 0.15s ease;
+}
+a.d-kpi-card:hover {
+    box-shadow: 0 16px 36px rgba(31,43,62,.22);
+    transform: translateY(-2px);
+}
+a.perf-pill {
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+a.perf-pill:hover { opacity: 0.78; transform: scale(1.06); }
+a.compact-row {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin: -2px -6px;
+    transition: background 0.15s ease;
+}
+a.compact-row:hover { background: #f1f5f9; }
 @media (max-width: 1000px) {
     .d-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .perf-grid { grid-template-columns:1fr; }
@@ -211,7 +239,7 @@
 <!-- ─── KPI Cards ─────────────────────────────────────────────────────────── -->
 <!-- ─── Pending Queue ─────────────────────────────────────────────────────── -->
 <div class="d-kpi-grid">
-    <section class="d-kpi-card is-blue">
+    <a class="d-kpi-card is-blue" href="{% url 'declarant:queue' %}">
         <div class="d-kpi-top">
             <p class="d-kpi-label">Incoming</p>
             <span class="d-kpi-icon">
@@ -219,8 +247,8 @@
             </span>
         </div>
         <p class="d-kpi-value">{{ queue }}</p>
-    </section>
-    <section class="d-kpi-card is-yellow">
+    </a>
+    <a class="d-kpi-card is-yellow" href="{% url 'declarant:queue' %}#in-review">
         <div class="d-kpi-top">
             <p class="d-kpi-label">In Progress</p>
             <span class="d-kpi-icon">
@@ -228,8 +256,8 @@
             </span>
         </div>
         <p class="d-kpi-value">{{ in_progress }}</p>
-    </section>
-    <section class="d-kpi-card is-green">
+    </a>
+    <a class="d-kpi-card is-green" href="{% url 'declarant:queue' %}#history">
         <div class="d-kpi-top">
             <p class="d-kpi-label">Approved</p>
             <span class="d-kpi-icon">
@@ -237,8 +265,8 @@
             </span>
         </div>
         <p class="d-kpi-value">{{ ecdt_approved }}</p>
-    </section>
-    <section class="d-kpi-card is-teal" style="--accent:#14B8A6;">
+    </a>
+    <a class="d-kpi-card is-teal" style="--accent:#14B8A6;" href="{% url 'declarant:queue' %}#history">
         <div class="d-kpi-top">
             <p class="d-kpi-label">Billed</p>
             <span class="d-kpi-icon">
@@ -246,7 +274,7 @@
             </span>
         </div>
         <p class="d-kpi-value" style="color:#14B8A6;">{{ billed }}</p>
-    </section>
+    </a>
     <section class="d-kpi-card is-purple">
         <div class="d-kpi-top">
             <p class="d-kpi-label">Processing Time</p>
@@ -423,10 +451,10 @@
                 <strong>{{ due_total }}</strong>
             </div>
             <div class="compact-list">
-                <div class="compact-row"><span class="perf-swatch" style="background:#dc0000;width:9px;height:9px;margin:0;"></span><span>1 Day Left</span><strong>{{ due_data.one_day }}</strong></div>
-                <div class="compact-row"><span class="perf-swatch" style="background:#f75b5b;width:9px;height:9px;margin:0;"></span><span>3 Days Left</span><strong>{{ due_data.three_days }}</strong></div>
-                <div class="compact-row"><span class="perf-swatch" style="background:#f9a1a1;width:9px;height:9px;margin:0;"></span><span>5 Days Left</span><strong>{{ due_data.five_days }}</strong></div>
-                <div class="compact-row"><span class="perf-swatch" style="background:#ffd6d6;width:9px;height:9px;margin:0;"></span><span>5+ Days Left</span><strong>{{ due_data.over_five }}</strong></div>
+                <a class="compact-row" href="{% url 'declarant:queue' %}?due=1"><span class="perf-swatch" style="background:#dc0000;width:9px;height:9px;margin:0;"></span><span>1 Day Left</span><strong>{{ due_data.one_day }}</strong></a>
+                <a class="compact-row" href="{% url 'declarant:queue' %}?due=3"><span class="perf-swatch" style="background:#f75b5b;width:9px;height:9px;margin:0;"></span><span>3 Days Left</span><strong>{{ due_data.three_days }}</strong></a>
+                <a class="compact-row" href="{% url 'declarant:queue' %}?due=5"><span class="perf-swatch" style="background:#f9a1a1;width:9px;height:9px;margin:0;"></span><span>5 Days Left</span><strong>{{ due_data.five_days }}</strong></a>
+                <a class="compact-row" href="{% url 'declarant:queue' %}"><span class="perf-swatch" style="background:#ffd6d6;width:9px;height:9px;margin:0;"></span><span>5+ Days Left</span><strong>{{ due_data.over_five }}</strong></a>
             </div>
         </div>
     </section>
@@ -454,7 +482,7 @@
                 <tr>
                     <td class="perf-ref">{{ s.hawb_number }}</td>
                     <td>{{ s.get_import_type_display }}</td>
-                    <td><span class="perf-pill urgency-{{ s.urgency|default:'standard' }}">{{ s.get_urgency_display }}</span></td>
+                    <td><a class="perf-pill urgency-{{ s.urgency|default:'standard' }}" href="{% url 'declarant:queue' %}?urgency={{ s.urgency|default:'standard' }}">{{ s.get_urgency_display }}</a></td>
                     <td>
                         <span class="perf-status-text">{{ s.get_status_display|default:"-" }}</span>
                         {% if s.has_deficiency and s.deficiency_notes %}

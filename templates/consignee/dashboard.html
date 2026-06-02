@@ -117,6 +117,30 @@
 /* Prevent chart canvas from forcing the card wider than available space */
 #shipmentChart { max-width: 100%; display: block; }
 
+/* ── Clickable KPI card links ─────────────────────────────────────────────── */
+a.status-card {
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.18s ease, transform 0.15s ease;
+}
+a.status-card:hover {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+}
+.dash-total-link {
+    text-decoration: none;
+    display: block;
+    width: 150px;
+    flex-shrink: 0;
+}
+.dash-total-link .dash-total-card {
+    transition: box-shadow 0.18s ease, transform 0.15s ease;
+}
+.dash-total-link:hover .dash-total-card {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+}
+
 /* ── Shipping type bar ───────────────────────────────────────────────────── */
 .ship-type-bar {
     height: 12px; border-radius: 6px; overflow: hidden;
@@ -163,7 +187,7 @@
     <div class="dash-status-grid" style="flex:1; min-width:0;">
 
         <!-- ARRIVED -->
-        <div class="status-card">
+        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=arrived">
             <div class="sc-left">
                 <div class="sc-icon" style="background:#FEF3C7;">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="#F59E0B">
@@ -176,10 +200,10 @@
                 </div>
             </div>
             <span class="sc-count">{{ arrived|default:'0' }}</span>
-        </div>
+        </a>
 
         <!-- LODGEMENT -->
-        <div class="status-card">
+        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=lodgement">
             <div class="sc-left">
                 <div class="sc-icon" style="background:#E0F2FE;">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="#0EA5E9">
@@ -192,10 +216,10 @@
                 </div>
             </div>
             <span class="sc-count">{{ lodgement|default:'0' }}</span>
-        </div>
+        </a>
 
         <!-- PAID -->
-        <div class="status-card">
+        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=paid">
             <div class="sc-left">
                 <div class="sc-icon" style="background:#DCFCE7;">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="#16A34A">
@@ -208,10 +232,10 @@
                 </div>
             </div>
             <span class="sc-count">{{ paid|default:'0' }}</span>
-        </div>
+        </a>
 
         <!-- COMPUTED -->
-        <div class="status-card">
+        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=computed">
             <div class="sc-left">
                 <div class="sc-icon" style="background:#EFF6FF;">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="#3B82F6">
@@ -224,10 +248,10 @@
                 </div>
             </div>
             <span class="sc-count">{{ computed|default:'0' }}</span>
-        </div>
+        </a>
 
         <!-- ONGOING -->
-        <div class="status-card">
+        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=ongoing">
             <div class="sc-left">
                 <div class="sc-icon" style="background:#FFF7ED;">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="#F97316">
@@ -240,10 +264,10 @@
                 </div>
             </div>
             <span class="sc-count">{{ ongoing|default:'0' }}</span>
-        </div>
+        </a>
 
         <!-- RELEASED -->
-        <div class="status-card">
+        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=released">
             <div class="sc-left">
                 <div class="sc-icon" style="background:#CCFBF1;">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="#14B8A6">
@@ -256,10 +280,10 @@
                 </div>
             </div>
             <span class="sc-count">{{ released|default:'0' }}</span>
-        </div>
+        </a>
 
         <!-- APPROVED -->
-        <div class="status-card">
+        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=approved">
             <div class="sc-left">
                 <div class="sc-icon" style="background:#DCFCE7;">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="#22C55E">
@@ -272,10 +296,10 @@
                 </div>
             </div>
             <span class="sc-count">{{ approved|default:'0' }}</span>
-        </div>
+        </a>
 
         <!-- ASSESSED -->
-        <div class="status-card">
+        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=assessed">
             <div class="sc-left">
                 <div class="sc-icon" style="background:#EDE9FE;">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="#8B5CF6">
@@ -289,10 +313,10 @@
                 </div>
             </div>
             <span class="sc-count">{{ assessed|default:'0' }}</span>
-        </div>
+        </a>
 
         <!-- BILLED -->
-        <div class="status-card">
+        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=billed">
             <div class="sc-left">
                 <div class="sc-icon" style="background:#F1F5F9;">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="#64748B">
@@ -305,16 +329,18 @@
                 </div>
             </div>
             <span class="sc-count">{{ billed|default:'0' }}</span>
-        </div>
+        </a>
 
     </div><!-- /dash-status-grid -->
 
     <!-- TOTAL Card -->
-    <div class="dash-total-card">
-        <p style="font-size:20px; font-weight:900; color:#1B3358; letter-spacing:-0.5px; margin-bottom:4px;">TOTAL</p>
-        <p style="font-size:10px; color:#9CA3AF; margin-bottom:16px;">Overall Submissions</p>
-        <p style="font-size:52px; font-weight:900; color:#1B3358; line-height:1;">{{ total|default:'0' }}</p>
-    </div>
+    <a href="{% url 'consignee:my_submissions' %}" class="dash-total-link">
+        <div class="dash-total-card">
+            <p style="font-size:20px; font-weight:900; color:#1B3358; letter-spacing:-0.5px; margin-bottom:4px;">TOTAL</p>
+            <p style="font-size:10px; color:#9CA3AF; margin-bottom:16px;">Overall Submissions</p>
+            <p style="font-size:52px; font-weight:900; color:#1B3358; line-height:1;">{{ total|default:'0' }}</p>
+        </div>
+    </a>
 </div>
 
 <!-- ── Chart Row ──────────────────────────────────────────────────────────── -->

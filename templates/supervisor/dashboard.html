@@ -4,47 +4,84 @@
 {% block page_title %}Dashboard{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 
+{% block extra_css %}
+<style>
+a.card {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: box-shadow 0.18s ease, transform 0.15s ease;
+}
+a.card:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,0.13) !important;
+    transform: translateY(-2px);
+}
+.status-bar-row {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 4px 6px;
+    margin: -4px -6px;
+    transition: background 0.15s ease;
+    text-decoration: none;
+    display: block;
+    color: inherit;
+}
+.status-bar-row:hover { background: #F3F4F6; }
+.wmcda-row-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    border-radius: 6px;
+    padding: 4px 6px;
+    margin: -4px -6px;
+    transition: background 0.15s ease;
+}
+.wmcda-row-link:hover { background: #F8FAFC; }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <!-- ─── KPI Strip ──────────────────────────────────────────────────────────── -->
 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-bottom:24px;">
-    <div class="card" style="text-align:center; padding:18px 12px;">
+    <a class="card" href="{% url 'supervisor:shipment_records' %}" style="text-align:center; padding:18px 12px;">
         <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Total</p>
         <p style="color:#1A1A2E; font-size:28px; font-weight:700; margin:0;">{{ total }}</p>
-    </div>
-    <div class="card" style="text-align:center; padding:18px 12px;">
+    </a>
+    <a class="card" href="{% url 'supervisor:shipment_records' %}?status_f=incoming" style="text-align:center; padding:18px 12px;">
         <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Incoming</p>
         <p style="color:#f59e0b; font-size:28px; font-weight:700; margin:0;">{{ incoming }}</p>
-    </div>
-    <div class="card" style="text-align:center; padding:18px 12px;">
+    </a>
+    <a class="card" href="{% url 'supervisor:shipment_records' %}?status_f=arrived" style="text-align:center; padding:18px 12px;">
         <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Arrived</p>
         <p style="color:#3b82f6; font-size:28px; font-weight:700; margin:0;">{{ arrived }}</p>
-    </div>
-    <div class="card" style="text-align:center; padding:18px 12px;">
+    </a>
+    <a class="card" href="{% url 'supervisor:shipment_records' %}?status_f=computed" style="text-align:center; padding:18px 12px;">
         <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Computed</p>
         <p style="color:#8b5cf6; font-size:28px; font-weight:700; margin:0;">{{ computed }}</p>
-    </div>
-    <div class="card" style="text-align:center; padding:18px 12px;">
+    </a>
+    <a class="card" href="{% url 'supervisor:shipment_records' %}?status_f=approved" style="text-align:center; padding:18px 12px;">
         <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Approved</p>
         <p style="color:#22c55e; font-size:28px; font-weight:700; margin:0;">{{ approved }}</p>
-    </div>
-    <div class="card" style="text-align:center; padding:18px 12px;">
+    </a>
+    <a class="card" href="{% url 'supervisor:shipment_records' %}?status_f=rejected" style="text-align:center; padding:18px 12px;">
         <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Rejected</p>
         <p style="color:#ef4444; font-size:28px; font-weight:700; margin:0;">{{ rejected }}</p>
-    </div>
-    <div class="card" style="text-align:center; padding:18px 12px;">
+    </a>
+    <a class="card" href="{% url 'supervisor:users' %}" style="text-align:center; padding:18px 12px;">
         <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Users</p>
         <p style="color:#7C3AED; font-size:28px; font-weight:700; margin:0;">{{ total_users }}</p>
-    </div>
-    <div class="card" style="text-align:center; padding:18px 12px;">
+    </a>
+    <a class="card" href="{% url 'supervisor:consignee_list' %}" style="text-align:center; padding:18px 12px;">
         <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Consignees</p>
         <p style="color:#6B7280; font-size:28px; font-weight:700; margin:0;">{{ total_consignees }}</p>
-    </div>
-    <div class="card" style="text-align:center; padding:18px 12px;">
+    </a>
+    <a class="card" href="{% url 'supervisor:declarant_list' %}" style="text-align:center; padding:18px 12px;">
         <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">Declarants</p>
         <p style="color:#6B7280; font-size:28px; font-weight:700; margin:0;">{{ total_declarants }}</p>
-    </div>
-    <div class="card" style="text-align:center; padding:18px 12px; border-color:{% if consignee_approval_rate >= 70 %}#86EFAC{% elif consignee_approval_rate > 0 %}#FCD34D{% else %}#E5E7EB{% endif %};">
+    </a>
+    <a class="card" href="{% url 'supervisor:shipment_records' %}?status_f=computed" style="text-align:center; padding:18px 12px; border-color:{% if consignee_approval_rate >= 70 %}#86EFAC{% elif consignee_approval_rate > 0 %}#FCD34D{% else %}#E5E7EB{% endif %};">
         <p style="color:#6B7280; font-size:11px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.07em;">CDT Approval Rate</p>
         <p style="font-size:28px; font-weight:700; margin:0;
                   color:{% if consignee_approval_rate >= 70 %}#22c55e{% elif consignee_approval_rate > 0 %}#f59e0b{% else %}#9CA3AF{% endif %};">
@@ -53,7 +90,7 @@
         <p style="color:#9CA3AF; font-size:10px; margin:4px 0 0;">
             {{ total_consignee_approved }} / {{ total_computed_presented }} presented
         </p>
-    </div>
+    </a>
 </div>
 
 <!-- ─── Analytics Row ─────────────────────────────────────────────────────── -->
@@ -65,7 +102,7 @@
         {% if total %}
         <div style="display:flex; flex-direction:column; gap:10px;">
             {% for row in status_rows %}{% if row.count > 0 %}
-            <div>
+            <a class="status-bar-row" href="{% url 'supervisor:shipment_records' %}?status_f={{ row.key }}">
                 <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
                     <span style="color:#6B7280; font-size:12px;">{{ row.label }}</span>
                     <span style="font-size:12px; color:{{ row.color }}; font-weight:700; margin-left:8px; white-space:nowrap;">
@@ -76,7 +113,7 @@
                     <div style="height:100%; width:{{ row.bar_pct }}%; background:{{ row.color }}; border-radius:6px;
                                 transition:width .4s ease;"></div>
                 </div>
-            </div>
+            </a>
             {% endif %}{% endfor %}
         </div>
         {% else %}
@@ -95,7 +132,7 @@
         {% if wmcda_total %}
         <div style="display:flex; flex-direction:column; gap:14px;">
             {% for row in wmcda_scoreboard %}
-            <div style="position:relative;">
+            <a class="wmcda-row-link" href="{% url 'supervisor:shipment_records' %}?stype={{ row.key }}">
                 <!-- Winner badge on first item (highest count) -->
                 {% if forloop.first and row.count > 0 %}
                 <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
@@ -131,7 +168,7 @@
                     avg score: <span style="color:#6B7280;">{{ row.avg_score }}%</span>
                 </p>
                 {% endif %}
-            </div>
+            </a>
             {% endfor %}
         </div>
         {% else %}
@@ -222,7 +259,7 @@
         </div>
         <div style="min-width:150px;">
             <label style="color:#6B7280; font-size:11px; display:block; margin-bottom:4px;">Status</label>
-            <select name="status" class="form-input" style="padding:7px 12px; font-size:13px;">
+            <select name="status_f" class="form-input" style="padding:7px 12px; font-size:13px;">
                 <option value="">All Statuses</option>
                 <option value="incoming"     {% if status_f == 'incoming'     %}selected{% endif %}>Incoming</option>
                 <option value="arrived"      {% if status_f == 'arrived'      %}selected{% endif %}>Arrived</option>
