@@ -138,7 +138,7 @@ def declarant_required(view_func):
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 URGENCY_BUSINESS_DAYS = {
-    'rush': 3, 'urgent': 7, 'priority': 14, 'standard': 30, 'normal': 30,
+    'rush': 3, 'urgent': 5, 'priority': 10, 'standard': 15, 'normal': 15,
 }
 
 
