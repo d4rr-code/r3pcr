@@ -138,6 +138,13 @@ class ShipmentLineItem(models.Model):
     source        = models.CharField(max_length=10, choices=SOURCE_CHOICES, default='manual')
     confidence    = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal('0.0'))
     row_order     = models.IntegerField(default=0)
+    # Per-row declarant inputs (persisted for refresh-safe drafts)
+    freight       = models.DecimalField(max_digits=15, decimal_places=4, null=True, blank=True)
+    insurance     = models.DecimalField(max_digits=15, decimal_places=4, null=True, blank=True)
+    gross_weight  = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    net_weight    = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    packages      = models.IntegerField(null=True, blank=True)
+    duty_rate     = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
     created_at    = models.DateTimeField(auto_now_add=True)
     updated_at    = models.DateTimeField(auto_now=True)
 

@@ -3345,15 +3345,22 @@ initAllHsPickers();
     // ── Row auto-save ────────────────────────────────────────────────────────
     function _rowData(tr) {
         function v(cls) { var el = tr.querySelector(cls); return el ? el.value : ''; }
+        function n(name) { var el = tr.querySelector('[name="' + name + '[]"]'); return el ? el.value : ''; }
         return {
-            item_id:     tr.dataset.itemId ? parseInt(tr.dataset.itemId) : null,
-            row_order:   Array.from(tr.parentNode.children).indexOf(tr),
-            description: v('.desc-input'),
-            quantity:    v('.qty-input') || null,
-            unit:        v('.unit-input') || '',
-            unit_price:  v('.price-input') || null,
-            exw_value:   v('.exw-input') || null,
-            hs_code_id:  (tr.querySelector('[name*="hs_code_id"]') || {}).value || null,
+            item_id:       tr.dataset.itemId ? parseInt(tr.dataset.itemId) : null,
+            row_order:     Array.from(tr.parentNode.children).indexOf(tr),
+            description:   v('.desc-input'),
+            quantity:      n('quantity') || null,
+            unit:          n('unit') || '',
+            unit_price:    v('.price-input') || null,
+            exw_value:     v('.exw-input') || null,
+            hs_code_id:    (tr.querySelector('[name*="hs_code_id"]') || {}).value || null,
+            item_freight:   n('item_freight') || null,
+            item_insurance: n('item_insurance') || null,
+            gw:            n('gw') || null,
+            nw:            n('nw') || null,
+            pkgs:          n('pkgs') || null,
+            duty_rate:     v('.rate-input') || null,
         };
     }
 
@@ -3405,19 +3412,42 @@ initAllHsPickers();
     });
 
     // ── Global inputs auto-save ──────────────────────────────────────────────
-    var globalIds = ['exchange_rate', 'total_freight', 'total_insurance', 'bank_charges'];
+    function _collectGlobals() {
+        var ct = document.querySelector('[name="container_type"]:checked');
+        return {
+            exchange_rate:   (document.getElementById('exchange_rate')   || {}).value || '',
+            total_freight:   (document.getElementById('total_freight')   || {}).value || '',
+            total_insurance: (document.getElementById('total_insurance') || {}).value || '',
+            bank_charges:    (document.getElementById('bank_charges')    || {}).value || '',
+            arrastre:        (document.getElementById('arrastre')        || {}).value || '',
+            wharfage:        (document.getElementById('wharfage')        || {}).value || '',
+            csf_usd:         (document.getElementById('csf_usd')        || {}).value || '',
+            container_type:  ct ? ct.value : '',
+            cargo_volume:    (document.getElementById('cargo_volume')    || {}).value || '',
+            distance_km:     (document.getElementById('distance_km')     || {}).value || '',
+        };
+    }
+
+    var globalIds = ['exchange_rate', 'total_freight', 'total_insurance', 'bank_charges',
+                     'arrastre', 'wharfage', 'csf_usd', 'cargo_volume', 'distance_km'];
     globalIds.forEach(function(id) {
         var el = document.getElementById(id);
         if (!el) return;
         el.addEventListener('input', function() {
-            _debounce('globals', function() {
-                _post(GLOBAL_URL, {
-                    exchange_rate:   (document.getElementById('exchange_rate')   || {}).value || '',
-                    total_freight:   (document.getElementById('total_freight')   || {}).value || '',
-                    total_insurance: (document.getElementById('total_insurance') || {}).value || '',
-                    bank_charges:    (document.getElementById('bank_charges')    || {}).value || '',
-                });
-            });
+            _debounce('globals', function() { _post(GLOBAL_URL, _collectGlobals()); });
+        });
+    });
+
+    // Also fire on charge_mode select and container_type radio changes
+    var chargeModeEl = document.getElementById('charge_mode');
+    if (chargeModeEl) {
+        chargeModeEl.addEventListener('change', function() {
+            _debounce('globals', function() { _post(GLOBAL_URL, _collectGlobals()); });
+        });
+    }
+    document.querySelectorAll('[name="container_type"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            _debounce('globals', function() { _post(GLOBAL_URL, _collectGlobals()); });
         });
     });
 

@@ -394,14 +394,27 @@ def draft_item(request, shipment_id):
     row_order = int(data.get('row_order', 0))
     desc      = (data.get('description') or '').strip()
 
+    def _dec(key):
+        v = data.get(key)
+        try:
+            return Decimal(str(v)) if v not in (None, '', 'null') else None
+        except Exception:
+            return None
+
     defaults = {
         'description':   desc or '(draft)',
-        'quantity':      data.get('quantity')   or None,
+        'quantity':      _dec('quantity'),
         'unit':          (data.get('unit') or '').strip(),
-        'unit_price':    data.get('unit_price') or None,
-        'total_val_usd': data.get('exw_value')  or None,
+        'unit_price':    _dec('unit_price'),
+        'total_val_usd': _dec('exw_value'),
         'row_order':     row_order,
         'source':        'manual',
+        'freight':       _dec('item_freight'),
+        'insurance':     _dec('item_insurance'),
+        'gross_weight':  _dec('gw'),
+        'net_weight':    _dec('nw'),
+        'packages':      int(data['pkgs']) if data.get('pkgs') not in (None, '', 'null') else None,
+        'duty_rate':     _dec('duty_rate'),
     }
     hs_id = data.get('hs_code_id')
     if hs_id:
@@ -463,9 +476,44 @@ def draft_globals(request, shipment_id):
             'total_freight':    _d('total_freight'),
             'total_insurance':  _d('total_insurance'),
             'bank_charges':     _d('bank_charges'),
+            'arrastre':         _d('arrastre'),
+            'wharfage':         _d('wharfage'),
+            'csf_usd':          _d('csf_usd'),
+            'container_type':   (data.get('container_type') or '').strip(),
             'computed_by':      request.user,
         }
     )
+
+    # Save cargo_volume and distance_km to ShippingAdvisory if provided
+    cargo_volume = data.get('cargo_volume')
+    distance_km  = data.get('distance_km')
+    if cargo_volume is not None or distance_km is not None:
+        try:
+            gross_w = Decimal(str(shipment.gross_weight or 0))
+            advisory_defaults = {}
+            if cargo_volume is not None:
+                try:
+                    advisory_defaults['cargo_volume'] = Decimal(str(cargo_volume or 0))
+                except Exception:
+                    pass
+            if distance_km is not None:
+                try:
+                    advisory_defaults['distance_km'] = Decimal(str(distance_km or 0))
+                except Exception:
+                    pass
+            if advisory_defaults:
+                ShippingAdvisory.objects.update_or_create(
+                    shipment=shipment,
+                    defaults={
+                        'gross_weight':   gross_w,
+                        'declared_value': Decimal('0'),
+                        'urgency_level':  shipment.urgency or 'normal',
+                        **advisory_defaults,
+                    }
+                )
+        except Exception:
+            pass
+
     return JsonResponse({'ok': True})
 
 
@@ -781,6 +829,37 @@ def compute_shipment(request, shipment_id):
         # â”€â”€ GET: pre-load saved data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if existing:
             items = existing.get_items()
+
+        # If no full computation items yet, restore from ShipmentLineItem drafts
+        if not items:
+            draft_rows = ShipmentLineItem.objects.filter(
+                shipment=shipment
+            ).select_related('hs_code').order_by('row_order')
+            if draft_rows.exists():
+                items = []
+                for i, li in enumerate(draft_rows, 1):
+                    items.append({
+                        'no':             i,
+                        'line_item_id':   li.id,
+                        'description':    li.description if li.description != '(draft)' else '',
+                        'exw':            float(li.total_val_usd) if li.total_val_usd else '',
+                        'quantity':       float(li.quantity) if li.quantity else '',
+                        'unit':           li.unit or '',
+                        'unit_price':     float(li.unit_price) if li.unit_price else '',
+                        'hs_code_id':     li.hs_code_id or '',
+                        'hs_code':        li.hs_code.code if li.hs_code else '',
+                        'duty_rate':      float(li.duty_rate) if li.duty_rate else '',
+                        'item_freight':   float(li.freight) if li.freight else '',
+                        'item_insurance': float(li.insurance) if li.insurance else '',
+                        'gw':             float(li.gross_weight) if li.gross_weight else '',
+                        'nw':             float(li.net_weight) if li.net_weight else '',
+                        'pkgs':           li.packages if li.packages else '',
+                        'dv_php':         None,
+                        'dv_usd':         None,
+                        'cud':            None,
+                        'is_extracted':   li.source == 'ocr',
+                        'confidence':     float(li.confidence),
+                    })
 
         if advisory_ex:
             wmcda_scores = {
