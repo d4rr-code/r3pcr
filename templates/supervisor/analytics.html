@@ -347,9 +347,9 @@
 .legend-row strong { color: #111827; }
 .due-panel { grid-column: span 3; }
 .monthly-panel { grid-column: span 9; }
-.wmcda-panel { grid-column: span 7; }
-.top-panel { grid-column: span 2; }
-.feedback-panel { grid-column: span 3; }
+.wmcda-panel { grid-column: span 8; }
+.top-panel { grid-column: span 6; }
+.feedback-panel { grid-column: span 6; }
 .cost-chart-panel { grid-column: span 8; }
 .cost-table-panel { grid-column: span 4; }
 .currency-panel   { grid-column: span 4; }
@@ -507,7 +507,6 @@
         <form class="dash-filter" method="GET">
             {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
             {% if status_f %}<input type="hidden" name="status_f" value="{{ status_f }}">{% endif %}
-            <input type="hidden" name="overview_period" value="{{ overview_period }}">
             <input type="date" name="date_from" value="{{ date_from }}" class="form-input" title="From date">
             <input type="date" name="date_to" value="{{ date_to }}" class="form-input" title="To date">
             <select name="declarant" class="form-input" title="Declarant">
@@ -645,42 +644,9 @@
             <div class="panel-title">
                 <div>
                     <h2>Shipment Overview</h2>
-                    <p>Grouped by {{ overview_period|title }}</p>
+                    <p>Grouped by Month</p>
                 </div>
-                <form class="overview-controls" method="GET">
-                    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
-                    {% if status_f %}<input type="hidden" name="status_f" value="{{ status_f }}">{% endif %}
-                    {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
-                    {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
-                    {% if declarant_filter %}<input type="hidden" name="declarant" value="{{ declarant_filter }}">{% endif %}
-                    <div class="period-tabs" role="radiogroup" aria-label="Shipment overview period">
-                        <label class="period-tab {% if overview_period == 'year' %}is-active{% endif %}">
-                            <input type="radio" name="overview_period" value="year" {% if overview_period == 'year' %}checked{% endif %}>Year
-                        </label>
-                        <label class="period-tab {% if overview_period == 'month' %}is-active{% endif %}">
-                            <input type="radio" name="overview_period" value="month" {% if overview_period == 'month' %}checked{% endif %}>Month
-                        </label>
-                        <label class="period-tab {% if overview_period == 'week' %}is-active{% endif %}">
-                            <input type="radio" name="overview_period" value="week" {% if overview_period == 'week' %}checked{% endif %}>Week
-                        </label>
-                        <label class="period-tab {% if overview_period == 'day' %}is-active{% endif %}">
-                            <input type="radio" name="overview_period" value="day" {% if overview_period == 'day' %}checked{% endif %}>Day
-                        </label>
-                    </div>
-                    <input class="calendar-chip overview-date-control overview-year-filter js-overview-year-filter"
-                           type="number"
-                           min="2000"
-                           max="2100"
-                           step="1"
-                           value="{{ selected_month|slice:':4' }}"
-                           aria-label="Filter shipment overview by year"
-                           {% if overview_period != 'year' %}hidden{% endif %}>
-                    <input class="calendar-chip overview-date-control js-overview-month-filter"
-                           type="month"
-                           value="{{ selected_month }}"
-                           aria-label="Filter shipment overview by month"
-                           {% if overview_period == 'year' %}hidden{% endif %}>
-                </form>
+                <input class="calendar-chip js-overview-month-filter" type="month" value="{{ selected_month }}" aria-label="Filter shipment overview by month">
             </div>
             <div class="chart-fixed compact-chart overview-chart-frame">
                 <canvas id="monthlyChart"></canvas>
@@ -856,14 +822,6 @@
         return true;
     }
 
-    function setYearRange(params, yearValue) {
-        var year = Number(yearValue);
-        if (!year) return false;
-        params.set('date_from', year + '-01-01');
-        params.set('date_to', year + '-12-31');
-        return true;
-    }
-
     document.querySelectorAll('.js-month-filter').forEach(function (input) {
         input.addEventListener('change', function () {
             var params = new URLSearchParams(window.location.search);
@@ -873,49 +831,14 @@
         });
     });
 
-    function activeOverviewPeriod() {
-        var checked = document.querySelector('.period-tab input[name="overview_period"]:checked');
-        return checked ? checked.value : '{{ overview_period }}';
-    }
-
-    function applyOverviewRange(period) {
-        var params = new URLSearchParams(window.location.search);
-        var monthInput = document.querySelector('.js-overview-month-filter');
-        var yearInput = document.querySelector('.js-overview-year-filter');
-        var monthValue = monthInput && monthInput.value ? monthInput.value : '{{ selected_month }}';
-        var yearValue = yearInput && yearInput.value ? yearInput.value : monthValue.slice(0, 4);
-
-        params.set('overview_period', period);
-        if (period === 'year') {
-            if (!setYearRange(params, yearValue)) return;
-        } else {
-            if (!setMonthRange(params, monthValue)) return;
-        }
-        window.location.search = params.toString();
-    }
-
-    document.querySelectorAll('.period-tab input[name="overview_period"]').forEach(function (input) {
-        input.addEventListener('change', function () {
-            applyOverviewRange(input.value);
-        });
-    });
     var overviewMonth = document.querySelector('.js-overview-month-filter');
     if (overviewMonth) {
         overviewMonth.addEventListener('change', function () {
-            applyOverviewRange(activeOverviewPeriod());
-        });
-    }
-    var overviewYear = document.querySelector('.js-overview-year-filter');
-    if (overviewYear) {
-        overviewYear.addEventListener('change', function () {
-            applyOverviewRange('year');
-        });
-    }
-    var overviewForm = document.querySelector('.overview-controls');
-    if (overviewForm) {
-        overviewForm.addEventListener('submit', function (event) {
-            event.preventDefault();
-            applyOverviewRange(activeOverviewPeriod());
+            var params = new URLSearchParams(window.location.search);
+            params.set('overview_period', 'month');
+            if (setMonthRange(params, overviewMonth.value)) {
+                window.location.search = params.toString();
+            }
         });
     }
 
