@@ -477,6 +477,15 @@
             </div>
         </div>
         <div class="sr-field">
+            <label>Shipment Type</label>
+            <select class="sr-input" name="stype" onchange="this.form.submit()">
+                <option value="">— All Types —</option>
+                {% for val, label in TYPE_CHOICES %}
+                <option value="{{ val }}" {% if stype_f == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="sr-field">
             <label>Date From</label>
             <input class="sr-input" type="date" name="date_from" value="{{ date_from }}">
         </div>
