@@ -131,7 +131,7 @@
 .metric-total .metric-value { color: #fff; font-size: clamp(52px, 5vw, 78px); margin-top: 18px; }
 .metric-users .metric-value { font-size: clamp(52px, 5vw, 78px); }
 .metric-delta { color: #5EE2A2; font-size: clamp(14px, 1.4vw, 20px); font-weight: 800; margin-left: 10px; }
-.panel { padding: clamp(16px, 2vw, 22px) clamp(16px, 2vw, 24px); }
+.panel { padding: clamp(14px, 1.6vw, 18px) clamp(14px, 1.8vw, 20px); }
 .panel-title {
     display: flex;
     align-items: center;
@@ -171,6 +171,13 @@
     justify-content: flex-end;
     gap: 8px;
     flex-wrap: wrap;
+}
+.overview-date-control {
+    width: 138px;
+    text-align: center;
+}
+.overview-year-filter {
+    width: 92px;
 }
 .period-tabs {
     display: inline-flex;
@@ -225,7 +232,7 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0;
-    margin: 22px 0 16px;
+    margin: 16px 0 12px;
     border: 1px solid #EEF2F6;
     border-radius: 6px;
     overflow: hidden;
@@ -292,8 +299,8 @@
 .chart-wrap {
     position: relative;
     width: 100%;
-    min-height: 180px;
-    height: clamp(180px, 24vw, 228px);
+    min-height: 150px;
+    height: clamp(150px, 20vw, 190px);
 }
 .chart-wrap canvas, .chart-fixed canvas {
     display: block;
@@ -346,7 +353,55 @@
 .cost-chart-panel { grid-column: span 8; }
 .cost-table-panel { grid-column: span 4; }
 .currency-panel   { grid-column: span 4; }
-.chart-fixed { height: clamp(210px, 30vw, 260px); width: 100%; }
+.chart-fixed { height: clamp(170px, 24vw, 210px); width: 100%; }
+.compact-chart { height: clamp(140px, 18vw, 170px); }
+.compact-bars { height: clamp(150px, 20vw, 180px); }
+.due-summary {
+    display: grid;
+    gap: 8px;
+    margin-top: 4px;
+}
+.due-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid #EEF2F6;
+    border-radius: 6px;
+    background: #FBFCFE;
+}
+.due-total span { color: #42526A; font-size: 12px; font-weight: 800; }
+.due-total strong { color: var(--ink); font-size: 28px; line-height: 1; }
+.compact-list {
+    display: grid;
+    gap: 7px;
+}
+.compact-row {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    color: #111827;
+    font-size: 12px;
+}
+.compact-row strong { color: var(--ink); font-size: 13px; }
+.currency-summary {
+    display: grid;
+    gap: 10px;
+}
+.currency-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: #F6F8FB;
+    border: 1px solid #E7ECF2;
+}
+.currency-total span { color: #42526A; font-size: 12px; font-weight: 800; }
+.currency-total strong { color: var(--ink); font-size: 24px; line-height: 1; }
 .wmcda-content {
     display: grid;
     grid-template-columns: minmax(220px, 1.35fr) minmax(170px, 1fr);
@@ -369,8 +424,8 @@
 .wmcda-list-row span { color: #111827; font-size: 11px; }
 .wmcda-list-row strong { color: #111827; font-size: 12px; text-align: right; }
 .declarant-avatar {
-    width: clamp(96px, 12vw, 126px);
-    height: clamp(96px, 12vw, 126px);
+    width: clamp(76px, 9vw, 96px);
+    height: clamp(76px, 9vw, 96px);
     border-radius: 50%;
     margin: 4px auto 12px;
     background: linear-gradient(135deg, var(--ink), #456D98);
@@ -378,19 +433,19 @@
     align-items: center;
     justify-content: center;
     color: #fff;
-    font-size: clamp(34px, 4vw, 46px);
+    font-size: clamp(28px, 3vw, 36px);
     font-weight: 900;
 }
-.person-card { text-align: center; min-height: 250px; }
-.person-name { color: var(--ink); font-size: 22px; font-weight: 900; margin: 4px 0 3px; }
+.person-card { text-align: center; min-height: 210px; }
+.person-name { color: var(--ink); font-size: 18px; font-weight: 900; margin: 4px 0 3px; }
 .person-meta { color: #20B86F; font-size: 14px; font-weight: 800; margin: 0; }
 .feedback-score {
     color: #FDBB2D;
-    font-size: 58px;
+    font-size: 44px;
     font-weight: 900;
     text-align: center;
     line-height: 1;
-    margin: 28px 0 8px;
+    margin: 14px 0 8px;
 }
 .stars {
     display: flex;
@@ -398,7 +453,7 @@
     gap: 5px;
     color: #FDBB2D;
     font-size: 25px;
-    margin-top: 18px;
+    margin-top: 12px;
 }
 @media (max-width: 1180px) {
     .metric-total, .metric-types, .metric-users, .metric-side,
@@ -422,6 +477,8 @@
     .panel { padding: 18px; }
     .metric-users, .metric-total { min-height: 120px; }
     .chart-fixed { height: 220px; }
+    .compact-chart { height: 170px; }
+    .compact-bars { height: 180px; }
 }
 @keyframes live-pulse {
     0%, 100% { opacity: 1; }
@@ -570,15 +627,17 @@
                 </div>
                 <input class="calendar-chip js-month-filter" type="month" value="{{ selected_month }}" aria-label="Filter due date monitoring by month">
             </div>
-            <div class="chart-wrap" style="min-height:170px;">
-                <canvas id="dueDateChart"></canvas>
-                <div class="donut-center"><strong>{{ due_date_data.total }}</strong></div>
-            </div>
-            <div class="legend">
-                <div class="legend-row"><span class="legend-swatch" style="background:#dc0000"></span><span>1 Day Left</span><strong>{{ due_date_data.one_day }}</strong></div>
-                <div class="legend-row"><span class="legend-swatch" style="background:#f75b5b"></span><span>3 Days Left</span><strong>{{ due_date_data.three_days }}</strong></div>
-                <div class="legend-row"><span class="legend-swatch" style="background:#f9a1a1"></span><span>5 Days Left</span><strong>{{ due_date_data.five_days }}</strong></div>
-                <div class="legend-row"><span class="legend-swatch" style="background:#ffd6d6"></span><span>5+ Days Left</span><strong>{{ due_date_data.over_five }}</strong></div>
+            <div class="due-summary">
+                <div class="due-total">
+                    <span>Total active</span>
+                    <strong>{{ due_date_data.total }}</strong>
+                </div>
+                <div class="compact-list">
+                    <div class="compact-row"><span class="legend-swatch" style="background:#dc0000"></span><span>1 Day Left</span><strong>{{ due_date_data.one_day }}</strong></div>
+                    <div class="compact-row"><span class="legend-swatch" style="background:#f75b5b"></span><span>3 Days Left</span><strong>{{ due_date_data.three_days }}</strong></div>
+                    <div class="compact-row"><span class="legend-swatch" style="background:#f9a1a1"></span><span>5 Days Left</span><strong>{{ due_date_data.five_days }}</strong></div>
+                    <div class="compact-row"><span class="legend-swatch" style="background:#ffd6d6"></span><span>5+ Days Left</span><strong>{{ due_date_data.over_five }}</strong></div>
+                </div>
             </div>
         </section>
 
@@ -608,10 +667,22 @@
                             <input type="radio" name="overview_period" value="day" {% if overview_period == 'day' %}checked{% endif %}>Day
                         </label>
                     </div>
-                    <input class="calendar-chip js-month-filter" type="month" value="{{ selected_month }}" aria-label="Filter shipment overview by month">
+                    <input class="calendar-chip overview-date-control overview-year-filter js-overview-year-filter"
+                           type="number"
+                           min="2000"
+                           max="2100"
+                           step="1"
+                           value="{{ selected_month|slice:':4' }}"
+                           aria-label="Filter shipment overview by year"
+                           {% if overview_period != 'year' %}hidden{% endif %}>
+                    <input class="calendar-chip overview-date-control js-overview-month-filter"
+                           type="month"
+                           value="{{ selected_month }}"
+                           aria-label="Filter shipment overview by month"
+                           {% if overview_period == 'year' %}hidden{% endif %}>
                 </form>
             </div>
-            <div class="chart-fixed overview-chart-frame">
+            <div class="chart-fixed compact-chart overview-chart-frame">
                 <canvas id="monthlyChart"></canvas>
             </div>
         </section>
@@ -624,7 +695,7 @@
                     <p>Average computed total landed cost per mode (PHP)</p>
                 </div>
             </div>
-            <div class="chart-fixed" style="height:220px;">
+            <div class="chart-fixed compact-bars">
                 <canvas id="costTypeChart"></canvas>
             </div>
         </section>
@@ -675,17 +746,14 @@
                     <p>Currencies declared on shipments</p>
                 </div>
             </div>
-            <div class="donut-box">
-                <div class="chart-wrap" style="width:180px;min-height:160px;">
-                    <canvas id="currencyChart"></canvas>
-                    <div class="donut-center">
-                        <span>Shipments</span>
-                        <strong>{{ currency_total }}</strong>
-                    </div>
+            <div class="currency-summary">
+                <div class="currency-total">
+                    <span>Total shipments</span>
+                    <strong>{{ currency_total }}</strong>
                 </div>
-                <div class="legend" style="margin-top:10px;">
+                <div class="compact-list">
                     {% for r in currency_breakdown %}
-                    <div class="legend-row">
+                    <div class="compact-row">
                         <span class="legend-swatch" style="background:{{ r.color }}"></span>
                         <span>{{ r.code }}</span>
                         <strong>{{ r.count }} &nbsp;<span style="color:#9CA3AF;font-weight:400;font-size:11px;">({{ r.pct }}%)</span></strong>
@@ -776,24 +844,80 @@
         return new Date(year, monthIndex + 1, 0).getDate();
     }
 
+    function setMonthRange(params, monthValue) {
+        if (!monthValue) return false;
+        var parts = monthValue.split('-');
+        var year = Number(parts[0]);
+        var month = Number(parts[1]);
+        if (!year || !month) return false;
+        var lastDay = lastDayOfMonth(year, month - 1);
+        params.set('date_from', monthValue + '-01');
+        params.set('date_to', monthValue + '-' + String(lastDay).padStart(2, '0'));
+        return true;
+    }
+
+    function setYearRange(params, yearValue) {
+        var year = Number(yearValue);
+        if (!year) return false;
+        params.set('date_from', year + '-01-01');
+        params.set('date_to', year + '-12-31');
+        return true;
+    }
+
     document.querySelectorAll('.js-month-filter').forEach(function (input) {
         input.addEventListener('change', function () {
-            if (!input.value) return;
-            var parts = input.value.split('-');
-            var year = Number(parts[0]);
-            var month = Number(parts[1]);
-            var lastDay = lastDayOfMonth(year, month - 1);
             var params = new URLSearchParams(window.location.search);
-            params.set('date_from', input.value + '-01');
-            params.set('date_to', input.value + '-' + String(lastDay).padStart(2, '0'));
-            window.location.search = params.toString();
+            if (setMonthRange(params, input.value)) {
+                window.location.search = params.toString();
+            }
         });
     });
+
+    function activeOverviewPeriod() {
+        var checked = document.querySelector('.period-tab input[name="overview_period"]:checked');
+        return checked ? checked.value : '{{ overview_period }}';
+    }
+
+    function applyOverviewRange(period) {
+        var params = new URLSearchParams(window.location.search);
+        var monthInput = document.querySelector('.js-overview-month-filter');
+        var yearInput = document.querySelector('.js-overview-year-filter');
+        var monthValue = monthInput && monthInput.value ? monthInput.value : '{{ selected_month }}';
+        var yearValue = yearInput && yearInput.value ? yearInput.value : monthValue.slice(0, 4);
+
+        params.set('overview_period', period);
+        if (period === 'year') {
+            if (!setYearRange(params, yearValue)) return;
+        } else {
+            if (!setMonthRange(params, monthValue)) return;
+        }
+        window.location.search = params.toString();
+    }
+
     document.querySelectorAll('.period-tab input[name="overview_period"]').forEach(function (input) {
         input.addEventListener('change', function () {
-            if (input.form) input.form.submit();
+            applyOverviewRange(input.value);
         });
     });
+    var overviewMonth = document.querySelector('.js-overview-month-filter');
+    if (overviewMonth) {
+        overviewMonth.addEventListener('change', function () {
+            applyOverviewRange(activeOverviewPeriod());
+        });
+    }
+    var overviewYear = document.querySelector('.js-overview-year-filter');
+    if (overviewYear) {
+        overviewYear.addEventListener('change', function () {
+            applyOverviewRange('year');
+        });
+    }
+    var overviewForm = document.querySelector('.overview-controls');
+    if (overviewForm) {
+        overviewForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            applyOverviewRange(activeOverviewPeriod());
+        });
+    }
 
     var urgencyData = {{ urgency_chart_data|safe }};
     if (window.Chart && total(urgencyData) > 0) {
@@ -808,8 +932,9 @@
     }
 
     var dueData = {{ due_date_chart_data|safe }};
-    if (window.Chart && total(dueData) > 0) {
-        new Chart(document.getElementById('dueDateChart'), {
+    var dueEl = document.getElementById('dueDateChart');
+    if (window.Chart && dueEl && total(dueData) > 0) {
+        new Chart(dueEl, {
             type: 'doughnut',
             data: {
                 labels: {{ due_date_chart_labels|safe }},
@@ -887,18 +1012,6 @@
                     }
                 }
             }
-        });
-    }
-
-    var curEl = document.getElementById('currencyChart');
-    if (window.Chart && curEl && {{ currency_total }} > 0) {
-        new Chart(curEl, {
-            type: 'doughnut',
-            data: {
-                labels: {{ currency_chart_labels|safe }},
-                datasets: [{ data: {{ currency_chart_data|safe }}, backgroundColor: {{ currency_chart_colors|safe }}, borderColor: '#fff', borderWidth: 8, spacing: 2 }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '58%' }
         });
     }
 
