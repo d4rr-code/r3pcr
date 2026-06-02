@@ -378,7 +378,7 @@ def ocr_extract_all(request, shipment_id):
 @login_required
 @declarant_required
 def draft_item(request, shipment_id):
-    “””Create or update a single ShipmentLineItem (draft save).”””
+    """Create or update a single ShipmentLineItem (draft save)."""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
     shipment = get_object_or_404(Shipment, id=shipment_id)
@@ -426,7 +426,7 @@ def draft_item(request, shipment_id):
 @login_required
 @declarant_required
 def delete_draft_item(request, item_id):
-    “””Delete a ShipmentLineItem row.”””
+    """Delete a ShipmentLineItem row."""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
     deleted, _ = ShipmentLineItem.objects.filter(
@@ -438,7 +438,7 @@ def delete_draft_item(request, item_id):
 @login_required
 @declarant_required
 def draft_globals(request, shipment_id):
-    “””Save global computation inputs to DutyComputation without running the full formula.”””
+    """Save global computation inputs to DutyComputation without running the full formula."""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
     shipment = get_object_or_404(Shipment, id=shipment_id)
