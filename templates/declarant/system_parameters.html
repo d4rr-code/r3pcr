@@ -1,0 +1,40 @@
+{% extends 'declarant/base_declarant.html' %}
+{% block title %}Global Parameters{% endblock %}
+{% block page_title %}Global Parameters{% endblock %}
+{% block nav_system_ref %}active{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 24px;">
+    <h2 style="color: #1B3358; margin: 0 0 8px; font-size: 18px; font-weight: 700;">Exchange Rates</h2>
+    <p style="color: #6B7280; margin: 0; font-size: 13px;">Current system-wide exchange rates (PHP per foreign currency unit)</p>
+</div>
+
+<div class="card">
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: #F3F4F6; border-bottom: 2px solid #E5E7EB;">
+                <th style="padding: 12px 16px; text-align: left; color: #1B3358; font-weight: 700; font-size: 13px;">Currency</th>
+                <th style="padding: 12px 16px; text-align: right; color: #1B3358; font-weight: 700; font-size: 13px;">Rate (PHP)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for code, rate in parameters.items %}
+            <tr style="border-bottom: 1px solid #E5E7EB;">
+                <td style="padding: 14px 16px; color: #111827; font-weight: 600; font-size: 14px;">{{ code }}</td>
+                <td style="padding: 14px 16px; text-align: right; color: #111827; font-size: 14px;">
+                    {% if rate != '—' %}
+                        <strong>{{ rate }}</strong>
+                    {% else %}
+                        <span style="color: #9CA3AF;">{{ rate }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div style="margin-top: 20px; padding: 14px 16px; background: #EFF6FF; border: 1px solid #93C5FD; border-radius: 8px; font-size: 13px; color: #1D4ED8;">
+    <strong>ℹ️ Note:</strong> These rates are used for all duty computation calculations. Contact the supervisor to update these values.
+</div>
+{% endblock %}

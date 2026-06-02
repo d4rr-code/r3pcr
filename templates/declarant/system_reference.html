@@ -1,0 +1,105 @@
+{% extends 'declarant/base_declarant.html' %}
+{% block title %}System Reference{% endblock %}
+{% block page_title %}System Reference{% endblock %}
+{% block nav_system_ref %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+.ref-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 22px;
+}
+.ref-card {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 20px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.ref-card:hover {
+    border-color: #1B3358;
+    box-shadow: 0 4px 12px rgba(27, 51, 88, 0.12);
+    transform: translateY(-2px);
+}
+.ref-icon {
+    width: 36px;
+    height: 36px;
+    background: #EEF2F8;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1B3358;
+}
+.ref-title {
+    color: #1B3358;
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+}
+.ref-desc {
+    color: #6B7280;
+    font-size: 13px;
+    margin: 0;
+    line-height: 1.4;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 24px; background: linear-gradient(135deg, #1B3358 0%, #2d5a8c 100%); border: 0; color: #fff;">
+    <h2 style="color: #fff; margin: 0 0 8px; font-size: 20px;">System Reference</h2>
+    <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 14px;">View read-only system configuration, fee schedules, and HS code reference data</p>
+</div>
+
+<div class="ref-grid">
+    <a href="{% url 'declarant:system_parameters' %}" class="ref-card">
+        <div class="ref-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M8.5 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd"/>
+            </svg>
+        </div>
+        <p class="ref-title">Global Parameters</p>
+        <p class="ref-desc">Exchange rates (USD, EUR, JPY, HKD, CNY, GBP, SGD)</p>
+    </a>
+
+    <a href="{% url 'declarant:system_fees' %}" class="ref-card">
+        <div class="ref-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"/>
+            </svg>
+        </div>
+        <p class="ref-title">Fee Schedules</p>
+        <p class="ref-desc">Brokerage & Import Processing fees by taxable value</p>
+    </a>
+
+    <a href="{% url 'declarant:system_wmcda' %}" class="ref-card">
+        <div class="ref-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+            </svg>
+        </div>
+        <p class="ref-title">WMCDA Criteria</p>
+        <p class="ref-desc">Shipping mode scoring weights and configuration</p>
+    </a>
+
+    <a href="{% url 'declarant:system_hs_codes' %}" class="ref-card">
+        <div class="ref-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4 3a2 2 0 012-2h7.5A2.5 2.5 0 0116 3.5V17a1 1 0 01-1.447.894L12.5 16.868l-2.053 1.026a1 1 0 01-.894 0L7.5 16.868l-2.053 1.026A1 1 0 014 17V3zm3 3.75A.75.75 0 017.75 6h4.5a.75.75 0 010 1.5h-4.5A.75.75 0 017 6.75zM7.75 9a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5h-4.5zM7 12.75a.75.75 0 01.75-.75h2.5a.75.75 0 010 1.5h-2.5A.75.75 0 017 12.75z" clip-rule="evenodd"/>
+            </svg>
+        </div>
+        <p class="ref-title">HS Code Reference</p>
+        <p class="ref-desc">Tariff classification and duty rate lookup</p>
+    </a>
+</div>
+{% endblock %}

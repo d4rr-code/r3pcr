@@ -398,6 +398,95 @@ def dashboard(request):
     return render(request, 'declarant/dashboard.html', context)
 
 
+# ─── System Reference (Read-only Config Viewer) ─────────────────────────────────
+
+@login_required
+@declarant_required
+def system_reference(request):
+    """Main system reference page with links to sub-sections."""
+    return render(request, 'declarant/system_reference.html', {})
+
+
+@login_required
+@declarant_required
+def system_parameters(request):
+    """View global exchange rate parameters."""
+    from apps.supervisor.models import SystemConfig
+
+    rate_keys = {
+        'USD': 'rate_USD', 'EUR': 'rate_EUR', 'JPY': 'rate_JPY',
+        'HKD': 'rate_HKD', 'CNY': 'rate_CNY', 'GBP': 'rate_GBP',
+        'SGD': 'rate_SGD',
+    }
+
+    parameters = {}
+    for code, key in rate_keys.items():
+        try:
+            val = SystemConfig.objects.get(key=key).value
+            parameters[code] = val
+        except SystemConfig.DoesNotExist:
+            parameters[code] = '—'
+
+    return render(request, 'declarant/system_parameters.html', {
+        'parameters': parameters,
+    })
+
+
+@login_required
+@declarant_required
+def system_fees(request):
+    """View brokerage and IPF fee schedules."""
+    from apps.supervisor.models import SystemConfig
+    import json
+
+    try:
+        bf_raw = SystemConfig.objects.get(key='bf_tiers').value
+        bf_tiers = json.loads(bf_raw) if bf_raw else []
+    except (SystemConfig.DoesNotExist, json.JSONDecodeError):
+        bf_tiers = []
+
+    try:
+        ipf_raw = SystemConfig.objects.get(key='ipf_tiers').value
+        ipf_tiers = json.loads(ipf_raw) if ipf_raw else []
+    except (SystemConfig.DoesNotExist, json.JSONDecodeError):
+        ipf_tiers = []
+
+    return render(request, 'declarant/system_fees.html', {
+        'bf_tiers': bf_tiers,
+        'ipf_tiers': ipf_tiers,
+    })
+
+
+@login_required
+@declarant_required
+def system_wmcda(request):
+    """View WMCDA criteria weights and configuration."""
+    from apps.supervisor.models import SystemConfig
+
+    wmcda_config = {}
+    wmcda_keys = ['wmcda_distance_weight', 'wmcda_urgency_weight',
+                  'wmcda_weight_weight', 'wmcda_volume_weight']
+
+    for key in wmcda_keys:
+        try:
+            val = SystemConfig.objects.get(key=key).value
+            wmcda_config[key] = val
+        except SystemConfig.DoesNotExist:
+            wmcda_config[key] = '—'
+
+    descriptions = {
+        'wmcda_distance_weight': 'Distance: Measures transport distance impact on mode selection',
+        'wmcda_urgency_weight': 'Urgency: Measures time criticality (rush/urgent/normal)',
+        'wmcda_weight_weight': 'Cargo Weight: Measures gross weight ratio for cost estimation',
+        'wmcda_volume_weight': 'Cargo Volume (CBM): Measures container utilization factor',
+    }
+
+    return render(request, 'declarant/system_wmcda.html', {
+        'wmcda_config': wmcda_config,
+        'descriptions': descriptions,
+    })
+
+
 @login_required
 @declarant_required
 def tariff_book(request):

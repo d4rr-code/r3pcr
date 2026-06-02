@@ -1,0 +1,82 @@
+{% extends 'declarant/base_declarant.html' %}
+{% block title %}WMCDA Criteria{% endblock %}
+{% block page_title %}WMCDA Criteria{% endblock %}
+{% block nav_system_ref %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+.wmcda-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.wmcda-card {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 16px;
+}
+.wmcda-weight {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1B3358;
+    margin: 0 0 8px;
+}
+.wmcda-label {
+    color: #6B7280;
+    font-size: 12px;
+    font-weight: 700;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.wmcda-desc {
+    color: #6B7280;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #E5E7EB;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 24px;">
+    <h2 style="color: #1B3358; margin: 0 0 8px; font-size: 18px; font-weight: 700;">Weighted Mode Combination Decision Analysis (WMCDA)</h2>
+    <p style="color: #6B7280; margin: 0; font-size: 13px;">Scoring weights used to recommend optimal shipping mode (FCL/LCL/Air/Land)</p>
+</div>
+
+<div class="wmcda-grid">
+    {% for key, value in wmcda_config.items %}
+    <div class="wmcda-card">
+        <p class="wmcda-weight">
+            {% if value != '—' %}
+                {{ value }}%
+            {% else %}
+                —
+            {% endif %}
+        </p>
+        <p class="wmcda-label">
+            {% if key == 'wmcda_distance_weight' %}Distance{% elif key == 'wmcda_urgency_weight' %}Urgency{% elif key == 'wmcda_weight_weight' %}Cargo Weight{% else %}Cargo Volume{% endif %}
+        </p>
+        <p class="wmcda-desc">{{ descriptions|get_item:key }}</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card" style="background: #F8FAFC; border: 1px solid #E5E7EB;">
+    <h3 style="color: #1B3358; margin: 0 0 12px; font-size: 15px; font-weight: 700;">How WMCDA Works</h3>
+    <ul style="color: #6B7280; margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8;">
+        <li><strong>Distance Weight</strong> — Higher weight prioritizes shorter transit routes (Air/Land over Sea)</li>
+        <li><strong>Urgency Weight</strong> — Higher weight emphasizes speed for time-critical shipments (Rush/Urgent)</li>
+        <li><strong>Cargo Weight</strong> — Higher weight factors gross weight into mode cost-efficiency calculation</li>
+        <li><strong>Cargo Volume</strong> — Higher weight factors CBM into container utilization (LCL vs FCL decision)</li>
+    </ul>
+</div>
+
+<div style="margin-top: 20px; padding: 14px 16px; background: #EFF6FF; border: 1px solid #93C5FD; border-radius: 8px; font-size: 13px; color: #1D4ED8;">
+    <strong>ℹ️ Note:</strong> The WMCDA recommendation appears on your computation advisory page for each shipment. Contact the supervisor to adjust these weights.
+</div>
+{% endblock %}
