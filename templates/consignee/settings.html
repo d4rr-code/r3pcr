@@ -1,237 +1,142 @@
 {% extends 'consignee/base_consignee.html' %}
 
-{% block title %}Account Information{% endblock %}
+{% block title %}Account Settings{% endblock %}
 {% block nav_settings %}active{% endblock %}
 
 {% block extra_css %}
-.info-field {
-    padding: 10px 14px;
-    background: #F3F4F6;
-    border-radius: 8px;
-    font-size: 13px;
-    color: #374151;
-    min-height: 40px;
-    line-height: 1.4;
-}
-.req-item {
-    font-size: 11px;
-    color: #9CA3AF;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: color 0.2s;
-}
-.req-item.met { color: #16A34A; }
+<style>
+.req-item { font-size:11px; color:#9CA3AF; display:flex; align-items:center; gap:6px; transition:color 0.2s; }
+.req-item.met { color:#16A34A; }
+</style>
 {% endblock %}
 
 {% block content %}
 <div style="max-width:680px;">
 
-    <h1 style="font-size:20px; font-weight:700; color:#1A1A2E; margin-bottom:20px;">Account Information</h1>
+    <h1 style="font-size:20px; font-weight:700; color:#1A1A2E; margin-bottom:20px;">Account Settings</h1>
 
-    <!-- ── Profile Card ─────────────────────────────────────────────────────── -->
+    <!-- ── Profile ───────────────────────────────────────────────────────────── -->
     <div class="c-card" style="margin-bottom:20px;">
+        <h2 style="font-size:15px; font-weight:700; color:#1A1A2E; margin:0 0 4px;">Profile Information</h2>
+        <p style="font-size:12px; color:#9CA3AF; margin:0 0 20px;">Update your personal account details</p>
 
-        <!-- VIEW MODE -->
-        <div id="view-mode">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
-                <div>
-                    <h2 style="font-size:15px; font-weight:700; color:#1A1A2E; margin-bottom:3px;">Profile Information</h2>
-                    <p style="font-size:12px; color:#9CA3AF;">Your personal account details</p>
-                </div>
-                <button onclick="showEdit()" class="c-btn c-btn-outline"
-                        style="padding:7px 16px; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z"/>
-                    </svg>
-                    Edit
-                </button>
-            </div>
-
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="profile">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
                 <div>
-                    <label class="c-label">First Name</label>
-                    <div class="info-field">{{ user.first_name|default:"—" }}</div>
+                    <label class="c-label">First Name <span style="color:#ef4444;">*</span></label>
+                    <input type="text" name="first_name" class="c-input"
+                           value="{{ user.first_name }}" placeholder="e.g. Maria"
+                           required minlength="2" maxlength="50"
+                           pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
+                           title="Letters, spaces, hyphens, and apostrophes only. 2–50 characters.">
+                    <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Letters only, 2–50 chars</p>
                 </div>
                 <div>
-                    <label class="c-label">Last Name</label>
-                    <div class="info-field">{{ user.last_name|default:"—" }}</div>
+                    <label class="c-label">Last Name <span style="color:#ef4444;">*</span></label>
+                    <input type="text" name="last_name" class="c-input"
+                           value="{{ user.last_name }}" placeholder="e.g. Santos"
+                           required minlength="2" maxlength="50"
+                           pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
+                           title="Letters, spaces, hyphens, and apostrophes only. 2–50 characters.">
+                    <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Letters only, 2–50 chars</p>
                 </div>
                 <div>
-                    <label class="c-label">Email Address</label>
-                    <div class="info-field">{{ user.email }}</div>
+                    <label class="c-label">Email Address <span style="color:#ef4444;">*</span></label>
+                    <input type="email" name="email" class="c-input"
+                           value="{{ user.email }}" placeholder="email@example.com"
+                           required maxlength="150">
                 </div>
                 <div>
                     <label class="c-label">Phone Number</label>
-                    <div class="info-field">{{ user.phone_number|default:"—" }}</div>
+                    <input type="tel" name="phone_number" class="c-input"
+                           value="{{ user.phone_number|default:'' }}" placeholder="+63-9XX-XXX-XXXX"
+                           minlength="7" maxlength="20"
+                           pattern="[0-9+\-\s().]+"
+                           title="Digits, +, -, spaces, and parentheses only. 7–20 characters.">
+                    <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Digits &amp; +, -, spaces only</p>
                 </div>
-                <div>
+                <div style="grid-column:1/-1;">
                     <label class="c-label">Company Name</label>
-                    <div class="info-field">{{ user.company_name|default:"—" }}</div>
-                </div>
-                <div>
-                    <label class="c-label">Username</label>
-                    <div class="info-field">{{ user.username }}</div>
+                    <input type="text" name="company_name" class="c-input"
+                           value="{{ user.company_name|default:'' }}"
+                           placeholder="Your company or business name"
+                           maxlength="100">
+                    <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Optional · max 100 characters</p>
                 </div>
             </div>
-
-            <div style="margin-top:16px; display:inline-flex; align-items:center; gap:8px;
-                        padding:8px 14px; background:#EFF6FF; border-radius:8px;">
-                <span style="font-size:11px; color:#6B7280; font-weight:500;">Role:</span>
-                <span style="font-size:12px; color:#1D4ED8; font-weight:700;">{{ user.get_role_display }}</span>
+            <div style="margin-top:6px;">
+                <span style="font-size:12px; color:#6b7280;">
+                    Role: <strong style="color:#374151;">{{ user.get_role_display }}</strong>
+                </span>
             </div>
-        </div>
-
-        <!-- EDIT MODE (hidden by default) -->
-        <div id="edit-mode" style="display:none;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
-                <div>
-                    <h2 style="font-size:15px; font-weight:700; color:#1A1A2E; margin-bottom:3px;">Edit Profile</h2>
-                    <p style="font-size:12px; color:#9CA3AF;">Update your personal account details</p>
-                </div>
-                <button type="button" onclick="showView()"
-                        class="c-btn c-btn-outline" style="padding:7px 16px; font-size:12px;">
-                    Cancel
-                </button>
-            </div>
-
-            <form method="POST">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="profile">
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-                    <div>
-                        <label class="c-label">First Name <span style="color:#ef4444;">*</span></label>
-                        <input type="text" name="first_name" class="c-input"
-                               value="{{ user.first_name }}" placeholder="e.g. Maria"
-                               required minlength="2" maxlength="50"
-                               pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
-                               title="Letters, spaces, hyphens, and apostrophes only. 2–50 characters.">
-                        <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Letters only, 2–50 chars</p>
-                    </div>
-                    <div>
-                        <label class="c-label">Last Name <span style="color:#ef4444;">*</span></label>
-                        <input type="text" name="last_name" class="c-input"
-                               value="{{ user.last_name }}" placeholder="e.g. Santos"
-                               required minlength="2" maxlength="50"
-                               pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
-                               title="Letters, spaces, hyphens, and apostrophes only. 2–50 characters.">
-                        <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Letters only, 2–50 chars</p>
-                    </div>
-                    <div>
-                        <label class="c-label">Email Address <span style="color:#ef4444;">*</span></label>
-                        <input type="email" name="email" class="c-input"
-                               value="{{ user.email }}" placeholder="email@example.com"
-                               required maxlength="150">
-                    </div>
-                    <div>
-                        <label class="c-label">Phone Number</label>
-                        <input type="tel" name="phone_number" class="c-input"
-                               value="{{ user.phone_number|default:'' }}" placeholder="+63-9XX-XXX-XXXX"
-                               minlength="7" maxlength="20"
-                               pattern="[0-9+\-\s().]+"
-                               title="Digits, +, -, spaces, and parentheses only. 7–20 characters.">
-                        <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Digits &amp; +, -, spaces only</p>
-                    </div>
-                    <div style="grid-column:1/-1;">
-                        <label class="c-label">Company Name</label>
-                        <input type="text" name="company_name" class="c-input"
-                               value="{{ user.company_name|default:'' }}"
-                               placeholder="Your company or business name"
-                               maxlength="100">
-                        <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Optional · max 100 characters</p>
-                    </div>
-                </div>
-                <div style="margin-top:20px; display:flex; gap:10px;">
-                    <button type="submit" class="c-btn c-btn-primary">Save Changes</button>
-                    <button type="button" onclick="showView()" class="c-btn c-btn-outline">Cancel</button>
-                </div>
-            </form>
-
-            <!-- ── Username sub-section ──────────────────────────────────── -->
-            <div style="margin-top:24px; padding-top:20px; border-top:1px solid #F3F4F6;">
-                <h3 style="font-size:13px; font-weight:600; color:#374151; margin-bottom:14px;">
-                    Change Username
-                </h3>
-                <form method="POST">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="username">
-                    <div style="display:flex; gap:12px; align-items:flex-end; max-width:480px;">
-                        <div style="flex:1;">
-                            <label class="c-label">New Username</label>
-                            <input type="text" name="new_username" class="c-input"
-                                   placeholder="Enter new username"
-                                   required minlength="3" maxlength="30"
-                                   pattern="[a-zA-Z0-9_.]+"
-                                   title="Letters, numbers, underscores and dots only">
-                        </div>
-                        <button type="submit" class="c-btn c-btn-primary" style="white-space:nowrap;">
-                            Update
-                        </button>
-                    </div>
-                </form>
-                <p style="font-size:11px; color:#9CA3AF; margin-top:8px;">
-                    Current username: <strong style="color:#374151;">{{ user.username }}</strong>
-                    &nbsp;·&nbsp; Letters, numbers, underscores and dots only. Min. 3 characters.
-                </p>
-            </div>
-        </div>
+            <button type="submit" class="c-btn c-btn-primary" style="margin-top:18px;">Save Changes</button>
+        </form>
     </div>
 
-    <!-- ── Password Card ─────────────────────────────────────────────────────── -->
+    <!-- ── Username ──────────────────────────────────────────────────────────── -->
+    <div class="c-card" style="margin-bottom:20px;">
+        <h2 style="font-size:15px; font-weight:700; color:#1A1A2E; margin:0 0 4px;">Change Username</h2>
+        <p style="font-size:12px; color:#9CA3AF; margin:0 0 20px;">Your login identifier</p>
+
+        <form method="POST" style="max-width:480px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="username">
+            <div style="display:flex; gap:12px; align-items:flex-end;">
+                <div style="flex:1;">
+                    <label class="c-label">New Username</label>
+                    <input type="text" name="new_username" class="c-input"
+                           placeholder="Enter new username"
+                           required minlength="3" maxlength="30"
+                           pattern="[a-zA-Z0-9_.]+"
+                           title="Letters, numbers, underscores and dots only">
+                </div>
+                <button type="submit" class="c-btn c-btn-primary" style="white-space:nowrap;">Update</button>
+            </div>
+        </form>
+        <p style="font-size:11px; color:#9CA3AF; margin-top:10px;">
+            Current username: <strong style="color:#374151;">{{ user.username }}</strong>
+            &nbsp;·&nbsp; Letters, numbers, underscores and dots only. Min. 3 characters.
+        </p>
+    </div>
+
+    <!-- ── Password ──────────────────────────────────────────────────────────── -->
     <div class="c-card">
-        <div style="margin-bottom:20px;">
-            <h2 style="font-size:15px; font-weight:700; color:#1A1A2E; margin-bottom:3px;">Change Password</h2>
-            <p style="font-size:12px; color:#9CA3AF;">Keep your account secure with a strong password</p>
-        </div>
+        <h2 style="font-size:15px; font-weight:700; color:#1A1A2E; margin:0 0 4px;">Change Password</h2>
+        <p style="font-size:12px; color:#9CA3AF; margin:0 0 20px;">Keep your account secure with a strong password</p>
 
         <form method="POST" style="max-width:420px;" id="pw-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="password">
             <div style="display:flex; flex-direction:column; gap:14px;">
-
                 <div>
                     <label class="c-label">Current Password</label>
                     <input type="password" name="old_password" class="c-input"
                            placeholder="Enter current password" required autocomplete="current-password">
                 </div>
-
                 <div>
                     <label class="c-label">New Password</label>
                     <input type="password" name="new_password" id="new-pw" class="c-input"
                            placeholder="Min. 8 characters" required autocomplete="new-password"
                            oninput="checkPw(this.value)">
-                    <!-- Requirements list -->
                     <div style="margin-top:8px; display:flex; flex-direction:column; gap:5px;">
-                        <div class="req-item" id="req-len">
-                            <span id="req-len-icon" style="font-size:12px;">○</span>
-                            At least 8 characters
-                        </div>
-                        <div class="req-item" id="req-upper">
-                            <span id="req-upper-icon" style="font-size:12px;">○</span>
-                            One uppercase letter
-                        </div>
-                        <div class="req-item" id="req-num">
-                            <span id="req-num-icon" style="font-size:12px;">○</span>
-                            One number
-                        </div>
+                        <div class="req-item" id="req-len"><span id="req-len-icon" style="font-size:12px;">○</span> At least 8 characters</div>
+                        <div class="req-item" id="req-upper"><span id="req-upper-icon" style="font-size:12px;">○</span> One uppercase letter</div>
+                        <div class="req-item" id="req-num"><span id="req-num-icon" style="font-size:12px;">○</span> One number</div>
                     </div>
                 </div>
-
                 <div>
                     <label class="c-label">Confirm New Password</label>
                     <input type="password" name="confirm_password" id="confirm-pw" class="c-input"
                            placeholder="Repeat new password" required autocomplete="new-password"
                            oninput="checkMatch()">
                     <div class="req-item" id="req-match" style="margin-top:6px;">
-                        <span id="req-match-icon" style="font-size:12px;">○</span>
-                        Passwords match
+                        <span id="req-match-icon" style="font-size:12px;">○</span> Passwords match
                     </div>
                 </div>
             </div>
-
-            <button type="submit" class="c-btn c-btn-primary" style="margin-top:20px;">
-                Change Password
-            </button>
+            <button type="submit" class="c-btn c-btn-primary" style="margin-top:20px;">Change Password</button>
         </form>
     </div>
 
@@ -240,50 +145,22 @@
 
 {% block extra_js %}
 <script>
-/* ── Profile view / edit toggle ─────────────────────────────────────────────── */
-function showEdit() {
-    document.getElementById('view-mode').style.display = 'none';
-    document.getElementById('edit-mode').style.display = 'block';
-}
-function showView() {
-    document.getElementById('edit-mode').style.display = 'none';
-    document.getElementById('view-mode').style.display = 'block';
-}
-
-/* If there was a profile error, open edit mode automatically */
-{% if messages %}
-{% for msg in messages %}
-{% if msg.tags == 'error' %}
-showEdit();
-{% endif %}
-{% endfor %}
-{% endif %}
-
-/* ── Password requirement indicators ────────────────────────────────────────── */
 function checkPw(val) {
     setReq('req-len',   val.length >= 8);
     setReq('req-upper', /[A-Z]/.test(val));
     setReq('req-num',   /[0-9]/.test(val));
     checkMatch();
 }
-
 function checkMatch() {
     var pw  = document.getElementById('new-pw').value;
     var cfm = document.getElementById('confirm-pw').value;
-    var ok  = pw.length > 0 && pw === cfm;
-    setReq('req-match', ok);
+    setReq('req-match', pw.length > 0 && pw === cfm);
 }
-
 function setReq(id, ok) {
-    var el   = document.getElementById(id);
+    var el = document.getElementById(id);
     var icon = document.getElementById(id + '-icon');
-    if (ok) {
-        el.classList.add('met');
-        icon.textContent = '✓';
-    } else {
-        el.classList.remove('met');
-        icon.textContent = '○';
-    }
+    if (ok) { el.classList.add('met'); icon.textContent = '✓'; }
+    else     { el.classList.remove('met'); icon.textContent = '○'; }
 }
 </script>
 {% endblock %}
