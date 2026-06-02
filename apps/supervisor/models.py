@@ -3,7 +3,7 @@ from django.db import models
 
 class SystemConfig(models.Model):
     key = models.CharField(max_length=50, unique=True)
-    value = models.CharField(max_length=200)
+    value = models.CharField(max_length=2000)
     label = models.CharField(max_length=100, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
