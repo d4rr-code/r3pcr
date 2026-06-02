@@ -1,18 +1,15 @@
 {% extends 'declarant/base_declarant.html' %}
 
-{% block title %}Tariff Book 2022{% endblock %}
-{% block page_title %}Tariff Book 2022{% endblock %}
-{% block nav_tariff %}active{% endblock %}
+{% block title %}HS Code Reference{% endblock %}
+{% block page_title %}HS Code Reference{% endblock %}
+{% block nav_system_ref %}active{% endblock %}
 
 {% block content %}
-<div style="margin-bottom:18px;">
-    <a href="{% url 'declarant:dashboard' %}" class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
-        <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
-            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
-        </svg>
-        Back to Dashboard
-    </a>
-</div>
+<a href="{% url 'declarant:system_reference' %}" style="display: inline-flex; align-items: center; gap: 8px; color: #1B3358; text-decoration: none; font-size: 13px; font-weight: 700; margin-bottom: 16px;">
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.707 6.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L12 5.414V13a1 1 0 11-2 0V5.414L9.121 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" transform="rotate(90 10 10)"/></svg>
+    Back to System Reference
+</a>
+
 
 <!-- ── Search Bar ── -->
 <form method="GET" action="{% url 'declarant:tariff_book' %}"

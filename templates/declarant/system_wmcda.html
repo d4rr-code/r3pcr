@@ -43,25 +43,28 @@
 {% endblock %}
 
 {% block content %}
+<a href="{% url 'declarant:system_reference' %}" style="display: inline-flex; align-items: center; gap: 8px; color: #1B3358; text-decoration: none; font-size: 13px; font-weight: 700; margin-bottom: 16px;">
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.707 6.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L12 5.414V13a1 1 0 11-2 0V5.414L9.121 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" transform="rotate(90 10 10)"/></svg>
+    Back to System Reference
+</a>
+
 <div class="card" style="margin-bottom: 24px;">
     <h2 style="color: #1B3358; margin: 0 0 8px; font-size: 18px; font-weight: 700;">Weighted Mode Combination Decision Analysis (WMCDA)</h2>
     <p style="color: #6B7280; margin: 0; font-size: 13px;">Scoring weights used to recommend optimal shipping mode (FCL/LCL/Air/Land)</p>
 </div>
 
 <div class="wmcda-grid">
-    {% for key, value in wmcda_config.items %}
+    {% for item in wmcda_items %}
     <div class="wmcda-card">
         <p class="wmcda-weight">
-            {% if value != '—' %}
-                {{ value }}%
+            {% if item.value %}
+                {{ item.value }}%
             {% else %}
                 —
             {% endif %}
         </p>
-        <p class="wmcda-label">
-            {% if key == 'wmcda_distance_weight' %}Distance{% elif key == 'wmcda_urgency_weight' %}Urgency{% elif key == 'wmcda_weight_weight' %}Cargo Weight{% else %}Cargo Volume{% endif %}
-        </p>
-        <p class="wmcda-desc">{{ descriptions|get_item:key }}</p>
+        <p class="wmcda-label">{{ item.label }}</p>
+        <p class="wmcda-desc">{{ item.description }}</p>
     </div>
     {% endfor %}
 </div>

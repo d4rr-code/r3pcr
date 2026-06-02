@@ -469,27 +469,43 @@ def system_wmcda(request):
     """View WMCDA criteria weights and configuration."""
     from apps.supervisor.models import SystemConfig
 
-    wmcda_config = {}
-    wmcda_keys = ['wmcda_distance_weight', 'wmcda_urgency_weight',
-                  'wmcda_weight_weight', 'wmcda_volume_weight']
+    criteria_meta = [
+        {
+            'key': 'wmcda_distance_weight',
+            'label': 'Distance',
+            'description': 'Measures transport distance impact on mode selection. Higher weight prioritizes shorter transit routes (Air/Land over Sea).',
+        },
+        {
+            'key': 'wmcda_urgency_weight',
+            'label': 'Urgency',
+            'description': 'Measures time criticality of shipments (rush/urgent/normal). Higher weight emphasizes speed for time-critical shipments.',
+        },
+        {
+            'key': 'wmcda_weight_weight',
+            'label': 'Cargo Weight',
+            'description': 'Measures gross weight ratio for cost estimation. Higher weight factors cargo weight into mode cost-efficiency calculation.',
+        },
+        {
+            'key': 'wmcda_volume_weight',
+            'label': 'Cargo Volume',
+            'description': 'Measures container utilization factor (CBM). Higher weight factors CBM into container utilization (LCL vs FCL decision).',
+        },
+    ]
 
-    for key in wmcda_keys:
+    wmcda_items = []
+    for meta in criteria_meta:
         try:
-            val = SystemConfig.objects.get(key=key).value
-            wmcda_config[key] = val
+            val = SystemConfig.objects.get(key=meta['key']).value
         except SystemConfig.DoesNotExist:
-            wmcda_config[key] = '—'
-
-    descriptions = {
-        'wmcda_distance_weight': 'Distance: Measures transport distance impact on mode selection',
-        'wmcda_urgency_weight': 'Urgency: Measures time criticality (rush/urgent/normal)',
-        'wmcda_weight_weight': 'Cargo Weight: Measures gross weight ratio for cost estimation',
-        'wmcda_volume_weight': 'Cargo Volume (CBM): Measures container utilization factor',
-    }
+            val = None
+        wmcda_items.append({
+            'label': meta['label'],
+            'description': meta['description'],
+            'value': val,
+        })
 
     return render(request, 'declarant/system_wmcda.html', {
-        'wmcda_config': wmcda_config,
-        'descriptions': descriptions,
+        'wmcda_items': wmcda_items,
     })
 
 

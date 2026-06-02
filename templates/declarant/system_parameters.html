@@ -4,6 +4,11 @@
 {% block nav_system_ref %}active{% endblock %}
 
 {% block content %}
+<a href="{% url 'declarant:system_reference' %}" style="display: inline-flex; align-items: center; gap: 8px; color: #1B3358; text-decoration: none; font-size: 13px; font-weight: 700; margin-bottom: 16px;">
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.707 6.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L12 5.414V13a1 1 0 11-2 0V5.414L9.121 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" transform="rotate(90 10 10)"/></svg>
+    Back to System Reference
+</a>
+
 <div class="card" style="margin-bottom: 24px;">
     <h2 style="color: #1B3358; margin: 0 0 8px; font-size: 18px; font-weight: 700;">Exchange Rates</h2>
     <p style="color: #6B7280; margin: 0; font-size: 13px;">Current system-wide exchange rates (PHP per foreign currency unit)</p>
