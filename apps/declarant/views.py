@@ -12,6 +12,8 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
 from apps.shipments.models import HSCode, Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
 from apps.notifications.utils import create_notification, notify_shipment_status_change
@@ -182,6 +184,75 @@ def _annotate_due(shipments, today):
             s.due_color = 'orange'
         else:
             s.due_color = 'green'
+
+
+def _send_overdue_emails(overdue_shipments, today):
+    """
+    For each overdue shipment not yet notified today:
+    - Email all supervisors
+    - Email the assigned declarant
+    Runs in a background thread; marks overdue_notified_at = today.
+    """
+    from apps.accounts.models import User
+
+    def _do_send():
+        supervisors = list(
+            User.objects.filter(role='supervisor', is_active=True)
+                        .exclude(email='')
+                        .values_list('email', flat=True)
+        )
+
+        for shipment in overdue_shipments:
+            days_over   = abs(shipment.due_days_left)
+            urgency_lbl = shipment.get_urgency_display()
+            consignee   = shipment.consignee.get_full_name() or shipment.consignee.username
+            declarant   = (shipment.declarant.get_full_name() or shipment.declarant.username
+                           ) if shipment.declarant else 'Unassigned'
+
+            subject = (
+                f'⚠️ Overdue Shipment — {shipment.hawb_number} '
+                f'({days_over} business day{"s" if days_over != 1 else ""} overdue)'
+            )
+
+            body = (
+                f'This is an automated overdue alert from R3-PCR.\n\n'
+                f'Shipment Reference : {shipment.hawb_number}\n'
+                f'Urgency Level      : {urgency_lbl}\n'
+                f'Consignee          : {consignee}\n'
+                f'Assigned Declarant : {declarant}\n'
+                f'Days Overdue       : {days_over} business day{"s" if days_over != 1 else ""}\n'
+                f'Due Date           : {shipment.due_date}\n\n'
+                f'This shipment has passed its processing deadline. '
+                f'Failure to process promptly may result in Demurrage & Detention (D&D) '
+                f'charges and potential Bureau of Customs (BOC) penalties.\n\n'
+                f'Please log in to R3-PCR and take action immediately.\n\n'
+                f'— R3-PCR Automated Alert'
+            )
+
+            # Collect recipients
+            recipients = list(supervisors)
+            if (shipment.declarant
+                    and shipment.declarant.email
+                    and shipment.declarant.email not in recipients):
+                recipients.append(shipment.declarant.email)
+
+            if recipients:
+                try:
+                    send_mail(
+                        subject=subject,
+                        message=body,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=recipients,
+                        fail_silently=True,
+                    )
+                except Exception:
+                    pass
+
+            # Mark notified today (outside the email try so it always saves)
+            Shipment.objects.filter(pk=shipment.pk).update(overdue_notified_at=today)
+
+    thread = threading.Thread(target=_do_send, daemon=True)
+    thread.start()
 
 
 def _run_and_store_document_ocr(doc):
@@ -741,6 +812,15 @@ def queue_manager(request):
 
     pending = list(pending_qs)
     _annotate_due(pending, today)
+
+    # Send overdue email alerts (once per day per shipment)
+    newly_overdue = [
+        s for s in pending
+        if s.due_days_left < 0
+        and s.overdue_notified_at != today
+    ]
+    if newly_overdue:
+        _send_overdue_emails(newly_overdue, today)
 
     # Due-within server-side filter
     due_filter = request.GET.get('due', '')

@@ -159,6 +159,8 @@ class Shipment(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     processed_at = models.DateTimeField(blank=True, null=True)
+    # Tracks the last date an overdue email was sent (prevents daily spam)
+    overdue_notified_at = models.DateField(blank=True, null=True)
 
     class Meta:
         ordering = ['-submitted_at']
