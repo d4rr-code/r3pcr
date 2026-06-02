@@ -38,7 +38,8 @@
 .dd-status { display:grid; grid-template-columns:28px minmax(0, 1fr) auto; gap:8px; align-items:center; padding:13px 12px; border-right:1px solid #E6ECF2; border-bottom:1px solid #E6ECF2; }
 .dd-status:nth-child(3n) { border-right:0; }
 .dd-status:nth-last-child(-n+3) { border-bottom:0; }
-.dd-status-dot { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--c); color:#fff; font-size:11px; font-weight:900; }
+.dd-status-dot { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:color-mix(in srgb, var(--c) 16%, white); }
+.dd-status-dot::after { content:""; width:8px; height:8px; border-radius:50%; background:var(--c); }
 .dd-status-name { color:var(--c); font-size:11px; font-weight:900; text-transform:uppercase; margin:0; line-height:1.1; }
 .dd-status-sub { color:#64748B; font-size:8px; margin:2px 0 0; line-height:1.2; }
 .dd-status-count { color:var(--c); font-size:17px; font-weight:900; }
@@ -145,7 +146,7 @@
             <div class="dd-status-grid">
                 {% for row in status_rows %}
                 <div class="dd-status" style="--c:{{ row.color }};">
-                    <span class="dd-status-dot">{{ row.label|slice:":1" }}</span>
+                    <span class="dd-status-dot"></span>
                     <div>
                         <p class="dd-status-name">{{ row.label }}</p>
                         <p class="dd-status-sub">{{ row.subtitle }}</p>
