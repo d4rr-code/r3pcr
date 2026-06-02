@@ -32,16 +32,8 @@
             <tbody>
                 {% for tier in bf_tiers %}
                 <tr style="border-bottom: 1px solid #E5E7EB;">
-                    <td style="padding: 12px 16px; color: #111827; font-size: 13px;">
-                        {% if forloop.first %}
-                            ≤ ₱{{ tier.max|floatformat:0 }}
-                        {% elif forloop.last %}
-                            > ₱{{ prev_max|floatformat:0 }}
-                        {% else %}
-                            ₱{{ prev_max|floatformat:0 }} – ₱{{ tier.max|floatformat:0 }}
-                        {% endif %}
-                    </td>
-                    <td style="padding: 12px 16px; text-align: right; color: #111827; font-weight: 600; font-size: 13px;">{{ tier.fee }}</td>
+                    <td style="padding: 12px 16px; color: #111827; font-size: 13px;">Up to ₱{{ tier.max|floatformat:0 }}</td>
+                    <td style="padding: 12px 16px; text-align: right; color: #111827; font-weight: 600; font-size: 13px;">₱{{ tier.fee }}</td>
                     <td style="padding: 12px 16px; text-align: right; color: #6B7280; font-size: 13px;">
                         {% if tier.excess_rate %}
                             {{ tier.excess_rate }}%
@@ -71,14 +63,8 @@
             <tbody>
                 {% for tier in ipf_tiers %}
                 <tr style="border-bottom: 1px solid #E5E7EB;">
-                    <td style="padding: 12px 16px; color: #111827; font-size: 13px;">
-                        {% if forloop.first %}
-                            ≤ ₱{{ tier.max|floatformat:0 }}
-                        {% else %}
-                            ₱{{ prev_max|floatformat:0 }} – ₱{{ tier.max|floatformat:0 }}
-                        {% endif %}
-                    </td>
-                    <td style="padding: 12px 16px; text-align: right; color: #111827; font-weight: 600; font-size: 13px;">{{ tier.fee }}</td>
+                    <td style="padding: 12px 16px; color: #111827; font-size: 13px;">Up to ₱{{ tier.max|floatformat:0 }}</td>
+                    <td style="padding: 12px 16px; text-align: right; color: #111827; font-weight: 600; font-size: 13px;">₱{{ tier.fee }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
