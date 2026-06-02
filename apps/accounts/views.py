@@ -42,14 +42,17 @@ def _validate_profile_fields(first_name, last_name, email, phone='', company='')
     elif not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$', email):
         errors.append('Enter a valid email address.')
 
-    # Phone (optional)
+    # Phone (optional) — Philippine format: 09XX-XXX-XXXX or +639XX-XXX-XXXX
     if phone:
-        if len(phone) < 7:
-            errors.append('Phone number must be at least 7 digits.')
-        elif len(phone) > 20:
-            errors.append('Phone number cannot exceed 20 characters.')
-        elif not re.match(r'^[0-9+\-\s().]+$', phone):
-            errors.append('Phone number may only contain digits, +, -, spaces, and parentheses.')
+        digits_only = re.sub(r'[\s\-().+]', '', phone)
+        if not re.match(r'^[0-9+][0-9\s\-().]*$', phone):
+            errors.append('Phone number must start with 0 or + and contain only digits, spaces, hyphens, or parentheses.')
+        elif not digits_only.isdigit():
+            errors.append('Phone number contains invalid characters.')
+        elif len(digits_only) < 10:
+            errors.append('Phone number must have at least 10 digits. PH format: 09XX-XXX-XXXX or +639XX-XXX-XXXX.')
+        elif len(digits_only) > 13:
+            errors.append('Phone number cannot exceed 13 digits.')
 
     # Company (optional)
     if company and len(company) > 100:

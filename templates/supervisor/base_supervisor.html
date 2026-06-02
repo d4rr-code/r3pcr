@@ -208,6 +208,51 @@
         .s-topbar-btn:hover { border-color: #1B3358; color: #1B3358; }
         .s-content { padding: 0 22px 32px; flex: 1; min-width: 0; }
 
+        .s-hamburger {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            color: #374151;
+            margin-right: auto;
+        }
+        .s-mobile-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 199;
+        }
+        .s-mobile-overlay.visible { display: block; }
+
+        @media (max-width: 1024px) {
+            .s-main.sidebar-open { margin-left: 64px; }
+            .s-sidebar { width: 64px !important; }
+            .s-sidebar.expanded { width: 64px !important; }
+            .s-nav-label, .s-sidebar-user, .s-sidebar.expanded .s-sidebar-logo img { display: none !important; opacity: 0 !important; }
+        }
+        @media (max-width: 768px) {
+            .s-sidebar {
+                transform: translateX(-100%);
+                width: 220px !important;
+                z-index: 200;
+                transition: transform 0.25s ease;
+            }
+            .s-sidebar.mobile-open { transform: translateX(0); }
+            .s-sidebar.mobile-open .s-nav-label,
+            .s-sidebar.mobile-open .s-sidebar-user { display: flex !important; opacity: 1 !important; }
+            .s-sidebar.mobile-open .s-sidebar-logo img { opacity: 1 !important; pointer-events: auto !important; }
+            .s-sidebar.mobile-open .s-nav-item { justify-content: flex-start !important; padding: 9px 12px !important; }
+            .s-main, .s-main.sidebar-open { margin-left: 0 !important; }
+            .s-content { padding: 0 14px 24px; }
+            .s-topbar { padding: 12px 14px 6px; }
+            .s-hamburger { display: flex; align-items: center; justify-content: center; }
+            table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            [style*="grid-template-columns: 1fr 1fr"],
+            [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+        }
+
         .card, .c-card {
             background: #fff;
             border-radius: 14px;
@@ -440,8 +485,14 @@
     </a>
 </div>
 
+<div class="s-mobile-overlay" id="s-overlay" onclick="closeMobileSidebar()"></div>
 <div class="s-main" id="s-main">
     <div class="s-topbar">
+        <button class="s-hamburger" id="s-hamburger" onclick="toggleMobileSidebar()" aria-label="Open menu">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z" clip-rule="evenodd"/>
+            </svg>
+        </button>
         <a href="{% url 'notifications:list' %}" class="s-topbar-btn" title="Notifications">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6z" clip-rule="evenodd"/></svg>
         </a>
@@ -479,9 +530,17 @@
         var isOpen = sidebar.classList.toggle('expanded');
         main.classList.toggle('sidebar-open', isOpen);
         localStorage.setItem(STORAGE_KEY, isOpen ? '1' : '0');
-        // Close floating menu when sidebar state changes
         var fp = document.getElementById('clients-floating-menu');
         if (fp) fp.style.display = 'none';
+    };
+
+    window.toggleMobileSidebar = function () {
+        sidebar.classList.toggle('mobile-open');
+        document.getElementById('s-overlay').classList.toggle('visible');
+    };
+    window.closeMobileSidebar = function () {
+        sidebar.classList.remove('mobile-open');
+        document.getElementById('s-overlay').classList.remove('visible');
     };
 
     // Clients & Staff dropdown toggle

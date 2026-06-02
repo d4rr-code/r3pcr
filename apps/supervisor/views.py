@@ -876,7 +876,7 @@ def _analytics_context_response(request):
         'total_computed':             all_shipments.filter(status='computed').count(),
         'total_approved':             all_shipments.filter(status='approved').count(),
         'total_rejected':             all_shipments.filter(status='rejected').count(),
-        'total_users':                User.objects.count(),
+        'total_users':                User.objects.filter(role__in=['consignee', 'declarant']).count(),
         'total_consignees':           User.objects.filter(role='consignee').count(),
         'total_declarants':           User.objects.filter(role='declarant').count(),
         'consignee_approval_rate':    consignee_approval_rate,

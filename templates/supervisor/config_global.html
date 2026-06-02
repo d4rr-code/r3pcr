@@ -20,7 +20,7 @@
     <span style="color:#6B7280;">Global Parameters</span>
 </p>
 
-<form method="POST" style="max-width:680px;">
+<form method="POST">
     {% csrf_token %}
 
     <!--  Exchange Rates  -->
@@ -55,11 +55,11 @@
         <div id="fetch-status" style="display:none; margin-bottom:12px;
              font-size:12px; padding:8px 12px; border-radius:6px;"></div>
 
-        <!-- Currency rows -->
-        <div>
+        <!-- Currency rows — 2-column grid -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
             {% for row in currency_rows %}
             <div style="display:flex; align-items:center; gap:14px;
-                        padding:11px 0; border-bottom:1px solid #FFFFFF;">
+                        padding:11px 0; border-bottom:1px solid #F3F4F6;">
                 <!-- Flag + code -->
                 <div style="width:52px; flex-shrink:0; text-align:center;">
                     <span style="color:#1B3358; font-size:11px; font-weight:800;
@@ -107,7 +107,7 @@
         <p style="color:#9CA3AF; font-size:12px; margin:0 0 20px;">
             Applied to dutiable value on every computation.
         </p>
-        <div style="max-width:200px;">
+        <div style="max-width:260px;">
             <div style="position:relative;">
                 <input type="number" name="vat_rate" step="0.01" min="0" max="100"
                        value="{{ config.vat_rate }}"

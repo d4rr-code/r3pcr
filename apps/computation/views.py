@@ -1002,7 +1002,7 @@ def compute_shipment(request, shipment_id):
                 _suggest_parts.append(_it['description'])
     _combined = ' '.join(_suggest_parts).strip()
     if _combined:
-        hs_suggestions = suggest_hs_codes(_combined, top_n=5)
+        hs_suggestions = suggest_hs_codes(_combined, top_n=10)
         # Persist as is_suggested records for tracking & historical learning
         for _hs in hs_suggestions:
             ShipmentHSCode.objects.get_or_create(

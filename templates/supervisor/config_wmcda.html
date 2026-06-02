@@ -20,7 +20,7 @@
     <span style="color:#6B7280;">WMCDA Criterion Weights</span>
 </p>
 
-<div style="max-width:560px;">
+<div>
     <div class="card" style="padding:32px;">
 
         <p style="color:#6B7280; font-size:13px; margin:0 0 8px; line-height:1.6;">
@@ -36,6 +36,9 @@
             {% csrf_token %}
 
             {% with weights=config %}
+
+            <!-- 2×2 grid for the four criteria -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px 32px;">
 
             <!-- Cost Weight -->
             <div style="margin-bottom:22px;">
@@ -124,6 +127,8 @@
                 </p>
                 {% endif %}
             </div>
+
+            </div><!-- end 2×2 grid -->
 
             {% endwith %}
 

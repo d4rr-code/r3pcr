@@ -20,7 +20,7 @@
 {% endblock %}
 
 {% block content %}
-<div style="max-width:680px;">
+<div>
 
     <!-- ── Profile Card ─────────────────────────────────────────────────────── -->
     <div class="card" style="margin-bottom:20px; padding:24px;">
@@ -96,10 +96,10 @@
                     <div>
                         <label class="form-label">Phone Number</label>
                         <input type="tel" name="phone_number" class="form-input"
-                               value="{{ user.phone_number|default:'' }}" placeholder="+63-9XX-XXX-XXXX"
-                               minlength="7" maxlength="20"
-                               pattern="[0-9+\-\s().]+"
-                               title="Digits, +, -, spaces, and parentheses only.">
+                               value="{{ user.phone_number|default:'' }}" placeholder="09XX-XXX-XXXX or +63-9XX-XXX-XXXX"
+                               maxlength="18"
+                               pattern="[0+][0-9\s\-().]+"
+                               title="PH format: 09XX-XXX-XXXX or +63-9XX-XXX-XXXX. 10–13 digits.">
                         <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Digits &amp; +, -, spaces only</p>
                     </div>
                     <div style="grid-column:1/-1;">
@@ -120,7 +120,7 @@
         <!-- Username sub-section (always visible) -->
         <div style="margin-top:24px; padding-top:20px; border-top:1px solid #F3F4F6;">
             <h3 style="font-size:13px; font-weight:600; color:#374151; margin:0 0 14px;">Change Username</h3>
-            <form method="POST" style="max-width:480px;">
+            <form method="POST" style="max-width:100%;">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="username">
                 <div style="display:flex; gap:12px; align-items:flex-end;">
@@ -146,7 +146,7 @@
     <div class="card" style="padding:24px;">
         <h2 style="font-size:15px; font-weight:700; color:#1A1A2E; margin:0 0 4px;">Change Password</h2>
         <p style="font-size:12px; color:#9CA3AF; margin:0 0 20px;">Keep your account secure with a strong password</p>
-        <form method="POST" style="max-width:420px;">
+        <form method="POST" style="max-width:100%;">
             {% csrf_token %}
             <input type="hidden" name="action" value="password">
             <div style="display:flex; flex-direction:column; gap:14px;">

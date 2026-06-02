@@ -14,29 +14,22 @@
     <p style="color: #6B7280; margin: 0; font-size: 13px;">Current system-wide exchange rates (PHP per foreign currency unit)</p>
 </div>
 
-<div class="card">
-    <table style="width: 100%; border-collapse: collapse;">
-        <thead>
-            <tr style="background: #F3F4F6; border-bottom: 2px solid #E5E7EB;">
-                <th style="padding: 12px 16px; text-align: left; color: #1B3358; font-weight: 700; font-size: 13px;">Currency</th>
-                <th style="padding: 12px 16px; text-align: right; color: #1B3358; font-weight: 700; font-size: 13px;">Rate (PHP)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for code, rate in parameters.items %}
-            <tr style="border-bottom: 1px solid #E5E7EB;">
-                <td style="padding: 14px 16px; color: #111827; font-weight: 600; font-size: 14px;">{{ code }}</td>
-                <td style="padding: 14px 16px; text-align: right; color: #111827; font-size: 14px;">
-                    {% if rate != '—' %}
-                        <strong>{{ rate }}</strong>
-                    {% else %}
-                        <span style="color: #9CA3AF;">{{ rate }}</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+    {% for code, rate in parameters.items %}
+    <div class="card" style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px;">
+        <div>
+            <p style="color:#1B3358; font-weight:800; font-size:16px; margin:0;">{{ code }}</p>
+            <p style="color:#9CA3AF; font-size:11px; margin:2px 0 0;">per 1 {{ code }}</p>
+        </div>
+        <div style="text-align:right;">
+            {% if rate != '—' %}
+                <p style="color:#111827; font-weight:700; font-size:18px; margin:0;">₱{{ rate }}</p>
+            {% else %}
+                <p style="color:#9CA3AF; font-size:15px; margin:0;">—</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
 </div>
 
 <div style="margin-top: 20px; padding: 14px 16px; background: #EFF6FF; border: 1px solid #93C5FD; border-radius: 8px; font-size: 13px; color: #1D4ED8;">
