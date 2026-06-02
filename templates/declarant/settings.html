@@ -102,24 +102,37 @@
             <input type="hidden" name="action" value="profile">
             <div class="s-grid-2">
                 <div>
-                    <label class="s-label">First Name</label>
+                    <label class="s-label">First Name <span style="color:#ef4444;">*</span></label>
                     <input type="text" name="first_name" class="s-input"
-                           value="{{ user.first_name }}" placeholder="First name">
+                           value="{{ user.first_name }}" placeholder="e.g. Elena"
+                           required minlength="2" maxlength="50"
+                           pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
+                           title="Letters, spaces, hyphens, apostrophes only. 2–50 characters.">
+                    <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Letters only, 2–50 chars</p>
                 </div>
                 <div>
-                    <label class="s-label">Last Name</label>
+                    <label class="s-label">Last Name <span style="color:#ef4444;">*</span></label>
                     <input type="text" name="last_name" class="s-input"
-                           value="{{ user.last_name }}" placeholder="Last name">
+                           value="{{ user.last_name }}" placeholder="e.g. Bautista"
+                           required minlength="2" maxlength="50"
+                           pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
+                           title="Letters, spaces, hyphens, apostrophes only. 2–50 characters.">
+                    <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Letters only, 2–50 chars</p>
                 </div>
                 <div>
-                    <label class="s-label">Email Address</label>
+                    <label class="s-label">Email Address <span style="color:#ef4444;">*</span></label>
                     <input type="email" name="email" class="s-input"
-                           value="{{ user.email }}" placeholder="email@example.com">
+                           value="{{ user.email }}" placeholder="email@example.com"
+                           required maxlength="150">
                 </div>
                 <div>
                     <label class="s-label">Phone Number</label>
-                    <input type="text" name="phone_number" class="s-input"
-                           value="{{ user.phone_number|default:'' }}" placeholder="+63-9XX-XXX-XXXX">
+                    <input type="tel" name="phone_number" class="s-input"
+                           value="{{ user.phone_number|default:'' }}" placeholder="+63-9XX-XXX-XXXX"
+                           minlength="7" maxlength="20"
+                           pattern="[0-9+\-\s().]+"
+                           title="Digits, +, -, spaces, and parentheses only.">
+                    <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Digits &amp; +, -, spaces only</p>
                 </div>
             </div>
             <div style="margin-top:12px;">

@@ -64,13 +64,19 @@
                     <label class="form-label">First Name <span style="color:#ef4444;">*</span></label>
                     <input type="text" id="first_name" name="first_name" class="form-input"
                            value="{{ form_data.first_name|default:'' }}"
-                           placeholder="Juan" required autocomplete="given-name">
+                           placeholder="Juan" required autocomplete="given-name"
+                           minlength="2" maxlength="50"
+                           pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
+                           title="Letters, spaces, hyphens, and apostrophes only. 2–50 characters.">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Last Name <span style="color:#ef4444;">*</span></label>
                     <input type="text" id="last_name" name="last_name" class="form-input"
                            value="{{ form_data.last_name|default:'' }}"
-                           placeholder="Dela Cruz" required autocomplete="family-name">
+                           placeholder="Dela Cruz" required autocomplete="family-name"
+                           minlength="2" maxlength="50"
+                           pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
+                           title="Letters, spaces, hyphens, and apostrophes only. 2–50 characters.">
                 </div>
             </div>
 
@@ -97,13 +103,17 @@
                     <label class="form-label">Company Name</label>
                     <input type="text" name="company_name" class="form-input"
                            value="{{ form_data.company_name|default:'' }}"
-                           placeholder="Dela Cruz Trading">
+                           placeholder="Dela Cruz Trading"
+                           maxlength="100">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Phone Number</label>
-                    <input type="text" name="phone_number" class="form-input"
+                    <input type="tel" name="phone_number" class="form-input"
                            value="{{ form_data.phone_number|default:'' }}"
-                           placeholder="+63 9XX XXX XXXX">
+                           placeholder="+63 9XX XXX XXXX"
+                           minlength="7" maxlength="20"
+                           pattern="[0-9+\-\s().]+"
+                           title="Digits, +, -, spaces, and parentheses only.">
                 </div>
             </div>
 

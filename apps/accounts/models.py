@@ -11,13 +11,17 @@ class User(AbstractUser):
         ('supervisor', 'Supervisor'),
     ]
 
+    # Override AbstractUser's first_name/last_name (max_length 150 → 50)
+    first_name = models.CharField(max_length=50, blank=True)
+    last_name  = models.CharField(max_length=50, blank=True)
+
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,
         default='consignee'
     )
-    phone_number        = models.CharField(max_length=20, blank=True, null=True)
-    company_name        = models.CharField(max_length=200, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    company_name = models.CharField(max_length=100, blank=True)
     otp_enabled         = models.BooleanField(default=True)
     is_pending_approval = models.BooleanField(default=False)
     is_active           = models.BooleanField(default=True)

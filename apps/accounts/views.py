@@ -1,3 +1,4 @@
+import re
 import threading
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -7,6 +8,54 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import User, OTP
+
+
+# ─── Field validation helpers ─────────────────────────────────────────────────
+
+def _validate_profile_fields(first_name, last_name, email, phone='', company=''):
+    """Return a list of error strings; empty list means all fields are valid."""
+    errors = []
+
+    # First name
+    if not first_name:
+        errors.append('First name is required.')
+    elif len(first_name) < 2:
+        errors.append('First name must be at least 2 characters.')
+    elif len(first_name) > 50:
+        errors.append('First name cannot exceed 50 characters.')
+    elif not re.match(r"^[a-zA-ZÀ-ÿ\s\-'.]+$", first_name):
+        errors.append('First name may only contain letters, spaces, hyphens, and apostrophes.')
+
+    # Last name
+    if not last_name:
+        errors.append('Last name is required.')
+    elif len(last_name) < 2:
+        errors.append('Last name must be at least 2 characters.')
+    elif len(last_name) > 50:
+        errors.append('Last name cannot exceed 50 characters.')
+    elif not re.match(r"^[a-zA-ZÀ-ÿ\s\-'.]+$", last_name):
+        errors.append('Last name may only contain letters, spaces, hyphens, and apostrophes.')
+
+    # Email
+    if not email:
+        errors.append('Email address is required.')
+    elif not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$', email):
+        errors.append('Enter a valid email address.')
+
+    # Phone (optional)
+    if phone:
+        if len(phone) < 7:
+            errors.append('Phone number must be at least 7 digits.')
+        elif len(phone) > 20:
+            errors.append('Phone number cannot exceed 20 characters.')
+        elif not re.match(r'^[0-9+\-\s().]+$', phone):
+            errors.append('Phone number may only contain digits, +, -, spaces, and parentheses.')
+
+    # Company (optional)
+    if company and len(company) > 100:
+        errors.append('Company name cannot exceed 100 characters.')
+
+    return errors
 
 
 def _send_mail_async(subject, message, from_email, recipient_list, html_message=None, log_tag=''):
@@ -197,14 +246,12 @@ def register_view(request):
         username = _generate_username(first_name, last_name)
 
         # ── Validation ──
-        errors = []
-        if not all([first_name, last_name, email, password]):
-            errors.append('All required fields must be filled in.')
+        errors = _validate_profile_fields(first_name, last_name, email, phone_number, company_name)
         if password != password2:
             errors.append('Passwords do not match.')
         if len(password) < 8:
             errors.append('Password must be at least 8 characters.')
-        if User.objects.filter(email=email).exists():
+        if email and User.objects.filter(email=email).exists():
             errors.append('Email already registered.')
 
         if errors:
@@ -359,19 +406,27 @@ def account_settings(request):
         user   = request.user
 
         if action == 'profile':
-            user.first_name  = request.POST.get('first_name', '').strip()
-            user.last_name   = request.POST.get('last_name', '').strip()
-            email            = request.POST.get('email', '').strip()
-            phone            = request.POST.get('phone_number', '').strip()
-            company          = request.POST.get('company_name', '').strip()
+            first_name = request.POST.get('first_name', '').strip()
+            last_name  = request.POST.get('last_name',  '').strip()
+            email      = request.POST.get('email', '').strip()
+            phone      = request.POST.get('phone_number', '').strip()
+            company    = request.POST.get('company_name', '').strip()
 
-            if email and email != user.email:
+            errors = _validate_profile_fields(first_name, last_name, email, phone, company)
+            if errors:
+                for e in errors:
+                    messages.error(request, e)
+                return redirect('accounts:settings')
+
+            if email != user.email:
                 if User.objects.filter(email=email).exclude(pk=user.pk).exists():
                     messages.error(request, 'Email already in use by another account.')
                     return redirect('accounts:settings')
                 user.email = email
 
-            user.phone_number = phone
+            user.first_name   = first_name
+            user.last_name    = last_name
+            user.phone_number = phone or None
             user.company_name = company
             user.save()
             messages.success(request, 'Profile updated.')
