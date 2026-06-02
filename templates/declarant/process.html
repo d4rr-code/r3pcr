@@ -123,10 +123,11 @@
 .ocr-text-panel { display: none; }
 .ocr-text-panel.active { display: block; }
 .ocr-raw-text {
-    white-space: pre-wrap; max-height: 220px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 320px; overflow-y: auto;
     background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 8px;
     color: #374151; padding: 12px; font-size: 11px; font-family: 'Courier New', monospace;
-    line-height: 1.6; margin-top: 10px;
+    line-height: 1.7; margin-top: 10px;
 }
 .conf-badge {
     display: inline-flex; align-items: center; gap: 5px;
@@ -639,9 +640,11 @@
                  onclick="(function(){
                      var b=document.getElementById('ocr-text-body');
                      var a=document.getElementById('ocr-text-arrow');
+                     var h=document.getElementById('ocr-text-hint');
                      var open=b.style.display!=='none';
                      b.style.display=open?'none':'block';
                      a.style.transform=open?'rotate(-90deg)':'rotate(0deg)';
+                     if(h) h.textContent=open?'View raw text':'Hide';
                      try{localStorage.setItem('ocrTextOpen',open?'0':'1');}catch(e){}
                  })()">
                 <svg id="ocr-text-arrow" viewBox="0 0 20 20" fill="currentColor"
@@ -650,16 +653,15 @@
                 </svg>
                 <p class="dark-card-title" style="margin:0;flex:1;">Extracted Document Contents</p>
                 {% if ocr_documents %}
-                <span style="font-size:10px;color:#334155;">
+                <span style="font-size:10px;color:#475569;display:flex;align-items:center;gap:6px;">
                     {% for item in ocr_documents %}{% if item.doc.ocr_ran_at %}
-                    <span style="display:inline-block;margin-right:6px;
-                        {% if item.doc.ocr_quality == 'good' %}color:#22c55e;{% elif item.doc.ocr_quality == 'low' %}color:#f59e0b;{% else %}color:#475569;{% endif %}">●
+                    <span style="{% if item.doc.ocr_quality == 'good' %}color:#22c55e;{% elif item.doc.ocr_quality == 'low' %}color:#f59e0b;{% else %}color:#6b7280;{% endif %}font-weight:700;">●
                         {% if item.doc.document_type == 'invoice' %}INV{% elif item.doc.document_type == 'packing_list' %}PL{% elif item.doc.document_type == 'airway_bill' %}AWB{% else %}DOC{% endif %}
                     </span>
                     {% endif %}{% endfor %}
                 </span>
                 {% endif %}
-                <span style="font-size:10px;color:#334155;margin-left:4px;">View raw text</span>
+                <span id="ocr-text-hint" style="font-size:10px;color:#475569;margin-left:4px;white-space:nowrap;">View raw text</span>
             </div>
 
             <!-- Collapsible body (hidden by default) -->
@@ -709,6 +711,8 @@
                 if (localStorage.getItem('ocrTextOpen') === '1') {
                     document.getElementById('ocr-text-body').style.display = 'block';
                     document.getElementById('ocr-text-arrow').style.transform = 'rotate(0deg)';
+                    var h = document.getElementById('ocr-text-hint');
+                    if (h) h.textContent = 'Hide';
                 }
             } catch(e) {}
         })();
