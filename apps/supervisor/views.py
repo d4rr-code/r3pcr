@@ -302,13 +302,23 @@ def analytics(request):
 def _analytics_context_response(request):
     all_shipments = Shipment.objects.all()
 
-    #  Chart/KPI filters (date range + declarant) 
+    #  Chart/KPI filters (date range + declarant)
     date_from        = request.GET.get('date_from', '').strip()
     date_to          = request.GET.get('date_to', '').strip()
     declarant_filter = request.GET.get('declarant', '').strip()
     overview_period  = request.GET.get('overview_period', 'month').strip().lower()
     if overview_period not in {'year', 'month', 'week', 'day'}:
         overview_period = 'month'
+
+    #  Range presets (all time, last 3 months, last month)
+    range_preset = request.GET.get('range', '').strip().lower()
+    if range_preset == '3m' and not date_from:
+        date_to = datetime.now().date().isoformat()
+        date_from = (datetime.now() - timedelta(days=90)).date().isoformat()
+    elif range_preset == '1m' and not date_from:
+        today = datetime.now().date()
+        date_to = today.isoformat()
+        date_from = (today.replace(day=1)).isoformat()
 
     chart_qs = all_shipments
     if date_from:

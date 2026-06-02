@@ -644,9 +644,17 @@
             <div class="panel-title">
                 <div>
                     <h2>Shipment Overview</h2>
-                    <p>Grouped by Month</p>
+                    <p>Monthly shipment volume trends</p>
                 </div>
-                <input class="calendar-chip js-overview-month-filter" type="month" value="{{ selected_month }}" aria-label="Filter shipment overview by month">
+                <form class="overview-controls" method="GET">
+                    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+                    {% if status_f %}<input type="hidden" name="status_f" value="{{ status_f }}">{% endif %}
+                    {% if declarant_filter %}<input type="hidden" name="declarant" value="{{ declarant_filter }}">{% endif %}
+                    <button class="dash-btn" type="submit" name="range" value="all" formaction="?">All Time</button>
+                    <button class="dash-btn" type="submit" name="range" value="3m" formaction="?">Last 3 Months</button>
+                    <button class="dash-btn" type="submit" name="range" value="1m" formaction="?">Last Month</button>
+                    <input class="calendar-chip overview-date-control" type="month" name="custom_month" value="{{ selected_month }}" title="Custom month" aria-label="Custom month filter">
+                </form>
             </div>
             <div class="chart-fixed compact-chart overview-chart-frame">
                 <canvas id="monthlyChart"></canvas>
@@ -831,12 +839,15 @@
         });
     });
 
-    var overviewMonth = document.querySelector('.js-overview-month-filter');
-    if (overviewMonth) {
-        overviewMonth.addEventListener('change', function () {
-            var params = new URLSearchParams(window.location.search);
-            params.set('overview_period', 'month');
-            if (setMonthRange(params, overviewMonth.value)) {
+    var customMonthInput = document.querySelector('input[name="custom_month"]');
+    if (customMonthInput) {
+        customMonthInput.addEventListener('change', function () {
+            var form = customMonthInput.closest('form');
+            if (form) {
+                // Remove range parameter to avoid conflicts
+                var formData = new FormData(form);
+                formData.delete('range');
+                var params = new URLSearchParams(formData);
                 window.location.search = params.toString();
             }
         });
