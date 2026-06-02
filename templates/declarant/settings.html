@@ -6,93 +6,26 @@
 
 {% block extra_css %}
 <style>
-.s-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 20px;
-    box-shadow: 0 1px 4px rgba(0,0,0,.06);
-}
-.s-card-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: #0f172a;
-    margin: 0 0 18px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #f1f5f9;
-}
-.s-label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 6px;
-}
-.s-input {
-    width: 100%;
-    padding: 9px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    background: #f9fafb;
-    color: #111827;
-    font-size: 13px;
-    outline: none;
-    transition: border-color .15s, box-shadow .15s;
-    box-sizing: border-box;
-    font-family: inherit;
-}
-.s-input:focus {
-    border-color: #2563eb;
-    background: #fff;
-    box-shadow: 0 0 0 3px #dbeafe;
-}
-.s-input:disabled {
-    background: #f3f4f6;
-    color: #9ca3af;
-    cursor: not-allowed;
-}
-.s-hint {
-    font-size: 11px;
-    color: #9ca3af;
-    margin-top: 4px;
-}
-.s-btn {
-    padding: 10px 22px;
-    border: none;
-    border-radius: 8px;
-    background: #1d4ed8;
-    color: #fff;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background .15s;
-    margin-top: 18px;
-    font-family: inherit;
-}
-.s-btn:hover { background: #1e40af; }
-.s-grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-}
-@media (max-width: 600px) { .s-grid-2 { grid-template-columns: 1fr; } }
+.req-item { font-size:11px; color:#9CA3AF; display:flex; align-items:center; gap:6px; transition:color 0.2s; }
+.req-item.met { color:#16A34A; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div style="max-width: 680px;">
+<div style="max-width:680px;">
 
-    <!-- Profile -->
-    <div class="s-card">
-        <p class="s-card-title">Profile Information</p>
+    <!-- ── Profile ───────────────────────────────────────────────────────────── -->
+    <div class="card" style="margin-bottom:20px; padding:24px;">
+        <h2 style="font-size:15px; font-weight:700; color:#1A1A2E; margin:0 0 4px;">Profile Information</h2>
+        <p style="font-size:12px; color:#9CA3AF; margin:0 0 20px;">Update your personal account details</p>
+
         <form method="POST">
             {% csrf_token %}
             <input type="hidden" name="action" value="profile">
-            <div class="s-grid-2">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
                 <div>
-                    <label class="s-label">First Name <span style="color:#ef4444;">*</span></label>
-                    <input type="text" name="first_name" class="s-input"
+                    <label class="form-label">First Name <span style="color:#ef4444;">*</span></label>
+                    <input type="text" name="first_name" class="form-input"
                            value="{{ user.first_name }}" placeholder="e.g. Elena"
                            required minlength="2" maxlength="50"
                            pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
@@ -100,8 +33,8 @@
                     <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Letters only, 2–50 chars</p>
                 </div>
                 <div>
-                    <label class="s-label">Last Name <span style="color:#ef4444;">*</span></label>
-                    <input type="text" name="last_name" class="s-input"
+                    <label class="form-label">Last Name <span style="color:#ef4444;">*</span></label>
+                    <input type="text" name="last_name" class="form-input"
                            value="{{ user.last_name }}" placeholder="e.g. Bautista"
                            required minlength="2" maxlength="50"
                            pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
@@ -109,14 +42,14 @@
                     <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Letters only, 2–50 chars</p>
                 </div>
                 <div>
-                    <label class="s-label">Email Address <span style="color:#ef4444;">*</span></label>
-                    <input type="email" name="email" class="s-input"
+                    <label class="form-label">Email Address <span style="color:#ef4444;">*</span></label>
+                    <input type="email" name="email" class="form-input"
                            value="{{ user.email }}" placeholder="email@example.com"
                            required maxlength="150">
                 </div>
                 <div>
-                    <label class="s-label">Phone Number</label>
-                    <input type="tel" name="phone_number" class="s-input"
+                    <label class="form-label">Phone Number</label>
+                    <input type="tel" name="phone_number" class="form-input"
                            value="{{ user.phone_number|default:'' }}" placeholder="+63-9XX-XXX-XXXX"
                            minlength="7" maxlength="20"
                            pattern="[0-9+\-\s().]+"
@@ -124,65 +57,99 @@
                     <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Digits &amp; +, -, spaces only</p>
                 </div>
             </div>
-            <div style="margin-top:12px;">
+            <div style="margin-top:6px;">
                 <span style="font-size:12px; color:#6b7280;">
                     Role: <strong style="color:#374151;">{{ user.get_role_display }}</strong>
                 </span>
             </div>
-            <button type="submit" class="s-btn">Save Profile</button>
+            <button type="submit" class="btn btn-primary" style="margin-top:18px;">Save Changes</button>
         </form>
     </div>
 
-    <!-- Username -->
-    <div class="s-card">
-        <p class="s-card-title">Change Username</p>
-        <form method="POST" style="max-width:400px;">
+    <!-- ── Username ──────────────────────────────────────────────────────────── -->
+    <div class="card" style="margin-bottom:20px; padding:24px;">
+        <h2 style="font-size:15px; font-weight:700; color:#1A1A2E; margin:0 0 4px;">Change Username</h2>
+        <p style="font-size:12px; color:#9CA3AF; margin:0 0 20px;">Your login identifier</p>
+
+        <form method="POST" style="max-width:480px;">
             {% csrf_token %}
             <input type="hidden" name="action" value="username">
-            <div style="display:flex; flex-direction:column; gap:14px;">
-                <div>
-                    <label class="s-label">Current Username</label>
-                    <input type="text" class="s-input" value="{{ user.username }}" disabled>
-                </div>
-                <div>
-                    <label class="s-label">New Username</label>
-                    <input type="text" name="new_username" class="s-input"
-                           placeholder="Enter new username" required minlength="3" maxlength="30"
+            <div style="display:flex; gap:12px; align-items:flex-end;">
+                <div style="flex:1;">
+                    <label class="form-label">New Username</label>
+                    <input type="text" name="new_username" class="form-input"
+                           placeholder="Enter new username"
+                           required minlength="3" maxlength="30"
                            pattern="[a-zA-Z0-9_.]+"
-                           title="Only letters, numbers, underscores, and dots allowed">
-                    <p class="s-hint">Letters, numbers, underscores and dots only. Min. 3 characters.</p>
+                           title="Letters, numbers, underscores and dots only">
                 </div>
+                <button type="submit" class="btn btn-primary" style="white-space:nowrap;">Update</button>
             </div>
-            <button type="submit" class="s-btn">Change Username</button>
         </form>
+        <p style="font-size:11px; color:#9CA3AF; margin-top:10px;">
+            Current username: <strong style="color:#374151;">{{ user.username }}</strong>
+            &nbsp;·&nbsp; Letters, numbers, underscores and dots only. Min. 3 characters.
+        </p>
     </div>
 
-    <!-- Password -->
-    <div class="s-card">
-        <p class="s-card-title">Change Password</p>
-        <form method="POST" style="max-width:400px;">
+    <!-- ── Password ──────────────────────────────────────────────────────────── -->
+    <div class="card" style="padding:24px;">
+        <h2 style="font-size:15px; font-weight:700; color:#1A1A2E; margin:0 0 4px;">Change Password</h2>
+        <p style="font-size:12px; color:#9CA3AF; margin:0 0 20px;">Keep your account secure with a strong password</p>
+
+        <form method="POST" style="max-width:420px;">
             {% csrf_token %}
             <input type="hidden" name="action" value="password">
             <div style="display:flex; flex-direction:column; gap:14px;">
                 <div>
-                    <label class="s-label">Current Password</label>
-                    <input type="password" name="old_password" class="s-input"
-                           placeholder="Enter current password" required>
+                    <label class="form-label">Current Password</label>
+                    <input type="password" name="old_password" class="form-input"
+                           placeholder="Enter current password" required autocomplete="current-password">
                 </div>
                 <div>
-                    <label class="s-label">New Password</label>
-                    <input type="password" name="new_password" class="s-input"
-                           placeholder="Min. 8 characters" required>
+                    <label class="form-label">New Password</label>
+                    <input type="password" name="new_password" id="new-pw" class="form-input"
+                           placeholder="Min. 8 characters" required autocomplete="new-password"
+                           oninput="checkPw(this.value)">
+                    <div style="margin-top:8px; display:flex; flex-direction:column; gap:5px;">
+                        <div class="req-item" id="req-len"><span id="req-len-icon" style="font-size:12px;">○</span> At least 8 characters</div>
+                        <div class="req-item" id="req-upper"><span id="req-upper-icon" style="font-size:12px;">○</span> One uppercase letter</div>
+                        <div class="req-item" id="req-num"><span id="req-num-icon" style="font-size:12px;">○</span> One number</div>
+                    </div>
                 </div>
                 <div>
-                    <label class="s-label">Confirm New Password</label>
-                    <input type="password" name="confirm_password" class="s-input"
-                           placeholder="Repeat new password" required>
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" name="confirm_password" id="confirm-pw" class="form-input"
+                           placeholder="Repeat new password" required autocomplete="new-password"
+                           oninput="checkMatch()">
+                    <div class="req-item" id="req-match" style="margin-top:6px;">
+                        <span id="req-match-icon" style="font-size:12px;">○</span> Passwords match
+                    </div>
                 </div>
             </div>
-            <button type="submit" class="s-btn">Change Password</button>
+            <button type="submit" class="btn btn-primary" style="margin-top:20px;">Change Password</button>
         </form>
     </div>
 
 </div>
+
+<script>
+function checkPw(val) {
+    setReq('req-len',   val.length >= 8);
+    setReq('req-upper', /[A-Z]/.test(val));
+    setReq('req-num',   /[0-9]/.test(val));
+    checkMatch();
+}
+function checkMatch() {
+    var pw  = document.getElementById('new-pw').value;
+    var cfm = document.getElementById('confirm-pw').value;
+    setReq('req-match', pw.length > 0 && pw === cfm);
+}
+function setReq(id, ok) {
+    var el = document.getElementById(id);
+    var icon = document.getElementById(id + '-icon');
+    if (ok) { el.classList.add('met'); icon.textContent = '✓'; }
+    else     { el.classList.remove('met'); icon.textContent = '○'; }
+}
+</script>
 {% endblock %}
