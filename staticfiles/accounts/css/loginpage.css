@@ -1,0 +1,543 @@
+/* =========================
+   GOOGLE FONT
+========================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Poppins',sans-serif;
+    min-height:calc(100vh - 75px);
+    background:url('../img/BG MAIN.png');
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    background-attachment:fixed;
+}
+
+/* =========================
+   NAVBAR
+========================= */
+
+.navbar{
+    width:100%;
+    height:75px;
+    background:white;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 50px;
+    border-radius:0 0 18px 18px;
+    position:relative;
+    z-index:100;
+    box-shadow:
+    0 4px 10px rgba(0,0,0,0.06),
+    0 10px 25px rgba(0,0,0,0.04);
+}
+
+.nav-left img{
+    height:40px;
+    object-fit:contain;
+}
+
+.logo-link{
+    display:flex;
+    align-items:center;
+}
+
+.logo-link img{
+    transition:0.3s ease;
+}
+
+.logo-link:hover img{
+    opacity:0.8;
+    transform:scale(1.02);
+}
+
+.nav-right{
+    display:flex;
+    align-items:center;
+    gap:24px;
+}
+
+/* NAV LINKS */
+
+.nav-right a{
+    text-decoration:none;
+    color:#1f3d66;
+    font-size:13px;
+    font-weight:600;
+    transition:0.3s ease;
+}
+
+.nav-right a:hover{
+    opacity:0.75;
+}
+
+/* =========================
+   LANGUAGE DROPDOWN
+========================= */
+
+.language-dropdown{
+    position:relative;
+    z-index:9999;
+}
+
+.selected-language{
+    display:flex;
+    align-items:center;
+    gap:7px;
+
+    color:#1f3d66;
+
+    font-size:14px;
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:0.3s ease;
+
+    user-select:none;
+}
+
+.selected-language:hover{
+    opacity:0.75;
+}
+
+/* MENU */
+
+.language-menu{
+    position:absolute;
+
+    top:42px;
+    left:-12px;
+
+    background:white;
+
+    width:150px;
+
+    border-radius:12px;
+
+    padding:8px 0;
+
+    box-shadow:
+    0 10px 30px rgba(0,0,0,0.08);
+
+    opacity:0;
+    visibility:hidden;
+
+    transform:translateY(10px);
+
+    transition:0.25s ease;
+
+    overflow:hidden;
+}
+
+/* ACTIVE */
+
+.language-dropdown.active .language-menu{
+    opacity:1;
+    visibility:visible;
+    transform:translateY(0);
+}
+
+/* OPTION */
+
+.language-option{
+    padding:12px 18px;
+
+    color:#1f3d66;
+
+    font-size:14px;
+    font-weight:500;
+
+    cursor:pointer;
+
+    transition:0.25s ease;
+}
+
+.language-option:hover{
+    background:#f1f5f9;
+}
+
+/* NAV BUTTONS */
+.register-btn{
+    background:#1f3d66;
+    color:white !important;
+    padding:11px 18px;
+    border-radius:5px;
+    transition:0.3s ease;
+}
+.register-btn:hover{
+    background:#16314f;
+    transform:translateY(-2px);
+}
+.login-btn-nav{
+    background:#e5e7eb;
+    color:#1f3d66 !important;
+    padding:11px 18px;
+    border-radius:5px;
+    border:1px solid #cbd5e1;
+    cursor:default;
+}
+
+/* =========================
+   MAIN LOGIN SECTION
+========================= */
+
+.login-section{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    position:relative;
+    padding:105px 20px;
+}
+
+/* =========================
+   LOGIN CONTAINER
+========================= */
+
+.login-container{
+    width:100%;
+    max-width:650px;
+    text-align:center;
+    position:relative;
+    z-index:2;
+    color:white;
+    padding:0 20px;
+}
+
+.login-container h1{
+    font-size:47px;
+    font-weight:700;
+    margin-bottom:10px;
+    line-height:1.25;
+    max-width:700px;
+    margin-inline:auto;
+}
+
+.subtitle{
+    font-size:15px;
+    color:#ffffffeb;
+    margin-bottom:45px;
+    line-height:1.8;
+    max-width:620px;
+    margin-inline:auto;
+}
+
+/* =========================
+   FORM
+========================= */
+
+.form-group{
+    margin-bottom:22px;
+    text-align:left;
+}
+
+.form-group label{
+    display:block;
+    margin-bottom:10px;
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:1px;
+}
+
+/* INPUT */
+
+.form-group input{
+    width:100%;
+    height:54px;
+    border:none;
+    border-radius:8px;
+    padding:0 18px;
+    font-size:14px;
+    outline:none;
+    font-family:'Poppins',sans-serif;
+    transition:0.3s ease;
+}
+
+.form-group input:focus{
+    box-shadow:0 0 0 3px rgba(255,255,255,0.25);
+}
+
+/* PASSWORD */
+
+.password-wrapper{
+    position:relative;
+}
+
+.toggle-password{
+    position:absolute;
+    top:50%;
+    right:15px;
+    transform:translateY(-50%);
+    border:none;
+    background:none;
+    cursor:pointer;
+    color:#64748b;
+    font-size:16px;
+    transition:0.3s ease;
+}
+
+.toggle-password:hover{
+    color:#1f3d66;
+}
+
+/* =========================
+   REMEMBER ROW
+========================= */
+
+.remember-row{
+    display:flex;
+    justify-content:flex-start;
+    align-items:center;
+    margin-bottom:28px;
+}
+
+.remember-me{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:13px;
+}
+
+.remember-me input{
+    width:16px;
+    height:16px;
+    cursor:pointer;
+}
+
+/* =========================
+   LOGIN BUTTON
+========================= */
+
+.login-button{
+    width:100%;
+    height:54px;
+    border:2px solid white;
+    background:transparent;
+    color:white;
+    border-radius:8px;
+    font-size:16px;
+    font-weight:700;
+    cursor:pointer;
+    transition:0.3s ease;
+    font-family:'Poppins',sans-serif;
+}
+
+.login-button:hover{
+    background:white;
+    color:#284b7a;
+    transform:translateY(-2px);
+    box-shadow:0 8px 20px rgba(0,0,0,0.2);
+}
+
+/* =========================
+   HELP TEXT
+========================= */
+
+.help-text{
+    margin-top:30px;
+    font-size:14px;
+    line-height:0.6;
+    font-weight: 100;
+}
+
+.help-text a{
+    color:white;
+    font-weight:600;
+    transition:0.3s ease;
+}
+
+.help-text a:hover{
+    opacity:0.7;
+}
+
+/* =========================
+   DIVIDER
+========================= */
+
+hr{
+    border:none;
+    border-top:1px solid rgba(255,255,255,0.25);
+    margin:40px 0;
+}
+
+/* =========================
+   REGISTER TEXT
+========================= */
+
+.register-text{
+    font-size:15px;
+}
+
+.register-text a{
+    color:white;
+    font-weight:600;
+    transition:0.3s ease;
+}
+
+.register-text a:hover{
+    opacity:0.7;
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+.footer{
+    background:#ffffff;
+    padding:40px 60px;
+}
+
+.footer-content{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.footer h4{
+    font-size:12px;
+    margin-bottom:12px;
+    color:#111827;
+    font-weight:700;
+}
+
+/* CENTER */
+
+.footer-center{
+    text-align:center;
+}
+
+.footer-center img{
+    height:42px;
+    margin-bottom:18px;
+}
+
+/* FOOTER LINKS */
+
+.footer-links{
+    display:flex;
+    justify-content:center;
+    gap:18px;
+    margin-bottom:12px;
+}
+
+.footer-links a{
+    text-decoration:none;
+    color:#111827;
+    font-size:12px;
+    font-weight:600;
+    transition:0.3s ease;
+}
+
+.footer-links a:hover{
+    color:#1f3d66;
+}
+
+.footer-center p{
+    font-size:12px;
+    color:#6b7280;
+}
+
+/* =========================
+   ICONS
+========================= */
+
+.social-icons,
+.contact-icons{
+    display:flex;
+    gap:14px;
+}
+
+.social-icons img,
+.contact-icons img{
+    width:22px;
+    height:22px;
+    object-fit:contain;
+    cursor:pointer;
+    transition:0.3s ease;
+}
+
+.social-icons img:hover,
+.contact-icons img:hover{
+    transform:translateY(-3px) scale(1.08);
+    opacity:0.8;
+}
+
+/* =========================
+   DJANGO MESSAGES
+========================= */
+
+.messages{
+    margin-bottom:20px;
+}
+
+.message{
+    padding:12px;
+    border-radius:8px;
+    font-size:13px;
+    margin-bottom:10px;
+}
+
+.message.error{
+    background:#7f1d1d;
+    color:white;
+}
+
+.message.success{
+    background:#14532d;
+    color:white;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:768px){
+
+    .navbar{
+        padding:0 20px;
+    }
+
+    .nav-right{
+        gap:12px;
+    }
+
+    .nav-right a{
+        font-size:11px;
+    }
+
+    .register-btn,
+    .login-btn-nav{
+        padding:8px 12px;
+    }
+
+    .login-container h1{
+        font-size:38px;
+    }
+
+    .subtitle{
+        font-size:15px;
+    }
+
+    .footer{
+        padding:40px 20px;
+    }
+
+    .footer-content{
+        flex-direction:column;
+        gap:30px;
+        text-align:center;
+    }
+
+    .footer-links{
+        flex-wrap:wrap;
+    }
+
+}
