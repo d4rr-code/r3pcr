@@ -1393,7 +1393,17 @@ document.body.classList.add('light-mode');
             </label>
             <input type="number" name="distance_km" id="distance_km" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="1" min="1" placeholder="2600"
-                   value="{{ advisory_existing.distance_km|default:'2600' }}">
+                   value="{{ prefill_distance }}">
+            {% if prefill_distance_src != 'saved' %}
+            <p style="font-size:10px; margin:3px 0 0;
+               color:{% if prefill_distance_src == 'default' %}#64748b{% else %}#16a34a{% endif %};">
+                {% if prefill_distance_src == 'default' %}
+                    Default — enter actual origin distance if known
+                {% else %}
+                    Auto-detected from OCR: {{ prefill_distance_src }}
+                {% endif %}
+            </p>
+            {% endif %}
         </div>
     </div>
 

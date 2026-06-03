@@ -4,6 +4,104 @@ import re
 import tempfile
 import threading
 from decimal import Decimal
+
+# ── Country → approximate distance to Manila (km) ─────────────────────────────
+# Based on typical sea/air routing from main port/airport to Manila.
+# Used to auto-populate the ECDT distance field from OCR-extracted country_of_origin.
+_COUNTRY_DISTANCE_KM = {
+    # ── East Asia ──────────────────────────────────────────────────────────────
+    'china':                    2100, 'prc': 2100, "people's republic of china": 2100,
+    'hong kong':                1150, 'hk': 1150,
+    'taiwan':                   1200, 'republic of china': 1200,
+    'japan':                    3100,
+    'south korea':              2650, 'korea':  2650, 'republic of korea': 2650,
+    'north korea':              3200, "democratic people's republic of korea": 3200,
+    'mongolia':                 3800,
+    # ── Southeast Asia ────────────────────────────────────────────────────────
+    'vietnam':                  1600, 'viet nam': 1600,
+    'thailand':                 2200,
+    'malaysia':                 2300,
+    'singapore':                2400,
+    'indonesia':                2100,
+    'cambodia':                 1800,
+    'myanmar':                  2800, 'burma': 2800,
+    'laos':                     2000, "lao people's democratic republic": 2000,
+    'brunei':                   1900, 'brunei darussalam': 1900,
+    'timor-leste':              2000, 'east timor': 2000,
+    # ── South Asia ────────────────────────────────────────────────────────────
+    'india':                    4200,
+    'bangladesh':               3800,
+    'sri lanka':                3700,
+    'pakistan':                 5400,
+    'nepal':                    4500,
+    'maldives':                 3900,
+    # ── Middle East ───────────────────────────────────────────────────────────
+    'united arab emirates':     6800, 'uae': 6800,
+    'saudi arabia':             7200,
+    'qatar':                    7000,
+    'kuwait':                   7300,
+    'bahrain':                  7100,
+    'oman':                     6600,
+    'jordan':                   8100,
+    'turkey':                   8900,
+    'iran':                     6700,
+    # ── Africa ────────────────────────────────────────────────────────────────
+    'south africa':             10800,
+    'egypt':                    8500,
+    'kenya':                    8300,
+    'nigeria':                  12400,
+    'ethiopia':                 7800,
+    # ── Europe ────────────────────────────────────────────────────────────────
+    'germany':                  10400,
+    'netherlands':              10600,
+    'belgium':                  10700,
+    'france':                   10900,
+    'united kingdom':           11200, 'uk': 11200, 'great britain': 11200, 'england': 11200,
+    'italy':                    9700,
+    'spain':                    11500,
+    'portugal':                 12100,
+    'switzerland':              10400,
+    'austria':                  10300,
+    'sweden':                   11000,
+    'norway':                   11200,
+    'denmark':                  10900,
+    'finland':                  11100,
+    'poland':                   10300,
+    'czech republic':           10300, 'czechia': 10300,
+    'hungary':                  10000,
+    'romania':                  9600,
+    'greece':                   9400,
+    'russia':                   6800,
+    'ukraine':                  9300,
+    # ── Americas ──────────────────────────────────────────────────────────────
+    'united states':            11800, 'usa': 11800, 'us': 11800, 'united states of america': 11800,
+    'canada':                   10400,
+    'mexico':                   12000,
+    'brazil':                   17500,
+    'argentina':                18500,
+    'chile':                    17200,
+    'colombia':                 15800,
+    'peru':                     15500,
+    'venezuela':                15900,
+    # ── Oceania ───────────────────────────────────────────────────────────────
+    'australia':                6400,
+    'new zealand':              8500,
+    'papua new guinea':         2900,
+}
+
+def _lookup_distance_from_country(country_raw: str) -> int | None:
+    """Return approximate km from the given country to Manila, or None if not found."""
+    if not country_raw:
+        return None
+    key = country_raw.strip().lower()
+    # Direct match
+    if key in _COUNTRY_DISTANCE_KM:
+        return _COUNTRY_DISTANCE_KM[key]
+    # Partial match — first key that starts with the input or vice versa
+    for k, v in _COUNTRY_DISTANCE_KM.items():
+        if k.startswith(key) or key.startswith(k):
+            return v
+    return None
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -766,7 +864,7 @@ def compute_shipment(request, shipment_id):
                 wmcda_volume   = float(request.POST.get('cargo_volume', 0) or 0)
                 wmcda_value    = float(total_exw)
                 wmcda_urgency  = shipment.urgency or 'normal'
-                wmcda_distance = float(request.POST.get('distance_km', 2600) or 2600)
+                wmcda_distance = float(request.POST.get('distance_km') or prefill_distance or 2600)
 
                 wmcda_scores, wmcda_recommended, wmcda_breakdown, wmcda_explanation = compute_wmcda(
                     wmcda_weight, wmcda_volume, wmcda_value, wmcda_urgency, wmcda_distance
@@ -986,6 +1084,20 @@ def compute_shipment(request, shipment_id):
     ocr_fields = request.session.get('ocr_fields', {}) if request.session.get('ocr_shipment_id') == shipment_id else {}
     ocr_items  = request.session.get('ocr_items',  []) if request.session.get('ocr_shipment_id') == shipment_id else []
 
+    # ── Auto-derive distance from OCR-extracted country of origin ─────────────
+    # Priority: 1) existing advisory (already computed), 2) OCR lookup, 3) default 2600
+    _ocr_country   = (ocr_fields.get('country_of_origin') or ocr_fields.get('origin') or '').strip()
+    _ocr_distance  = _lookup_distance_from_country(_ocr_country)
+    if advisory_ex and advisory_ex.distance_km:
+        prefill_distance      = int(advisory_ex.distance_km)
+        prefill_distance_src  = 'saved'
+    elif _ocr_distance:
+        prefill_distance      = _ocr_distance
+        prefill_distance_src  = f'auto — {_ocr_country.title()}'
+    else:
+        prefill_distance      = 2600
+        prefill_distance_src  = 'default'
+
     # â”€â”€ HS Code Suggestions (rule-based + historical) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Collect the richest available description text in priority order:
     # 1. shipment.description, 2. OCR item descriptions, 3. saved item descriptions
@@ -1077,9 +1189,11 @@ def compute_shipment(request, shipment_id):
         'hs_suggestions':     hs_suggestions,
         'guide_hs_codes':       guide_hs_codes,
         'computed_mode':        computed_mode,
-        'prefill_freight':      prefill_freight,
-        'prefill_insurance':    prefill_insurance,
-        'invoice_currency':     invoice_currency,
+        'prefill_freight':        prefill_freight,
+        'prefill_insurance':      prefill_insurance,
+        'prefill_distance':       prefill_distance,
+        'prefill_distance_src':   prefill_distance_src,
+        'invoice_currency':       invoice_currency,
         'all_currency_rates':   json.dumps(all_currency_rates),
         'default_rate':         default_rate,
     }
@@ -1766,7 +1880,7 @@ def compute_wmcda(weight, volume, value, urgency, distance):
     #   LCL  — competitive at medium distances; handling overhead grows on very long routes.
     #   Land — only viable ≤1 500 km; score falls sharply beyond short-haul range.
     _D_MAX    = 20_000   # km — full trans-Pacific/Atlantic reference ceiling
-    lcl_dist  = max(0.30, _lerp(distance, 0, _D_MAX, 0.80, 0.50))
+    lcl_dist  = max(0.45, _lerp(distance, 0, _D_MAX, 0.72, 0.80))  # sea freight: neutral-to-good at all distances
     fcl_dist  = min(0.95, _lerp(distance, 0, _D_MAX, 0.55, 0.92))
     air_dist  = min(0.95, _lerp(distance, 0, _D_MAX, 0.60, 0.95))
     land_dist = max(0.10, _lerp(distance, 0, 1500,   0.92, 0.15)) if _land_viable else 0.10
