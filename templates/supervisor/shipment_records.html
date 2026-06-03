@@ -117,17 +117,33 @@
 .sr-urgent { background: #FF6A00; }
 .sr-rush { background: #F20B0B; }
 .sr-filters {
-    display: flex;
-    align-items: flex-end;
-    gap: 28px;
+    display: grid;
+    grid-template-columns: 2fr 1.2fr 1.2fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 8px;
+    width: 100%;
+    align-items: end;
+}
+.sr-filters-row2 {
+    display: grid;
+    grid-template-columns: 1.2fr 1.2fr 1fr 1fr auto;
+    gap: 14px;
     margin-bottom: 24px;
     width: 100%;
+    align-items: end;
 }
 .sr-field {
-    flex: 0 0 clamp(180px, 18vw, 260px);
+    min-width: 0;
 }
-.sr-field:first-child {
-    flex: 1 1 520px;
+@media (max-width: 1100px) {
+    .sr-filters, .sr-filters-row2 {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (max-width: 560px) {
+    .sr-filters, .sr-filters-row2 {
+        grid-template-columns: 1fr;
+    }
 }
 .sr-field label {
     color: #111827;
@@ -414,8 +430,6 @@
     .sr-types, .sr-urgency { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
 }
 @media (max-width: 560px) {
-    .sr-filters { flex-direction: column; align-items: stretch; gap: 10px; }
-    .sr-field, .sr-field:first-child { flex: 1 1 auto; width: 100%; }
     .sr-types, .sr-urgency { grid-template-columns: 1fr; }
     .sr-total { min-height: 130px; }
     .sr-section-title { font-size: 18px; }
@@ -466,33 +480,70 @@
         </div>
     </div>
 
-    <form method="GET" class="sr-filters">
-        <div class="sr-field">
-            <label>Shipment Reference No.</label>
-            <div class="sr-search">
-                <input class="sr-input" type="text" name="q" value="{{ q }}" placeholder="e.g. R3PCR-2026-XXXXXX">
-                <button type="submit" aria-label="Search shipment records">
-                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 103.473 9.767l2.38 2.38a.75.75 0 101.061-1.061l-2.38-2.38A5.5 5.5 0 009 3.5zM5 9a4 4 0 118 0 4 4 0 01-8 0z" clip-rule="evenodd"/></svg>
-                </button>
+    <form method="GET">
+        <div class="sr-filters">
+            <!-- Row 1: search + status + import type + stype + dates -->
+            <div class="sr-field">
+                <label>Shipment Reference No.</label>
+                <div class="sr-search">
+                    <input class="sr-input" type="text" name="q" value="{{ q }}" placeholder="e.g. R3PCR-2026-XXXXXX">
+                    <button type="submit" aria-label="Search">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 103.473 9.767l2.38 2.38a.75.75 0 101.061-1.061l-2.38-2.38A5.5 5.5 0 009 3.5zM5 9a4 4 0 118 0 4 4 0 01-8 0z" clip-rule="evenodd"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="sr-field">
+                <label>Status</label>
+                <select class="sr-input" name="status_f" onchange="this.form.submit()">
+                    <option value="">— All Statuses —</option>
+                    {% for val, label in STATUS_CHOICES %}
+                    <option value="{{ val }}" {% if status_f == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="sr-field">
+                <label>Import Type</label>
+                <select class="sr-input" name="import_type" onchange="this.form.submit()">
+                    <option value="">— All Import Types —</option>
+                    {% for val, label in IMPORT_TYPE_CHOICES %}
+                    <option value="{{ val }}" {% if import_type_f == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="sr-field">
+                <label>Shipment Type</label>
+                <select class="sr-input" name="stype" onchange="this.form.submit()">
+                    <option value="">— All Types —</option>
+                    {% for val, label in TYPE_CHOICES %}
+                    <option value="{{ val }}" {% if stype_f == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="sr-field" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                    <label>Date From</label>
+                    <input class="sr-input" type="date" name="date_from" value="{{ date_from }}" onchange="this.form.submit()">
+                </div>
+                <div>
+                    <label>Date To</label>
+                    <input class="sr-input" type="date" name="date_to" value="{{ date_to }}" onchange="this.form.submit()">
+                </div>
             </div>
         </div>
-        <div class="sr-field">
-            <label>Shipment Type</label>
-            <select class="sr-input" name="stype" onchange="this.form.submit()">
-                <option value="">— All Types —</option>
-                {% for val, label in TYPE_CHOICES %}
-                <option value="{{ val }}" {% if stype_f == val %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
+        {% if q or status_f or import_type_f or stype_f or date_from or date_to %}
+        <div style="margin-bottom:20px;">
+            <a href="{% url 'supervisor:shipment_records' %}"
+               style="font-size:12px; color:#ef4444; font-weight:700; text-decoration:none;">
+               ✕ Clear all filters
+            </a>
+            <span style="color:#9ca3af; font-size:12px; margin-left:14px;">
+                Showing filtered results
+                {% if status_f %}· Status: <strong>{{ status_f }}</strong>{% endif %}
+                {% if import_type_f %}· Import Type: <strong>{{ import_type_f }}</strong>{% endif %}
+                {% if stype_f %}· Shipment Type: <strong>{{ stype_f }}</strong>{% endif %}
+            </span>
         </div>
-        <div class="sr-field">
-            <label>Date From</label>
-            <input class="sr-input" type="date" name="date_from" value="{{ date_from }}">
-        </div>
-        <div class="sr-field">
-            <label>Date To</label>
-            <input class="sr-input" type="date" name="date_to" value="{{ date_to }}">
-        </div>
+        {% endif %}
     </form>
 
     <section class="sr-section">

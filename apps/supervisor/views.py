@@ -1619,11 +1619,12 @@ def reject_feedback(request, feedback_id):
 @login_required
 @supervisor_required
 def shipment_records(request):
-    q         = request.GET.get('q', '').strip()
-    status_f  = request.GET.get('status_f', '').strip()
-    stype_f   = request.GET.get('stype', '').strip()
-    date_from = request.GET.get('date_from', '').strip()
-    date_to   = request.GET.get('date_to', '').strip()
+    q              = request.GET.get('q', '').strip()
+    status_f       = request.GET.get('status_f', '').strip()
+    stype_f        = request.GET.get('stype', '').strip()
+    import_type_f  = request.GET.get('import_type', '').strip()
+    date_from      = request.GET.get('date_from', '').strip()
+    date_to        = request.GET.get('date_to', '').strip()
 
     all_shipments = Shipment.objects.select_related('consignee', 'declarant')
     qs = all_shipments.order_by('-submitted_at')
@@ -1638,6 +1639,8 @@ def shipment_records(request):
         qs = qs.filter(status=status_f)
     if stype_f:
         qs = qs.filter(shipment_type=stype_f)
+    if import_type_f:
+        qs = qs.filter(import_type=import_type_f)
     if date_from:
         qs = qs.filter(submitted_at__date__gte=date_from)
     if date_to:
@@ -1740,13 +1743,15 @@ def shipment_records(request):
         'status_summary': status_summary,
         'shipping_type_overview': shipping_type_overview,
         'urgency_counts': urgency_counts,
-        'q':              q,
-        'status_f':       status_f,
-        'stype_f':        stype_f,
-        'date_from':      date_from,
-        'date_to':        date_to,
-        'STATUS_CHOICES': Shipment.STATUS_CHOICES,
-        'TYPE_CHOICES':   Shipment.SHIPMENT_TYPE_CHOICES,
+        'q':                   q,
+        'status_f':            status_f,
+        'stype_f':             stype_f,
+        'import_type_f':       import_type_f,
+        'date_from':           date_from,
+        'date_to':             date_to,
+        'STATUS_CHOICES':      Shipment.STATUS_CHOICES,
+        'TYPE_CHOICES':        Shipment.SHIPMENT_TYPE_CHOICES,
+        'IMPORT_TYPE_CHOICES': Shipment.IMPORT_TYPE_CHOICES,
     })
 
 
