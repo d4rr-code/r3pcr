@@ -118,32 +118,20 @@
 .sr-rush { background: #F20B0B; }
 .sr-filters {
     display: grid;
-    grid-template-columns: 2fr 1.2fr 1.2fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr;
     gap: 14px;
-    margin-bottom: 8px;
-    width: 100%;
-    align-items: end;
-}
-.sr-filters-row2 {
-    display: grid;
-    grid-template-columns: 1.2fr 1.2fr 1fr 1fr auto;
-    gap: 14px;
-    margin-bottom: 24px;
+    margin-bottom: 14px;
     width: 100%;
     align-items: end;
 }
 .sr-field {
     min-width: 0;
 }
-@media (max-width: 1100px) {
-    .sr-filters, .sr-filters-row2 {
-        grid-template-columns: 1fr 1fr;
-    }
+@media (max-width: 900px) {
+    .sr-filters { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 560px) {
-    .sr-filters, .sr-filters-row2 {
-        grid-template-columns: 1fr;
-    }
+    .sr-filters { grid-template-columns: 1fr; }
 }
 .sr-field label {
     color: #111827;
@@ -481,8 +469,8 @@
     </div>
 
     <form method="GET">
+        <!-- Row 1: Search | Status | Import Type -->
         <div class="sr-filters">
-            <!-- Row 1: search + status + import type + stype + dates -->
             <div class="sr-field">
                 <label>Shipment Reference No.</label>
                 <div class="sr-search">
@@ -510,6 +498,10 @@
                     {% endfor %}
                 </select>
             </div>
+        </div>
+
+        <!-- Row 2: Shipment Type | Date From | Date To -->
+        <div class="sr-filters">
             <div class="sr-field">
                 <label>Shipment Type</label>
                 <select class="sr-input" name="stype" onchange="this.form.submit()">
@@ -519,19 +511,18 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="sr-field" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                <div>
-                    <label>Date From</label>
-                    <input class="sr-input" type="date" name="date_from" value="{{ date_from }}" onchange="this.form.submit()">
-                </div>
-                <div>
-                    <label>Date To</label>
-                    <input class="sr-input" type="date" name="date_to" value="{{ date_to }}" onchange="this.form.submit()">
-                </div>
+            <div class="sr-field">
+                <label>Date From</label>
+                <input class="sr-input" type="date" name="date_from" value="{{ date_from }}" onchange="this.form.submit()">
+            </div>
+            <div class="sr-field">
+                <label>Date To</label>
+                <input class="sr-input" type="date" name="date_to" value="{{ date_to }}" onchange="this.form.submit()">
             </div>
         </div>
+
         {% if q or status_f or import_type_f or stype_f or date_from or date_to %}
-        <div style="margin-bottom:20px;">
+        <div style="margin-bottom:16px;">
             <a href="{% url 'supervisor:shipment_records' %}"
                style="font-size:12px; color:#ef4444; font-weight:700; text-decoration:none;">
                ✕ Clear all filters
