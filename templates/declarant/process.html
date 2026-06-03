@@ -728,9 +728,15 @@
         <div class="review-card">
             <div class="review-card-header">
                 <div>
-                    <p class="review-card-title">HS Codes for this Shipment</p>
+                    <p class="review-card-title">
+                        {% if shipment.computation %}ECDT Computation{% else %}HS Codes for this Shipment{% endif %}
+                    </p>
                     <p style="color:#6b7280;font-size:11px;margin:3px 0 0;line-height:1.4;">
-                        Select which HS code(s) apply to this shipment.
+                        {% if shipment.computation %}
+                            Computation complete. Review or recompute below.
+                        {% else %}
+                            Select which HS code(s) apply to this shipment.
+                        {% endif %}
                     </p>
                 </div>
                 <span style="font-size:11px;padding:4px 10px;border-radius:12px;font-weight:700;flex-shrink:0;
@@ -745,7 +751,8 @@
 
             <div class="review-card-body">
 
-                <!-- HS Code Selection Panel (from OCR raw text) -->
+                {% if not shipment.computation %}
+                <!-- HS Code Selection Panel (from OCR raw text) — hidden once ECDT is done -->
                 {% if ocr_hs_suggestions %}
                 <div id="ocr-hs-rec-panel"
                      style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;
@@ -814,6 +821,8 @@
                         Open ECDT Workspace &rarr;
                     </button>
                 </form>
+
+                {% endif %}{# end: if not shipment.computation #}
 
                 <!-- Computation summary (if already computed) -->
                 {% if shipment.computation %}
@@ -903,17 +912,17 @@
     <div class="dark-card" style="margin-bottom:0;">
         <p class="dark-card-title">SAD Document</p>
         {% if sad_document %}
-        <div style="background:#052e16;border:1px solid #166534;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
             <div style="flex:1;">
-                <p style="color:#22c55e;font-size:12px;font-weight:600;margin:0;">SAD Uploaded</p>
-                <p style="color:#475569;font-size:11px;margin:2px 0 0;">{{ sad_document.uploaded_at|date:"M d, Y H:i" }}</p>
+                <p style="color:#15803d;font-size:12px;font-weight:600;margin:0;">✓ SAD Uploaded</p>
+                <p style="color:#6b7280;font-size:11px;margin:2px 0 0;">{{ sad_document.uploaded_at|date:"M d, Y H:i" }}</p>
             </div>
             <a href="{{ sad_document.file.url }}" target="_blank"
-               style="padding:5px 10px;border:1px solid #166534;border-radius:6px;background:#0f172a;color:#86efac;font-size:11px;text-decoration:none;flex-shrink:0;">
+               style="padding:5px 12px;border:1px solid #16a34a;border-radius:6px;background:#fff;color:#16a34a;font-size:11px;font-weight:600;text-decoration:none;flex-shrink:0;">
                 View →
             </a>
         </div>
-        <p style="color:#64748b;font-size:11px;margin:0 0 8px;">Replace SAD document:</p>
+        <p style="color:#6b7280;font-size:11px;margin:0 0 8px;">Replace SAD document:</p>
         {% else %}
         <p style="color:#fbbf24;font-size:12px;font-weight:600;margin:0 0 12px;">
             SAD not yet uploaded. Upload the BOC Single Administrative Document.
@@ -923,11 +932,11 @@
             {% csrf_token %}
             <div style="display:flex;gap:8px;align-items:flex-end;">
                 <div style="flex:1;">
-                    <label style="display:block;color:#94a3b8;font-size:11px;margin-bottom:4px;">SAD File (PDF/Image)</label>
+                    <label style="display:block;color:#6b7280;font-size:11px;margin-bottom:4px;">SAD File (PDF/Image)</label>
                     <input type="file" name="sad_file" class="form-input" accept=".pdf,.jpg,.jpeg,.png" required style="font-size:12px;">
                 </div>
                 <button type="submit"
-                        style="padding:8px 14px;border:none;border-radius:7px;background:#d97706;color:#fff;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;">
+                        style="padding:8px 14px;border:none;border-radius:7px;background:#1f3d66;color:#fff;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;">
                     Upload
                 </button>
             </div>
@@ -937,37 +946,31 @@
 
     {% if shipment.status == 'billed' %}
     <div class="dark-card" style="margin-top:16px; margin-bottom:0;">
-        <p class="dark-card-title" style="color:#34d399;">Billing Receipts</p>
-
-        {% with receipts=shipment.documents.filter_receipts %}
-        {% with receipt_docs=shipment.documents.all %}
-        {% with r_docs=receipt_docs|dictsort:"uploaded_at" %}
+        <p class="dark-card-title">Billing Receipts</p>
 
         {% for doc in shipment.documents.all %}
         {% if doc.document_type == 'receipt' %}
-        <div style="background:#052e16;border:1px solid #166534;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
             <div style="flex:1;">
-                <p style="color:#22c55e;font-size:12px;font-weight:600;margin:0;">{{ doc.file.name|slice:"20:" }}</p>
-                <p style="color:#475569;font-size:11px;margin:2px 0 0;">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
+                <p style="color:#15803d;font-size:12px;font-weight:600;margin:0;">{{ doc.file.name|slice:"20:" }}</p>
+                <p style="color:#6b7280;font-size:11px;margin:2px 0 0;">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
             </div>
             <a href="{{ doc.file.url }}" target="_blank"
-               style="padding:5px 10px;border:1px solid #166534;border-radius:6px;background:#0f172a;color:#86efac;font-size:11px;text-decoration:none;flex-shrink:0;">
+               style="padding:5px 12px;border:1px solid #16a34a;border-radius:6px;background:#fff;color:#16a34a;font-size:11px;font-weight:600;text-decoration:none;flex-shrink:0;">
                 View →
             </a>
         </div>
         {% endif %}
         {% endfor %}
 
-        {% endwith %}{% endwith %}{% endwith %}
-
         <form method="POST" enctype="multipart/form-data" action="{% url 'declarant:upload_receipt' shipment.id %}">
             {% csrf_token %}
-            <p style="color:#94a3b8;font-size:11px;margin:0 0 8px;">
+            <p style="color:#6b7280;font-size:11px;margin:0 0 8px;">
                 Upload broker fee receipts, payment proofs, or any billing documents for the consignee.
             </p>
             <div style="display:flex;gap:8px;align-items:flex-end;">
                 <div style="flex:1;">
-                    <label style="display:block;color:#94a3b8;font-size:11px;margin-bottom:4px;">
+                    <label style="display:block;color:#6b7280;font-size:11px;margin-bottom:4px;">
                         Files (PDF/Image — multiple allowed)
                     </label>
                     <input type="file" name="receipt_files" class="form-input" multiple
