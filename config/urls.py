@@ -76,6 +76,7 @@ urlpatterns = [
     path('computation/',   include('apps.computation.urls',   namespace='computation')),
     path('notifications/', include('apps.notifications.urls', namespace='notifications')),
     path('terms/', TemplateView.as_view(template_name='terms-privacy.html'), name='terms'),
+    path('about/', TemplateView.as_view(template_name='about.html'),        name='about'),
 ]
 
 # Serve media files in all environments using serve() directly — static() ignores DEBUG=False

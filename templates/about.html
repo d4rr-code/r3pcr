@@ -1,0 +1,531 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About — R3-PCR | RTripleJ Prime Cargo Relay</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <style>
+    /* ── RESET & BASE ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { overflow-x:hidden; }
+    body { font-family:'Poppins',sans-serif; background:#f8fafc; color:#1f3d66; overflow-x:hidden; }
+
+    /* ── HERO ─────────────────────────────────────────────────────────────── */
+    .about-hero {
+        position:relative;
+        min-height:420px;
+        background:url("{% static 'images/main bg 1.png' %}") center/cover no-repeat;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        padding:100px 24px 80px;
+    }
+    .about-hero::before {
+        content:"";
+        position:absolute;
+        inset:0;
+        background:linear-gradient(135deg, rgba(15,30,60,0.82) 0%, rgba(27,51,88,0.75) 100%);
+    }
+    .about-hero-content {
+        position:relative;
+        z-index:2;
+        max-width:760px;
+    }
+    .about-hero-content h1 {
+        font-size:42px;
+        font-weight:800;
+        color:#fff;
+        line-height:1.15;
+        margin-bottom:18px;
+    }
+    .about-hero-content blockquote {
+        font-size:16px;
+        font-style:italic;
+        color:#c8d8ec;
+        line-height:1.7;
+        margin-bottom:28px;
+    }
+    .about-read-more {
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        color:#fff;
+        font-size:14px;
+        font-weight:600;
+        text-decoration:none;
+        border-bottom:1px solid rgba(255,255,255,0.5);
+        padding-bottom:2px;
+        transition:0.25s ease;
+    }
+    .about-read-more:hover { color:#7dd3fc; border-color:#7dd3fc; }
+
+    /* ── REDEFINING ───────────────────────────────────────────────────────── */
+    .about-redefining {
+        background:#fff;
+        padding:80px 24px;
+        text-align:center;
+    }
+    .about-redefining h2 {
+        font-size:34px;
+        font-weight:800;
+        color:#1f3d66;
+        margin-bottom:28px;
+    }
+    .about-redefining p {
+        max-width:820px;
+        margin:0 auto 18px;
+        font-size:15px;
+        line-height:1.85;
+        color:#374151;
+    }
+    .about-redefining p strong { color:#1f3d66; }
+
+    /* ── FEATURES ─────────────────────────────────────────────────────────── */
+    .about-features {
+        background:#f8fafc;
+        padding:80px 24px;
+        text-align:center;
+    }
+    .about-features h2 {
+        font-size:32px;
+        font-weight:800;
+        color:#1f3d66;
+        margin-bottom:12px;
+    }
+    .about-features .subtitle {
+        font-size:15px;
+        color:#6b7280;
+        margin-bottom:56px;
+    }
+    .features-grid {
+        display:grid;
+        grid-template-columns:repeat(3, 1fr);
+        gap:36px 40px;
+        max-width:960px;
+        margin:0 auto;
+    }
+    .feature-card {
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        text-align:center;
+        gap:14px;
+    }
+    .feature-icon {
+        width:72px;
+        height:72px;
+        border-radius:50%;
+        border:2px solid #1f3d66;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        color:#1f3d66;
+        flex-shrink:0;
+    }
+    .feature-icon svg { width:32px; height:32px; }
+    .feature-card h3 {
+        font-size:15px;
+        font-weight:700;
+        color:#1f3d66;
+    }
+    .feature-card p {
+        font-size:13px;
+        color:#6b7280;
+        line-height:1.65;
+    }
+
+    /* ── MISSION & VISION ─────────────────────────────────────────────────── */
+    .about-mv {
+        display:grid;
+        grid-template-columns:1fr 1fr;
+    }
+    .mv-box {
+        padding:64px 52px;
+    }
+    .mv-box.mission { background:#1f3d66; }
+    .mv-box.vision  { background:#2c5282; }
+    .mv-box h2 {
+        font-size:28px;
+        font-weight:800;
+        color:#fff;
+        margin-bottom:18px;
+    }
+    .mv-box p {
+        font-size:15px;
+        color:#c8d8ec;
+        line-height:1.8;
+    }
+
+    /* ── HOW IT WORKS ─────────────────────────────────────────────────────── */
+    .about-how {
+        background:#f1f5f9;
+        padding:80px 24px;
+        text-align:center;
+    }
+    .about-how h2 {
+        font-size:32px;
+        font-weight:800;
+        color:#1f3d66;
+        margin-bottom:12px;
+    }
+    .about-how .subtitle {
+        font-size:15px;
+        color:#374151;
+        max-width:620px;
+        margin:0 auto 52px;
+        line-height:1.7;
+    }
+    .how-grid {
+        display:grid;
+        grid-template-columns:repeat(3, 1fr);
+        gap:24px;
+        max-width:900px;
+        margin:0 auto;
+    }
+    /* last 2 steps centered on second row */
+    .how-grid .step-card:nth-child(4) { grid-column:1/2; margin-left:auto; margin-right:0; }
+    .how-grid .step-card:nth-child(5) { grid-column:2/3; margin-left:0; margin-right:auto; }
+    .step-card {
+        background:#fff;
+        border-radius:14px;
+        padding:32px 24px 28px;
+        text-align:center;
+        box-shadow:0 2px 12px rgba(0,0,0,0.06);
+        width:100%;
+    }
+    .step-number {
+        width:42px;
+        height:42px;
+        border-radius:50%;
+        background:#1f3d66;
+        color:#fff;
+        font-size:18px;
+        font-weight:800;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        margin-bottom:14px;
+    }
+    .step-card h3 {
+        font-size:14px;
+        font-weight:700;
+        color:#1f3d66;
+        margin-bottom:10px;
+    }
+    .step-card p {
+        font-size:12.5px;
+        color:#6b7280;
+        line-height:1.65;
+    }
+
+    /* ── CONSIGNEE CTA ────────────────────────────────────────────────────── */
+    .about-cta {
+        background:#fff;
+        padding:72px 24px;
+        text-align:center;
+    }
+    .about-cta h2 {
+        font-size:30px;
+        font-weight:800;
+        color:#1f3d66;
+        margin-bottom:16px;
+    }
+    .about-cta p {
+        max-width:520px;
+        margin:0 auto 30px;
+        font-size:15px;
+        color:#374151;
+        line-height:1.75;
+    }
+    .about-cta a {
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        background:#1f3d66;
+        color:#fff;
+        text-decoration:none;
+        font-size:14px;
+        font-weight:700;
+        padding:13px 28px;
+        border-radius:6px;
+        transition:0.25s ease;
+    }
+    .about-cta a:hover { background:#16304f; transform:translateY(-2px); }
+
+    /* ── RESPONSIVE ───────────────────────────────────────────────────────── */
+    @media(max-width:900px) {
+        .features-grid { grid-template-columns:repeat(2,1fr); }
+        .about-mv { grid-template-columns:1fr; }
+        .how-grid { grid-template-columns:1fr 1fr; }
+        .how-grid .step-card:nth-child(4),
+        .how-grid .step-card:nth-child(5) { grid-column:auto; margin:0; }
+    }
+    @media(max-width:600px) {
+        .about-hero-content h1 { font-size:30px; }
+        .features-grid { grid-template-columns:1fr; }
+        .how-grid { grid-template-columns:1fr; }
+        .mv-box { padding:44px 28px; }
+    }
+    </style>
+</head>
+<body>
+
+<!-- ── NAVBAR ──────────────────────────────────────────────────────────────── -->
+<header class="navbar">
+    <div class="nav-left">
+        <a href="{% url 'landing' %}" class="logo-link">
+            <img src="{% static 'images/Thumbnail for R3-PCR.png' %}" alt="R3-PCR Logo">
+        </a>
+    </div>
+
+    <button class="nav-hamburger" id="navHamburger" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+    </button>
+
+    <div class="nav-right" id="navRight">
+        <div class="language-dropdown">
+            <div class="selected-language" id="selectedLanguage">
+                <i class="fa-solid fa-globe"></i>
+                <span id="currentLanguage">EN</span>
+            </div>
+            <div class="language-menu">
+                <div class="language-option" data-lang="en">English</div>
+                <div class="language-option" data-lang="fil">Filipino</div>
+            </div>
+        </div>
+        <a href="{% url 'about' %}">ABOUT</a>
+        <a href="{% url 'landing' %}#contact">CONTACT US</a>
+        <a href="{% url 'accounts:register' %}" class="register-btn">REGISTER</a>
+        <a href="{% url 'accounts:login' %}" class="login-btn-nav">LOG IN</a>
+    </div>
+</header>
+
+<!-- ── HERO ────────────────────────────────────────────────────────────────── -->
+<section class="about-hero">
+    <div class="about-hero-content">
+        <h1>About RtripleJ Prime Cargo Relay</h1>
+        <blockquote>
+            "Delivering reliable and efficient customs brokerage solutions through<br>
+            innovation, transparency, and expertise"
+        </blockquote>
+        <a href="#redefining" class="about-read-more">Read More &rsaquo;</a>
+    </div>
+</section>
+
+<!-- ── REDEFINING ──────────────────────────────────────────────────────────── -->
+<section class="about-redefining" id="redefining">
+    <h2>Redefining How Pre-Clearance Works</h2>
+    <p>
+        A digital platform designed to streamline and simplify customs pre-clearance processes for
+        <strong>consignees</strong>. It enables users to efficiently manage shipment information,
+        monitor processing status, and improve overall visibility throughout the clearance workflow.
+        The system is built to enhance coordination between stakeholders by providing a centralized
+        environment for document handling, submission tracking, and decision support.
+    </p>
+    <p>
+        By reducing manual processes and improving data accessibility, R3-PCR helps minimize delays
+        and supports more accurate and timely processing. With a focus on reliability, transparency,
+        and efficiency, R3-PCR empowers users to make informed decisions and ensures a smoother,
+        more organized approach to shipment pre-clearance.
+    </p>
+</section>
+
+<!-- ── KEY FEATURES ────────────────────────────────────────────────────────── -->
+<section class="about-features">
+    <h2>Key Features of R3-PCR</h2>
+    <p class="subtitle">Designed to simplify workflows, improve visibility, and enhance decision-making.</p>
+
+    <div class="features-grid">
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 14v-4m0-4h.01"/>
+                    <path d="M9 9l1.5 1.5M15 9l-1.5 1.5M9 15h6"/>
+                </svg>
+            </div>
+            <h3>Smart Processing</h3>
+            <p>Automatically organizes shipment data to reduce manual work and improve efficiency.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <h3>Real-Time Tracking</h3>
+            <p>Monitor shipment status and progress instantly with up-to-date system feedback.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M4 6h16M4 12h16M4 18h10"/>
+                    <polyline points="15 15 18 18 21 15"/>
+                </svg>
+            </div>
+            <h3>Efficient Workflow</h3>
+            <p>Streamlined processes minimize delays and eliminate unnecessary steps.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <rect x="2" y="3" width="20" height="14" rx="2"/>
+                    <path d="M8 21h8M12 17v4"/>
+                </svg>
+            </div>
+            <h3>User-Friendly Interface</h3>
+            <p>Simple and intuitive design for easy navigation and smooth user experience.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <polyline points="9 12 11 14 15 10"/>
+                </svg>
+            </div>
+            <h3>Secure Data Management</h3>
+            <p>Ensures protection of sensitive documents and user information at all times.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <circle cx="12" cy="12" r="3"/>
+                    <circle cx="19" cy="5" r="2"/>
+                    <circle cx="5" cy="5" r="2"/>
+                    <circle cx="19" cy="19" r="2"/>
+                    <circle cx="5" cy="19" r="2"/>
+                    <line x1="12" y1="9" x2="7" y2="7"/>
+                    <line x1="12" y1="9" x2="17" y2="7"/>
+                    <line x1="12" y1="15" x2="7" y2="17"/>
+                    <line x1="12" y1="15" x2="17" y2="17"/>
+                </svg>
+            </div>
+            <h3>Centralized Platform</h3>
+            <p>Manage all pre-clearance activities in one organized and accessible system.</p>
+        </div>
+
+    </div>
+</section>
+
+<!-- ── MISSION & VISION ─────────────────────────────────────────────────────── -->
+<div class="about-mv">
+    <div class="mv-box mission">
+        <h2>Mission</h2>
+        <p>
+            To provide efficient, reliable and innovative customs brokerage solutions that simplify
+            import processes and deliver exceptional service to every client.
+        </p>
+    </div>
+    <div class="mv-box vision">
+        <h2>Vision</h2>
+        <p>
+            To be a trusted leader in customs brokerage and logistics, empowering businesses
+            through excellence, innovation and customer-focused solutions.
+        </p>
+    </div>
+</div>
+
+<!-- ── HOW IT WORKS ─────────────────────────────────────────────────────────── -->
+<section class="about-how">
+    <h2>How It Works?</h2>
+    <p class="subtitle">
+        R3-PCR guides you through every step of the pre-clearance process from registration to
+        BOC submission so you always know what's happening with your shipment.
+    </p>
+
+    <div class="how-grid">
+
+        <div class="step-card">
+            <div class="step-number">1</div>
+            <h3>Register</h3>
+            <p>Create your account and fill in the registration form. Wait for supervisor approval via e-mail before you can log in.</p>
+        </div>
+
+        <div class="step-card">
+            <div class="step-number">2</div>
+            <h3>Log In</h3>
+            <p>Enter your username and password, then verify your identity using the One Time Password (OTP) sent to your registered e-mail.</p>
+        </div>
+
+        <div class="step-card">
+            <div class="step-number">3</div>
+            <h3>Submit a Shipment</h3>
+            <p>Complete all required fields and upload your supporting documents (Commercial Invoice, Packing List, AWB / BOL), then submit.</p>
+        </div>
+
+        <div class="step-card">
+            <div class="step-number">4</div>
+            <h3>Leave Feedback</h3>
+            <p>Once your shipment is Approved or Rejected, open the shipment detail, select a star rating (1–5), write a comment, and submit your feedback.</p>
+        </div>
+
+        <div class="step-card">
+            <div class="step-number">5</div>
+            <h3>Monitor Status</h3>
+            <p>Track your shipment's progress on the dashboard. You will receive a notification every time your shipment status changes.</p>
+        </div>
+
+    </div>
+</section>
+
+<!-- ── WHO IS THE CONSIGNEE ─────────────────────────────────────────────────── -->
+<section class="about-cta">
+    <h2>Who is the Consignee?</h2>
+    <p>
+        The consignee is the importer or cargo owner expecting a shipment anywhere around the world.
+        They submit documents to custom broker for pre-clearance processing.
+    </p>
+    <a href="{% url 'accounts:register' %}">Get Started &rarr;</a>
+</section>
+
+<!-- ── FOOTER ───────────────────────────────────────────────────────────────── -->
+<div id="contact" style="scroll-margin-top:0;"></div>
+<footer class="footer">
+    <div class="footer-content">
+
+        <div class="footer-social">
+            <h4>FOLLOW US</h4>
+            <div class="social-icons">
+                <img src="{% static 'accounts/img/Facebook.png' %}" alt="Facebook">
+                <img src="{% static 'accounts/img/insta.png' %}" alt="Instagram">
+                <img src="{% static 'accounts/img/linkedin.png' %}" alt="LinkedIn">
+            </div>
+        </div>
+
+        <div class="footer-center">
+            <img src="{% static 'accounts/img/Thumbnail for R3-PCR.png' %}" alt="Logo">
+            <div class="footer-links">
+                <a href="{% url 'terms' %}">TERMS & PRIVACY</a>
+                <a href="{% url 'landing' %}#trackingSection">FEATURES</a>
+                <a href="{% url 'about' %}">ABOUT</a>
+                <a href="https://rtriplejcb.com" target="_blank">RTRIPLEJ</a>
+            </div>
+            <p>© 2026 R3-PCR — RTripleJ Customs Brokerage. All Rights Reserved.</p>
+        </div>
+
+        <div class="footer-contact">
+            <h4>CONTACT US</h4>
+            <div class="contact-icons">
+                <img src="{% static 'accounts/img/email icon.png' %}" alt="Email">
+                <img src="{% static 'accounts/img/Location.png' %}" alt="Location">
+                <img src="{% static 'accounts/img/Contact.png' %}" alt="Contact">
+            </div>
+        </div>
+
+    </div>
+</footer>
+
+<script src="{% static 'js/landing.js' %}"></script>
+</body>
+</html>
