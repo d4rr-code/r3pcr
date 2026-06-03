@@ -332,36 +332,35 @@ id="trackingSection">
 
                 <!-- RESULT HEADER -->
                 <div class="result-top">
-
-                    <!-- LEFT -->
                     <div class="result-id">
-
-                        <h2>
-                            {{ track_result.hawb_number }}
-                        </h2>
-
+                        <h2>{{ track_result.hawb_number }}</h2>
+                        {% if track_result.company %}
+                        <p style="font-size:13px; color:#6b7280; margin-top:4px;">{{ track_result.company }}</p>
+                        {% endif %}
                     </div>
-
-                    <!-- RIGHT -->
-                    <div class="result-status">
-
-                        <span class="status-badge
-                        status-{{ track_result.status_code }}">
-
+                    <div class="result-status" style="text-align:right;">
+                        <span class="status-badge status-{{ track_result.status_code }}">
                             {{ track_result.status }}
-
                         </span>
-
+                        {% if track_result.status_description %}
+                        <p style="font-size:11px; color:#6b7280; margin-top:6px; max-width:220px;">
+                            {{ track_result.status_description }}
+                        </p>
+                        {% endif %}
                     </div>
-
                 </div>
 
-                <!-- DETAILS -->
+                <!-- DETAILS GRID -->
                 <div class="result-details">
 
                     <div class="detail-item">
                         <span>IMPORT TYPE</span>
                         <h4>{{ track_result.import_type }}</h4>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>SHIPMENT TYPE</span>
+                        <h4>{{ track_result.shipment_type }}</h4>
                     </div>
 
                     <div class="detail-item">
@@ -379,15 +378,33 @@ id="trackingSection">
                         <h4>{{ track_result.last_updated|date:"M j, Y g:iA" }}</h4>
                     </div>
 
+                    {% if track_result.boc_reference %}
+                    <div class="detail-item">
+                        <span>BOC REFERENCE</span>
+                        <h4>{{ track_result.boc_reference }}</h4>
+                    </div>
+                    {% endif %}
+
                 </div>
+
+                {% if track_result.boc_status %}
+                <div style="margin:10px 0 14px; padding:10px 14px; background:#f0f9ff; border-left:3px solid #0ea5e9; border-radius:0 6px 6px 0;">
+                    <span style="font-size:11px; color:#0ea5e9; font-weight:700; display:block; margin-bottom:3px;">BOC STATUS</span>
+                    <span style="font-size:13px; color:#0369a1; font-weight:600;">{{ track_result.boc_status }}</span>
+                </div>
+                {% endif %}
+
+                {% if track_result.description %}
+                <div style="margin:10px 0 14px; padding:10px 14px; background:#f8fafc; border:1px solid #e5e7eb; border-radius:6px;">
+                    <span style="font-size:11px; color:#9ca3af; font-weight:700; display:block; margin-bottom:4px;">DESCRIPTION OF GOODS</span>
+                    <span style="font-size:13px; color:#374151;">{{ track_result.description }}{% if track_result.description|length == 120 %}…{% endif %}</span>
+                </div>
+                {% endif %}
 
                 <!-- DISCLAIMER -->
                 <p class="result-note">
-
-                    For security, only public status
-                    information is displayed.
-                    Login to view full details.
-
+                    For security, only public status information is displayed.
+                    <a href="{% url 'accounts:login' %}" style="color:#1f3d66; font-weight:600;">Login to view full details.</a>
                 </p>
 
             </div>

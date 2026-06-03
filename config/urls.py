@@ -41,16 +41,34 @@ def track_shipment(request):
                     consignee__email__iexact=email,
                 )
                 # Only expose safe, non-sensitive fields
+                _status_descriptions = {
+                    'incoming':     'Shipment submitted and waiting to be assigned to a declarant.',
+                    'arrived':      'Cargo has arrived. Declarant is reviewing your documents.',
+                    'computed':     'Duties and taxes have been computed. Awaiting your approval.',
+                    'approved':     'Computation approved. Processing through customs.',
+                    'rejected':     'Computation was rejected. Currently under revision.',
+                    'for_revision': 'Shipment computation is being revised by the declarant.',
+                    'lodgement':    'Shipment has been filed with the Bureau of Customs.',
+                    'ongoing':      'Currently under customs assessment.',
+                    'assessed':     'Duties and taxes have been officially assessed.',
+                    'paid':         'Payment confirmed. Awaiting cargo discharge and release.',
+                    'released':     'Cargo has been cleared and released from customs.',
+                    'billed':       'Broker fee has been billed. Awaiting payment confirmation.',
+                }
                 result = {
-                    'hawb_number':  shipment.hawb_number,
-                    'status':       shipment.get_status_display(),
-                    'status_code':  shipment.status,
-                    'urgency':      shipment.get_urgency_display(),
-                    'import_type':  shipment.get_import_type_display(),
-                    'submitted_at': shipment.submitted_at,
-                    'last_updated': shipment.updated_at,
-                    'boc_reference': shipment.boc_reference,
-                    'boc_status':   shipment.boc_status,
+                    'hawb_number':       shipment.hawb_number,
+                    'status':            shipment.get_status_display(),
+                    'status_code':       shipment.status,
+                    'status_description': _status_descriptions.get(shipment.status, ''),
+                    'urgency':           shipment.get_urgency_display(),
+                    'import_type':       shipment.get_import_type_display(),
+                    'shipment_type':     shipment.get_shipment_type_display(),
+                    'description':       (shipment.description or '')[:120],
+                    'submitted_at':      shipment.submitted_at,
+                    'last_updated':      shipment.updated_at,
+                    'boc_reference':     shipment.boc_reference or '',
+                    'boc_status':        shipment.boc_status or '',
+                    'company':           getattr(shipment.consignee, 'company_name', '') or '',
                 }
             except Shipment.DoesNotExist:
                 error = 'No shipment found with that ID and email combination. Please check your details.'
