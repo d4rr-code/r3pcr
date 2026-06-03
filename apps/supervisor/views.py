@@ -778,6 +778,7 @@ def _analytics_context_response(request):
     wmcda_bar_labels = json.dumps([b[1] for b in _wmcda_bar_order])
     wmcda_bar_data   = json.dumps([_wmap.get(b[0], {}).get('count', 0) for b in _wmcda_bar_order])
     wmcda_bar_colors = json.dumps([b[2] for b in _wmcda_bar_order])
+    wmcda_bar_keys   = json.dumps([b[0] for b in _wmcda_bar_order])
 
     # Top performing declarant: prioritize real processing volume, then approval quality.
     top_declarant = None
@@ -920,6 +921,7 @@ def _analytics_context_response(request):
         'wmcda_bar_labels':      wmcda_bar_labels,
         'wmcda_bar_data':        wmcda_bar_data,
         'wmcda_bar_colors':      wmcda_bar_colors,
+        'wmcda_bar_keys':        wmcda_bar_keys,
         # cost comparison
         'cost_by_type':          cost_by_type,
         'cost_bar_labels':       cost_bar_labels,

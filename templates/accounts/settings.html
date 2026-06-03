@@ -37,7 +37,11 @@
             <div class="form-group">
                 <label class="form-label">Phone Number</label>
                 <input type="text" name="phone_number" class="form-input"
-                    value="{{ user.phone_number|default:'' }}" placeholder="+63-9XX-XXX-XXXX">
+                    value="{{ user.phone_number|default:'' }}"
+                    placeholder="09XXXXXXXXX"
+                    maxlength="13"
+                    pattern="[0-9]+"
+                    title="Numbers only. Philippine format: 09XXXXXXXXX (11 digits)">
             </div>
         </div>
         <div style="margin-top:4px;">

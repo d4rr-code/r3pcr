@@ -110,10 +110,10 @@
                     <label class="form-label">Phone Number</label>
                     <input type="tel" name="phone_number" class="form-input"
                            value="{{ form_data.phone_number|default:'' }}"
-                           placeholder="09XX-XXX-XXXX or +63-9XX-XXX-XXXX"
-                           maxlength="18"
-                           pattern="[0+][0-9\s\-().]+"
-                           title="PH format: 09XX-XXX-XXXX or +63-9XX-XXX-XXXX. 10–13 digits.">
+                           placeholder="09XXXXXXXXX"
+                           maxlength="13"
+                           pattern="[0-9]+"
+                           title="Numbers only. Philippine format: 09XXXXXXXXX (11 digits)">
                 </div>
             </div>
 

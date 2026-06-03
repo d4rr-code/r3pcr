@@ -484,6 +484,43 @@
     0%, 100% { opacity: 1; }
     50%       { opacity: 0.3; }
 }
+
+/* ── Clickable card / row links ───────────────────────────────────────────── */
+a.dash-card {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: box-shadow .18s ease, transform .15s ease;
+}
+a.dash-card.metric-total { display: flex; flex-direction: column; justify-content: space-between; }
+a.dash-card.metric-users { display: flex; flex-direction: column; justify-content: space-between; }
+a.dash-card.mini-card    { display: block; }
+a.dash-card:hover {
+    box-shadow: 0 14px 36px rgba(31,43,62,.20);
+    transform: translateY(-2px);
+}
+a.status-item {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: background .15s ease;
+}
+a.status-item:hover { background: #F7F9FC; }
+a.wmcda-list-row {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 4px 6px 9px;
+    margin: -4px -6px -0px;
+    border-bottom: 1px solid #EEF2F6;
+    border-radius: 4px;
+    transition: background .15s ease;
+}
+a.wmcda-list-row:hover { background: #F7F9FC; }
+canvas { cursor: pointer; }
 @media (max-width: 420px) {
     .s-content { padding-left: 10px; padding-right: 10px; }
     .dash-grid { gap: 12px; }
@@ -523,47 +560,47 @@
     </div>
 
     <div class="dash-grid">
-        <section class="dash-card metric-total">
+        <a class="dash-card metric-total" href="{% url 'supervisor:shipment_records' %}">
             <span class="metric-icon" style="background:#E5EDF7; color:var(--ink);">
                 <svg width="19" height="19" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 4h6V6H7v2zm0 3h6V9H7v2zm0 3h4v-2H7v2z"/></svg>
             </span>
             <p class="metric-label">Total Shipments</p>
             <p class="metric-value"><span id="kpi-total">{{ total_all }}</span> <span class="metric-delta">+8.6%</span></p>
-        </section>
+        </a>
 
         <div class="metric-types">
-            <section class="dash-card mini-card">
+            <a class="dash-card mini-card" href="{% url 'supervisor:shipment_records' %}?stype=air">
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--air);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409L10 15.857l6.725 2.105a1 1 0 001.17-1.409l-7-14z"/></svg></span>Air</p>
                 <p class="metric-value">{{ shipment_type_counts.air }}</p>
-            </section>
-            <section class="dash-card mini-card">
+            </a>
+            <a class="dash-card mini-card" href="{% url 'supervisor:shipment_records' %}?stype=land">
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--land);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M3 7h10l4 4v4h-2a2 2 0 11-4 0H8a2 2 0 11-4 0H2V8a1 1 0 011-1z"/></svg></span>Land</p>
                 <p class="metric-value">{{ shipment_type_counts.land }}</p>
-            </section>
-            <section class="dash-card mini-card">
+            </a>
+            <a class="dash-card mini-card" href="{% url 'supervisor:shipment_records' %}?stype=lcl">
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--lcl);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M2 13h16l-2 4H5l-3-4zm2-8h12v7H4V5zm2 2v3h8V7H6z"/></svg></span>LCL</p>
                 <p class="metric-value">{{ shipment_type_counts.lcl }}</p>
-            </section>
-            <section class="dash-card mini-card">
+            </a>
+            <a class="dash-card mini-card" href="{% url 'supervisor:shipment_records' %}?stype=fcl">
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--fcl);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4h14v12H3V4zm2 2v8h10V6H5zm2 2h2v2H7V8zm4 0h2v2h-2V8z"/></svg></span>FCL</p>
                 <p class="metric-value">{{ shipment_type_counts.fcl }}</p>
-            </section>
+            </a>
         </div>
 
-        <section class="dash-card metric-users">
+        <a class="dash-card metric-users" href="{% url 'supervisor:users' %}">
             <p class="metric-label"><span class="metric-icon" style="width:28px;height:28px;margin:0;background:#9DAFBC;"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zm6 10a5 5 0 00-10 0h10zm.5-9a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/></svg></span>Total Users</p>
             <p class="metric-value">{{ total_users }}</p>
-        </section>
+        </a>
 
         <div class="metric-side">
-            <section class="dash-card mini-card">
+            <a class="dash-card mini-card" href="{% url 'supervisor:consignee_list' %}">
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:#9DAFBC;"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zm6 9a6 6 0 00-12 0h12z"/></svg></span>Consignee</p>
                 <p class="metric-value">{{ total_consignees }}</p>
-            </section>
-            <section class="dash-card mini-card">
+            </a>
+            <a class="dash-card mini-card" href="{% url 'supervisor:declarant_list' %}">
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:#9DAFBC;"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a4 4 0 100 8 4 4 0 000-8zm-7 16a7 7 0 0114 0H3z"/></svg></span>Declarant</p>
                 <p class="metric-value">{{ total_declarants }}</p>
-            </section>
+            </a>
         </div>
 
         <section class="dash-card panel status-panel">
@@ -582,14 +619,14 @@
             </div>
             <div class="status-grid">
                 {% for row in pipeline_rows %}
-                <div class="status-item" style="--c:{% if row.key == 'billed' %}#687481{% else %}{{ row.color }}{% endif %};">
+                <a class="status-item" href="{% url 'supervisor:shipment_records' %}?status_f={{ row.key }}" style="--c:{% if row.key == 'billed' %}#687481{% else %}{{ row.color }}{% endif %};">
                     <span class="status-dot"></span>
                     <div>
                         <p class="status-name">{{ row.display_label }}</p>
                         <p class="status-sub">{{ row.subtitle }}</p>
                     </div>
                     <strong class="status-count" data-live="{{ row.key }}">{{ row.count|stringformat:"02d" }}</strong>
-                </div>
+                </a>
                 {% endfor %}
             </div>
             <div class="stacked-bar">
@@ -750,13 +787,13 @@
                 </div>
                 <div class="wmcda-list">
                     {% for row in wmcda_scoreboard %}
-                    <div class="wmcda-list-row">
+                    <a class="wmcda-list-row" href="{% url 'supervisor:shipment_records' %}?stype={{ row.key }}">
                         <div>
                             <p>{{ row.label }}</p>
                             <span>Avg Weighted score</span>
                         </div>
                         <strong>{{ row.pct }}% of total<br>{{ row.avg_score }}%</strong>
-                    </div>
+                    </a>
                     {% empty %}
                     <p style="color:#111827;font-size:14px;">No advisory data yet.</p>
                     {% endfor %}
@@ -914,6 +951,22 @@
                 maintainAspectRatio: false,
                 layout: { padding: { left: hasSingleOverviewPoint ? 28 : 0, right: hasSingleOverviewPoint ? 28 : 0 } },
                 interaction: { mode: 'index', intersect: false },
+                onClick: function(event, elements) {
+                    if (!elements.length) return;
+                    var label = this.data.labels[elements[0].index];
+                    var base = '{% url "supervisor:shipment_records" %}';
+                    // Parse "Mon YYYY" (default monthly view e.g. "Jan 2026")
+                    var parsed = new Date(label + ' 01');
+                    if (!isNaN(parsed.getTime())) {
+                        var y = parsed.getFullYear();
+                        var m = parsed.getMonth();
+                        var lastDay = new Date(y, m + 1, 0).getDate();
+                        var pad = function(n) { return String(n).padStart(2,'0'); };
+                        window.location.href = base + '?date_from=' + y + '-' + pad(m+1) + '-01&date_to=' + y + '-' + pad(m+1) + '-' + pad(lastDay);
+                    } else {
+                        window.location.href = base;
+                    }
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -966,6 +1019,11 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: function(event, elements) {
+                    if (!elements.length) return;
+                    var label = this.data.labels[elements[0].index];
+                    window.location.href = '{% url "supervisor:shipment_records" %}?stype=' + label.toLowerCase();
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -1008,6 +1066,7 @@
 
     var wmcdaEl = document.getElementById('wmcdaChart');
     if (window.Chart && wmcdaEl) {
+        var wmcdaKeys = {{ wmcda_bar_keys|default:"[]"|safe }};
         new Chart(wmcdaEl, {
             type: 'bar',
             data: {
@@ -1016,6 +1075,12 @@
             },
             options: {
                 maintainAspectRatio: false,
+                onClick: function(event, elements) {
+                    if (!elements.length) return;
+                    var idx = elements[0].index;
+                    var stype = wmcdaKeys.length ? wmcdaKeys[idx] : this.data.labels[idx].toLowerCase();
+                    window.location.href = '{% url "supervisor:shipment_records" %}?stype=' + stype;
+                },
                 plugins: { legend: { display: false } },
                 scales: {
                     y: { beginAtZero: true, grid: { color: '#E9EEF4' }, ticks: { color: '#111827', font: { size: 11 }, precision: 0 } },
