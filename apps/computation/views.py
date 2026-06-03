@@ -1085,9 +1085,30 @@ def compute_shipment(request, shipment_id):
     ocr_items  = request.session.get('ocr_items',  []) if request.session.get('ocr_shipment_id') == shipment_id else []
 
     # ── Auto-derive distance from OCR-extracted country of origin ─────────────
-    # Priority: 1) existing advisory (already computed), 2) OCR lookup, 3) default 2600
-    _ocr_country   = (ocr_fields.get('country_of_origin') or ocr_fields.get('origin') or '').strip()
-    _ocr_distance  = _lookup_distance_from_country(_ocr_country)
+    # Priority:
+    #   1) Existing saved advisory (already computed once)
+    #   2) Session OCR fields (set when declarant went through process page first)
+    #   3) Database-stored OCR fields on shipment documents (fallback for direct ECDT access)
+    #   4) Default 2600 km
+    _ocr_country = (ocr_fields.get('country_of_origin') or ocr_fields.get('origin') or '').strip()
+
+    # Fallback: read from database-stored OCR fields if session is empty
+    if not _ocr_country:
+        for _doc in shipment.documents.all():
+            if getattr(_doc, 'ocr_fields_json', None):
+                try:
+                    _stored = json.loads(_doc.ocr_fields_json)
+                    _ocr_country = (
+                        _stored.get('country_of_origin') or
+                        _stored.get('origin') or ''
+                    ).strip()
+                    if _ocr_country:
+                        break
+                except Exception:
+                    pass
+
+    _ocr_distance = _lookup_distance_from_country(_ocr_country)
+
     if advisory_ex and advisory_ex.distance_km:
         prefill_distance      = int(advisory_ex.distance_km)
         prefill_distance_src  = 'saved'
