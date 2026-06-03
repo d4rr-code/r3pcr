@@ -103,6 +103,10 @@ def notification_detail(request, notification_id):
     role = request.user.role
     if role == 'supervisor':
         template = 'supervisor/notifications_detail.html'
+    elif role == 'declarant':
+        template = 'declarant/notifications_detail.html'
+    elif role == 'consignee':
+        template = 'consignee/notifications_detail.html'
     else:
         template = 'notifications/detail.html'
     return render(request, template, {'notif': notif})
