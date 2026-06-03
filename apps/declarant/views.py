@@ -306,13 +306,13 @@ def dashboard(request):
     shipments = Shipment.objects.all()
     my = {'declarant': request.user}
 
-    # ── KPI 1: Incoming — assigned to me but not yet processed ──────────────────
-    incoming_count = shipments.filter(declarant=request.user, status='arrived').count()
+    # ── KPI 1: Incoming — unassigned shipments waiting in the general pool ──────
+    incoming_count = shipments.filter(status='incoming').count()
 
-    # ── KPI 2: In Progress — currently being worked on ────────────────────────────
+    # ── KPI 2: In Progress — assigned to me and actively being worked on ─────────
     in_progress = shipments.filter(
         declarant=request.user,
-        status__in=['computed', 'for_revision', 'lodgement', 'ongoing', 'assessed'],
+        status__in=['arrived', 'computed', 'for_revision', 'lodgement', 'ongoing', 'assessed'],
     ).count()
 
     # ── KPI 3: Approved by consignee — moving to payment ─────────────────────────
