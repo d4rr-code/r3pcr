@@ -220,6 +220,45 @@ body {
     border-radius: 4px;
     margin-bottom: 0;
 }
+.ecdt-collapse {
+    border: 1px solid #d7dce3;
+    border-radius: 7px;
+    overflow: hidden;
+    background: #ffffff;
+}
+.ecdt-collapse summary {
+    min-height: 48px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #18345a;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+    cursor: pointer;
+    list-style: none;
+    background: #f8fafc;
+}
+.ecdt-collapse summary::-webkit-details-marker { display: none; }
+.ecdt-collapse summary::after {
+    content: "+";
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e8eef5;
+    color: #18345a;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.ecdt-collapse[open] summary::after { content: "-"; }
+.ecdt-collapse-body { padding: 20px; }
+.ecdt-collapse .computation-split { margin: 20px 0 0; }
 .calc-table { width: 100%; border-collapse: collapse; min-width: 760px; }
 .calc-table th {
     background: #d3d3d3;
@@ -363,14 +402,7 @@ body {
                 Back to My Submissions
             </a>
             {% if shipment.status == 'billed' %}
-                {% if shipment.feedback %}
-                    <span class="back-btn" title="Feedback submitted" aria-label="Feedback submitted">
-                        <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                            <path fill-rule="evenodd" d="M10 1.75a.75.75 0 01.67.414l2.13 4.256 4.704.684a.75.75 0 01.416 1.279l-3.404 3.317.804 4.685a.75.75 0 01-1.088.79L10 14.95l-4.232 2.225a.75.75 0 01-1.088-.79l.804-4.685L2.08 8.383a.75.75 0 01.416-1.28L7.2 6.42l2.13-4.256A.75.75 0 0110 1.75z" clip-rule="evenodd"/>
-                        </svg>
-                        Feedback Submitted
-                    </span>
-                {% else %}
+                {% if not shipment.feedback %}
                     <a href="{% url 'consignee:feedback' shipment_id=shipment.id %}" class="back-btn">Rate Your Experience</a>
                 {% endif %}
             {% endif %}
@@ -535,74 +567,79 @@ body {
                 </div>
             </div>
 
-            <div class="calc-table-wrap">
-                <table class="calc-table">
-                    <thead>
-                        <tr>
-                            <th>EXW</th>
-                            <th>Rate</th>
-                            <th>Freight</th>
-                            <th>Insurance</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>USD {{ computation.declared_value|floatformat:2 }}</td>
-                            <td>&#8369; {{ computation.exchange_rate|floatformat:4 }}</td>
-                            <td>USD {{ computation.total_freight|floatformat:2 }}</td>
-                            <td>USD {{ computation.total_insurance|floatformat:2 }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-                {% with items=computation.get_items %}
-                {% if items %}
-                <table class="calc-table">
-                    <thead>
-                        <tr>
-                            <th>Description</th>
-                            <th>Qty / Unit</th>
-                            <th>HS Code</th>
-                            <th>Duty %</th>
-                            <th>D/V (&#8369;)</th>
-                            <th>CUD (&#8369;)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in items %}
-                        <tr>
-                            <td>{{ item.description|default:"-" }}</td>
-                            <td>{{ item.quantity|default:"-" }}{% if item.unit %} {{ item.unit }}{% endif %}</td>
-                            <td>{{ item.hs_code|default:"-" }}</td>
-                            <td>{{ item.duty_rate|floatformat:2|default:"-" }}%</td>
-                            <td>{{ item.dv_php|floatformat:2|default:"-" }}</td>
-                            <td>{{ item.cud|floatformat:2|default:"-" }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% endif %}
-                {% endwith %}
-            </div>
+            <details class="ecdt-collapse">
+                <summary>View ECDT Breakdown</summary>
+                <div class="ecdt-collapse-body">
+                    <div class="calc-table-wrap">
+                        <table class="calc-table">
+                            <thead>
+                                <tr>
+                                    <th>EXW</th>
+                                    <th>Rate</th>
+                                    <th>Freight</th>
+                                    <th>Insurance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>USD {{ computation.declared_value|floatformat:2 }}</td>
+                                    <td>&#8369; {{ computation.exchange_rate|floatformat:4 }}</td>
+                                    <td>USD {{ computation.total_freight|floatformat:2 }}</td>
+                                    <td>USD {{ computation.total_insurance|floatformat:2 }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        {% with items=computation.get_items %}
+                        {% if items %}
+                        <table class="calc-table">
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Qty / Unit</th>
+                                    <th>HS Code</th>
+                                    <th>Duty %</th>
+                                    <th>D/V (&#8369;)</th>
+                                    <th>CUD (&#8369;)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items %}
+                                <tr>
+                                    <td>{{ item.description|default:"-" }}</td>
+                                    <td>{{ item.quantity|default:"-" }}{% if item.unit %} {{ item.unit }}{% endif %}</td>
+                                    <td>{{ item.hs_code|default:"-" }}</td>
+                                    <td>{{ item.duty_rate|floatformat:2|default:"-" }}%</td>
+                                    <td>{{ item.dv_php|floatformat:2|default:"-" }}</td>
+                                    <td>{{ item.cud|floatformat:2|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
 
-            <div class="computation-split">
-                <div class="split-panel">
-                    <h4 class="split-title">BOC Payable Computation</h4>
-                    <div class="fee-row"><span>Custom Duty (CUD)</span><strong>&#8369; {{ computation.customs_duty|floatformat:2|default:"0.00" }}</strong></div>
-                    <div class="fee-row"><span>VAT (12%)</span><strong>&#8369; {{ computation.vat_amount|floatformat:2|default:"0.00" }}</strong></div>
-                    <div class="fee-row"><span>Import Processing Fee</span><strong>&#8369; {{ computation.ipf|floatformat:2|default:"0.00" }}</strong></div>
-                    <div class="fee-row"><span>Documentary Stamp (CDS)</span><strong>&#8369; 130.00</strong></div>
-                    <div class="fee-row fee-total"><span></span><strong>&#8369; {{ computation.boc_payable|floatformat:2 }}</strong></div>
+                    <div class="computation-split">
+                        <div class="split-panel">
+                            <h4 class="split-title">BOC Payable Computation</h4>
+                            <div class="fee-row"><span>Custom Duty (CUD)</span><strong>&#8369; {{ computation.customs_duty|floatformat:2|default:"0.00" }}</strong></div>
+                            <div class="fee-row"><span>VAT (12%)</span><strong>&#8369; {{ computation.vat_amount|floatformat:2|default:"0.00" }}</strong></div>
+                            <div class="fee-row"><span>Import Processing Fee</span><strong>&#8369; {{ computation.ipf|floatformat:2|default:"0.00" }}</strong></div>
+                            <div class="fee-row"><span>Documentary Stamp (CDS)</span><strong>&#8369; 130.00</strong></div>
+                            <div class="fee-row fee-total"><span></span><strong>&#8369; {{ computation.boc_payable|floatformat:2 }}</strong></div>
+                        </div>
+                        <div class="split-panel">
+                            <h4 class="split-title">Landed Cost Computation</h4>
+                            <div class="fee-row"><span>Brokerage Fee</span><strong>&#8369; {{ computation.brokerage_fee|floatformat:2|default:"0.00" }}</strong></div>
+                            {% if computation.arrastre %}<div class="fee-row"><span>Arrastre</span><strong>&#8369; {{ computation.arrastre|floatformat:2 }}</strong></div>{% endif %}
+                            {% if computation.wharfage %}<div class="fee-row"><span>Wharfage</span><strong>&#8369; {{ computation.wharfage|floatformat:2 }}</strong></div>{% endif %}
+                            {% if computation.bank_charges %}<div class="fee-row"><span>Bank Charges</span><strong>&#8369; {{ computation.bank_charges|floatformat:2 }}</strong></div>{% endif %}
+                            {% if computation.csf_php %}<div class="fee-row"><span>Container Service Fee</span><strong>&#8369; {{ computation.csf_php|floatformat:2 }}</strong></div>{% endif %}
+                            <div class="fee-row fee-total"><span></span><strong>&#8369; {{ computation.total_landed_cost|floatformat:2|default:"0.00" }}</strong></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="split-panel">
-                    <h4 class="split-title">Landed Cost Computation</h4>
-                    <div class="fee-row"><span>Brokerage Fee</span><strong>&#8369; {{ computation.brokerage_fee|floatformat:2|default:"0.00" }}</strong></div>
-                    {% if computation.arrastre %}<div class="fee-row"><span>Arrastre</span><strong>&#8369; {{ computation.arrastre|floatformat:2 }}</strong></div>{% endif %}
-                    {% if computation.wharfage %}<div class="fee-row"><span>Wharfage</span><strong>&#8369; {{ computation.wharfage|floatformat:2 }}</strong></div>{% endif %}
-                    {% if computation.bank_charges %}<div class="fee-row"><span>Bank Charges</span><strong>&#8369; {{ computation.bank_charges|floatformat:2 }}</strong></div>{% endif %}
-                    {% if computation.csf_php %}<div class="fee-row"><span>Container Service Fee</span><strong>&#8369; {{ computation.csf_php|floatformat:2 }}</strong></div>{% endif %}
-                    <div class="fee-row fee-total"><span></span><strong>&#8369; {{ computation.total_landed_cost|floatformat:2|default:"0.00" }}</strong></div>
-                </div>
-            </div>
+            </details>
 
             {% if shipment.status == 'computed' %}
             <div class="review-box">

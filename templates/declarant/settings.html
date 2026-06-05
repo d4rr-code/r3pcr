@@ -97,10 +97,10 @@
                         <label class="form-label">Phone Number</label>
                         <input type="tel" name="phone_number" class="form-input"
                                value="{{ user.phone_number|default:'' }}" placeholder="09XX-XXX-XXXX or +63-9XX-XXX-XXXX"
-                               maxlength="18"
-                               pattern="[0+][0-9\s\-().]+"
-                               title="PH format: 09XX-XXX-XXXX or +63-9XX-XXX-XXXX. 10–13 digits.">
-                        <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">Digits &amp; +, -, spaces only</p>
+                               inputmode="tel" autocomplete="tel" maxlength="18"
+                               pattern="(?:09\d{2}[- ]?\d{3}[- ]?\d{4}|\+63[- ]?9\d{2}[- ]?\d{3}[- ]?\d{4})"
+                               title="PH mobile format: 09XX-XXX-XXXX or +63-9XX-XXX-XXXX.">
+                        <p style="font-size:10px;color:#9CA3AF;margin:3px 0 0;">PH mobile only: 09XX-XXX-XXXX or +63-9XX-XXX-XXXX</p>
                     </div>
                 </div>
                 <div style="margin-top:20px; display:flex; gap:10px;">

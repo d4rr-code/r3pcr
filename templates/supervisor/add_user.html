@@ -146,9 +146,12 @@
 
             <div class="user-form-field">
                 <label class="user-form-label">Phone Number</label>
-                <input type="text" name="phone_number" class="user-form-input"
+                <input type="tel" name="phone_number" class="user-form-input"
                        value="{% if form_data %}{{ form_data.phone_number }}{% else %}{{ edited_user.phone_number|default:'' }}{% endif %}"
-                       placeholder="+639XXXXXX">
+                       placeholder="09XX-XXX-XXXX or +63-9XX-XXX-XXXX"
+                       inputmode="tel" autocomplete="tel" maxlength="18"
+                       pattern="(?:09\d{2}[- ]?\d{3}[- ]?\d{4}|\+63[- ]?9\d{2}[- ]?\d{3}[- ]?\d{4})"
+                       title="PH mobile format: 09XX-XXX-XXXX or +63-9XX-XXX-XXXX.">
             </div>
 
             <div class="user-form-field">

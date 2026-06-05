@@ -125,6 +125,34 @@
         </div>
     </div>
 
+    <!-- Urgency Business Days -->
+    <div class="card" style="padding:28px; margin-bottom:24px;">
+        <p class="card-title" style="margin:0 0 4px;">Urgency Business Days</p>
+        <p style="color:#9CA3AF; font-size:12px; margin:0 0 20px; line-height:1.5;">
+            Controls due-date monitoring for shipment processing. Values count Monday to Friday only.
+        </p>
+        <div style="display:grid; grid-template-columns:repeat(4, minmax(150px, 1fr)); gap:16px;">
+            {% for row in urgency_rows %}
+            <div style="border:1px solid #E5E7EB; border-radius:8px; padding:14px; background:#FBFCFE;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                    <span style="width:9px; height:9px; border-radius:50%; background:{{ row.color }};"></span>
+                    <label class="form-label" style="font-size:12px; margin:0;">{{ row.label }}</label>
+                </div>
+                <input type="number" name="{{ row.key }}" min="1" max="60" step="1"
+                       value="{{ row.value }}" class="form-input"
+                       style="font-size:14px; font-weight:700;" required>
+                <p style="color:#9CA3AF; font-size:10px; margin:5px 0 0;">business days</p>
+                {% if row.meta and row.meta.updated_at %}
+                <p style="color:#9CA3AF; font-size:10px; margin:8px 0 0;">
+                    Updated {{ row.meta.updated_at|date:"M d, Y H:i" }}
+                    {% if row.meta.updated_by %}by {{ row.meta.updated_by.username }}{% endif %}
+                </p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
     <!-- Document Templates -->
     <div class="card" style="padding:28px; margin-bottom:24px;">
         <p class="card-title" style="margin:0 0 4px;">Document Templates</p>

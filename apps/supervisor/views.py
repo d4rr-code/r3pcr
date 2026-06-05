@@ -23,6 +23,33 @@ URGENCY_BUSINESS_DAYS = {
 }
 
 
+def _urgency_business_days():
+    values = dict(URGENCY_BUSINESS_DAYS)
+    try:
+        rows = {
+            sc.key: sc.value
+            for sc in SystemConfig.objects.filter(
+                key__in=[f'urgency_days_{k}' for k in ('standard', 'priority', 'urgent', 'rush')]
+            )
+        }
+    except Exception:
+        rows = {}
+    for key in ('standard', 'priority', 'urgent', 'rush'):
+        try:
+            days = int(rows.get(f'urgency_days_{key}', ''))
+        except (TypeError, ValueError):
+            continue
+        if 1 <= days <= 60:
+            values[key] = days
+    values['normal'] = values['standard']
+    return values
+
+
+def _urgency_days_for(urgency):
+    days = _urgency_business_days()
+    return days.get(urgency or 'standard', days['standard'])
+
+
 def _add_business_days(start_dt, n):
     """Return date that is n business days (Mon–Fri) after start_dt."""
     d = start_dt.date() if hasattr(start_dt, 'date') else start_dt
@@ -101,6 +128,7 @@ def _send_mail_async(subject, message, from_email, recipient_list, html_message=
             print(f'[EMAIL ERROR] {log_tag}: {e}')
     threading.Thread(target=_send, daemon=True).start()
 from apps.accounts.models import User
+from apps.accounts.views import _validate_phone_number
 from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
@@ -238,6 +266,9 @@ def add_user(request):
             errors.append('Passwords do not match.')
         if len(password) < 8:
             errors.append('Password must be at least 8 characters.')
+        phone_error = _validate_phone_number(phone)
+        if phone_error:
+            errors.append(phone_error)
         if not re.search(r'[a-z]', password):
             errors.append('Password must include at least one lowercase letter.')
         if not re.search(r'[A-Z]', password):
@@ -289,6 +320,9 @@ def edit_user(request, user_id):
             errors.append('Username already taken.')
         if User.objects.filter(email=email).exclude(pk=edited_user.pk).exists():
             errors.append('Email already registered.')
+        phone_error = _validate_phone_number(phone)
+        if phone_error:
+            errors.append(phone_error)
 
         if errors:
             for error in errors:
@@ -747,7 +781,7 @@ def _analytics_context_response(request):
     _active_qs = chart_qs.exclude(status__in=_terminal_statuses)
     _due_total = _active_qs.count()
     for _s in _active_qs.values('urgency', 'submitted_at'):
-        _alloc     = URGENCY_BUSINESS_DAYS.get(_s['urgency'] or 'standard', 30)
+        _alloc     = _urgency_days_for(_s['urgency'])
         _deadline  = _add_business_days(_s['submitted_at'], _alloc)
         _remaining = _business_days_diff(_today, _deadline)
         if _remaining <= 1:
@@ -1136,6 +1170,10 @@ def _get_config():
         'wmcda_w_time':   '30',
         'wmcda_w_weight': '20',
         'wmcda_w_distance': '15',
+        'urgency_days_standard': '15',
+        'urgency_days_priority': '10',
+        'urgency_days_urgent':   '5',
+        'urgency_days_rush':     '3',
     }
     rows   = {sc.key: sc.value for sc in SystemConfig.objects.all()}
     merged = {k: rows.get(k, v) for k, v in defaults.items()}
@@ -1187,7 +1225,8 @@ def _load_tiers(key, defaults):
 
 def config_global(request):
     config   = _get_config()
-    all_keys = _CURRENCY_KEYS + ['exchange_rate', 'vat_rate']
+    urgency_keys = ['urgency_days_standard', 'urgency_days_priority', 'urgency_days_urgent', 'urgency_days_rush']
+    all_keys = _CURRENCY_KEYS + ['exchange_rate', 'vat_rate'] + urgency_keys
     meta     = _config_meta(all_keys)
 
     if request.method == 'POST':
@@ -1209,6 +1248,19 @@ def config_global(request):
             SystemConfig.objects.update_or_create(
                 key=tmpl_key, defaults={'value': tmpl_val, 'updated_by': request.user}
             )
+        for key in urgency_keys:
+            val = request.POST.get(key, '').strip()
+            try:
+                days = int(val)
+            except (TypeError, ValueError):
+                messages.error(request, 'Urgency business days must be whole numbers.')
+                return redirect('supervisor:config_global')
+            if not 1 <= days <= 60:
+                messages.error(request, 'Urgency business days must be between 1 and 60.')
+                return redirect('supervisor:config_global')
+            SystemConfig.objects.update_or_create(
+                key=key, defaults={'value': str(days), 'updated_by': request.user}
+            )
         messages.success(request, 'Global parameters saved.')
         return redirect('supervisor:config_global')
 
@@ -1221,10 +1273,18 @@ def config_global(request):
             'meta':  meta.get(row['key']),
         })
 
+    urgency_rows = [
+        {'key': 'urgency_days_standard', 'label': 'Standard', 'value': config.urgency_days_standard, 'meta': meta.get('urgency_days_standard'), 'color': '#3b82f6'},
+        {'key': 'urgency_days_priority', 'label': 'Priority', 'value': config.urgency_days_priority, 'meta': meta.get('urgency_days_priority'), 'color': '#f59e0b'},
+        {'key': 'urgency_days_urgent',   'label': 'Urgent',   'value': config.urgency_days_urgent,   'meta': meta.get('urgency_days_urgent'),   'color': '#f97316'},
+        {'key': 'urgency_days_rush',     'label': 'Rush',     'value': config.urgency_days_rush,     'meta': meta.get('urgency_days_rush'),     'color': '#ef4444'},
+    ]
+
     return render(request, 'supervisor/config_global.html', {
         'config':        config,
         'config_meta':   meta,
         'currency_rows': currency_rows,
+        'urgency_rows':  urgency_rows,
         'invoice_template_url':      SystemConfig.get('invoice_template_url', ''),
         'packing_list_template_url': SystemConfig.get('packing_list_template_url', ''),
     })
@@ -2082,7 +2142,7 @@ def declarant_detail(request, user_id):
     due_buckets = {'one_day': 0, 'three_days': 0, 'five_days': 0, 'over_five': 0}
     _today_d = now.date()
     for shipment in all_shipments.exclude(status__in=terminal_statuses):
-        alloc     = URGENCY_BUSINESS_DAYS.get(shipment.urgency or 'standard', 30)
+        alloc     = _urgency_days_for(shipment.urgency)
         deadline  = _add_business_days(shipment.submitted_at, alloc)
         remaining = _business_days_diff(_today_d, deadline)
         if remaining <= 1:

@@ -12,6 +12,17 @@ from .models import User, OTP
 
 # ─── Field validation helpers ─────────────────────────────────────────────────
 
+def _validate_phone_number(phone):
+    if not phone:
+        return None
+    if len(phone) > 18:
+        return 'Phone number is too long. Use 09XX-XXX-XXXX or +63-9XX-XXX-XXXX.'
+    ph_mobile = re.compile(r'^(?:09\d{2}[- ]?\d{3}[- ]?\d{4}|\+63[- ]?9\d{2}[- ]?\d{3}[- ]?\d{4})$')
+    if not ph_mobile.match(phone):
+        return 'Phone number must be a valid PH mobile number: 09XX-XXX-XXXX or +63-9XX-XXX-XXXX.'
+    return None
+
+
 def _validate_profile_fields(first_name, last_name, email, phone='', company=''):
     """Return a list of error strings; empty list means all fields are valid."""
     errors = []
@@ -44,15 +55,9 @@ def _validate_profile_fields(first_name, last_name, email, phone='', company='')
 
     # Phone (optional) — Philippine format: 09XX-XXX-XXXX or +639XX-XXX-XXXX
     if phone:
-        digits_only = re.sub(r'[\s\-().+]', '', phone)
-        if not re.match(r'^[0-9+][0-9\s\-().]*$', phone):
-            errors.append('Phone number must start with 0 or + and contain only digits, spaces, hyphens, or parentheses.')
-        elif not digits_only.isdigit():
-            errors.append('Phone number contains invalid characters.')
-        elif len(digits_only) < 10:
-            errors.append('Phone number must have at least 10 digits. PH format: 09XX-XXX-XXXX or +639XX-XXX-XXXX.')
-        elif len(digits_only) > 13:
-            errors.append('Phone number cannot exceed 13 digits.')
+        phone_error = _validate_phone_number(phone)
+        if phone_error:
+            errors.append(phone_error)
 
     # Company (optional)
     if company and len(company) > 100:

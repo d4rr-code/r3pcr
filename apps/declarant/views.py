@@ -144,6 +144,25 @@ URGENCY_BUSINESS_DAYS = {
 }
 
 
+def _urgency_business_days():
+    from apps.supervisor.models import SystemConfig
+    values = dict(URGENCY_BUSINESS_DAYS)
+    for key in ('standard', 'priority', 'urgent', 'rush'):
+        raw = SystemConfig.get(f'urgency_days_{key}', '')
+        try:
+            days = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= days <= 60:
+            values[key] = days
+    values['normal'] = values['standard']
+    return values
+
+
+def _urgency_days_for(urgency):
+    return _urgency_business_days().get(urgency or 'standard', URGENCY_BUSINESS_DAYS['standard'])
+
+
 def _add_business_days(start_dt, n):
     """Return date that is n business days (Mon–Fri) after start_dt."""
     d = start_dt.date() if hasattr(start_dt, 'date') else start_dt
@@ -174,8 +193,9 @@ def _business_days_diff(from_date, to_date):
 
 def _annotate_due(shipments, today):
     """Attach due_date, due_days_left (business days), due_color per shipment."""
+    urgency_days = _urgency_business_days()
     for s in shipments:
-        alloc = URGENCY_BUSINESS_DAYS.get(s.urgency or 'standard', 30)
+        alloc = urgency_days.get(s.urgency or 'standard', urgency_days['standard'])
         s.due_date      = _add_business_days(s.submitted_at, alloc)
         s.due_days_left = _business_days_diff(today, s.due_date)
         if s.due_days_left < 0:
@@ -456,7 +476,7 @@ def dashboard(request):
     due_buckets = {'one_day': 0, 'three_days': 0, 'five_days': 0, 'over_five': 0}
     _today_d = now.date()
     for shipment in my_shipments.exclude(status__in=terminal_statuses):
-        alloc     = URGENCY_BUSINESS_DAYS.get(shipment.urgency or 'standard', 30)
+        alloc     = _urgency_days_for(shipment.urgency)
         deadline  = _add_business_days(shipment.submitted_at, alloc)
         remaining = _business_days_diff(_today_d, deadline)
         if remaining <= 1:

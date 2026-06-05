@@ -40,8 +40,9 @@ def generate_hawb():
 @login_required
 def dashboard(request):
     import json
+    import calendar
     from django.db.models import Count
-    from django.db.models.functions import ExtractMonth
+    from django.db.models.functions import ExtractMonth, ExtractYear
     shipments = Shipment.objects.filter(consignee=request.user)
     total = shipments.count()
 
@@ -88,17 +89,30 @@ def dashboard(request):
         item['label'] = urgency_labels.get(item['urgency'], item['urgency'] or 'Unknown')
 
     # ── Monthly chart data (current year) ────────────────────────────────────
-    current_year = timezone.now().year
+    today = timezone.localdate()
+    month_points = []
+    for offset in range(3, -1, -1):
+        year, month = today.year, today.month - offset
+        while month <= 0:
+            month += 12
+            year -= 1
+        month_points.append((year, month))
+
+    start_year, start_month = month_points[0]
+    start_date = today.replace(year=start_year, month=start_month, day=1)
     monthly_qs = (
         shipments
-        .filter(submitted_at__year=current_year)
-        .annotate(month=ExtractMonth('submitted_at'))
-        .values('month')
+        .filter(submitted_at__date__gte=start_date)
+        .annotate(year=ExtractYear('submitted_at'), month=ExtractMonth('submitted_at'))
+        .values('year', 'month')
         .annotate(count=Count('id'))
     )
-    monthly_data = [0] * 12
-    for row in monthly_qs:
-        monthly_data[row['month'] - 1] = row['count']
+    monthly_lookup = {(row['year'], row['month']): row['count'] for row in monthly_qs}
+    if month_points[0][0] == month_points[-1][0]:
+        monthly_labels = [calendar.month_abbr[month] for _, month in month_points]
+    else:
+        monthly_labels = [f'{calendar.month_abbr[month]} {str(year)[-2:]}' for year, month in month_points]
+    monthly_data = [monthly_lookup.get(point, 0) for point in month_points]
 
     context = {
         'total': total,
@@ -107,8 +121,10 @@ def dashboard(request):
         'mode_breakdown':     mode_breakdown,
         'urgency_breakdown':  urgency_breakdown,
         'recent_shipments':   shipments.order_by('-submitted_at'),
+        'monthly_labels':     json.dumps(monthly_labels),
         'monthly_data':       json.dumps(monthly_data),
-        'current_year':       current_year,
+        'monthly_total':      sum(monthly_data),
+        'current_year':       today.year,
     }
 
     from apps.supervisor.models import Announcement
@@ -1124,48 +1140,34 @@ def _ecdt_pdf(request, shipment, computation, advisory):
 
 @login_required
 def chart_data(request):
-    import datetime
+    import calendar
     from django.db.models import Count
-    from django.db.models.functions import ExtractMonth, ExtractWeek
+    from django.db.models.functions import ExtractMonth, ExtractYear
     from django.http import JsonResponse
 
-    view_type = request.GET.get('view', 'month')
-    try:
-        year = int(request.GET.get('year', timezone.now().year))
-    except (ValueError, TypeError):
-        year = timezone.now().year
+    today = timezone.localdate()
+    month_points = []
+    for offset in range(3, -1, -1):
+        year, month = today.year, today.month - offset
+        while month <= 0:
+            month += 12
+            year -= 1
+        month_points.append((year, month))
 
-    qs = Shipment.objects.filter(consignee=request.user, submitted_at__year=year)
-
-    if view_type == 'week':
-        rows = (
-            qs.annotate(week=ExtractWeek('submitted_at'))
-              .values('week')
-              .annotate(count=Count('id'))
-        )
-        data = [0] * 53
-        for row in rows:
-            w = row['week']
-            if 1 <= w <= 53:
-                data[w - 1] = row['count']
-        labels = [f'Wk {i}' for i in range(1, 54)]
-        # For the current year, trim to current week + a small buffer
-        if year == timezone.now().year:
-            current_week = datetime.date.today().isocalendar()[1]
-            cutoff = min(current_week + 2, 53)
-            data   = data[:cutoff]
-            labels = labels[:cutoff]
+    start_year, start_month = month_points[0]
+    start_date = today.replace(year=start_year, month=start_month, day=1)
+    qs = Shipment.objects.filter(consignee=request.user, submitted_at__date__gte=start_date)
+    rows = (
+        qs.annotate(year=ExtractYear('submitted_at'), month=ExtractMonth('submitted_at'))
+          .values('year', 'month')
+          .annotate(count=Count('id'))
+    )
+    lookup = {(row['year'], row['month']): row['count'] for row in rows}
+    if month_points[0][0] == month_points[-1][0]:
+        labels = [calendar.month_abbr[month] for _, month in month_points]
     else:
-        rows = (
-            qs.annotate(month=ExtractMonth('submitted_at'))
-              .values('month')
-              .annotate(count=Count('id'))
-        )
-        data = [0] * 12
-        for row in rows:
-            data[row['month'] - 1] = row['count']
-        labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        labels = [f'{calendar.month_abbr[month]} {str(year)[-2:]}' for year, month in month_points]
+    data = [lookup.get(point, 0) for point in month_points]
 
     return JsonResponse({'labels': labels, 'data': data})
 
