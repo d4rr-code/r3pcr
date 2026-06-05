@@ -805,6 +805,7 @@ def shipment_preview(request, shipment_id):
         'urgency_label':   shipment.get_urgency_display(),
         'description':     shipment.description or '',
         'quantity':        str(shipment.quantity) if shipment.quantity else None,
+        'invoice_currency': shipment.invoice_currency or 'USD',
         'declared_value':  str(shipment.declared_value) if shipment.declared_value else None,
         'gross_weight':    str(shipment.gross_weight) if shipment.gross_weight else None,
         'freight_cost':    str(shipment.freight_cost) if shipment.freight_cost else None,

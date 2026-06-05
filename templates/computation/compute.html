@@ -1114,7 +1114,7 @@ document.body.classList.add('light-mode');
     <span style="color:#94a3b8;">{{ shipment.get_import_type_display }}</span>
     <span style="color:#1e293b;">·</span>
     <span style="color:#fbbf24; font-weight:600;">&#8369;{% if existing and existing.exchange_rate %}{{ existing.exchange_rate }}{% else %}{{ default_rate }}{% endif %}</span>
-    <span style="color:#475569; font-size:10px;">USD/PHP</span>
+    <span style="color:#475569; font-size:10px;">{{ invoice_currency }}/PHP</span>
     <span style="color:#1e293b;">·</span>
     <span style="color:#64748b;">{{ shipment.submitted_at|date:"M d, Y" }}</span>
     <span style="color:#1e293b;">·</span>
@@ -1573,10 +1573,10 @@ document.body.classList.add('light-mode');
             <colgroup>
                 <col style="width:26px">  <!-- # -->
                 <col style="width:150px"> <!-- Description -->
-                <col style="width:66px">  <!-- EXW/FOB $ -->
-                <col style="width:60px">  <!-- Freight $ (input) -->
-                <col style="width:60px">  <!-- Insurance $ (input) -->
-                <col style="width:66px">  <!-- D/V $ (calc) -->
+                <col style="width:66px">  <!-- EXW/FOB invoice currency -->
+                <col style="width:60px">  <!-- Freight invoice currency (input) -->
+                <col style="width:60px">  <!-- Insurance invoice currency (input) -->
+                <col style="width:66px">  <!-- D/V invoice currency (calc) -->
                 <col style="width:72px">  <!-- D/V &#8369; (calc) -->
                 <col style="width:130px"> <!-- HS Code -->
                 <col style="width:48px">  <!-- Rate% -->
@@ -1592,10 +1592,10 @@ document.body.classList.add('light-mode');
                 <tr>
                     <th style="text-align:left;">#</th>
                     <th style="text-align:left;">Description</th>
-                    <th>EXW/FOB&#10;($)</th>
-                    <th>Freight&#10;($)</th>
-                    <th>Ins.&#10;($)</th>
-                    <th>D/V&#10;($)</th>
+                    <th>EXW/FOB&#10;(<span class="cur-code-lbl">{{ invoice_currency }}</span>)</th>
+                    <th>Freight&#10;(<span class="cur-code-lbl">{{ invoice_currency }}</span>)</th>
+                    <th>Ins.&#10;(<span class="cur-code-lbl">{{ invoice_currency }}</span>)</th>
+                    <th>D/V&#10;(<span class="cur-code-lbl">{{ invoice_currency }}</span>)</th>
                     <th>D/V&#10;(&#8369;)</th>
                     <th style="text-align:left;">HS Code</th>
                     <th>Rate&#10;%</th>
@@ -2031,7 +2031,7 @@ document.body.classList.add('light-mode');
                 <p style="color:#64748b; font-size:10px; margin:0;">
                     Exchange Rate:
                     <span style="color:#f1f5f9; font-weight:600;">
-                        &#8369;{% if result %}{{ existing.exchange_rate|default:default_rate }}{% elif existing %}{{ existing.exchange_rate|floatformat:4 }}{% endif %} / USD
+                        &#8369;{% if result %}{{ existing.exchange_rate|default:default_rate }}{% elif existing %}{{ existing.exchange_rate|floatformat:4 }}{% endif %} / {{ invoice_currency }}
                     </span>
                 </p>
                 {% if existing %}
@@ -2588,7 +2588,7 @@ function _createHsPicker() {
 }
 
 // â”€â”€ Build a new table row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Col order: #, Desc, EXW, Freight, Ins, D/V$, D/V&#8369;, HS, Rate%, CUD&#8369;, GW, NW, QTY, Unit, PKGS, del
+// Col order: #, Desc, EXW, Freight, Ins, D/V foreign, D/V&#8369;, HS, Rate%, CUD&#8369;, GW, NW, QTY, Unit, PKGS, del
 function _makeRow(n, desc, exw, qty) {
     var tr = document.createElement('tr');
     tr.innerHTML =
@@ -2786,7 +2786,8 @@ function recalcAll() {
         setCell('cud',   cud);
     });
 
-    document.getElementById('total-exw').textContent   = '$' + totalExw.toLocaleString('en-US', {minimumFractionDigits:2});
+    var curCode = (document.getElementById('invoice_currency') || {}).value || '{{ invoice_currency }}';
+    document.getElementById('total-exw').textContent   = curCode + ' ' + totalExw.toLocaleString('en-US', {minimumFractionDigits:2});
     document.getElementById('total-dvphp').textContent = _fmt(totalDvPhp);
     document.getElementById('total-cud').textContent   = _fmt(totalCud);
 

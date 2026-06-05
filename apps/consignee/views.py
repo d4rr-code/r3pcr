@@ -290,33 +290,66 @@ def shipment_detail(request, shipment_id):
     explanation       = None
     wmcda_scores      = None
     wmcda_breakdown   = None
+    recommendation_score = None
+    recommendation_breakdown = None
+    recommendation_label = None
     declared_score    = None
     declared_breakdown = None
     declared_rating   = None
+    declared_label    = shipment.get_shipment_type_display() if shipment.shipment_type else None
+    advisory_matches_declared = None
+    advisory_summary = None
+
+    mode_labels = {
+        'air': 'Air Freight',
+        'lcl': 'LCL - Less Container Load',
+        'fcl': 'FCL - Full Container Load',
+        'land': 'Land Freight',
+    }
+
+    def _rating(score):
+        if score is None:
+            return None
+        if score >= 0.80:
+            return 'Excellent'
+        if score >= 0.65:
+            return 'Good'
+        if score >= 0.50:
+            return 'Fair'
+        return 'Poor'
 
     if advisory:
         try:
             from apps.computation.views import compute_wmcda
-            wmcda_scores, _, wmcda_breakdown, explanation = compute_wmcda(
+            wmcda_scores, computed_recommendation, wmcda_breakdown, explanation = compute_wmcda(
                 float(advisory.gross_weight),
                 float(advisory.cargo_volume),
                 float(advisory.declared_value),
                 advisory.urgency_level,
                 float(advisory.distance_km),
             )
+            recommended_type = advisory.recommended_type or computed_recommendation
+            recommendation_label = mode_labels.get(recommended_type, (recommended_type or '').upper())
+            if wmcda_scores and recommended_type:
+                recommendation_score = wmcda_scores.get(recommended_type)
+                if wmcda_breakdown:
+                    recommendation_breakdown = wmcda_breakdown.get(recommended_type)
             if wmcda_scores and shipment.shipment_type:
                 declared_score = wmcda_scores.get(shipment.shipment_type)
                 if wmcda_breakdown:
                     declared_breakdown = wmcda_breakdown.get(shipment.shipment_type)
-                if declared_score is not None:
-                    if declared_score >= 0.80:
-                        declared_rating = 'Excellent'
-                    elif declared_score >= 0.65:
-                        declared_rating = 'Good'
-                    elif declared_score >= 0.50:
-                        declared_rating = 'Fair'
-                    else:
-                        declared_rating = 'Poor'
+                declared_rating = _rating(declared_score)
+            if recommended_type and shipment.shipment_type:
+                advisory_matches_declared = recommended_type == shipment.shipment_type
+                if advisory_matches_declared:
+                    advisory_summary = (
+                        'Your selected shipping type matches the WMCDA recommendation for this shipment profile.'
+                    )
+                else:
+                    advisory_summary = (
+                        f'For similar future shipments, WMCDA suggests {recommendation_label} '
+                        f'instead of {declared_label} based on cost, time, cargo size, and distance.'
+                    )
         except Exception:
             pass
 
@@ -334,9 +367,15 @@ def shipment_detail(request, shipment_id):
         'explanation':       explanation,
         'wmcda_scores':      wmcda_scores,
         'wmcda_breakdown':   wmcda_breakdown,
+        'recommendation_score': recommendation_score,
+        'recommendation_breakdown': recommendation_breakdown,
+        'recommendation_label': recommendation_label,
         'declared_score':    declared_score,
         'declared_breakdown': declared_breakdown,
         'declared_rating':   declared_rating,
+        'declared_label':    declared_label,
+        'advisory_matches_declared': advisory_matches_declared,
+        'advisory_summary':  advisory_summary,
         'status_steps':      build_status_progress(shipment.status, 'consignee'),
         'sad_document':      sad_document,
         'current_sublabel':  current_sublabel,
@@ -649,8 +688,9 @@ def _ecdt_xlsx(request, shipment, computation, advisory):
         items = computation.get_items()
 
         # items table
+        currency_code = shipment.invoice_currency or 'USD'
         hdrs = ['DESCRIPTION', 'QTY', 'UNIT', 'HS CODE', 'DUTY %',
-                'D/V (PHP)', 'CUD (PHP)', 'EXW (USD)']
+                'D/V (PHP)', 'CUD (PHP)', f'EXW ({currency_code})']
         for ci, h in enumerate(hdrs, start=1):
             xcell(ws, r, ci, h, bold=True, color=WHITE, bg=NAVY,
                   align=al_c, brd=thin, size=10)
@@ -953,7 +993,7 @@ def _ecdt_pdf(request, shipment, computation, advisory):
             Paragraph('<b>DUTY %</b>',       hdr8(TA_RIGHT)),
             Paragraph('<b>D/V (PHP)</b>',    hdr8(TA_RIGHT)),
             Paragraph('<b>CUD (PHP)</b>',    hdr8(TA_RIGHT)),
-            Paragraph('<b>EXW (USD)</b>',    hdr8(TA_RIGHT)),
+            Paragraph(f'<b>EXW ({shipment.invoice_currency or "USD"})</b>', hdr8(TA_RIGHT)),
         ]]
         for it in items:
             qty_unit = str(it.get('quantity', ''))

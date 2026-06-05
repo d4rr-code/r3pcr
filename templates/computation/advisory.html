@@ -115,7 +115,7 @@
             </div>
             <div class="form-group">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <label class="form-label" style="margin:0;">Declared Value (USD)</label>
+                    <label class="form-label" style="margin:0;">Declared Value ({{ shipment.invoice_currency|default:"USD" }})</label>
                     {% if auto_sources.declared_value %}
                     <span style="font-size:10px; background:#DBEAFE; color:#1D4ED8;
                                  padding:2px 8px; border-radius:10px;">

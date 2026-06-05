@@ -2009,7 +2009,7 @@ def shipping_advisory(request, shipment_id):
     else:
         # Pull weight from shipment model field
         auto_weight = float(shipment.gross_weight) if shipment.gross_weight else 0.0
-        # Pull declared value from computation (USD) or shipment
+        # Pull declared value from computation or shipment in the invoice currency.
         if computation and computation.declared_value:
             auto_value = float(computation.declared_value)
         elif shipment.declared_value:
@@ -2025,7 +2025,7 @@ def shipping_advisory(request, shipment_id):
     if not auto_weight:
         missing_fields.append('Gross Weight (kg)')
     if not auto_value:
-        missing_fields.append('Declared Value (USD)')
+        missing_fields.append(f'Declared Value ({shipment.invoice_currency or "USD"})')
 
     auto_data = {
         'gross_weight':   auto_weight,
