@@ -5,6 +5,7 @@ import re
 import tempfile
 import threading
 from collections import defaultdict
+from decimal import Decimal, InvalidOperation
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -15,8 +16,9 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
 from apps.shipments.models import HSCode, Shipment, ShipmentDocument, StatusLog
+from apps.shipments.fan import FAN_ASSESSMENT_FIELDS, fan_assessment_has_values, fan_assessment_rows
 from apps.shipments.status_progress import build_status_progress
-from apps.notifications.utils import create_notification, notify_shipment_status_change
+from apps.notifications.utils import create_notification, notify_shipment_status_change, send_assessed_email, send_billed_email
 from apps.computation.ocr import process_document, _extract_line_items, _extract_hs_anchored_items
 from apps.computation.models import ShipmentLineItem
 from apps.supervisor.views import _HS_SECTIONS, _chapter_num
@@ -142,6 +144,11 @@ def declarant_required(view_func):
 URGENCY_BUSINESS_DAYS = {
     'rush': 3, 'urgent': 5, 'priority': 10, 'standard': 15, 'normal': 15,
 }
+
+
+def _fan_amount(value):
+    cleaned = re.sub(r'[^0-9.]', '', str(value or ''))
+    return cleaned
 
 
 def _urgency_business_days():
@@ -532,6 +539,9 @@ def system_reference(request):
 def system_parameters(request):
     """View global exchange rate parameters."""
     from apps.supervisor.models import SystemConfig
+    from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
+
+    ensure_daily_exchange_rates()
 
     rate_keys = {
         'USD': 'rate_USD', 'EUR': 'rate_EUR', 'JPY': 'rate_JPY',
@@ -547,8 +557,16 @@ def system_parameters(request):
         except SystemConfig.DoesNotExist:
             parameters[code] = '—'
 
+    urgency_days = _urgency_business_days()
+
     return render(request, 'declarant/system_parameters.html', {
         'parameters': parameters,
+        'urgency_days': [
+            {'label': 'Standard', 'value': urgency_days.get('standard')},
+            {'label': 'Priority', 'value': urgency_days.get('priority')},
+            {'label': 'Urgent', 'value': urgency_days.get('urgent')},
+            {'label': 'Rush', 'value': urgency_days.get('rush')},
+        ],
     })
 
 
@@ -992,7 +1010,82 @@ def process_shipment(request, shipment_id):
 
     # ── Extract OCR line items from scanned documents (for review panel) ────────
     ocr_items_from_docs = []
-    _seen_ocr_desc = set()
+
+    def _ocr_desc_key(value):
+        value = re.sub(r'\b\d{4}(?:[\s.]?\d{2}){1,3}\b', ' ', str(value or '').lower())
+        value = re.sub(r'[^a-z0-9]+', ' ', value)
+        return ' '.join(value.split())
+
+    def _ocr_num(value):
+        raw = re.sub(r'[^\d.\-]', '', str(value or ''))
+        if not raw:
+            return None
+        try:
+            return Decimal(raw)
+        except InvalidOperation:
+            return None
+
+    def _ocr_numbers_match(left, right, tolerance=Decimal('0.01')):
+        l_val, r_val = _ocr_num(left), _ocr_num(right)
+        if l_val is None or r_val is None:
+            return False
+        return abs(l_val - r_val) <= tolerance
+
+    def _ocr_desc_similar(left, right):
+        left_key, right_key = _ocr_desc_key(left), _ocr_desc_key(right)
+        if not left_key or not right_key:
+            return False
+        if left_key == right_key:
+            return True
+        left_words, right_words = set(left_key.split()), set(right_key.split())
+        overlap = len(left_words & right_words) / max(len(left_words | right_words), 1)
+        return overlap >= 0.72
+
+    def _merge_ocr_item(target, incoming):
+        for key in ('total_value', 'unit_price', 'doc_hs_code'):
+            if incoming.get(key) and (not target.get(key) or incoming.get('source_doc') == 'invoice'):
+                target[key] = incoming.get(key)
+        for key in ('gross_weight', 'net_weight', 'num_packages'):
+            if incoming.get(key) and (not target.get(key) or incoming.get('source_doc') == 'packing_list'):
+                target[key] = incoming.get(key)
+        for key in ('quantity', 'unit', 'raw_extracted_text'):
+            if incoming.get(key) and not target.get(key):
+                target[key] = incoming.get(key)
+        if incoming.get('confidence_pct', 0) > target.get('confidence_pct', 0):
+            target['confidence_pct'] = incoming['confidence_pct']
+        sources = {
+            src.strip()
+            for src in f"{target.get('source_doc', '')},{incoming.get('source_doc', '')}".split(',')
+            if src.strip()
+        }
+        target['source_doc'] = ', '.join(sorted(sources))
+
+    def _add_ocr_item(item, doc_type):
+        desc = (item.get('description') or '').strip()
+        if not desc:
+            return
+        incoming = dict(
+            item,
+            source_doc=doc_type,
+            raw_extracted_text=(
+                item.get('raw_extracted_text')
+                or item.get('raw_text')
+                or item.get('description')
+                or ''
+            ),
+            confidence_pct=round(float(item.get('confidence', 0)) * 100, 1),
+        )
+        for existing in ocr_items_from_docs:
+            same_hs = (
+                incoming.get('doc_hs_code') and existing.get('doc_hs_code')
+                and re.sub(r'\D', '', str(incoming.get('doc_hs_code'))) == re.sub(r'\D', '', str(existing.get('doc_hs_code')))
+            )
+            same_qty = _ocr_numbers_match(incoming.get('quantity'), existing.get('quantity'))
+            same_value = _ocr_numbers_match(incoming.get('total_value'), existing.get('total_value'))
+            if _ocr_desc_similar(desc, existing.get('description')) and (same_hs or same_qty or same_value):
+                _merge_ocr_item(existing, incoming)
+                return
+        ocr_items_from_docs.append(incoming)
     _priority_doc_types = ['invoice', 'packing_list', 'airway_bill']
     _docs_by_type = {}
     for _d in documents:
@@ -1010,20 +1103,7 @@ def process_shipment(request, shipment_id):
             if getattr(_doc, 'ocr_text', None):
                 _items_from_json = _extract_line_items(_doc.ocr_text)
             for _item in _items_from_json:
-                _desc = (_item.get('description') or '').strip()
-                if _desc and _desc not in _seen_ocr_desc:
-                    _seen_ocr_desc.add(_desc)
-                    ocr_items_from_docs.append(dict(
-                        _item,
-                        source_doc=_doc_type,
-                        raw_extracted_text=(
-                            _item.get('raw_extracted_text')
-                            or _item.get('raw_text')
-                            or _item.get('description')
-                            or ''
-                        ),
-                        confidence_pct=round(float(_item.get('confidence', 0)) * 100, 1),
-                    ))
+                _add_ocr_item(_item, _doc_type)
 
     # ── Fallback: if no items extracted by pattern matching, use the
     # HS-code-anchored extractor which walks backwards from "HS CODE: XXXX"
@@ -1036,15 +1116,7 @@ def process_shipment(request, shipment_id):
                     continue
                 _fallback = _extract_hs_anchored_items(_doc.ocr_text)
                 for _item in _fallback:
-                    _desc = (_item.get('description') or '').strip()
-                    if _desc and _desc not in _seen_ocr_desc:
-                        _seen_ocr_desc.add(_desc)
-                        ocr_items_from_docs.append(dict(
-                            _item,
-                            source_doc=_doc_type,
-                            raw_extracted_text=_desc,
-                            confidence_pct=round(float(_item.get('confidence', 0)) * 100, 1),
-                        ))
+                    _add_ocr_item(_item, _doc_type)
             if ocr_items_from_docs:
                 break  # stop at first document type that yields results
 
@@ -1070,30 +1142,34 @@ def process_shipment(request, shipment_id):
             _pinned = []
 
             # ── Pass 1: explicit HS code patterns in the document ────────────
-            # Matches:  "HS CODE: 49111010"  /  "HS CODE: 4911.10.10"
-            #           standalone dotted    "4911.10.00"
-            #           bare 8-digit         "49111010"
-            _hs_from_text = re.findall(
-                r'HS\s*(?:CODE)?\s*[:\-]?\s*([\d\.]{6,14})',
-                _combined_ocr, re.IGNORECASE
-            )
-            # Also catch bare 8–10 digit runs not already captured
-            _hs_from_text += re.findall(r'\b(\d{8,10})\b', _combined_ocr)
+            # Handles common OCR variants:
+            # "HS CODE: 49111010", "H.S. Code 4911 10 10",
+            # "Tariff Code: 4911.10.00", and standalone dotted/spaced codes.
+            _hs_from_text = []
+            _hs_patterns = [
+                r'\bH\.?\s*S\.?\s*(?:CODE|NO\.?|NUMBER)?\s*[:\-]?\s*([0-9][0-9\s.]{5,18})',
+                r'\b(?:HTS|TARIFF(?:\s+CODE)?|CUSTOMS\s+TARIFF(?:\s+NO\.?)?)\s*[:\-]?\s*([0-9][0-9\s.]{5,18})',
+                r'\b(\d{4}[.\s]?\d{2}[.\s]?\d{2}(?:[.\s]?\d{2})?)\b',
+            ]
+            for _pat in _hs_patterns:
+                _hs_from_text.extend(re.findall(_pat, _combined_ocr, re.IGNORECASE))
 
             for _raw in _hs_from_text:
-                _digits = re.sub(r'[\.\s]', '', _raw.strip())
-                if len(_digits) < 6:
+                _digits = re.sub(r'\D', '', _raw.strip())
+                if len(_digits) < 6 or len(_digits) > 10:
                     continue
                 # Normalise to dotted format: 49111010 → 4911.10.10
-                if len(_digits) == 8:
+                if len(_digits) == 6:
+                    _norm = f'{_digits[:4]}.{_digits[4:]}'
+                elif len(_digits) == 8:
                     _norm = f'{_digits[:4]}.{_digits[4:6]}.{_digits[6:]}'
                 elif len(_digits) == 10:
                     _norm = f'{_digits[:4]}.{_digits[4:6]}.{_digits[6:8]}.{_digits[8:]}'
                 else:
-                    _norm = _raw.strip()
+                    _norm = '.'.join(re.findall(r'\d{2,4}', _raw.strip()))
 
                 _hs_obj = (
-                    HSCode.objects.filter(code=_norm, is_active=True).first()
+                    HSCode.objects.filter(code__in=[_norm, _digits], is_active=True).first()
                     or HSCode.objects.filter(code__startswith=_norm[:7], is_active=True).first()
                     or HSCode.objects.filter(code__startswith=_digits[:4], is_active=True).first()
                 )
@@ -1125,6 +1201,7 @@ def process_shipment(request, shipment_id):
     from apps.supervisor.models import SystemConfig
     vasp_url     = SystemConfig.get('vasp_url', ETRADE_LODGEMENT_URL)
     sad_document = shipment.documents.filter(document_type='sad').first()
+    fan_rows = fan_assessment_rows(sad_document)
 
     context = {
         'shipment':            shipment,
@@ -1141,6 +1218,8 @@ def process_shipment(request, shipment_id):
         'vasp_url':            vasp_url,
         'etrade_lodgement_url': ETRADE_LODGEMENT_URL,
         'sad_document':        sad_document,
+        'fan_assessment_rows': fan_rows,
+        'fan_assessment_has_values': fan_assessment_has_values(fan_rows),
     }
     return render(request, 'declarant/process.html', context)
 
@@ -1189,14 +1268,14 @@ def proceed_to_lodgement(request, shipment_id):
         return redirect('declarant:process', shipment_id=shipment_id)
 
     old_status = shipment.status
-    shipment.status = 'ongoing'
+    shipment.status = 'lodgement'
     shipment.save(update_fields=['status', 'updated_at'])
 
     StatusLog.objects.create(
         shipment=shipment,
         changed_by=request.user,
         old_status=old_status,
-        new_status='ongoing',
+        new_status='lodgement',
         notes='Declarant proceeded to BOC lodgement through eTrade.',
     )
 
@@ -1206,13 +1285,13 @@ def proceed_to_lodgement(request, shipment_id):
         notification_type='status_update',
         title=f'BOC Lodgement Started - {shipment.hawb_number}',
         message=(
-            f'Your shipment {shipment.hawb_number} has proceeded to BOC lodgement '
-            f'and is now under customs assessment.'
+            f'Your shipment {shipment.hawb_number} has been filed for BOC lodgement. '
+            f'Your declarant will update the status once it is lined up for final assessment.'
         ),
     )
 
-    messages.success(request, 'Shipment marked ongoing. Continue lodgement in eTrade.')
-    return redirect(ETRADE_LODGEMENT_URL)
+    messages.success(request, 'Shipment marked for BOC lodgement. Continue lodgement in eTrade.')
+    return redirect('declarant:process', shipment_id=shipment_id)
 
 
 @login_required
@@ -1263,6 +1342,11 @@ def update_status(request, shipment_id):
         ).strip(),
     )
 
+    if old_status != new_status and new_status == 'assessed':
+        send_assessed_email(shipment)
+    if old_status != new_status and new_status == 'billed':
+        send_billed_email(shipment)
+
     messages.success(request, f'Status updated to "{shipment.get_status_display()}".')
     return redirect('declarant:process', shipment_id=shipment_id)
 
@@ -1276,12 +1360,12 @@ def payment_confirmation(request, shipment_id):
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
-# ─── Upload SAD Document ──────────────────────────────────────────────────────
+# ─── Upload FAN Document ──────────────────────────────────────────────────────
 
 @login_required
 @declarant_required
 def upload_sad(request, shipment_id):
-    """Declarant uploads the Single Administrative Document at assessed stage."""
+    """Declarant uploads the Final Assessment Notice at assessed stage."""
     if request.method != 'POST':
         return redirect('declarant:process', shipment_id=shipment_id)
 
@@ -1291,7 +1375,7 @@ def upload_sad(request, shipment_id):
         return redirect('declarant:queue')
 
     if shipment.status not in ('assessed', 'paid', 'released', 'billed'):
-        messages.error(request, 'SAD can only be uploaded once shipment is assessed.')
+        messages.error(request, 'FAN document can only be uploaded once shipment is assessed.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
     file = request.FILES.get('sad_file')
@@ -1299,26 +1383,165 @@ def upload_sad(request, shipment_id):
         messages.error(request, 'Please select a file to upload.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
-    # Replace any existing SAD document
+    # Replace any existing FAN document
     shipment.documents.filter(document_type='sad').delete()
-    ShipmentDocument.objects.create(
+    fan_doc = ShipmentDocument.objects.create(
         shipment=shipment,
         document_type='sad',
         file=file,
     )
+    try:
+        fields, raw_text, quality = process_document(fan_doc.file.path, 'sad')
+        fan_doc.ocr_text = raw_text
+        fan_doc.ocr_fields_json = json.dumps(fields)
+        fan_doc.ocr_quality = quality
+        fan_doc.ocr_ran_at = timezone.now()
+        fan_doc.save(update_fields=['ocr_text', 'ocr_fields_json', 'ocr_quality', 'ocr_ran_at'])
+    except Exception as exc:
+        print(f'[FAN OCR] failed for shipment {shipment.id}: {exc}')
 
     create_notification(
         recipient=shipment.consignee,
         shipment=shipment,
         notification_type='status_update',
-        title=f'SAD Document Available — {shipment.hawb_number}',
+        title=f'FAN Document Available — {shipment.hawb_number}',
         message=(
-            'The Single Administrative Document (SAD) has been uploaded by your declarant. '
+            'The Final Assessment Notice (FAN) document has been uploaded by your declarant. '
             'Please check your shipment details for the official BOC assessment amount.'
         ),
     )
 
-    messages.success(request, 'SAD document uploaded. The consignee has been notified.')
+    messages.success(request, 'FAN document uploaded. The consignee has been notified.')
+    return redirect('declarant:process', shipment_id=shipment_id)
+
+
+@login_required
+@declarant_required
+def save_fan_assessment(request, shipment_id):
+    """Declarant verifies/overrides the OCR assessment breakdown from FAN."""
+    if request.method != 'POST':
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
+    fan_doc = shipment.documents.filter(document_type='sad').first()
+    if not fan_doc:
+        messages.error(request, 'Upload the FAN document before saving an assessment breakdown.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    try:
+        data = json.loads(fan_doc.ocr_fields_json or '{}')
+    except Exception:
+        data = {}
+
+    for key, _label in FAN_ASSESSMENT_FIELDS:
+        data[key] = {
+            'value': _fan_amount(request.POST.get(key)),
+            'confidence': 1.0,
+            'verified': True,
+        }
+
+    data['_verified_by'] = request.user.get_full_name() or request.user.username
+    data['_verified_at'] = timezone.now().isoformat()
+    fan_doc.ocr_fields_json = json.dumps(data)
+    fan_doc.save(update_fields=['ocr_fields_json'])
+
+    messages.success(request, 'FAN assessment breakdown saved.')
+    return redirect('declarant:process', shipment_id=shipment_id)
+
+
+@login_required
+@declarant_required
+def upload_supporting_document(request, shipment_id, stage):
+    """Upload post-assessment documents and advance the shipment when appropriate."""
+    if request.method != 'POST':
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
+    stages = {
+        'payment': {
+            'allowed': {'assessed', 'paid', 'released', 'billed'},
+            'doc_type': 'payment_proof',
+            'next_status': 'paid',
+            'from_status': 'assessed',
+            'title': 'Payment Proof Available',
+            'label': 'payment proof / BOC receipt',
+            'message': 'Payment proof or BOC receipt has been uploaded for your shipment.',
+        },
+        'release': {
+            'allowed': {'paid', 'released', 'billed'},
+            'doc_type': 'release_doc',
+            'next_status': 'released',
+            'from_status': 'paid',
+            'title': 'Release Documents Available',
+            'label': 'release / delivery document',
+            'message': 'Release or delivery documents have been uploaded for your shipment.',
+        },
+        'billing': {
+            'allowed': {'released', 'billed'},
+            'doc_type': 'billing_doc',
+            'next_status': 'billed',
+            'from_status': 'released',
+            'title': 'Final Billing Documents Available',
+            'label': 'final billing document',
+            'message': 'Final billing or completion documents have been uploaded for your shipment.',
+        },
+    }
+    config = stages.get(stage)
+    if not config:
+        messages.error(request, 'Invalid document upload stage.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    if shipment.status not in config['allowed']:
+        messages.error(request, f'{config["label"].title()} uploads are not available for the current shipment status.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    files = request.FILES.getlist('support_files') or request.FILES.getlist('receipt_files')
+    if not files:
+        messages.error(request, 'Please select at least one file to upload.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    for f in files:
+        ShipmentDocument.objects.create(
+            shipment=shipment,
+            document_type=config['doc_type'],
+            file=f,
+        )
+
+    old_status = shipment.status
+    new_status = config['next_status']
+    if old_status == config['from_status']:
+        shipment.status = new_status
+        shipment.save(update_fields=['status', 'updated_at'])
+        StatusLog.objects.create(
+            shipment=shipment,
+            changed_by=request.user,
+            old_status=old_status,
+            new_status=new_status,
+            notes=f'{config["label"].title()} uploaded by declarant.',
+        )
+        if new_status == 'billed':
+            send_billed_email(shipment)
+
+    create_notification(
+        recipient=shipment.consignee,
+        shipment=shipment,
+        notification_type='status_update',
+        title=f'{config["title"]} - {shipment.hawb_number}',
+        message=(
+            f'{config["message"]} '
+            'Please review your shipment details to view the uploaded documents.'
+        ),
+    )
+
+    messages.success(request, f'{len(files)} {config["label"]}(s) uploaded. The consignee has been notified.')
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
@@ -1434,10 +1657,9 @@ def flag_deficiency(request, shipment_id):
 @declarant_required
 def save_ocr_items(request, shipment_id):
     """
-    Accept the declarant's selected HS code IDs from the process page.
-    Stores them in session as a guide panel for the ECDT workspace — no item
-    rows are created automatically; the declarant applies each code manually
-    to a row in the computation table.
+    Accept the declarant's verified OCR item rows and selected HS code IDs.
+    Confirmed OCR rows are staged for the ECDT workspace, while selected HS
+    codes remain available as a guide panel.
     """
     if request.method != 'POST':
         return redirect('declarant:process', shipment_id=shipment_id)
@@ -1464,6 +1686,85 @@ def save_ocr_items(request, shipment_id):
             })
         except HSCode.DoesNotExist:
             pass
+
+    def _decimal(value):
+        cleaned = re.sub(r'[^\d.\-]', '', str(value or ''))
+        if not cleaned:
+            return None
+        try:
+            return Decimal(cleaned)
+        except InvalidOperation:
+            return None
+
+    def _integer(value):
+        dec = _decimal(value)
+        if dec is None:
+            return None
+        return int(dec)
+
+    def _confidence(value):
+        dec = _decimal(value)
+        if dec is None:
+            return Decimal('0.0')
+        if dec > 1:
+            dec = dec / Decimal('100')
+        return max(Decimal('0.0'), min(dec, Decimal('1.0')))
+
+    def _hs_from_post(hs_id, doc_code):
+        if hs_id and str(hs_id).strip().isdigit():
+            hs = HSCode.objects.filter(id=int(hs_id), is_active=True).first()
+            if hs:
+                return hs
+        normalized = re.sub(r'\D', '', str(doc_code or ''))
+        if not normalized:
+            return None
+        for hs in HSCode.objects.filter(is_active=True).only('id', 'code', 'duty_rate'):
+            if re.sub(r'\D', '', hs.code or '') == normalized:
+                return hs
+        return None
+
+    descriptions = request.POST.getlist('description[]')
+    if descriptions:
+        values = request.POST.getlist('total_value[]')
+        quantities = request.POST.getlist('quantity[]')
+        units = request.POST.getlist('unit[]')
+        gross_weights = request.POST.getlist('gross_weight[]')
+        net_weights = request.POST.getlist('net_weight[]')
+        packages = request.POST.getlist('packages[]')
+        confidences = request.POST.getlist('confidence[]')
+        item_hs_ids = request.POST.getlist('item_hs_code_id[]')
+        doc_hs_codes = request.POST.getlist('doc_hs_code[]')
+
+        ShipmentLineItem.objects.filter(shipment=shipment, source='ocr').delete()
+        saved_rows = 0
+        for idx, description in enumerate(descriptions):
+            description = (description or '').strip()
+            if not description:
+                continue
+            hs = _hs_from_post(
+                item_hs_ids[idx] if idx < len(item_hs_ids) else '',
+                doc_hs_codes[idx] if idx < len(doc_hs_codes) else '',
+            )
+            ShipmentLineItem.objects.create(
+                shipment=shipment,
+                description=description,
+                quantity=_decimal(quantities[idx] if idx < len(quantities) else ''),
+                unit=(units[idx] if idx < len(units) else '').strip()[:30],
+                total_val_usd=_decimal(values[idx] if idx < len(values) else ''),
+                hs_code=hs,
+                duty_rate=hs.duty_rate if hs else None,
+                gross_weight=_decimal(gross_weights[idx] if idx < len(gross_weights) else ''),
+                net_weight=_decimal(net_weights[idx] if idx < len(net_weights) else ''),
+                packages=_integer(packages[idx] if idx < len(packages) else ''),
+                confidence=_confidence(confidences[idx] if idx < len(confidences) else ''),
+                is_confirmed=True,
+                source='ocr',
+                row_order=idx + 1,
+            )
+            saved_rows += 1
+
+        if saved_rows:
+            messages.success(request, f'Saved {saved_rows} verified OCR item row(s) for the ECDT workspace.')
 
     # Store in session — compute_shipment reads these to show the guide panel
     request.session['guide_hs_codes']    = guide_codes

@@ -112,6 +112,8 @@
             white-space: nowrap;
             overflow: hidden;
             justify-content: center;
+            position: relative;
+            min-height: 38px;
         }
         .c-nav-item:hover  { background: #EEF2F8; color: #1B3358; }
         .c-nav-item.active { background: #1B3358; color: #ffffff; font-weight: 600; }
@@ -137,21 +139,37 @@
 
         /* Unread badge */
         .c-nav-badge {
+            min-width: 16px;
+            height: 16px;
             background: #EF4444;
             color: #fff;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
-            padding: 1px 6px;
-            border-radius: 10px;
+            line-height: 16px;
+            text-align: center;
+            padding: 0 5px;
+            border-radius: 999px;
             margin-left: auto;
-            opacity: 0;
-            max-width: 0;
-            overflow: hidden;
+            opacity: 1;
+            max-width: 38px;
             transition: opacity 0.15s, max-width 0.2s;
         }
         .c-sidebar.expanded .c-nav-badge { opacity: 1; max-width: 40px; }
+        .c-sidebar:not(.expanded) .c-nav-badge {
+            position: absolute;
+            top: 6px;
+            right: 9px;
+            min-width: 8px;
+            width: 8px;
+            height: 8px;
+            padding: 0;
+            overflow: hidden;
+            color: transparent;
+            font-size: 0;
+            border: 2px solid #fff;
+        }
 
-        .c-nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+        .c-nav-icon { width: 18px; height: 18px; flex-shrink: 0; display: block; }
 
         /* ── Bottom group ──────────────────────────────────────────────── */
         .c-sidebar-bottom {
@@ -453,13 +471,21 @@
             <span class="c-nav-label">My Submissions</span>
         </a>
 
+        <a href="{% url 'consignee:system_reference' %}"
+           class="c-nav-item {% block nav_system_ref %}{% endblock %}">
+            <svg class="c-nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4 3a2 2 0 012-2h8a2 2 0 012 2v14a1 1 0 01-1.447.894L12 16.618l-2.553 1.276a1 1 0 01-.894 0L6 16.618l-2.553 1.276A1 1 0 012 17V3a2 2 0 012-2zm3 4.75A.75.75 0 017.75 7h4.5a.75.75 0 010 1.5h-4.5A.75.75 0 017 7.75zm.75 2.75a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5h-4.5z" clip-rule="evenodd"/>
+            </svg>
+            <span class="c-nav-label">System Reference</span>
+        </a>
+
         <a href="{% url 'notifications:list' %}"
            class="c-nav-item {% block nav_notifications %}{% endblock %}">
             <svg class="c-nav-icon" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6zm0 14.5a2 2 0 01-1.95-1.557 33.54 33.54 0 003.9 0A2 2 0 0110 16.5z" clip-rule="evenodd"/>
             </svg>
             <span class="c-nav-label">Notifications</span>
-            {% if unread_count %}<span class="c-nav-badge">{{ unread_count }}</span>{% endif %}
+            {% if unread_notification_count %}<span class="c-nav-badge">{{ unread_notification_count }}</span>{% endif %}
         </a>
     </nav>
 

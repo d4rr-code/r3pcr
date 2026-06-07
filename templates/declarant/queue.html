@@ -369,6 +369,7 @@
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Urgency</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Docs</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Claimed</th>
+                <th style="padding:10px 16px; text-align:center; font-size:12px;">Status</th>
                 <th style="padding:10px 16px; text-align:center; font-size:12px;">Action</th>
             </tr>
         </thead>
@@ -423,6 +424,23 @@
                     {{ s.submitted_at|timesince }} ago
                 </td>
                 <td style="padding:12px 16px; text-align:center;">
+                    <span style="display:inline-flex; align-items:center; justify-content:center; min-width:92px; padding:3px 10px;
+                                 border-radius:999px; font-size:11px; font-weight:700; border:1px solid;
+                                 {% if s.status == 'arrived' %}background:#FFFBEB; color:#B45309; border-color:#FDE68A;
+                                 {% elif s.status == 'computed' %}background:#EFF6FF; color:#1D4ED8; border-color:#BFDBFE;
+                                 {% elif s.status == 'approved' %}background:#F0FDF4; color:#15803D; border-color:#BBF7D0;
+                                 {% elif s.status == 'rejected' %}background:#FEF2F2; color:#B91C1C; border-color:#FECACA;
+                                 {% elif s.status == 'for_revision' %}background:#FEFCE8; color:#A16207; border-color:#FEF08A;
+                                 {% elif s.status == 'lodgement' %}background:#ECFEFF; color:#0E7490; border-color:#A5F3FC;
+                                 {% elif s.status == 'ongoing' %}background:#FFF7ED; color:#C2410C; border-color:#FED7AA;
+                                 {% elif s.status == 'assessed' %}background:#F5F3FF; color:#6D28D9; border-color:#DDD6FE;
+                                 {% elif s.status == 'paid' %}background:#ECFDF5; color:#047857; border-color:#A7F3D0;
+                                 {% elif s.status == 'released' %}background:#F0FDFA; color:#0F766E; border-color:#99F6E4;
+                                 {% else %}background:#F8FAFC; color:#475569; border-color:#CBD5E1;{% endif %}">
+                        {{ s.get_status_display }}
+                    </span>
+                </td>
+                <td style="padding:12px 16px; text-align:center;">
                     <button type="button"
                             class="btn btn-primary"
                             style="font-size:11px; padding:6px 14px; display:inline-flex; align-items:center; gap:5px;"
@@ -436,7 +454,7 @@
                 </td>
             </tr>
             <tr id="rv-{{ s.id }}" style="display:none; background:#F8FAFC; border-top:1px solid #E5E7EB;">
-                <td colspan="8" style="padding:12px 20px 16px 52px;">
+                <td colspan="9" style="padding:12px 20px 16px 52px;">
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; max-width:860px;">
 
                         <!-- Description + Shipping info -->
@@ -476,12 +494,12 @@
                                 </div>
                                 <div><span style="color:#6B7280;">Freight:</span>
                                     {% if s.freight_cost %}
-                                    {{ s.invoice_currency|default:"USD" }} {{ s.freight_cost }}
+                                    USD {{ s.freight_cost }}
                                     {% else %}<span style="color:#9CA3AF;">—</span>{% endif %}
                                 </div>
                                 <div><span style="color:#6B7280;">Insurance:</span>
                                     {% if s.insurance_cost %}
-                                    {{ s.invoice_currency|default:"USD" }} {{ s.insurance_cost }}
+                                    USD {{ s.insurance_cost }}
                                     {% else %}<span style="color:#9CA3AF;">—</span>{% endif %}
                                 </div>
                                 {% if s.quantity %}
@@ -740,9 +758,9 @@ function showPreview(btn) {
             document.getElementById('pm-quantity').textContent =
                 d.quantity ? d.quantity + ' units' : '—';
             document.getElementById('pm-freight').textContent =
-                d.freight_cost ? currency + ' ' + parseFloat(d.freight_cost).toLocaleString() : '—';
+                d.freight_cost ? 'USD ' + parseFloat(d.freight_cost).toLocaleString() : '—';
             document.getElementById('pm-insurance').textContent =
-                d.insurance_cost ? currency + ' ' + parseFloat(d.insurance_cost).toLocaleString() : '—';
+                d.insurance_cost ? 'USD ' + parseFloat(d.insurance_cost).toLocaleString() : '—';
 
             // Line items
             var itemsEl = document.getElementById('pm-items');

@@ -86,18 +86,32 @@
 
 /* ── Upload zones ───────────────────────────────────────────────────────── */
 .upload-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.document-upload-head {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    min-height:36px;
+    margin-bottom:8px;
+}
+.document-upload-head p {
+    font-size:12px;
+    font-weight:600;
+    color:#374151;
+    margin:0;
+}
 .template-download-btn {
     display:inline-flex;
     align-items:center;
     justify-content:center;
     gap:6px;
-    min-height:28px;
-    padding:6px 14px;
+    min-height:36px;
+    padding:8px 18px;
     border:1px solid #BAE6FD;
     border-radius:7px;
     background:#E0F2FE;
     color:#0369A1;
-    font-size:11px;
+    font-size:12px;
     font-weight:800;
     line-height:1;
     text-decoration:none;
@@ -109,7 +123,7 @@
     border-color:#7DD3FC;
     color:#075985;
 }
-.template-download-btn svg { width:13px; height:13px; flex-shrink:0; }
+.template-download-btn svg { width:15px; height:15px; flex-shrink:0; }
 .upload-zone {
     border:1.5px dashed #D1D5DB; border-radius:10px;
     padding:20px 12px 16px; text-align:center;
@@ -335,7 +349,7 @@
             Fill in if you have your commercial invoice and airway bill / bill of lading on hand.
             These values are <strong style="color:#374151;">unverified</strong> — your declarant will confirm them against the documents.
         </p>
-        <!-- Currency selector — affects EXW/Freight/Insurance labels -->
+        <!-- Currency selector — affects declared invoice value only -->
         <div style="margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
             <label style="font-size:12px; font-weight:700; color:#374151;">Invoice Currency:</label>
             <select name="invoice_currency" id="invoice_currency" class="c-input"
@@ -354,18 +368,18 @@
 
         <div class="values-grid">
             <div>
-                <p class="val-label">Declared Value — EXW (<span class="cur-label">USD</span>)</p>
+                <p class="val-label">Declared Value — EXW (<span class="invoice-cur-label">USD</span>)</p>
                 <p class="val-sub">From commercial invoice</p>
                 <input type="number" name="declared_value" class="c-input" step="0.01" min="0" placeholder="0.00">
             </div>
             <div>
-                <p class="val-label">Freight Cost (<span class="cur-label">USD</span>)</p>
-                <p class="val-sub">From AWB / BOL</p>
+                <p class="val-label">Freight Cost (USD)</p>
+                <p class="val-sub">From AWB / BOL; always encoded in USD</p>
                 <input type="number" name="freight_cost" class="c-input" step="0.01" min="0" placeholder="0.00">
             </div>
             <div>
-                <p class="val-label">Insurance (<span class="cur-label">USD</span>)</p>
-                <p class="val-sub">Leave blank if none</p>
+                <p class="val-label">Insurance (USD)</p>
+                <p class="val-sub">Leave blank if none; always encoded in USD</p>
                 <input type="number" name="insurance_cost" class="c-input" step="0.01" min="0" placeholder="0.00">
             </div>
             <div>
@@ -376,7 +390,7 @@
         </div>
         <script>
         function updateCurrencyLabels(code) {
-            document.querySelectorAll('.cur-label').forEach(function(el) {
+            document.querySelectorAll('.invoice-cur-label').forEach(function(el) {
                 el.textContent = code;
             });
         }
@@ -389,13 +403,13 @@
 
         <!-- Template instructions note — full width, above the upload grid -->
         {% if invoice_template_url or packing_list_template_url %}
-        <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px;
+        <div style="background:#EFF6FF; border:1px solid #93C5FD; border-radius:8px;
                     padding:10px 14px; margin-bottom:14px; display:flex; align-items:flex-start; gap:8px;">
             <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"
-                 style="color:#15803D; flex-shrink:0; margin-top:1px;">
+                 style="color:#1D4ED8; flex-shrink:0; margin-top:1px;">
                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
             </svg>
-            <p style="font-size:11px; color:#166534; margin:0; line-height:1.5;">
+            <p style="font-size:11px; color:#1D4ED8; margin:0; line-height:1.5;">
                 <strong>No documents yet?</strong> Download the Excel templates next to each document field, fill them out in Excel or Google Sheets, then export/save as <strong>PDF</strong> before uploading.
             </p>
         </div>
@@ -405,8 +419,8 @@
 
             <!-- Commercial Invoice -->
             <div>
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                    <p style="font-size:12px; font-weight:600; color:#374151; margin:0;">Commercial Invoice</p>
+                <div class="document-upload-head">
+                    <p>Commercial Invoice</p>
                     {% if invoice_template_url %}
                     <a href="{{ invoice_template_url }}" download="RTripleJ_Commercial_Invoice.xlsx"
                        class="template-download-btn"
@@ -441,8 +455,8 @@
 
             <!-- Packing List -->
             <div>
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                    <p style="font-size:12px; font-weight:600; color:#374151; margin:0;">Packing List</p>
+                <div class="document-upload-head">
+                    <p>Packing List</p>
                     {% if packing_list_template_url %}
                     <a href="{{ packing_list_template_url }}" download="RTripleJ_Packing_List.xlsx"
                        class="template-download-btn"
@@ -477,7 +491,10 @@
 
             <!-- Airway Bill / BOL -->
             <div>
-                <p style="font-size:12px; font-weight:600; color:#374151; margin-bottom:8px;">Airway Bill / BOL</p>
+                <div class="document-upload-head">
+                    <p>Airway Bill / BOL</p>
+                    <span aria-hidden="true" style="min-width:1px;"></span>
+                </div>
                 <div class="upload-zone" id="zone-awb"
                      onclick="trigFile('f-awb')"
                      ondragover="dzOver(event,'zone-awb')"

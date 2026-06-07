@@ -4,8 +4,121 @@ from django.contrib import messages
 from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
+from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
 from apps.notifications.utils import create_notification, notify_incoming_shipment, notify_shipment_status_change
 from .models import Feedback
+
+
+# ─── Role Guard ───────────────────────────────────────────────────────────────
+
+def consignee_required(view_func):
+    """Restrict view to authenticated users with role='consignee'."""
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated or request.user.role != 'consignee':
+            messages.error(request, 'Access denied — consignees only.')
+            return redirect('accounts:login')
+        return view_func(request, *args, **kwargs)
+    wrapper.__name__ = view_func.__name__
+    return wrapper
+
+
+URGENCY_BUSINESS_DAYS = {
+    'rush': 3,
+    'urgent': 5,
+    'priority': 10,
+    'standard': 15,
+}
+
+
+def _system_rate_parameters():
+    from apps.supervisor.models import SystemConfig
+    from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
+
+    ensure_daily_exchange_rates()
+
+    rate_keys = {
+        'USD': 'rate_USD',
+        'EUR': 'rate_EUR',
+        'JPY': 'rate_JPY',
+        'HKD': 'rate_HKD',
+        'CNY': 'rate_CNY',
+        'GBP': 'rate_GBP',
+        'SGD': 'rate_SGD',
+    }
+    parameters = {}
+    for code, key in rate_keys.items():
+        parameters[code] = SystemConfig.get(key, '—') or '—'
+    return parameters
+
+
+def _system_urgency_days():
+    from apps.supervisor.models import SystemConfig
+
+    values = dict(URGENCY_BUSINESS_DAYS)
+    for key in ('standard', 'priority', 'urgent', 'rush'):
+        raw = SystemConfig.get(f'urgency_days_{key}', '')
+        try:
+            days = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= days <= 60:
+            values[key] = days
+    return [
+        {'label': 'Standard', 'value': values['standard']},
+        {'label': 'Priority', 'value': values['priority']},
+        {'label': 'Urgent', 'value': values['urgent']},
+        {'label': 'Rush', 'value': values['rush']},
+    ]
+
+
+def _system_fee_tiers():
+    from apps.supervisor.models import SystemConfig
+    import json
+
+    try:
+        bf_tiers = json.loads(SystemConfig.get('bf_tiers', '') or '[]')
+    except json.JSONDecodeError:
+        bf_tiers = []
+    try:
+        ipf_tiers = json.loads(SystemConfig.get('ipf_tiers', '') or '[]')
+    except json.JSONDecodeError:
+        ipf_tiers = []
+    return bf_tiers, ipf_tiers
+
+
+def _system_wmcda_items():
+    from apps.supervisor.models import SystemConfig
+
+    criteria_meta = [
+        {
+            'key': 'wmcda_w_cost',
+            'label': 'Cost',
+            'description': 'Weighs the total landed cost of each shipping mode. Higher weight favors the most cost-efficient option.',
+        },
+        {
+            'key': 'wmcda_w_time',
+            'label': 'Time',
+            'description': 'Weighs transit time and urgency level. Higher weight favors faster shipping modes.',
+        },
+        {
+            'key': 'wmcda_w_weight',
+            'label': 'Weight',
+            'description': 'Weighs gross cargo weight. Higher weight prioritizes modes suited for heavier shipments.',
+        },
+        {
+            'key': 'wmcda_w_distance',
+            'label': 'Distance',
+            'description': 'Weighs route distance and proximity to destination.',
+        },
+    ]
+    return [
+        {
+            'label': item['label'],
+            'description': item['description'],
+            'value': SystemConfig.get(item['key'], None),
+        }
+        for item in criteria_meta
+    ]
 
 
 # ─── Auto-generate HAWB ───────────────────────────────────────────────────────
@@ -135,6 +248,41 @@ def dashboard(request):
     context['recent_announcements'] = recent_announcements
 
     return render(request, 'consignee/dashboard.html', context)
+
+
+# ─── System Reference (Read-only Config Viewer) ──────────────────────────────
+
+@login_required
+@consignee_required
+def system_reference(request):
+    return render(request, 'consignee/system_reference.html', {})
+
+
+@login_required
+@consignee_required
+def system_parameters(request):
+    return render(request, 'consignee/system_parameters.html', {
+        'parameters': _system_rate_parameters(),
+        'urgency_days': _system_urgency_days(),
+    })
+
+
+@login_required
+@consignee_required
+def system_fees(request):
+    bf_tiers, ipf_tiers = _system_fee_tiers()
+    return render(request, 'consignee/system_fees.html', {
+        'bf_tiers': bf_tiers,
+        'ipf_tiers': ipf_tiers,
+    })
+
+
+@login_required
+@consignee_required
+def system_wmcda(request):
+    return render(request, 'consignee/system_wmcda.html', {
+        'wmcda_items': _system_wmcda_items(),
+    })
 
 
 # ─── Submit Shipment ──────────────────────────────────────────────────────────
@@ -354,6 +502,7 @@ def shipment_detail(request, shipment_id):
             pass
 
     sad_document = shipment.documents.filter(document_type='sad').first()
+    fan_rows = fan_assessment_rows(sad_document)
 
     # Current step sublabel for the status description box
     from apps.shipments.status_progress import CONSIGNEE_STATUS_SUBLABELS
@@ -378,6 +527,8 @@ def shipment_detail(request, shipment_id):
         'advisory_summary':  advisory_summary,
         'status_steps':      build_status_progress(shipment.status, 'consignee'),
         'sad_document':      sad_document,
+        'fan_assessment_rows': fan_rows,
+        'fan_assessment_has_values': fan_assessment_has_values(fan_rows),
         'current_sublabel':  current_sublabel,
     }
     return render(request, 'consignee/shipment_detail.html', context)

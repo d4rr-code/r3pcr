@@ -87,6 +87,8 @@
             white-space: nowrap;
             overflow: hidden;
             justify-content: center;
+            position: relative;
+            min-height: 38px;
         }
         .d-nav-item:hover { background: #F3F4F6; color: #111827; }
         .d-nav-item.active { background: #1B3358; color: #fff; font-weight: 600; }
@@ -99,21 +101,37 @@
             font-size: 13px;
         }
         .d-sidebar.expanded .d-nav-label { opacity: 1; max-width: 160px; }
-        .d-nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+        .d-nav-icon { width: 18px; height: 18px; flex-shrink: 0; display: block; }
         .d-nav-badge {
+            min-width: 16px;
+            height: 16px;
             background: #EF4444;
             color: #fff;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
-            padding: 1px 6px;
-            border-radius: 10px;
+            line-height: 16px;
+            text-align: center;
+            padding: 0 5px;
+            border-radius: 999px;
             margin-left: auto;
-            opacity: 0;
-            max-width: 0;
-            overflow: hidden;
+            opacity: 1;
+            max-width: 38px;
             transition: opacity 0.15s, max-width 0.2s;
         }
         .d-sidebar.expanded .d-nav-badge { opacity: 1; max-width: 40px; }
+        .d-sidebar:not(.expanded) .d-nav-badge {
+            position: absolute;
+            top: 6px;
+            right: 9px;
+            min-width: 8px;
+            width: 8px;
+            height: 8px;
+            padding: 0;
+            overflow: hidden;
+            color: transparent;
+            font-size: 0;
+            border: 2px solid #fff;
+        }
         .d-sidebar-bottom {
             padding: 8px;
             border-top: 1px solid #F0F2F5;

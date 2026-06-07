@@ -174,7 +174,10 @@ class ShipmentDocument(models.Model):
         ('invoice', 'Commercial Invoice'),
         ('packing_list', 'Packing List'),
         ('airway_bill', 'Airway Bill / Bill of Lading'),
-        ('sad', 'Single Administrative Document (SAD)'),
+        ('sad', 'Final Assessment Notice (FAN)'),
+        ('payment_proof', 'Payment Proof / BOC Receipt'),
+        ('release_doc', 'Release / Delivery Document'),
+        ('billing_doc', 'Final Billing Document'),
         ('receipt', 'Billing Receipt / Payment Proof'),
         ('other', 'Other Supporting Document'),
     ]

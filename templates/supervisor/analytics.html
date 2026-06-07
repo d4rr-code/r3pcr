@@ -70,6 +70,11 @@
     cursor: pointer;
     white-space: nowrap;
 }
+.dash-btn.is-active {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #fff;
+}
 .dash-grid {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -553,8 +558,10 @@ canvas { cursor: pointer; }
                 {% endfor %}
             </select>
             <button class="dash-btn" type="submit">Apply</button>
+            <a class="dash-btn" href="{% url 'supervisor:analytics_export' %}?format=xlsx{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if declarant_filter %}&declarant={{ declarant_filter }}{% endif %}">Excel</a>
+            <a class="dash-btn" href="{% url 'supervisor:analytics_export' %}?format=pdf{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if declarant_filter %}&declarant={{ declarant_filter }}{% endif %}">PDF</a>
             {% if date_from or date_to or declarant_filter %}
-            <a class="dash-btn" href="{% url 'supervisor:dashboard' %}">Clear</a>
+            <a class="dash-btn" href="{% url 'supervisor:analytics' %}">Clear</a>
             {% endif %}
         </form>
     </div>
@@ -686,11 +693,11 @@ canvas { cursor: pointer; }
                 <form class="overview-controls" method="GET">
                     {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
                     {% if status_f %}<input type="hidden" name="status_f" value="{{ status_f }}">{% endif %}
+                    {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+                    {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
                     {% if declarant_filter %}<input type="hidden" name="declarant" value="{{ declarant_filter }}">{% endif %}
-                    <button class="dash-btn" type="submit" name="range" value="all" formaction="?">All Time</button>
-                    <button class="dash-btn" type="submit" name="range" value="3m" formaction="?">Last 3 Months</button>
-                    <button class="dash-btn" type="submit" name="range" value="1m" formaction="?">Last Month</button>
-                    <input class="calendar-chip overview-date-control" type="month" name="custom_month" value="{{ selected_month }}" title="Custom month" aria-label="Custom month filter">
+                    <button class="dash-btn {% if overview_range == 'year' %}is-active{% endif %}" type="submit" name="overview_range" value="year">Year</button>
+                    <button class="dash-btn {% if overview_range == '6m' %}is-active{% endif %}" type="submit" name="overview_range" value="6m">Last 6 Months</button>
                 </form>
             </div>
             <div class="chart-fixed compact-chart overview-chart-frame">

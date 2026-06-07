@@ -42,15 +42,25 @@
                     <svg id="fetch-icon" width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                         <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.1A7 7 0 0117 10a1 1 0 11-2 0 5 5 0 00-8.54-3.54L8 8H3a1 1 0 01-1-1V3a1 1 0 012 0v-.99zm11 15v-2.1A7 7 0 013 10a1 1 0 112 0 5 5 0 008.54 3.54L12 12h5a1 1 0 011 1v4a1 1 0 11-2 0v.01A1 1 0 0115 17z" clip-rule="evenodd"/>
                     </svg>
-                    Fetch All Live Rates
+                    Refresh Now
             </button>
         </div>
         <p style="color:#9CA3AF; font-size:11px; margin:0 0 20px;">
-            Rates sourced from
-            <a href="https://www.frankfurter.app/" target="_blank"
-               style="color:#9CA3AF; text-decoration:none;">Frankfurter API</a>
-            (free, no key required). Each rate can be manually overridden below.
+            Rates are checked automatically once per day from live exchange-rate sources and are used by ECDT and user system reference pages.
+            {% if config_meta.exchange_rates_source %}
+                Source: {{ config_meta.exchange_rates_source.value }}.
+            {% endif %}
+            {% if config_meta.exchange_rates_last_success %}
+                Last live update: {{ config_meta.exchange_rates_last_success.updated_at|date:"M d, Y H:i" }}.
+            {% endif %}
+            Manual override is still available below when needed.
         </p>
+        {% if config_meta.exchange_rates_last_error %}
+        <div style="margin-bottom:12px; font-size:12px; padding:8px 12px; border-radius:6px;
+                    background:#FEF2F2; color:#991B1B; border:1px solid #FCA5A5;">
+            Latest live-rate attempt failed. Using the most recent saved rates.
+        </div>
+        {% endif %}
 
         <div id="fetch-status" style="display:none; margin-bottom:12px;
              font-size:12px; padding:8px 12px; border-radius:6px;"></div>
@@ -225,7 +235,7 @@ document.getElementById('btn-fetch-rates').addEventListener('click', function ()
             status.style.background = '#ECFDF5';
             status.style.color      = '#047857';
             status.style.border     = '1px solid #86EFAC';
-            status.textContent = 'Live rates fetched successfully. Review and click Save Changes to apply.';
+            status.textContent = 'Live rates refreshed and saved. The values below are now reflected across the system.';
         } else {
             status.style.display   = 'block';
             status.style.background = '#FEF2F2';

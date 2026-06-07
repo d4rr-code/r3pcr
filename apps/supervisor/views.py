@@ -15,6 +15,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.core.mail import send_mail
 from django.conf import settings
 from django.core.paginator import Paginator
+from django.http import HttpResponse
 
 # ─── Business-day helpers ─────────────────────────────────────────────────────
 
@@ -133,6 +134,7 @@ from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
 from apps.notifications.utils import create_notification, notify_shipment_status_change
+from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
 from .models import SystemConfig, Announcement
 
 
@@ -152,6 +154,254 @@ def supervisor_required(view_func):
 def dashboard(request):
     """Unified analytics/command-centre page."""
     return _analytics_context_response(request)
+
+
+def _analytics_report_data(request):
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+    declarant_filter = request.GET.get('declarant', '').strip()
+
+    qs = Shipment.objects.select_related('consignee', 'declarant').all()
+    if date_from:
+        qs = qs.filter(submitted_at__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(submitted_at__date__lte=date_to)
+    if declarant_filter:
+        qs = qs.filter(declarant__username=declarant_filter)
+
+    total = qs.count()
+    status_rows = []
+    status_counts = {
+        row['status']: row['count']
+        for row in qs.values('status').annotate(count=Count('id'))
+    }
+    for key, label in Shipment.STATUS_CHOICES:
+        count = status_counts.get(key, 0)
+        status_rows.append([label, count, f'{round(count / total * 100, 1) if total else 0}%'])
+
+    type_rows = []
+    type_counts = {
+        row['shipment_type']: row['count']
+        for row in qs.values('shipment_type').annotate(count=Count('id'))
+    }
+    for key, label in Shipment.SHIPMENT_TYPE_CHOICES:
+        count = type_counts.get(key, 0)
+        type_rows.append([label, count, f'{round(count / total * 100, 1) if total else 0}%'])
+
+    urgency_map = defaultdict(int)
+    for row in qs.values('urgency').annotate(count=Count('id')):
+        key = 'standard' if row['urgency'] in ('normal', 'standard', None) else row['urgency']
+        urgency_map[key] += row['count']
+    urgency_labels = dict(Shipment.URGENCY_CHOICES)
+    urgency_rows = []
+    for key in ('standard', 'priority', 'urgent', 'rush'):
+        count = urgency_map.get(key, 0)
+        urgency_rows.append([urgency_labels.get(key, key.title()), count, f'{round(count / total * 100, 1) if total else 0}%'])
+
+    ids = qs.values_list('id', flat=True)
+    advisory_qs = ShippingAdvisory.objects.filter(shipment_id__in=ids)
+    wmcda_total = advisory_qs.filter(recommended_type__isnull=False).count()
+    wmcda_labels = {'air': 'Air Freight', 'lcl': 'LCL Sea', 'fcl': 'FCL Sea', 'land': 'Land Freight'}
+    wmcda_counts = {
+        row['recommended_type']: row['count']
+        for row in advisory_qs.values('recommended_type').annotate(count=Count('id'))
+        if row['recommended_type']
+    }
+    wmcda_avg = advisory_qs.aggregate(
+        avg_air=Avg('air_score'), avg_lcl=Avg('lcl_score'),
+        avg_fcl=Avg('fcl_score'), avg_land=Avg('land_score'),
+    )
+    wmcda_rows = []
+    for key, label in wmcda_labels.items():
+        count = wmcda_counts.get(key, 0)
+        wmcda_rows.append([
+            label,
+            count,
+            f'{round(count / wmcda_total * 100, 1) if wmcda_total else 0}%',
+            f'{round(float(wmcda_avg.get(f"avg_{key}") or 0) * 100, 1)}%',
+        ])
+
+    currency_total = qs.exclude(invoice_currency='').count()
+    currency_rows = []
+    for row in qs.exclude(invoice_currency='').values('invoice_currency').annotate(count=Count('id')).order_by('-count'):
+        count = row['count']
+        currency_rows.append([
+            row['invoice_currency'] or 'USD',
+            count,
+            f'{round(count / currency_total * 100, 1) if currency_total else 0}%',
+        ])
+
+    cost_rows = []
+    cost_qs = DutyComputation.objects.filter(shipment_id__in=ids, total_landed_cost__isnull=False)
+    for key, label in Shipment.SHIPMENT_TYPE_CHOICES:
+        agg = cost_qs.filter(shipment__shipment_type=key).aggregate(
+            count=Count('id'), avg=Avg('total_landed_cost'), total=Sum('total_landed_cost'),
+            min_val=Min('total_landed_cost'), max_val=Max('total_landed_cost')
+        )
+        cost_rows.append([
+            label,
+            agg['count'],
+            round(float(agg['avg'] or 0), 2),
+            round(float(agg['total'] or 0), 2),
+            round(float(agg['min_val'] or 0), 2),
+            round(float(agg['max_val'] or 0), 2),
+        ])
+
+    declarant_rows = []
+    for dec in User.objects.filter(role='declarant').order_by('first_name', 'username'):
+        dec_qs = qs.filter(declarant=dec)
+        assigned = dec_qs.count()
+        computed = dec_qs.filter(status__in=['computed', 'approved', 'lodgement', 'ongoing', 'assessed', 'paid', 'released', 'billed']).count()
+        completed = dec_qs.filter(status='billed').count()
+        revision_flags = dec_qs.filter(status__in=['for_revision', 'rejected']).count()
+        if assigned or computed or completed or revision_flags:
+            declarant_rows.append([
+                dec.get_full_name() or dec.username,
+                assigned,
+                computed,
+                completed,
+                revision_flags,
+                f'{round(completed / assigned * 100, 1) if assigned else 0}%',
+            ])
+
+    feedback_total = Feedback.objects.count()
+    feedback_avg = Feedback.objects.aggregate(avg=Avg('rating'))['avg']
+    feedback_positive = Feedback.objects.filter(rating__gte=4).count()
+
+    recent_rows = []
+    for s in qs.order_by('-submitted_at')[:100]:
+        recent_rows.append([
+            s.hawb_number,
+            s.consignee.get_full_name() or s.consignee.username,
+            s.get_shipment_type_display() or '',
+            s.get_status_display(),
+            s.get_urgency_display(),
+            s.submitted_at.strftime('%Y-%m-%d'),
+        ])
+
+    return {
+        'generated_at': timezone.localtime().strftime('%Y-%m-%d %H:%M'),
+        'filters': {
+            'date_from': date_from or 'All',
+            'date_to': date_to or 'All',
+            'declarant': declarant_filter or 'All',
+        },
+        'summary': [
+            ['Total Shipments', total],
+            ['Active Users', User.objects.filter(role__in=['consignee', 'declarant'], is_active=True, is_pending_approval=False).count()],
+            ['Consignees', User.objects.filter(role='consignee', is_active=True, is_pending_approval=False).count()],
+            ['Declarants', User.objects.filter(role='declarant', is_active=True, is_pending_approval=False).count()],
+            ['WMCDA Advisories', wmcda_total],
+            ['Feedback Count', feedback_total],
+            ['Average Feedback Rating', round(float(feedback_avg or 0), 1)],
+            ['Positive Feedback %', f'{round(feedback_positive / feedback_total * 100, 1) if feedback_total else 0}%'],
+        ],
+        'tables': [
+            ('Status Pipeline', ['Status', 'Count', 'Share'], status_rows),
+            ('Shipment Types', ['Type', 'Count', 'Share'], type_rows),
+            ('Urgency Distribution', ['Urgency', 'Count', 'Share'], urgency_rows),
+            ('WMCDA Recommendations', ['Mode', 'Recommended Count', 'Share', 'Average Score'], wmcda_rows),
+            ('Currency Usage', ['Currency', 'Count', 'Share'], currency_rows),
+            ('Landed Cost By Mode', ['Mode', 'Computations', 'Average PHP', 'Total PHP', 'Min PHP', 'Max PHP'], cost_rows),
+            ('Declarant Performance', ['Declarant', 'Assigned', 'Computed+', 'Billed', 'Revision/Rejected', 'Completion %'], declarant_rows),
+            ('Recent Shipments', ['HAWB', 'Consignee', 'Mode', 'Status', 'Urgency', 'Submitted'], recent_rows),
+        ],
+    }
+
+
+@login_required
+@supervisor_required
+def analytics_export(request):
+    fmt = (request.GET.get('format') or 'xlsx').lower()
+    data = _analytics_report_data(request)
+    filename_date = timezone.localtime().strftime('%Y%m%d')
+
+    if fmt == 'pdf':
+        from io import BytesIO
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=24)
+        styles = getSampleStyleSheet()
+        story = [
+            Paragraph('R3-PCR Analytics Report', styles['Title']),
+            Paragraph(f"Generated: {data['generated_at']}", styles['Normal']),
+            Paragraph(
+                f"Filters: From {data['filters']['date_from']} to {data['filters']['date_to']} | Declarant: {data['filters']['declarant']}",
+                styles['Normal'],
+            ),
+            Spacer(1, 12),
+        ]
+        for title, headers, rows in [('Executive Summary', ['Metric', 'Value'], data['summary'])] + data['tables']:
+            story.append(Paragraph(title, styles['Heading2']))
+            table_data = [headers] + (rows or [['No data', ''] + [''] * (len(headers) - 2)])
+            tbl = Table(table_data, repeatRows=1)
+            tbl.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1B3358')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#DCE5EF')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ]))
+            story.extend([tbl, Spacer(1, 12)])
+        doc.build(story)
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="R3PCR_Analytics_Report_{filename_date}.pdf"'
+        return response
+
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Summary'
+    header_fill = PatternFill('solid', fgColor='1B3358')
+    header_font = Font(color='FFFFFF', bold=True)
+
+    ws.append(['R3-PCR Analytics Report'])
+    ws['A1'].font = Font(bold=True, size=16)
+    ws.append(['Generated', data['generated_at']])
+    ws.append(['Date From', data['filters']['date_from'], 'Date To', data['filters']['date_to'], 'Declarant', data['filters']['declarant']])
+    ws.append([])
+    ws.append(['Metric', 'Value'])
+    for cell in ws[5]:
+        cell.fill = header_fill
+        cell.font = header_font
+    for row in data['summary']:
+        ws.append(row)
+
+    for title, headers, rows in data['tables']:
+        sheet = wb.create_sheet(title[:31])
+        sheet.append(headers)
+        for cell in sheet[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        for row in rows:
+            sheet.append(row)
+        for col in sheet.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            sheet.column_dimensions[col[0].column_letter].width = min(max(max_len + 2, 12), 45)
+
+    for sheet in wb.worksheets:
+        for col in sheet.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            sheet.column_dimensions[col[0].column_letter].width = min(max(max_len + 2, 12), 45)
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="R3PCR_Analytics_Report_{filename_date}.xlsx"'
+    return response
 
 
 #  User Management 
@@ -375,19 +625,9 @@ def _analytics_context_response(request):
     date_from        = request.GET.get('date_from', '').strip()
     date_to          = request.GET.get('date_to', '').strip()
     declarant_filter = request.GET.get('declarant', '').strip()
-    overview_period  = request.GET.get('overview_period', 'month').strip().lower()
-    if overview_period not in {'year', 'month', 'week', 'day'}:
-        overview_period = 'month'
-
-    #  Range presets (all time, last 3 months, last month)
-    range_preset = request.GET.get('range', '').strip().lower()
-    if range_preset == '3m' and not date_from:
-        date_to = datetime.now().date().isoformat()
-        date_from = (datetime.now() - timedelta(days=90)).date().isoformat()
-    elif range_preset == '1m' and not date_from:
-        today = datetime.now().date()
-        date_to = today.isoformat()
-        date_from = (today.replace(day=1)).isoformat()
+    overview_range  = request.GET.get('overview_range', 'year').strip().lower()
+    if overview_range not in {'year', '6m'}:
+        overview_range = 'year'
 
     chart_qs = all_shipments
     if date_from:
@@ -653,122 +893,38 @@ def _analytics_context_response(request):
     _today = timezone.localdate()
     _from_date = _parse_filter_date(date_from)
     _to_date = _parse_filter_date(date_to)
-    if overview_period == 'week':
-        _range_start = _from_date or _today.replace(day=1)
-        _range_end = _to_date or (_add_months(_range_start.replace(day=1), 1) - timedelta(days=1))
-        _range_start = _range_start.replace(day=1)
 
-        _daily_rows = list(
-            chart_qs
-            .filter(submitted_at__date__gte=_range_start, submitted_at__date__lte=_range_end)
-            .annotate(period=TruncDay('submitted_at'))
-            .values('period')
-            .annotate(count=Count('id'))
-            .order_by('period')
-        )
-        _week_map = defaultdict(int)
-        for row in _daily_rows:
-            _day = _period_date(row['period'])
-            _week_index = ((_day.day - 1) // 7) + 1
-            _week_map[(_day.year, _day.month, _week_index)] += row['count']
+    overview_qs = all_shipments
+    if declarant_filter:
+        overview_qs = overview_qs.filter(declarant__username=declarant_filter)
 
-        _single_month = _range_start.year == _range_end.year and _range_start.month == _range_end.month
-        _overview_labels = []
-        _overview_data = []
-        _month_cursor = _range_start.replace(day=1)
-        _guard = 0
-        while _month_cursor <= _range_end and _guard < 36:
-            _next_month = _add_months(_month_cursor, 1)
-            _month_end = _next_month - timedelta(days=1)
-            _week_index = 1
-            _week_start = _month_cursor
-            while _week_start <= _month_end:
-                _week_end = min(_week_start + timedelta(days=6), _month_end)
-                if _week_end >= _range_start and _week_start <= _range_end:
-                    _label = f'Week {_week_index}' if _single_month else f'{_month_cursor.strftime("%b")} Week {_week_index}'
-                    _overview_labels.append(_label)
-                    _overview_data.append(_week_map.get((_month_cursor.year, _month_cursor.month, _week_index), 0))
-                _week_index += 1
-                _week_start += timedelta(days=7)
-            _month_cursor = _next_month
-            _guard += 1
+    if overview_range == '6m':
+        _overview_start = _add_months(_today.replace(day=1), -5)
+        _overview_end = _add_months(_today.replace(day=1), 1) - timedelta(days=1)
     else:
-        _overview_config = {
-            'year':  (TruncYear,  lambda d: d.replace(month=1, day=1), lambda d: d.replace(year=d.year + 1), '%Y', None),
-            'month': (TruncMonth, lambda d: d.replace(day=1), lambda d: _add_months(d, 1), '%b %Y', 11),
-            'day':   (TruncDay, lambda d: d, lambda d: d + timedelta(days=1), '%b %d', 29),
-        }
-        _trunc, _normalize, _advance, _label_format, _default_back = _overview_config[overview_period]
+        _overview_start = _today.replace(month=1, day=1)
+        _overview_end = _today.replace(month=12, day=31)
 
-        overview_qs = chart_qs
-        _default_start = None
-        _default_end = None
-        if not _from_date and not _to_date and _default_back is not None:
-            if overview_period == 'month':
-                _default_start = _add_months(_today.replace(day=1), -_default_back)
-                _default_end = _add_months(_today.replace(day=1), 1) - timedelta(days=1)
-            elif overview_period == 'day':
-                _default_start = _today.replace(day=1)
-                _default_end = _add_months(_default_start, 1) - timedelta(days=1)
-            else:
-                _default_start = _today - timedelta(days=_default_back)
-                _default_end = _today
-            overview_qs = overview_qs.filter(submitted_at__date__gte=_default_start)
-            overview_qs = overview_qs.filter(submitted_at__date__lte=_default_end)
-
-        _overview_rows = list(
-            overview_qs
-            .annotate(period=_trunc('submitted_at'))
-            .values('period')
-            .annotate(count=Count('id'))
-            .order_by('period')
-        )
-        _overview_map = {_period_date(r['period']): r['count'] for r in _overview_rows if r['period']}
-
-        if overview_period == 'year':
-            _anchor_year = (_to_date or _from_date or _today).year
-            _axis_start = _today.replace(year=_anchor_year - 4, month=1, day=1)
-            _axis_end = _today.replace(year=_anchor_year, month=1, day=1)
-            if _overview_map:
-                _axis_start = min(_axis_start, _normalize(min(_overview_map)))
-                _axis_end = max(_axis_end, _normalize(max(_overview_map)))
-            _start = _axis_start
-            _end = _axis_end
-        elif _from_date:
-            _start = _normalize(_from_date)
-        elif _default_start:
-            _start = _normalize(_default_start)
-        elif _overview_map:
-            _start = _normalize(min(_overview_map))
-        else:
-            _fallback_start = _today
-            if _default_back is not None:
-                if overview_period == 'month':
-                    _fallback_start = _add_months(_today.replace(day=1), -_default_back)
-                else:
-                    _fallback_start = _today - timedelta(days=_default_back)
-            _start = _normalize(_fallback_start)
-
-        if overview_period == 'year':
-            pass
-        elif _to_date:
-            _end = _normalize(_to_date)
-        elif _default_end:
-            _end = _normalize(_default_end)
-        elif _overview_map:
-            _end = _normalize(max(_overview_map))
-        else:
-            _end = _normalize(_today)
-
-        _overview_labels = []
-        _overview_data = []
-        _cursor = _start
-        _guard = 0
-        while _cursor <= _end and _guard < 370:
-            _overview_labels.append(_cursor.strftime(_label_format))
-            _overview_data.append(_overview_map.get(_cursor, 0))
-            _cursor = _advance(_cursor)
-            _guard += 1
+    _overview_rows = list(
+        overview_qs
+        .filter(submitted_at__date__gte=_overview_start, submitted_at__date__lte=_overview_end)
+        .annotate(period=TruncMonth('submitted_at'))
+        .values('period')
+        .annotate(count=Count('id'))
+        .order_by('period')
+    )
+    _overview_map = {
+        _period_date(r['period']).replace(day=1): r['count']
+        for r in _overview_rows
+        if r['period']
+    }
+    _overview_labels = []
+    _overview_data = []
+    _cursor = _overview_start.replace(day=1)
+    while _cursor <= _overview_end:
+        _overview_labels.append(_cursor.strftime('%b %Y'))
+        _overview_data.append(_overview_map.get(_cursor, 0))
+        _cursor = _add_months(_cursor, 1)
 
     monthly_chart_labels = json.dumps(_overview_labels)
     monthly_chart_data   = json.dumps(_overview_data)
@@ -928,7 +1084,7 @@ def _analytics_context_response(request):
         'date_from':          date_from,
         'date_to':            date_to,
         'declarant_filter':   declarant_filter,
-        'overview_period':    overview_period,
+        'overview_range':     overview_range,
         'declarants':         declarants,
         # chart data
         'pipeline_rows':      pipeline_rows,
@@ -994,11 +1150,13 @@ def analytics_status_counts(request):
 @supervisor_required
 def shipment_detail(request, shipment_id):
     from apps.shipments.status_progress import build_status_progress, CONSIGNEE_STATUS_SUBLABELS
+    from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
     shipment    = get_object_or_404(Shipment, id=shipment_id)
     advisory    = getattr(shipment, 'shipping_advisory', None)
     computation = getattr(shipment, 'computation', None)
     status_logs = shipment.status_logs.order_by('-changed_at')
     sad_document = shipment.documents.filter(document_type='sad').first()
+    fan_rows = fan_assessment_rows(sad_document)
     current_sublabel = CONSIGNEE_STATUS_SUBLABELS.get(shipment.status, '')
     back_url = request.GET.get('return_to') or ''
     back_label = request.GET.get('return_label') or 'Back to Dashboard'
@@ -1042,6 +1200,8 @@ def shipment_detail(request, shipment_id):
         'declared_rating':    declared_rating,
         'status_steps':       build_status_progress(shipment.status, 'consignee'),
         'sad_document':       sad_document,
+        'fan_assessment_rows': fan_rows,
+        'fan_assessment_has_values': fan_assessment_has_values(fan_rows),
         'current_sublabel':   current_sublabel,
         'back_url':           back_url,
         'back_label':         back_label,
@@ -1224,9 +1384,18 @@ def _load_tiers(key, defaults):
 
 
 def config_global(request):
+    if request.method != 'POST':
+        ensure_daily_exchange_rates(user=None)
+
     config   = _get_config()
     urgency_keys = ['urgency_days_standard', 'urgency_days_priority', 'urgency_days_urgent', 'urgency_days_rush']
-    all_keys = _CURRENCY_KEYS + ['exchange_rate', 'vat_rate'] + urgency_keys
+    rate_status_keys = [
+        'exchange_rates_last_success',
+        'exchange_rates_last_attempt',
+        'exchange_rates_last_error',
+        'exchange_rates_source',
+    ]
+    all_keys = _CURRENCY_KEYS + ['exchange_rate', 'vat_rate'] + urgency_keys + rate_status_keys
     meta     = _config_meta(all_keys)
 
     if request.method == 'POST':
@@ -1357,60 +1526,17 @@ def config_fees(request):
 @login_required
 @supervisor_required
 def fetch_exchange_rates(request):
-    """Fetch live PHP-based rates and save to SystemConfig.
-    Tries open.er-api.com first (reliable, no key), falls back to Frankfurter.
-    Both called with a browser User-Agent to avoid 403 blocks.
-    """
+    """Force-refresh live PHP-based rates and save to SystemConfig."""
     from django.http import JsonResponse
-    import json, urllib.request as urequest
 
-    _H = {'User-Agent': 'Mozilla/5.0 (compatible; R3-PCR/1.0)', 'Accept': 'application/json'}
-
-    def _open_er():
-        req = urequest.Request('https://open.er-api.com/v6/latest/PHP', headers=_H)
-        with urequest.urlopen(req, timeout=12) as r:
-            d = json.loads(r.read().decode())
-        if d.get('result') != 'success':
-            raise ValueError('open.er-api: non-success')
-        return d['rates']  # 1 PHP = X foreign
-
-    def _frankfurter():
-        url = 'https://api.frankfurter.app/latest?from=PHP&to=USD,EUR,JPY,HKD,CNY,GBP,SGD'
-        req = urequest.Request(url, headers=_H)
-        with urequest.urlopen(req, timeout=12) as r:
-            return json.loads(r.read().decode()).get('rates', {})
-
-    try:
-        rates_raw, last_err = None, None
-        for fn in (_open_er, _frankfurter):
-            try:
-                rates_raw = fn(); break
-            except Exception as e:
-                last_err = e
-
-        if not rates_raw:
-            raise Exception(f'All sources failed. Last error: {last_err}')
-
-        saved = {}
-        _code_to_key = {c['code']: c['key'] for c in _CURRENCY_META}
-        for code, rate_key in _code_to_key.items():
-            raw = rates_raw.get(code)
-            if raw:
-                val = round(1.0 / float(raw), 4)  # invert: 1 foreign = Y PHP
-                SystemConfig.objects.update_or_create(
-                    key=rate_key, defaults={'value': str(val), 'updated_by': request.user}
-                )
-                saved[code] = val
-
-        if 'USD' in saved:
-            SystemConfig.objects.update_or_create(
-                key='exchange_rate',
-                defaults={'value': str(saved['USD']), 'updated_by': request.user},
-            )
-
-        return JsonResponse({'ok': True, 'rates': saved})
-    except Exception as exc:
-        return JsonResponse({'ok': False, 'error': str(exc)}, status=500)
+    result = ensure_daily_exchange_rates(user=request.user, force=True)
+    if result.get('error'):
+        return JsonResponse({'ok': False, 'error': result['error']}, status=500)
+    return JsonResponse({
+        'ok': True,
+        'rates': result.get('rates', {}),
+        'source': result.get('source', ''),
+    })
 
 
 @login_required
@@ -1741,6 +1867,12 @@ def shipment_records(request):
         {'key': 'lcl', 'label': 'Less Container Load', 'count': shipment_type_counts['lcl'], 'color': '#f59e0b'},
         {'key': 'land', 'label': 'Land', 'count': shipment_type_counts['land'], 'color': '#22c55e'},
     ]
+    shipment_type_filter_choices = [
+        ('air', 'Air'),
+        ('lcl', 'LCL'),
+        ('fcl', 'FCL'),
+        ('land', 'Land'),
+    ]
     for row in shipping_type_overview:
         row['pct'] = round(row['count'] / total_shipments * 100) if total_shipments else 0
 
@@ -1810,7 +1942,7 @@ def shipment_records(request):
         'date_from':           date_from,
         'date_to':             date_to,
         'STATUS_CHOICES':      Shipment.STATUS_CHOICES,
-        'TYPE_CHOICES':        Shipment.SHIPMENT_TYPE_CHOICES,
+        'TYPE_CHOICES':        shipment_type_filter_choices,
         'IMPORT_TYPE_CHOICES': Shipment.IMPORT_TYPE_CHOICES,
     })
 
@@ -1832,15 +1964,14 @@ def consignee_list(request):
     consignee_rows = []
     for consignee in qs:
         shipments = Shipment.objects.filter(consignee=consignee).select_related('declarant').order_by('-submitted_at')
-        current = shipments.exclude(status__in=terminal_statuses).first() or shipments.first()
         consignee_rows.append({
             'user': consignee,
             'name': consignee.get_full_name() or consignee.username,
             'company': consignee.company_name or '-',
             'total_shipments': shipments.count(),
-            'active_shipments': shipments.exclude(status__in=terminal_statuses).count(),
+            'in_progress_shipments': shipments.exclude(status__in=terminal_statuses).count(),
+            'completed_or_billed_shipments': shipments.filter(status__in=terminal_statuses).count(),
             'flagged_shipments': shipments.filter(has_deficiency=True).count(),
-            'current_shipment': current,
         })
     return render(request, 'supervisor/consignee_list.html', {
         'consignees': consignee_rows,
@@ -1934,7 +2065,6 @@ def declarant_list(request):
             | Q(last_name__icontains=q) | Q(email__icontains=q)
         )
     terminal_statuses = ['paid', 'released', 'billed']
-    now = timezone.now()
     declarant_rows = []
     for declarant in qs:
         shipments = Shipment.objects.filter(declarant=declarant).select_related('consignee').order_by('-submitted_at')
@@ -1944,11 +2074,6 @@ def declarant_list(request):
         active = shipments.exclude(status__in=terminal_statuses).count()
         revised = shipments.filter(status='for_revision').count()
         current = shipments.exclude(status__in=terminal_statuses).first() or shipments.first()
-        incoming_due = 0
-        for shipment in shipments.exclude(status__in=terminal_statuses):
-            days_open = (now - shipment.submitted_at).total_seconds() / 86400
-            if days_open >= 3:
-                incoming_due += 1
 
         completed_durations = []
         for shipment in shipments.filter(status__in=cleared_statuses):
@@ -1983,7 +2108,6 @@ def declarant_list(request):
             'active_count': active,
             'revised_count': revised,
             'average_clearance_days': avg_days,
-            'incoming_due': incoming_due,
             'current_shipment': current,
             'clearance_rate': clearance_rate,
         })

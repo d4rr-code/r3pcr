@@ -46,7 +46,7 @@ CONSIGNEE_STATUS_SUBLABELS = {
     'approved':  'Awaits Manifest Validation — Your approval has been received. The declarant is now proceeding.',
     'lodgement': 'The declarant is filing your entry with the Bureau of Customs (BOC).',
     'ongoing':   'Lined Up for Final Assessment — Your shipment is in queue for BOC assessment.',
-    'assessed':  'Awaits Payment of D/T — BOC has assessed your shipment. Refer to the SAD document below for the official amount due.',
+    'assessed':  'Awaits Payment of D/T — BOC has assessed your shipment. Refer to the FAN document below for the official amount due.',
     'paid':      'Awaits CNTR Discharge & Delivery Schedule — Payment confirmed. Your goods are being processed for release.',
     'released':  'Your shipment has been released from customs. Delivery is being arranged.',
     'billed':    'Your shipment is complete and billed. Thank you for trusting RTripleJ Customs Brokerage!',

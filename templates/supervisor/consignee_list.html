@@ -56,11 +56,9 @@
                         <th>Full Name</th>
                         <th>Company</th>
                         <th>Total<br>Shipments</th>
-                        <th>Active<br>Shipments</th>
+                        <th>In-Progress<br>Shipments</th>
+                        <th>Completed / Billed<br>Shipments</th>
                         <th>Flagged<br>Shipments</th>
-                        <th>Current Shipment</th>
-                        <th>Current Status</th>
-                        <th>Current Declarant</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -70,28 +68,9 @@
                         <td>{{ row.name }}</td>
                         <td>{{ row.company }}</td>
                         <td>{{ row.total_shipments }}</td>
-                        <td>{{ row.active_shipments }}</td>
+                        <td>{{ row.in_progress_shipments }}</td>
+                        <td>{{ row.completed_or_billed_shipments }}</td>
                         <td>{{ row.flagged_shipments }}</td>
-                        <td>{% if row.current_shipment %}{{ row.current_shipment.hawb_number }}{% else %}-{% endif %}</td>
-                        <td>
-                            {% if row.current_shipment %}
-                            <span class="cg-status">{{ row.current_shipment.get_status_display }}</span>
-                            {% if row.current_shipment.has_deficiency and row.current_shipment.deficiency_notes %}
-                            <span class="cg-sub">{{ row.current_shipment.deficiency_notes|truncatechars:36 }}</span>
-                            {% elif row.current_shipment.status == 'arrived' %}
-                            <span class="cg-sub">Awaits Revised Invoice</span>
-                            {% endif %}
-                            {% else %}
-                            -
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if row.current_shipment and row.current_shipment.declarant %}
-                            {{ row.current_shipment.declarant.get_full_name|default:row.current_shipment.declarant.username }}
-                            {% else %}
-                            -
-                            {% endif %}
-                        </td>
                         <td class="cg-action">
                             <a href="{% url 'supervisor:consignee_detail' row.user.id %}" aria-label="View consignee shipment records">
                                 <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 4.5c-4.2 0-7.15 3.22-8.2 4.6a1.5 1.5 0 000 1.8c1.05 1.38 4 4.6 8.2 4.6s7.15-3.22 8.2-4.6a1.5 1.5 0 000-1.8c-1.05-1.38-4-4.6-8.2-4.6zm0 8.5a3 3 0 110-6 3 3 0 010 6zm0-1.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>

@@ -87,6 +87,8 @@
             white-space: nowrap;
             overflow: hidden;
             justify-content: center;
+            position: relative;
+            min-height: 38px;
         }
         .s-nav-item:hover { background: #F3F4F6; color: #111827; }
         .s-nav-item.active { background: #1B3358; color: #fff; font-weight: 600; }
@@ -99,7 +101,37 @@
             font-size: 13px;
         }
         .s-sidebar.expanded .s-nav-label { opacity: 1; max-width: 160px; }
-        .s-nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+        .s-nav-icon { width: 18px; height: 18px; flex-shrink: 0; display: block; }
+        .s-nav-badge {
+            min-width: 16px;
+            height: 16px;
+            background: #EF4444;
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            line-height: 16px;
+            text-align: center;
+            padding: 0 5px;
+            border-radius: 999px;
+            margin-left: auto;
+            opacity: 1;
+            max-width: 38px;
+            transition: opacity 0.15s, max-width 0.2s;
+        }
+        .s-sidebar.expanded .s-nav-badge { opacity: 1; max-width: 40px; }
+        .s-sidebar:not(.expanded) .s-nav-badge {
+            position: absolute;
+            top: 6px;
+            right: 9px;
+            min-width: 8px;
+            width: 8px;
+            height: 8px;
+            padding: 0;
+            overflow: hidden;
+            color: transparent;
+            font-size: 0;
+            border: 2px solid #fff;
+        }
 
         /* ── Sidebar dropdown (Clients & Staff) ── */
         .s-nav-btn {
@@ -424,6 +456,7 @@
         <a href="{% url 'notifications:list' %}" class="s-nav-item {% block nav_notifications %}{% endblock %}">
             <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6z" clip-rule="evenodd"/></svg>
             <span class="s-nav-label">Notifications</span>
+            {% if unread_notification_count %}<span class="s-nav-badge">{{ unread_notification_count }}</span>{% endif %}
         </a>
 
         <!-- 6. Memos -->

@@ -102,6 +102,22 @@ def _lookup_distance_from_country(country_raw: str) -> int | None:
         if k.startswith(key) or key.startswith(k):
             return v
     return None
+
+_DISTANCE_ALIAS_KEYS = {
+    'prc', "people's republic of china", 'hk', 'republic of china', 'korea',
+    'republic of korea', "democratic people's republic of korea", 'viet nam',
+    'burma', "lao people's democratic republic", 'brunei darussalam',
+    'east timor', 'uae', 'uk', 'great britain', 'england', 'czechia',
+    'usa', 'us', 'united states of america',
+}
+
+def _country_distance_options():
+    """Canonical country list for the declarant origin-country selector."""
+    return [
+        {'name': name.title(), 'distance': distance}
+        for name, distance in sorted(_COUNTRY_DISTANCE_KM.items())
+        if name not in _DISTANCE_ALIAS_KEYS
+    ]
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -203,7 +219,7 @@ def _store_document_ocr(doc, fields, raw_text, quality):
 
 # â”€â”€â”€ Per-Item ECDT Formula â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-def compute_ecdt(items_data, exchange_rate,
+def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
                  arrastre=0, wharfage=0, csf_php=0, bank_charges=0):
     """
     items_data keys: exw_usd, freight_usd, insurance_usd, duty_rate,
@@ -212,6 +228,7 @@ def compute_ecdt(items_data, exchange_rate,
     Total Landed Cost excludes VAT; VAT = 12% of Total Landed Cost
     Brokerage Fee: tiered table up to â‚±200,000, then +0.125% of excess
     """
+    usd_exchange_rate = Decimal(str(usd_exchange_rate or exchange_rate))
     computed_items = []
     total_dv_php   = Decimal('0')
     total_cud      = Decimal('0')
@@ -222,9 +239,12 @@ def compute_ecdt(items_data, exchange_rate,
         item_insurance = Decimal(str(item.get('insurance_usd', 0) or 0))
         duty_rate      = Decimal(str(item.get('duty_rate',     0) or 0))
 
-        # D/V = EXW + Freight + Insurance
-        dv_usd  = exw + item_freight + item_insurance
-        dv_php  = dv_usd * exchange_rate
+        # EXW follows invoice currency; freight/insurance are always USD.
+        exw_php       = exw * exchange_rate
+        freight_php   = item_freight * usd_exchange_rate
+        insurance_php = item_insurance * usd_exchange_rate
+        dv_php        = exw_php + freight_php + insurance_php
+        dv_usd_equiv  = dv_php / usd_exchange_rate if usd_exchange_rate else Decimal('0')
         cud     = dv_php * (duty_rate / Decimal('100'))
         total_dv_php += dv_php
         total_cud    += cud
@@ -241,7 +261,7 @@ def compute_ecdt(items_data, exchange_rate,
             'exw':            float(round(exw, 2)),
             'item_freight':   float(round(item_freight, 2)),
             'item_insurance': float(round(item_insurance, 2)),
-            'dv_usd':         float(round(dv_usd, 2)),
+            'dv_usd':         float(round(dv_usd_equiv, 2)),
             'dv_php':         float(round(dv_php, 2)),
             'cud':            float(round(cud, 2)),
             'gw':             item.get('gw', ''),
@@ -303,6 +323,7 @@ _OCR_FIELD_PRIORITY = {
     'total_quantity':    ['packing_list', 'invoice'],
     'gross_weight':      ['airway_bill', 'packing_list'],
     'volume_cbm':        ['airway_bill', 'packing_list'],
+    'dimensions':        ['packing_list', 'airway_bill'],
     'hawb_number':       ['airway_bill'],
     'invoice_number':    ['invoice'],
     'invoice_date':      ['invoice'],
@@ -640,6 +661,9 @@ def compute_shipment(request, shipment_id):
     wmcda_history     = None
 
     # ── All currency rates from SystemConfig (for JS auto-fill) ──────────────
+    from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
+    ensure_daily_exchange_rates()
+
     _rate_keys = {
         'USD': 'rate_USD', 'EUR': 'rate_EUR', 'JPY': 'rate_JPY',
         'HKD': 'rate_HKD', 'CNY': 'rate_CNY', 'GBP': 'rate_GBP',
@@ -661,6 +685,7 @@ def compute_shipment(request, shipment_id):
     if invoice_currency not in _rate_keys:
         invoice_currency = 'USD'
     default_rate = all_currency_rates.get(invoice_currency, '59.1480')
+    usd_exchange_rate = Decimal(str(all_currency_rates.get('USD', _rate_defaults['USD'])))
 
     if request.method == 'POST':
         posted_currency = (request.POST.get('invoice_currency', '') or '').strip().upper()
@@ -684,7 +709,7 @@ def compute_shipment(request, shipment_id):
                 gross_weight=gross_weight,
                 volume_cbm=cargo_volume,
             )
-            csf_php_val     = csf_usd_val * exchange_rate
+            csf_php_val     = csf_usd_val * usd_exchange_rate
 
             # â”€â”€ Server-side port fee defaults (only when declarant left all at 0) â”€â”€
             # This mirrors the JS auto-fill so submissions without JS still get
@@ -706,7 +731,7 @@ def compute_shipment(request, shipment_id):
                         arrastre    = Decimal('5496.00')
                         wharfage    = Decimal('519.35')
                         csf_usd_val = Decimal('5.00')
-                    csf_php_val = csf_usd_val * exchange_rate
+                    csf_php_val = csf_usd_val * usd_exchange_rate
                 # AIR / LAND: leave at 0
 
             descriptions  = request.POST.getlist('description[]')
@@ -787,7 +812,7 @@ def compute_shipment(request, shipment_id):
                     it['insurance_usd'] = float(round(total_insurance_global * prop, 4))
 
             items, summary = compute_ecdt(
-                items_data, exchange_rate,
+                items_data, exchange_rate, usd_exchange_rate=usd_exchange_rate,
                 arrastre=arrastre, wharfage=wharfage, csf_php=csf_php_val,
                 bank_charges=bank_charges
             )
@@ -1084,25 +1109,38 @@ def compute_shipment(request, shipment_id):
     ocr_fields = request.session.get('ocr_fields', {}) if request.session.get('ocr_shipment_id') == shipment_id else {}
     ocr_items  = request.session.get('ocr_items',  []) if request.session.get('ocr_shipment_id') == shipment_id else []
 
+    def _ocr_field_value(fields, key):
+        raw = (fields or {}).get(key, '')
+        if isinstance(raw, dict):
+            return str(raw.get('value', '') or '').strip()
+        return str(raw or '').strip()
+
     # ── Auto-derive distance from OCR-extracted country of origin ─────────────
     # Priority:
     #   1) Existing saved advisory (already computed once)
     #   2) Session OCR fields (set when declarant went through process page first)
     #   3) Database-stored OCR fields on shipment documents (fallback for direct ECDT access)
     #   4) Default 2600 km
-    _ocr_country = (ocr_fields.get('country_of_origin') or ocr_fields.get('origin') or '').strip()
+    _ocr_country = (_ocr_field_value(ocr_fields, 'country_of_origin') or _ocr_field_value(ocr_fields, 'origin')).strip()
+    _ocr_volume = _ocr_field_value(ocr_fields, 'volume_cbm')
+    _ocr_dimensions = _ocr_field_value(ocr_fields, 'dimensions')
 
-    # Fallback: read from database-stored OCR fields if session is empty
-    if not _ocr_country:
+    # Fallback: read from database-stored OCR fields if session is empty/incomplete
+    if not _ocr_country or not _ocr_volume:
         for _doc in shipment.documents.all():
             if getattr(_doc, 'ocr_fields_json', None):
                 try:
                     _stored = json.loads(_doc.ocr_fields_json)
-                    _ocr_country = (
-                        _stored.get('country_of_origin') or
-                        _stored.get('origin') or ''
-                    ).strip()
-                    if _ocr_country:
+                    if not _ocr_country:
+                        _ocr_country = (
+                            _ocr_field_value(_stored, 'country_of_origin') or
+                            _ocr_field_value(_stored, 'origin')
+                        ).strip()
+                    if not _ocr_volume:
+                        _ocr_volume = _ocr_field_value(_stored, 'volume_cbm')
+                    if not _ocr_dimensions:
+                        _ocr_dimensions = _ocr_field_value(_stored, 'dimensions')
+                    if _ocr_country and _ocr_volume:
                         break
                 except Exception:
                     pass
@@ -1118,6 +1156,23 @@ def compute_shipment(request, shipment_id):
     else:
         prefill_distance      = 2600
         prefill_distance_src  = 'default'
+
+    prefill_origin_country = _ocr_country.title() if _ocr_country else ''
+    country_distance_options = _country_distance_options()
+    country_distance_map = {
+        opt['name']: opt['distance']
+        for opt in country_distance_options
+    }
+
+    if advisory_ex and advisory_ex.cargo_volume:
+        prefill_volume = advisory_ex.cargo_volume
+        prefill_volume_src = 'saved'
+    elif _ocr_volume:
+        prefill_volume = _ocr_volume
+        prefill_volume_src = f'auto from OCR: {_ocr_dimensions}' if _ocr_dimensions else 'auto from OCR'
+    else:
+        prefill_volume = '0'
+        prefill_volume_src = 'manual'
 
     # â”€â”€ HS Code Suggestions (rule-based + historical) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Collect the richest available description text in priority order:
@@ -1212,10 +1267,16 @@ def compute_shipment(request, shipment_id):
         'computed_mode':        computed_mode,
         'prefill_freight':        prefill_freight,
         'prefill_insurance':      prefill_insurance,
+        'prefill_volume':         prefill_volume,
+        'prefill_volume_src':     prefill_volume_src,
         'prefill_distance':       prefill_distance,
         'prefill_distance_src':   prefill_distance_src,
+        'prefill_origin_country': prefill_origin_country,
+        'country_distance_options': country_distance_options,
+        'country_distance_map':   json.dumps(country_distance_map),
         'invoice_currency':       invoice_currency,
         'all_currency_rates':   json.dumps(all_currency_rates),
+        'usd_exchange_rate':    usd_exchange_rate,
         'default_rate':         default_rate,
     }
     # All saved line items (OCR + manual drafts) ordered for ECDT table restore
@@ -1466,7 +1527,53 @@ _HS_STOPWORDS = {
     'each','pcs','set','unit','nos','lot','item','items','qty','piece',
     'pieces','new','used','other','various','type','types','model','grade',
     'size','kind','made','part','parts','product','products','goods',
+    'invoice','commercial','packing','list','description','quantity','amount',
+    'total','value','price','currency','origin','country','weight','gross',
+    'net','freight','insurance','shipment','shipper','consignee','code',
+    'number','date','page','carton','cartons','package','packages',
 }
+
+
+def _hs_normalize_word(word):
+    word = (word or '').lower().strip()
+    if len(word) > 4 and word.endswith('ies'):
+        return word[:-3] + 'y'
+    if len(word) > 4 and word.endswith(('ches', 'shes', 'xes', 'zes')):
+        return word[:-2]
+    if len(word) > 3 and word.endswith('s') and not word.endswith('ss'):
+        return word[:-1]
+    return word
+
+
+def _hs_keyword_tokens(text):
+    tokens = []
+    seen = set()
+    for raw in re.findall(r'[a-zA-Z]{3,}', (text or '').lower()):
+        token = _hs_normalize_word(raw)
+        if token in _HS_STOPWORDS or len(token) < 3:
+            continue
+        if token not in seen:
+            seen.add(token)
+            tokens.append(token)
+    return tokens
+
+
+def _hs_code_candidates(value):
+    digits = re.sub(r'\D', '', str(value or ''))
+    if len(digits) < 6:
+        return []
+    candidates = [digits]
+    if len(digits) == 6:
+        candidates.append(f'{digits[:4]}.{digits[4:]}')
+    elif len(digits) == 8:
+        candidates.append(f'{digits[:4]}.{digits[4:6]}.{digits[6:]}')
+    elif len(digits) == 10:
+        candidates.append(f'{digits[:4]}.{digits[4:6]}.{digits[6:8]}.{digits[8:]}')
+    raw = str(value or '').strip()
+    if raw:
+        candidates.append(raw)
+    return list(dict.fromkeys(candidates))
+
 
 def suggest_hs_codes(text, top_n=5):
     """
@@ -1484,17 +1591,7 @@ def suggest_hs_codes(text, top_n=5):
     if not text or not text.strip():
         return []
 
-    keywords = [
-        w for w in re.findall(r'[a-zA-Z]{3,}', text.lower())
-        if w not in _HS_STOPWORDS
-    ]
-    # Deduplicate preserving order
-    seen_kw = set()
-    unique_keywords = []
-    for kw in keywords:
-        if kw not in seen_kw:
-            seen_kw.add(kw)
-            unique_keywords.append(kw)
+    unique_keywords = _hs_keyword_tokens(text)
 
     # Need at least 1 keyword. For single-word searches (e.g. “incubator”),
     # do a direct icontains match and return the best results.
@@ -1519,10 +1616,21 @@ def suggest_hs_codes(text, top_n=5):
     # Minimum threshold = 1; higher scores naturally rank better matches first.
     scored = []
     for hs in candidates:
-        hs_words = set(re.findall(r'[a-zA-Z]{3,}', hs.description.lower()))
-        hits = sum(1 for kw in unique_keywords if kw in hs_words)
-        if hits >= 1:
-            scored.append([hs, float(hits)])
+        hs_text = (hs.description or '').lower()
+        hs_words = set(_hs_keyword_tokens(hs_text))
+        score = 0.0
+        for position, kw in enumerate(unique_keywords):
+            hit = False
+            if kw in hs_words:
+                score += 2.0
+                hit = True
+            elif len(kw) >= 5 and kw in hs_text:
+                score += 1.0
+                hit = True
+            if hit and position < 3:
+                score += 0.5
+        if score >= 1:
+            scored.append([hs, score])
 
     if not scored:
         return []
@@ -1537,7 +1645,7 @@ def suggest_hs_codes(text, top_n=5):
     )
     if hist:
         for entry in scored:
-            entry[1] += hist.get(entry[0].id, 0) * 0.5
+            entry[1] += min(hist.get(entry[0].id, 0) * 0.5, 3.0)
 
     scored.sort(key=lambda x: x[1], reverse=True)
     return [hs for hs, _ in scored[:top_n]]
@@ -1682,13 +1790,17 @@ def hs_code_suggest(request):
 
         # ── Priority 1: HS code explicitly printed in the document ────────────
         if doc_hs:
-            hs_obj = (
-                HSCode.objects.filter(code=doc_hs, is_active=True).first()
-                or HSCode.objects.filter(code__icontains=doc_hs, is_active=True).first()
-                or HSCode.objects.filter(
-                    code__startswith=doc_hs.replace('.', ''), is_active=True
-                ).first()
-            )
+            doc_hs_codes = _hs_code_candidates(doc_hs)
+            doc_hs_digits = re.sub(r'\D', '', doc_hs)
+            doc_hs_norm = next((code for code in doc_hs_codes if '.' in code), '')
+            hs_obj = None
+            if doc_hs_codes:
+                hs_qs = HSCode.objects.filter(is_active=True)
+                hs_obj = hs_qs.filter(code__in=doc_hs_codes).first()
+                if not hs_obj and doc_hs_norm:
+                    hs_obj = hs_qs.filter(code__startswith=doc_hs_norm[:7]).first()
+                if not hs_obj and len(doc_hs_digits) >= 4:
+                    hs_obj = hs_qs.filter(code__startswith=doc_hs_digits[:4]).first()
             if hs_obj:
                 pinned.append({
                     'id':      hs_obj.id,
@@ -1712,13 +1824,10 @@ def hs_code_suggest(request):
 
             # Re-rank: items whose descriptions also match q get priority
             if q and kw_results:
-                q_keywords = [
-                    w for w in re.findall(r'[a-zA-Z]{3,}', q.lower())
-                    if w not in _HS_STOPWORDS
-                ]
+                q_keywords = _hs_keyword_tokens(q)
                 if q_keywords:
                     def _desc_hits(hs):
-                        words = set(re.findall(r'[a-zA-Z]{3,}', hs.description.lower()))
+                        words = set(_hs_keyword_tokens(hs.description))
                         return sum(1 for kw in q_keywords if kw in words)
                     kw_results = sorted(kw_results, key=_desc_hits, reverse=True)
 

@@ -637,8 +637,8 @@ body {
                                 <tr>
                                     <td>{{ shipment.invoice_currency|default:"USD" }} {{ computation.declared_value|floatformat:2 }}</td>
                                     <td>&#8369; {{ computation.exchange_rate|floatformat:4 }}</td>
-                                    <td>{{ shipment.invoice_currency|default:"USD" }} {{ computation.total_freight|floatformat:2 }}</td>
-                                    <td>{{ shipment.invoice_currency|default:"USD" }} {{ computation.total_insurance|floatformat:2 }}</td>
+                                    <td>USD {{ computation.total_freight|floatformat:2 }}</td>
+                                    <td>USD {{ computation.total_insurance|floatformat:2 }}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -746,22 +746,71 @@ body {
     {% if shipment.status in 'assessed,paid,released,billed' %}
     <section class="detail-card sad-card">
         <div class="card-head">
-            <h3 class="section-title">Single Administrative Document (SAD)</h3>
-            <p class="section-subtitle">Official BOC document</p>
+            <h3 class="section-title">Final Assessment Notice (FAN)</h3>
+            <p class="section-subtitle">Official BOC assessment document</p>
         </div>
         <div class="sad-body">
             {% if sad_document %}
-                <p style="margin:0 0 8px; font-weight:800; color:#18345a;">SAD Document Available</p>
+                <p style="margin:0 0 8px; font-weight:800; color:#18345a;">FAN Document Available</p>
                 <p style="margin:0 0 12px;">Uploaded {{ sad_document.uploaded_at|date:"M d, Y g:i A" }}</p>
-                <a href="{{ sad_document.file.url }}" target="_blank" class="sad-link">View SAD</a>
+                <a href="{{ sad_document.file.url }}" target="_blank" class="sad-link">View FAN</a>
+                {% if fan_assessment_has_values %}
+                <div style="margin-top:14px; border-top:1px solid #E5E7EB; padding-top:12px;">
+                    <p style="font-size:12px; font-weight:800; color:#18345a; margin:0 0 8px;">Assessment Breakdown</p>
+                    <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;">
+                        {% for row in fan_assessment_rows %}
+                        {% if row.value %}
+                        <div style="background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px; padding:9px 10px;">
+                            <p style="font-size:10px; font-weight:800; text-transform:uppercase; color:#6B7280; margin:0 0 3px;">{{ row.label }}</p>
+                            <p style="font-size:14px; font-weight:800; color:#0B2D55; margin:0;">₱{{ row.value }}</p>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             {% else %}
-                <p style="margin:0;">The SAD document has not been uploaded yet. Your declarant will upload it once available from BOC.</p>
+                <p style="margin:0;">The FAN document has not been uploaded yet. Your declarant will upload it once available from BOC.</p>
             {% endif %}
         </div>
     </section>
     {% endif %}
 
-    {% if shipment.status == 'billed' %}
+    {% if shipment.status in 'paid,released,billed' %}
+    <section class="detail-card">
+        <div class="card-head">
+            <h3 class="section-title">Supporting Documents</h3>
+            <p class="section-subtitle">Payment, release, delivery, and billing documents from your declarant</p>
+        </div>
+        <div>
+            {% for doc in shipment.documents.all %}
+            {% if doc.document_type == 'payment_proof' or doc.document_type == 'release_doc' or doc.document_type == 'billing_doc' or doc.document_type == 'receipt' %}
+            <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #F3F4F6;">
+                <div style="width:36px; height:36px; border-radius:8px; background:#F8FAFC; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid #E5E7EB;">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
+                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div style="flex:1; min-width:0;">
+                    <p style="font-size:13px; font-weight:600; color:#1A1A2E; margin:0;">
+                        {% if doc.document_type == 'payment_proof' %}Payment Proof / BOC Receipt
+                        {% elif doc.document_type == 'release_doc' %}Release / Delivery Document
+                        {% elif doc.document_type == 'billing_doc' %}Final Billing Document
+                        {% else %}Billing Receipt{% endif %}
+                    </p>
+                    <p style="font-size:11px; color:#9CA3AF; margin:2px 0 0;">
+                        Uploaded {{ doc.uploaded_at|date:"M d, Y g:i A" }}
+                    </p>
+                </div>
+                <a href="{{ doc.file.url }}" target="_blank" class="sad-link">View</a>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if shipment.status == 'legacy_billed_disabled' %}
     <section class="detail-card">
         <div class="card-head">
             <h3 class="section-title">Billing Documents</h3>

@@ -1,0 +1,91 @@
+{% extends 'consignee/base_consignee.html' %}
+{% block title %}Fee Schedules{% endblock %}
+{% block page_title %}Fee Schedules{% endblock %}
+{% block nav_system_ref %}active{% endblock %}
+
+{% block extra_css %}
+.card {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    padding: 20px;
+}
+.fee-section { margin-bottom: 28px; }
+.fee-section h3 {
+    color: #1B3358;
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 12px;
+}
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'consignee:system_reference' %}" style="display: inline-flex; align-items: center; gap: 8px; color: #1B3358; text-decoration: none; font-size: 13px; font-weight: 700; margin-bottom: 16px;">
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.707 6.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L12 5.414V13a1 1 0 11-2 0V5.414L9.121 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" transform="rotate(90 10 10)"/></svg>
+    Back to System Reference
+</a>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+<div class="fee-section">
+    <h3>Brokerage Fee Tiers (BF)</h3>
+    <p style="color: #6B7280; margin: 0 0 14px; font-size: 13px;">Tiered brokerage fee based on taxable value</p>
+
+    <div class="card">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #F3F4F6; border-bottom: 2px solid #E5E7EB;">
+                    <th style="padding: 12px 16px; text-align: left; color: #1B3358; font-weight: 700; font-size: 13px;">Taxable Value Range</th>
+                    <th style="padding: 12px 16px; text-align: right; color: #1B3358; font-weight: 700; font-size: 13px;">Fee (₱)</th>
+                    <th style="padding: 12px 16px; text-align: right; color: #1B3358; font-weight: 700; font-size: 13px;">Excess Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tier in bf_tiers %}
+                <tr style="border-bottom: 1px solid #E5E7EB;">
+                    <td style="padding: 12px 16px; color: #111827; font-size: 13px;">Up to ₱{{ tier.max|floatformat:0 }}</td>
+                    <td style="padding: 12px 16px; text-align: right; color: #111827; font-weight: 600; font-size: 13px;">₱{{ tier.fee }}</td>
+                    <td style="padding: 12px 16px; text-align: right; color: #6B7280; font-size: 13px;">
+                        {% if tier.excess_rate %}
+                            {{ tier.excess_rate }}%
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="fee-section">
+    <h3>Import Processing Fee Tiers (IPF)</h3>
+    <p style="color: #6B7280; margin: 0 0 14px; font-size: 13px;">Fixed import processing fee based on taxable value</p>
+
+    <div class="card">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #F3F4F6; border-bottom: 2px solid #E5E7EB;">
+                    <th style="padding: 12px 16px; text-align: left; color: #1B3358; font-weight: 700; font-size: 13px;">Taxable Value Range</th>
+                    <th style="padding: 12px 16px; text-align: right; color: #1B3358; font-weight: 700; font-size: 13px;">Fee (₱)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tier in ipf_tiers %}
+                <tr style="border-bottom: 1px solid #E5E7EB;">
+                    <td style="padding: 12px 16px; color: #111827; font-size: 13px;">Up to ₱{{ tier.max|floatformat:0 }}</td>
+                    <td style="padding: 12px 16px; text-align: right; color: #111827; font-weight: 600; font-size: 13px;">₱{{ tier.fee }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+
+<div style="padding: 14px 16px; background: #EFF6FF; border: 1px solid #93C5FD; border-radius: 8px; font-size: 13px; color: #1D4ED8;">
+    <strong>Note:</strong> These fees are automatically applied to all duty computations. Taxable value is the sum of EXW, freight, and insurance in PHP.
+</div>
+{% endblock %}

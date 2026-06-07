@@ -543,7 +543,7 @@ body.split-mode #doc-float-panel { display: none !important; }
     background: #0f172a;
     border: 1px solid #334155;
     border-radius: 12px;
-    z-index: 9500;
+    z-index: 10020;
     box-shadow: 0 24px 80px rgba(0,0,0,.7);
     display: none;
     flex-direction: column;
@@ -740,14 +740,25 @@ body.split-mode #doc-float-panel { display: none !important; }
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-primary);
-    padding: 4px 5px;
+    padding: 5px 7px;
     font-size: 11px;
     width: 100%;
+    min-width: 0;
     box-sizing: border-box;
 }
 .ecdt-input:focus { outline: none; border-color: #3b82f6; }
 .ecdt-input.freight-input { border-color: var(--border-light); }
 .ecdt-input.freight-input:focus { border-color: #3b82f6; }
+.ecdt-input.measure-input,
+.ecdt-input.qty-input {
+    font-size: 12px;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+.ecdt-input.unit-input {
+    text-transform: uppercase;
+    text-align: center;
+}
 /* â”€â”€ WMCDA Score Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .mode-score-card {
     border: 2px solid #334155;
@@ -1308,7 +1319,7 @@ document.body.classList.add('light-mode');
      RIGHT &mdash; Computation Panel
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <div id="col-right">
-<form method="POST" id="compute-form">
+<form method="POST" id="compute-form" action="#ecdt-summary-card">
 {% csrf_token %}
 
 <!-- â”€â”€ Parameters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
@@ -1358,7 +1369,7 @@ document.body.classList.add('light-mode');
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">
-                Total Freight (<span class="cur-code-lbl">{{ invoice_currency }}</span>)
+                Total Freight (USD)
                 <span style="color:#334155; font-weight:400; font-size:10px;"> &mdash; auto-distribute</span>
             </label>
             <input type="number" name="total_freight" id="total_freight" class="form-input"
@@ -1367,7 +1378,7 @@ document.body.classList.add('light-mode');
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">
-                Total Insurance (<span class="cur-code-lbl">{{ invoice_currency }}</span>)
+                Total Insurance (USD)
                 <span style="color:#334155; font-weight:400; font-size:10px;"> &mdash; auto-distribute</span>
             </label>
             <input type="number" name="total_insurance" id="total_insurance" class="form-input"
@@ -1384,7 +1395,37 @@ document.body.classList.add('light-mode');
             <label class="form-label" style="font-size:11px;">Cargo Volume (CBM)</label>
             <input type="number" name="cargo_volume" id="cargo_volume" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
-                   value="{{ advisory_existing.cargo_volume|default:'0' }}" oninput="recalcAll()">
+                   value="{{ prefill_volume|default:'0' }}" oninput="recalcAll()">
+            {% if prefill_volume_src != 'manual' %}
+            <p style="font-size:10px; margin:3px 0 0;
+               color:{% if prefill_volume_src == 'saved' %}#64748b{% else %}#16a34a{% endif %};">
+                {% if prefill_volume_src == 'saved' %}
+                    Saved advisory volume
+                {% else %}
+                    {{ prefill_volume_src }}
+                {% endif %}
+            </p>
+            {% endif %}
+        </div>
+        <div>
+            <label class="form-label" style="font-size:11px;">
+                Origin Country
+                <span style="color:#6B7280; font-weight:400; font-size:10px;"> &mdash; estimates distance</span>
+            </label>
+            <input type="text" name="origin_country" id="origin_country" class="form-input"
+                   list="origin-country-options"
+                   style="padding:6px 8px; font-size:12px;"
+                   placeholder="e.g. Russia"
+                   value="{{ prefill_origin_country }}"
+                   oninput="applyOriginDistance(false)">
+            <datalist id="origin-country-options">
+                {% for opt in country_distance_options %}
+                <option value="{{ opt.name }}">{{ opt.distance }} km to Manila</option>
+                {% endfor %}
+            </datalist>
+            <p id="origin-distance-hint" style="font-size:10px; margin:3px 0 0; color:#64748b;">
+                Choose a country to auto-fill the route distance.
+            </p>
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">
@@ -1512,7 +1553,7 @@ document.body.classList.add('light-mode');
         </svg>
         <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">HS Code Assist</span>
         {% if guide_hs_codes %}<span style="background:#2563eb;color:#fff;font-size:9px;font-weight:700;padding:1px 7px;border-radius:8px;">{{ guide_hs_codes|length }} guide</span>{% endif %}
-        {% if hs_suggestions %}<span style="background:#334155;color:#94a3b8;font-size:9px;font-weight:700;padding:1px 7px;border-radius:8px;">{{ hs_suggestions|length }} suggested</span>{% endif %}
+        {% if hs_suggestions %}<span style="background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;font-size:9px;font-weight:800;padding:1px 7px;border-radius:8px;">{{ hs_suggestions|length }} suggested</span>{% endif %}
         <span style="margin-left:auto;color:#334155;font-size:10px;">click to expand</span>
     </div>
     <div id="hs-assist-body" style="display:none; padding:10px 14px; border-top:1px solid #1e293b;">
@@ -1556,8 +1597,12 @@ document.body.classList.add('light-mode');
         <p class="card-title" style="margin:0; font-size:13px;">ECDT Line Items</p>
         <div style="display:flex; gap:8px; align-items:center;">
             <p style="color:#475569; font-size:10px; margin:0;">
-                D/V = EXW + Freight + Insurance
+                EXW follows invoice currency; freight and insurance are USD
             </p>
+            {% if documents %}
+            <button type="button" class="btn btn-secondary" onclick="openDocPanel()"
+                    style="font-size:11px; padding:4px 10px;">View Docs</button>
+            {% endif %}
             <button type="button" class="btn btn-secondary" onclick="toggleLineItemsFullscreen()"
                     style="font-size:11px; padding:4px 10px;">Expand</button>
             <button type="button" class="btn btn-secondary" onclick="addRow()"
@@ -1573,19 +1618,19 @@ document.body.classList.add('light-mode');
             <colgroup>
                 <col style="width:26px">  <!-- # -->
                 <col style="width:150px"> <!-- Description -->
-                <col style="width:66px">  <!-- EXW/FOB invoice currency -->
-                <col style="width:60px">  <!-- Freight invoice currency (input) -->
-                <col style="width:60px">  <!-- Insurance invoice currency (input) -->
-                <col style="width:66px">  <!-- D/V invoice currency (calc) -->
-                <col style="width:72px">  <!-- D/V &#8369; (calc) -->
+                <col style="width:86px">  <!-- EXW/FOB invoice currency -->
+                <col style="width:76px">  <!-- Freight USD (input) -->
+                <col style="width:76px">  <!-- Insurance USD (input) -->
+                <col style="width:86px">  <!-- D/V USD equivalent (calc) -->
+                <col style="width:92px">  <!-- D/V &#8369; (calc) -->
                 <col style="width:130px"> <!-- HS Code -->
-                <col style="width:48px">  <!-- Rate% -->
-                <col style="width:72px">  <!-- CUD &#8369; (calc) -->
-                <col style="width:44px">  <!-- GW -->
-                <col style="width:44px">  <!-- NW -->
-                <col style="width:44px">  <!-- QTY -->
-                <col style="width:48px">  <!-- Unit -->
-                <col style="width:44px">  <!-- PKGS -->
+                <col style="width:58px">  <!-- Rate% -->
+                <col style="width:92px">  <!-- CUD &#8369; (calc) -->
+                <col style="width:82px">  <!-- GW -->
+                <col style="width:82px">  <!-- NW -->
+                <col style="width:74px">  <!-- QTY -->
+                <col style="width:62px">  <!-- Unit -->
+                <col style="width:68px">  <!-- PKGS -->
                 <col style="width:26px">  <!-- del -->
             </colgroup>
             <thead>
@@ -1593,9 +1638,9 @@ document.body.classList.add('light-mode');
                     <th style="text-align:left;">#</th>
                     <th style="text-align:left;">Description</th>
                     <th>EXW/FOB&#10;(<span class="cur-code-lbl">{{ invoice_currency }}</span>)</th>
-                    <th>Freight&#10;(<span class="cur-code-lbl">{{ invoice_currency }}</span>)</th>
-                    <th>Ins.&#10;(<span class="cur-code-lbl">{{ invoice_currency }}</span>)</th>
-                    <th>D/V&#10;(<span class="cur-code-lbl">{{ invoice_currency }}</span>)</th>
+                    <th>Freight&#10;(USD)</th>
+                    <th>Ins.&#10;(USD)</th>
+                    <th>D/V&#10;(USD equiv.)</th>
                     <th>D/V&#10;(&#8369;)</th>
                     <th style="text-align:left;">HS Code</th>
                     <th>Rate&#10;%</th>
@@ -1653,28 +1698,27 @@ document.body.classList.add('light-mode');
                     <td>
                         <input class="ecdt-input rate-input" type="number" name="item_duty_rate[]"
                                step="0.01" placeholder="0" value="{{ item.duty_rate|default:'' }}"
-                               oninput="recalcAll()" style="width:40px;">
+                               oninput="recalcAll()">
                     </td>
                     <td class="calc cud" data-field="cud">{% if item.cud %}{{ item.cud|floatformat:2 }}{% else %}&mdash;{% endif %}</td>
                     <td>
-                        <input class="ecdt-input" type="number" name="gw[]"
+                        <input class="ecdt-input measure-input" type="number" name="gw[]"
                                step="0.01" value="{{ item.gw|default:'' }}" placeholder="0">
                     </td>
                     <td>
-                        <input class="ecdt-input" type="number" name="nw[]"
+                        <input class="ecdt-input measure-input" type="number" name="nw[]"
                                step="0.01" value="{{ item.nw|default:'' }}" placeholder="0">
                     </td>
                     <td>
-                        <input class="ecdt-input" type="number" name="quantity[]"
+                        <input class="ecdt-input qty-input" type="number" name="quantity[]"
                                step="1" value="{{ item.quantity|default:'' }}" placeholder="0">
                     </td>
                     <td>
-                        <input class="ecdt-input" type="text" name="unit[]"
-                               value="{{ item.unit|default:'' }}" placeholder="PCS"
-                               style="width:44px; text-transform:uppercase;">
+                        <input class="ecdt-input unit-input" type="text" name="unit[]"
+                               value="{{ item.unit|default:'' }}" placeholder="PCS">
                     </td>
                     <td>
-                        <input class="ecdt-input" type="number" name="pkgs[]"
+                        <input class="ecdt-input qty-input" type="number" name="pkgs[]"
                                step="1" value="{{ item.pkgs|default:'' }}" placeholder="0">
                     </td>
                     <td>
@@ -1704,13 +1748,13 @@ document.body.classList.add('light-mode');
                             <div class="hs-results"></div>
                         </div>
                     </td>
-                    <td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" step="0.01" placeholder="0" oninput="recalcAll()" style="width:40px;"></td>
+                    <td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" step="0.01" placeholder="0" oninput="recalcAll()"></td>
                     <td class="calc cud" data-field="cud">&mdash;</td>
-                    <td><input class="ecdt-input" type="number" name="gw[]" step="0.01" placeholder="0"></td>
-                    <td><input class="ecdt-input" type="number" name="nw[]" step="0.01" placeholder="0"></td>
-                    <td><input class="ecdt-input" type="number" name="quantity[]" step="1" placeholder="0"></td>
-                    <td><input class="ecdt-input" type="text" name="unit[]" placeholder="PCS" style="width:44px; text-transform:uppercase;"></td>
-                    <td><input class="ecdt-input" type="number" name="pkgs[]" step="1" placeholder="0"></td>
+                    <td><input class="ecdt-input measure-input" type="number" name="gw[]" step="0.01" placeholder="0"></td>
+                    <td><input class="ecdt-input measure-input" type="number" name="nw[]" step="0.01" placeholder="0"></td>
+                    <td><input class="ecdt-input qty-input" type="number" name="quantity[]" step="1" placeholder="0"></td>
+                    <td><input class="ecdt-input unit-input" type="text" name="unit[]" placeholder="PCS"></td>
+                    <td><input class="ecdt-input qty-input" type="number" name="pkgs[]" step="1" placeholder="0"></td>
                     <td>
                         <button type="button" onclick="removeRow(this)"
                                 style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 3px;">&times;</button>
@@ -1821,7 +1865,7 @@ document.body.classList.add('light-mode');
 
 <!-- â”€â”€ ECDT Summary (post-compute, Excel layout) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
 {% if result or existing %}
-<div class="card" style="margin-bottom:14px;">
+<div class="card" id="ecdt-summary-card" style="margin-bottom:14px; scroll-margin-top:20px;">
     <p class="card-title" style="margin-bottom:14px;">ECDT Summary</p>
 
     <div class="ecdt-summary-grid">
@@ -2053,29 +2097,29 @@ document.body.classList.add('light-mode');
 {% with tlc=result.total_landed_cost|default:comp.total_landed_cost vat=result.vat|default:comp.vat_amount boc=result.boc_total|default:'' %}
 <div class="pay-banner" style="background: linear-gradient(135deg, #0f2027 0%, #1e3a5f 60%, #0d1b2a 100%);
             border: 2px solid #22c55e; border-radius: 12px; padding: 20px 24px;
-            margin-bottom: 18px; position: relative; overflow: hidden;">
+            margin-bottom: 18px; position: relative; overflow: hidden; text-align:center;">
     <div style="position:absolute; top:0; right:0; width:180px; height:180px;
                 background: radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%);
                 pointer-events:none;"></div>
     <p style="color:#22c55e; font-size:11px; font-weight:700; letter-spacing:0.8px;
               text-transform:uppercase; margin:0 0 8px;">Estimated Amount to Pay</p>
-    <div style="display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap;">
-        <div>
+    <div style="display:flex; align-items:stretch; justify-content:center; gap:16px; flex-wrap:wrap;">
+        <div style="min-width:180px; text-align:center;">
             <p style="color:#94a3b8; font-size:11px; margin:0 0 2px;">Total Landed Cost</p>
             <p style="color:#f1f5f9; font-size:22px; font-weight:800; margin:0; font-family:monospace;">
                 &#8369;{{ tlc|floatformat:2 }}
             </p>
         </div>
-        <div style="color:#334155; font-size:18px; font-weight:300; padding-bottom:4px;">+</div>
-        <div>
+        <div style="color:#334155; font-size:18px; font-weight:300; display:flex; align-items:center;">+</div>
+        <div style="min-width:150px; text-align:center;">
             <p style="color:#94a3b8; font-size:11px; margin:0 0 2px;">VAT (12%)</p>
             <p style="color:#93c5fd; font-size:22px; font-weight:800; margin:0; font-family:monospace;">
                 &#8369;{{ vat|floatformat:2 }}
             </p>
         </div>
-        <div style="color:#334155; font-size:18px; font-weight:300; padding-bottom:4px;">=</div>
+        <div style="color:#334155; font-size:18px; font-weight:300; display:flex; align-items:center;">=</div>
         <div style="background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3);
-                    border-radius:8px; padding:8px 16px;">
+                    border-radius:8px; padding:8px 16px; min-width:220px; text-align:center;">
             <p style="color:#86efac; font-size:11px; margin:0 0 2px; font-weight:700;">GRAND TOTAL</p>
             <p style="color:#22c55e; font-size:26px; font-weight:900; margin:0; font-family:monospace;"
                id="grand-total-display">
@@ -2369,6 +2413,41 @@ var ocrData = {
     {% endif %}
 };
 
+var originDistanceMap = {{ country_distance_map|safe }};
+
+function applyOriginDistance(force) {
+    var countryEl = document.getElementById('origin_country');
+    var distanceEl = document.getElementById('distance_km');
+    var hintEl = document.getElementById('origin-distance-hint');
+    if (!countryEl || !distanceEl) return;
+
+    var typed = (countryEl.value || '').trim();
+    var matchName = null;
+    var typedLower = typed.toLowerCase();
+    Object.keys(originDistanceMap).some(function(name) {
+        if (name.toLowerCase() === typedLower) {
+            matchName = name;
+            return true;
+        }
+        return false;
+    });
+
+    if (matchName && (force || typed)) {
+        var km = originDistanceMap[matchName];
+        distanceEl.value = km;
+        if (hintEl) {
+            hintEl.textContent = 'Using approx. ' + km.toLocaleString('en-US') + ' km from ' + matchName + ' to Manila. You can still override the distance.';
+            hintEl.style.color = '#16a34a';
+        }
+    } else if (hintEl && typed.length > 0) {
+        hintEl.textContent = 'Country not in the quick list. Enter the distance manually if needed.';
+        hintEl.style.color = '#b45309';
+    } else if (hintEl) {
+        hintEl.textContent = 'Choose a country to auto-fill the route distance.';
+        hintEl.style.color = '#64748b';
+    }
+}
+
 var hsCodesData = [
     {% for hs in hs_codes %}{id: {{ hs.id }}, code: '{{ hs.code|escapejs }}', rate: {{ hs.duty_rate }}, desc: '{{ hs.description|truncatechars:60|escapejs }}', chapter: '{{ hs.chapter|default:""|escapejs }}'}{% if not forloop.last %},{% endif %}{% endfor %}
 ];
@@ -2588,7 +2667,7 @@ function _createHsPicker() {
 }
 
 // â”€â”€ Build a new table row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Col order: #, Desc, EXW, Freight, Ins, D/V foreign, D/V&#8369;, HS, Rate%, CUD&#8369;, GW, NW, QTY, Unit, PKGS, del
+// Col order: #, Desc, EXW, Freight USD, Ins USD, D/V USD equiv., D/V&#8369;, HS, Rate%, CUD&#8369;, GW, NW, QTY, Unit, PKGS, del
 function _makeRow(n, desc, exw, qty) {
     var tr = document.createElement('tr');
     tr.innerHTML =
@@ -2610,13 +2689,13 @@ function _makeRow(n, desc, exw, qty) {
         '<td class="calc dvphp" data-field="dvphp">&mdash;</td>' +
         '<td class="hs-picker-td"></td>' +
         '<td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" ' +
-             'step="0.01" placeholder="0" oninput="recalcAll()" style="width:40px;"></td>' +
+             'step="0.01" placeholder="0" oninput="recalcAll()"></td>' +
         '<td class="calc cud" data-field="cud">&mdash;</td>' +
-        '<td><input class="ecdt-input" type="number" name="gw[]" step="0.01" placeholder="0"></td>' +
-        '<td><input class="ecdt-input" type="number" name="nw[]" step="0.01" placeholder="0"></td>' +
-        '<td><input class="ecdt-input" type="number" name="quantity[]" step="1" value="' + (qty||'') + '" placeholder="0"></td>' +
-        '<td><input class="ecdt-input" type="text" name="unit[]" placeholder="PCS" style="width:44px;text-transform:uppercase;"></td>' +
-        '<td><input class="ecdt-input" type="number" name="pkgs[]" step="1" placeholder="0"></td>' +
+        '<td><input class="ecdt-input measure-input" type="number" name="gw[]" step="0.01" placeholder="0"></td>' +
+        '<td><input class="ecdt-input measure-input" type="number" name="nw[]" step="0.01" placeholder="0"></td>' +
+        '<td><input class="ecdt-input qty-input" type="number" name="quantity[]" step="1" value="' + (qty||'') + '" placeholder="0"></td>' +
+        '<td><input class="ecdt-input unit-input" type="text" name="unit[]" placeholder="PCS"></td>' +
+        '<td><input class="ecdt-input qty-input" type="number" name="pkgs[]" step="1" placeholder="0"></td>' +
         '<td><button type="button" onclick="removeRow(this)" ' +
              'style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 3px;">&times;</button></td>';
     tr.querySelector('.hs-picker-td').appendChild(_createHsPicker());
@@ -2693,13 +2772,14 @@ function onCurrencyChange(code) {
 }
 
 // ── Live recalculation ────────────────────────────────────────────────────────
-// D/V = EXW + Freight + Insurance (no O/C)
+// EXW uses invoice currency; freight/insurance use USD.
 // TLC = D/V + Bank Charges + CUD + BF + CDS + IPF + Arrastre + Wharfage + CSF
 // VAT = 12% * TLC
 // BOC Total = CUD + VAT + CDS + IPF
 function recalcAll() {
     var rows     = document.querySelectorAll('#ecdt-body tr');
     var exchRate = parseFloat(document.getElementById('exchange_rate').value) || 0;
+    var usdRate  = parseFloat(_CURRENCY_RATES.USD || '{{ usd_exchange_rate }}') || exchRate;
 
     // Port fees
     var arrEl    = document.getElementById('arrastre');
@@ -2710,7 +2790,7 @@ function recalcAll() {
     var wharfage = wharfEl  ? (parseFloat(wharfEl.value)  || 0) : 0;
     var csfUsd   = csfUsdEl ? (parseFloat(csfUsdEl.value) || 0) : 0;
     var bankChg  = bcEl     ? (parseFloat(bcEl.value)     || 0) : 0;
-    var csfPhp   = csfUsd * exchRate;
+    var csfPhp   = csfUsd * usdRate;
     var chargeMode  = (document.getElementById('charge_mode') || {}).value || '';
     var cargoVolume = parseFloat((document.getElementById('cargo_volume') || {}).value) || 0;
     var grossWeight = parseFloat('{{ shipment.gross_weight|default:"0" }}') || 0;
@@ -2769,9 +2849,11 @@ function recalcAll() {
         var insurance = parseFloat(insInp  ? insInp.value  : 0) || 0;
         var dutyRate  = parseFloat(rateInp ? rateInp.value : 0) || 0;
 
-        // D/V = EXW + Freight + Insurance (NO O/C)
-        var dvUsd = exw + freight + insurance;
-        var dvPhp = dvUsd * exchRate;
+        var exwPhp       = exw * exchRate;
+        var freightPhp   = freight * usdRate;
+        var insurancePhp = insurance * usdRate;
+        var dvPhp        = exwPhp + freightPhp + insurancePhp;
+        var dvUsd        = usdRate ? (dvPhp / usdRate) : 0;
         var cud   = dvPhp * (dutyRate / 100);
 
         totalDvPhp += dvPhp;
@@ -3274,6 +3356,15 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchRowSuggestions(inp);
         }
     });
+
+    if (window.location.hash === '#ecdt-summary-card') {
+        var summaryCard = document.getElementById('ecdt-summary-card');
+        if (summaryCard) {
+            setTimeout(function() {
+                summaryCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 80);
+        }
+    }
 });
 
 // Initial calc + init HS pickers

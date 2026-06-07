@@ -39,6 +39,48 @@ def _clean_number(value):
     return re.sub(r'[^0-9.\-]', '', value)
 
 
+def _volume_cbm_from_dimensions(text):
+    """
+    Convert clear L x W x H measurements into CBM.
+    Examples: 65x66x6 cm, 65 × 66 × 6 CM, 0.65 x 0.66 x 0.06 m.
+    """
+    if not text:
+        return '', ''
+
+    total_cbm = 0.0
+    matches = []
+    dim_re = re.compile(
+        r'(?:(\d{1,4})\s*(?:CTNS?|CARTONS?|PKGS?|PACKAGES?|CASES?)\s*)?'
+        r'(\d+(?:[.,]\d+)?)\s*(?:x|X|×|\*)\s*'
+        r'(\d+(?:[.,]\d+)?)\s*(?:x|X|×|\*)\s*'
+        r'(\d+(?:[.,]\d+)?)\s*(cm|cms|centimeters?|mm|millimeters?|m|meters?)\b',
+        re.IGNORECASE,
+    )
+
+    for match in dim_re.finditer(text):
+        multiplier = int(match.group(1) or 1)
+        length = float(match.group(2).replace(',', '.'))
+        width = float(match.group(3).replace(',', '.'))
+        height = float(match.group(4).replace(',', '.'))
+        unit = match.group(5).lower()
+
+        if unit.startswith('mm') or unit.startswith('millimeter'):
+            cbm = (length * width * height) / 1_000_000_000
+        elif unit.startswith('cm') or unit.startswith('centimeter'):
+            cbm = (length * width * height) / 1_000_000
+        else:
+            cbm = length * width * height
+
+        if cbm <= 0 or cbm > 500:
+            continue
+        total_cbm += cbm * multiplier
+        matches.append(match.group(0).strip())
+
+    if total_cbm <= 0:
+        return '', ''
+    return f'{total_cbm:.4f}', '; '.join(matches[:5])
+
+
 def _first_match(text, patterns, group=1):
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
@@ -144,17 +186,30 @@ def _tesseract_extract(image, config):
         )
         words  = data.get('text', [])
         confs  = data.get('conf', [])
-        text_parts, conf_scores = [], []
-        for w, c in zip(words, confs):
-            try:
-                score = float(c)
-            except (TypeError, ValueError):
+        block_nums = data.get('block_num', [0] * len(words))
+        par_nums   = data.get('par_num', [0] * len(words))
+        line_nums  = data.get('line_num', [0] * len(words))
+        line_order, line_parts, conf_scores = [], {}, []
+        for i, w in enumerate(words):
+            clean_word = (w or '').strip()
+            if not clean_word:
                 continue
+            try:
+                score = float(confs[i])
+            except (TypeError, ValueError, IndexError):
+                score = -1
             if score >= 0:
                 conf_scores.append(score)
-            if w:
-                text_parts.append(w)
-        text       = ' '.join(text_parts)
+            line_key = (block_nums[i], par_nums[i], line_nums[i])
+            if line_key not in line_parts:
+                line_parts[line_key] = []
+                line_order.append(line_key)
+            line_parts[line_key].append(clean_word)
+        text = '\n'.join(
+            ' '.join(line_parts[key]).strip()
+            for key in line_order
+            if line_parts.get(key)
+        )
         confidence = sum(conf_scores) / len(conf_scores) if conf_scores else 0
         return text, confidence
     except Exception as e:
@@ -307,14 +362,10 @@ def extract_text_from_file(file_path):
             return full_text
 
         elif ext in ['.jpg', '.jpeg', '.png']:
-            if api_key:
-                with open(file_path, 'rb') as f:
-                    return _vision_api_call(api_key, f.read())
-            else:
-                image = Image.open(file_path)
-                text = pytesseract.image_to_string(image, config='--psm 3')
-                image.close()
-                return text
+            image = Image.open(file_path)
+            text = _image_to_text(image, api_key)
+            image.close()
+            return text
         else:
             return ''
 
@@ -369,11 +420,12 @@ def _extract_line_items(text):
     _HS = r'\d{4}(?:[\s.]?\d{2}){1,3}'
     # 2-letter country / origin code (appears between HS and qty in some invoices)
     _CC = r'[A-Z]{2}'
+    _PKG = r'(?:BOX(?:ES)?|CTN|CTNS?|CARTONS?|PKGS?|PKG|PALLETS?|CASES?)'
 
     # ── Pattern A ─ line with embedded HS code (and optional country code) ───
     # e.g. "THE PENINSULA GROUP MAGAZINE 2025  4911 1010  HK  625  US$3.00  US$1,875.00"
     pat_A = re.compile(
-        rf'^(?:\d+[\s.)]+)?(.+?)\s+(?:{_HS})\s+(?:{_CC}\s+)?(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s*$',
+        rf'^(?:\d+[\s.)]+)?(.+?)\s*({_HS})\s+(?:{_CC}\s+)?(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s*$',
         re.IGNORECASE,
     )
 
@@ -388,6 +440,16 @@ def _extract_line_items(text):
     # e.g. "NASAL SPRAY 200  PCS  15.00  12.00  10"
     pat_C = re.compile(
         rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s+(\d+)\s*$',
+        re.IGNORECASE,
+    )
+
+    pat_C2 = re.compile(
+        rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d[\d,]*(?:\.\d+)?)\s*({_U})\s+(\d[\d,]*(?:\.\d+)?)\s*{_PKG}\s+([\d,]+(?:\.\d+)?)\s+([\d,]+(?:\.\d+)?)\s+([\d,]+(?:\.\d+)?)\s*$',
+        re.IGNORECASE,
+    )
+
+    pat_C3 = re.compile(
+        r'^(?:\d+[\s.)]+)?\S+\s+\S+\s+(.+?)\s+kg\s+.*?\s+(\d[\d,]*(?:[.,]\d+)?)\s*(PCS?|PC|PIECES|UNITS?)\s+([\d,]+(?:[.,]\d+)?)\s*kg\s+([\d,]+(?:[.,]\d+)?)\s*$',
         re.IGNORECASE,
     )
 
@@ -410,18 +472,51 @@ def _extract_line_items(text):
     # Pattern handles: "HS CODE: 3923.30", "HS CODE 3923.30", "HSCODE:3923.30",
     #                  "HS CODE: 3923 30 00", "HS: 9616.10"
     _hs_label_pat = re.compile(
-        r'\bHS[\s._-]*CODE\b[\s:]*(\d{4}(?:[.\s]?\d{2}){1,3})',
+        r'(?:\bHS[\s._-]*CODE\b|\bCustoms\s+tariff\s+no\.?)\s*[:\-]?\s*(\d{4}(?:[.\s]?\d{2}){1,3})',
         re.IGNORECASE,
     )
     lines = text.splitlines()
+    def _normalize_hs_code(raw):
+        digits = re.sub(r'\D', '', str(raw or ''))
+        if len(digits) == 6:
+            return f'{digits[:4]}.{digits[4:]}'
+        if len(digits) == 8:
+            return f'{digits[:4]}.{digits[4:6]}.{digits[6:]}'
+        if len(digits) == 10:
+            return f'{digits[:4]}.{digits[4:6]}.{digits[6:8]}.{digits[8:]}'
+        return re.sub(r'\s+', '.', str(raw or '').strip())
+
     _hs_at_line = {}  # line_index → normalized HS code string  e.g. "3923.30"
     for _i, _ln in enumerate(lines):
         _m = _hs_label_pat.search(_ln)
         if _m:
             _raw = _m.group(1).strip()
             # Normalize spaces/dots between digit groups → dots
-            _normalized = re.sub(r'[\s]+', '.', _raw)
+            _normalized = _normalize_hs_code(_raw)
             _hs_at_line[_i] = _normalized
+
+    def _nearby_description(start_idx, fallback=''):
+        skip_fragments = {
+            'serial number', 'order no', 'customs tariff', 'country of origin',
+            'preferential origin', 'temperature range', 'voltage', 'frequency',
+            'door type', 'interface', 'power plug', 'accessories',
+        }
+        for next_line in lines[start_idx + 1:start_idx + 9]:
+            candidate = next_line.strip()
+            if not candidate or len(candidate) < 4:
+                continue
+            low = candidate.lower()
+            if any(frag in low for frag in skip_fragments):
+                continue
+            if _hs_label_pat.search(candidate):
+                continue
+            if re.search(r'(?:US\$|USD|EUR|PHP|\$|€)\s*[\d,]+(?:\.\d+)?', candidate, re.IGNORECASE):
+                continue
+            if re.match(r'^[\d\s,.$€\-=_/]+$', candidate):
+                continue
+            if re.search(r'[A-Za-z]{3,}', candidate):
+                return re.sub(r'^\d+[\s.)]+', '', candidate).strip()
+        return fallback
 
     items = []
     for idx, raw_line in enumerate(lines):
@@ -444,51 +539,71 @@ def _extract_line_items(text):
         matched_pattern = None
         desc_raw = qty = unit = unit_price_str = amount_str = ''
         gross_weight = net_weight = packages = ''
+        inline_doc_hs_code = None
         confidence = 0.70
 
         # Try patterns in specificity order: A (most specific) → D (least)
         m = pat_A.match(line)
         if m:
-            desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
-            unit_price_str, amount_str = m.group(4), m.group(5)
+            desc_raw = m.group(1)
+            inline_doc_hs_code = _normalize_hs_code(m.group(2))
+            qty, unit = m.group(3), m.group(4) or ''
+            unit_price_str, amount_str = m.group(5), m.group(6)
             matched_pattern, confidence = 'A', 0.90
         else:
-            m = pat_C.match(line)
+            m = pat_C2.match(line)
             if m:
                 desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
-                gross_weight = _clean_number(m.group(4))
-                net_weight   = _clean_number(m.group(5))
-                packages     = _clean_number(m.group(6))
-                matched_pattern, confidence = 'C', 0.80
+                packages     = _clean_number(m.group(4))
+                gross_weight = _clean_number(m.group(5))
+                net_weight   = _clean_number(m.group(6))
+                matched_pattern, confidence = 'C2', 0.88
             else:
-                m = pat_B.match(line)
+                m = pat_C3.match(line)
                 if m:
                     desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
-                    unit_price_str, amount_str = m.group(4), m.group(5)
-                    matched_pattern, confidence = 'B', 0.80
+                    gross_weight = _clean_number(m.group(4).replace(',', '.'))
+                    net_weight   = _clean_number(m.group(5).replace(',', '.'))
+                    matched_pattern, confidence = 'C3', 0.86
                 else:
-                    m = pat_D.match(line)
+                    m = pat_C.match(line)
                     if m:
                         desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
-                        amount_str = m.group(4)
-                        matched_pattern, confidence = 'D', 0.65
+                        gross_weight = _clean_number(m.group(4))
+                        net_weight   = _clean_number(m.group(5))
+                        packages     = _clean_number(m.group(6))
+                        matched_pattern, confidence = 'C', 0.80
                     else:
-                        m = pat_E.match(line)
+                        m = pat_B.match(line)
                         if m:
-                            desc_raw   = m.group(1)
-                            amount_str = m.group(2)
-                            qty = unit = ''
-                            matched_pattern, confidence = 'E', 0.50
+                            desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
+                            unit_price_str, amount_str = m.group(4), m.group(5)
+                            matched_pattern, confidence = 'B', 0.80
+                        else:
+                            m = pat_D.match(line)
+                            if m:
+                                desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
+                                amount_str = m.group(4)
+                                matched_pattern, confidence = 'D', 0.65
+                            else:
+                                m = pat_E.match(line)
+                                if m:
+                                    desc_raw   = m.group(1)
+                                    amount_str = m.group(2)
+                                    qty = unit = ''
+                                    matched_pattern, confidence = 'E', 0.50
 
         if not matched_pattern:
             continue
 
         # Description must contain at least one word of ≥3 letters
-        if not re.search(r'[A-Za-z]{3,}', desc_raw):
-            continue
+        has_word_description = bool(re.search(r'[A-Za-z]{3,}', desc_raw))
 
         # Strip leading row number
         desc_part = re.sub(r'^\d+[\s.)]+', '', desc_raw).strip()
+        desc_part = re.sub(rf'\s*{_HS}\s*$', '', desc_part, flags=re.IGNORECASE).strip()
+        if not has_word_description or re.fullmatch(r'[A-Za-z]{1,4}\d+', desc_part or ''):
+            desc_part = _nearby_description(idx, desc_part)
         if len(desc_part) < 4 or not re.search(r'[A-Za-z]{3,}', desc_part):
             continue
 
@@ -541,8 +656,8 @@ def _extract_line_items(text):
         # the item description, e.g.:
         #   BOTTLE, PLASTIC NASAL SPRAY 17/415, PE 30ML  ...  USD10,150.00
         #   HS CODE: 3923.30
-        doc_hs_code = None
-        for _look in range(1, 7):
+        doc_hs_code = inline_doc_hs_code
+        for _look in range(1, 21):
             _next_idx = idx + _look
             if _next_idx in _hs_at_line:
                 doc_hs_code = _hs_at_line[_next_idx]
@@ -928,6 +1043,9 @@ def extract_fields_from_hawb(text):
         if m:
             volume_cbm = m.group(1).replace(',', '')
             break
+    dimensions_text = ''
+    if not volume_cbm:
+        volume_cbm, dimensions_text = _volume_cbm_from_dimensions(text)
 
     # ── Vessel / Flight Number ─────────────────────────────────────────────────
     flight_number = ''
@@ -1063,6 +1181,7 @@ def extract_fields_from_hawb(text):
         'gross_weight':   _w(gross_weight,  0.90),
         'total_gross_weight': _w(gross_weight, 0.90),
         'volume_cbm':     _w(volume_cbm,    0.85),
+        'dimensions':     _w(dimensions_text, 0.75),
         'flight_number':  _w(flight_number, 0.85),
         'flight_date':    _w(flight_date,   0.85),
         'hs_code':        _w(hs_code,       0.85),
@@ -1150,6 +1269,9 @@ def extract_fields_from_packing_list(text):
         if m:
             volume_cbm = m.group(1).replace(',', '')
             break
+    dimensions_text = ''
+    if not volume_cbm:
+        volume_cbm, dimensions_text = _volume_cbm_from_dimensions(text)
 
     # ── Description ────────────────────────────────────────────────────────────
     description = _block_after_label(
@@ -1175,6 +1297,7 @@ def extract_fields_from_packing_list(text):
         'num_packages':   _w(num_packages,  0.85),
         'total_quantity': _w(total_quantity,0.85),
         'volume_cbm':     _w(volume_cbm,    0.85),
+        'dimensions':     _w(dimensions_text, 0.75),
         'description':    _w(description,   0.80),
     }
 
@@ -1182,6 +1305,42 @@ def extract_fields_from_packing_list(text):
         fields['__items__'] = line_items
 
     return fields
+
+
+def extract_fields_from_fan(text):
+    """Extract key assessment amounts from a Final Assessment Notice."""
+    def _amount(patterns):
+        for pat in patterns:
+            m = re.search(pat, text, re.IGNORECASE | re.MULTILINE)
+            if m:
+                return _clean_number(m.group(1))
+        return ''
+
+    customs_duty = _amount([
+        r'(?:Customs\s+Duty|Dut(?:y|ies)|CUD)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
+        r'(?:Amount\s+of\s+Duty)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
+    ])
+    vat = _amount([
+        r'(?:Value\s+Added\s+Tax|VAT)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
+    ])
+    total_taxes = _amount([
+        r'(?:Total\s+Taxes?|Total\s+Duties\s+and\s+Taxes|Duties\s+and\s+Taxes)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
+    ])
+    total_fees = _amount([
+        r'(?:Total\s+Fees?|Other\s+Charges|Charges\s+and\s+Fees)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
+    ])
+    total_payable = _amount([
+        r'(?:Total\s+Assessment|Amount\s+Payable|Total\s+Amount\s+Payable|Grand\s+Total|Total\s+Payable)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
+        r'(?:Total\s+Amount\s+Due|Amount\s+Due)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
+    ])
+
+    return {
+        'customs_duty':  _w(customs_duty, 0.80),
+        'vat':           _w(vat, 0.80),
+        'total_taxes':   _w(total_taxes, 0.75),
+        'total_fees':    _w(total_fees, 0.70),
+        'total_payable': _w(total_payable, 0.80),
+    }
 
 
 def process_document(file_path, document_type):
@@ -1196,6 +1355,8 @@ def process_document(file_path, document_type):
         fields = extract_fields_from_hawb(text)
     elif document_type == 'packing_list':
         fields = extract_fields_from_packing_list(text)
+    elif document_type == 'sad':
+        fields = extract_fields_from_fan(text)
     else:
         fields = {}
 

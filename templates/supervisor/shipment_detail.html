@@ -285,11 +285,11 @@
                 </div>
                 <div>
                     <span style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.6px;">Freight</span>
-                    <span style="font-size:12px; color:#374151; font-weight:600; margin-left:8px;">{{ shipment.invoice_currency|default:"USD" }} {{ computation.total_freight|floatformat:2 }}</span>
+                    <span style="font-size:12px; color:#374151; font-weight:600; margin-left:8px;">USD {{ computation.total_freight|floatformat:2 }}</span>
                 </div>
                 <div>
                     <span style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.6px;">Insurance</span>
-                    <span style="font-size:12px; color:#374151; font-weight:600; margin-left:8px;">{{ shipment.invoice_currency|default:"USD" }} {{ computation.total_insurance|floatformat:2 }}</span>
+                    <span style="font-size:12px; color:#374151; font-weight:600; margin-left:8px;">USD {{ computation.total_insurance|floatformat:2 }}</span>
                 </div>
             </div>
             {% with items=computation.get_items %}
@@ -406,14 +406,14 @@
 </div>
 {% endif %}
 
-<!-- SAD Document -->
+<!-- FAN Document -->
 {% if shipment.status in 'assessed,paid,released,billed' %}
 <div class="card" style="margin-bottom:20px; border-color:#f59e0b44;">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-        <p class="card-title" style="margin:0;">Single Administrative Document (SAD)</p>
+        <p class="card-title" style="margin:0;">Final Assessment Notice (FAN)</p>
         <span style="font-size:10px; font-weight:700; letter-spacing:0.5px; padding:3px 10px;
                      border-radius:999px; background:#FFFBEB; color:#fbbf24; border:1px solid #92400e;">
-            OFFICIAL BOC DOCUMENT
+            OFFICIAL BOC ASSESSMENT
         </span>
     </div>
     {% if sad_document %}
@@ -423,7 +423,7 @@
             <path fill-rule="evenodd" d="M6 3a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L13 3.586A2 2 0 0011.586 3H6zm3.75 7.5a.75.75 0 000 1.5h3.5a.75.75 0 000-1.5h-3.5zm0 3a.75.75 0 000 1.5h3.5a.75.75 0 000-1.5h-3.5z" clip-rule="evenodd"/>
         </svg>
         <div style="flex:1;">
-            <p style="color:#fbbf24; font-size:13px; font-weight:700; margin:0 0 2px;">SAD Document Available</p>
+            <p style="color:#fbbf24; font-size:13px; font-weight:700; margin:0 0 2px;">FAN Document Available</p>
             <p style="color:#9CA3AF; font-size:11px; margin:0;">Uploaded {{ sad_document.uploaded_at|date:"M d, Y g:i A" }}</p>
         </div>
         <a href="{{ sad_document.file.url }}" target="_blank"
@@ -432,16 +432,28 @@
                   border:1px solid #FCD34D; border-radius:6px; background:#FFFBEB; flex-shrink:0;"
            onmouseover="this.style.background='#FEF3C7'"
            onmouseout="this.style.background='#FFFBEB'">
-            View SAD
+            View FAN
         </a>
     </div>
+    {% if fan_assessment_has_values %}
+    <div style="margin-top:12px; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px;">
+        {% for row in fan_assessment_rows %}
+        {% if row.value %}
+        <div style="background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px; padding:9px 10px;">
+            <p style="font-size:9px; font-weight:800; text-transform:uppercase; color:#6B7280; margin:0 0 3px;">{{ row.label }}</p>
+            <p style="font-size:13px; font-weight:800; color:#0B2D55; margin:0;">₱{{ row.value }}</p>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
     {% else %}
     <div style="display:flex; align-items:center; gap:12px; padding:12px 14px;
                 background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px;">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="color:#9CA3AF; flex-shrink:0;">
             <path fill-rule="evenodd" d="M6 3a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L13 3.586A2 2 0 0011.586 3H6zm2.28 6.22a.75.75 0 00-1.06 1.06L8.94 12l-1.72 1.72a.75.75 0 101.06 1.06L10 13.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L10 10.94 8.28 9.22z" clip-rule="evenodd"/>
         </svg>
-        <p style="color:#6B7280; font-size:13px; margin:0;">SAD document not yet uploaded by declarant.</p>
+        <p style="color:#6B7280; font-size:13px; margin:0;">FAN document not yet uploaded by declarant.</p>
     </div>
     {% endif %}
 </div>

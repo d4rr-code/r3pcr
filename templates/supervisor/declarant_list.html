@@ -87,7 +87,6 @@
                         <th>Active<br>Count</th>
                         <th>Revised<br>Count</th>
                         <th>Average<br>Clearance Time</th>
-                        <th>Incoming Due<br>Date (3 Days)</th>
                         <th>Current Handled<br>Shipment</th>
                         <th>Current Handled<br>Consignee</th>
                         <th></th>
@@ -102,7 +101,6 @@
                         <td>{{ row.active_count }}</td>
                         <td>{{ row.revised_count }}</td>
                         <td>{% if row.average_clearance_days %}{{ row.average_clearance_days }} Days{% else %}-{% endif %}</td>
-                        <td>{{ row.incoming_due }}</td>
                         <td>{% if row.current_shipment %}{{ row.current_shipment.hawb_number }}{% else %}-{% endif %}</td>
                         <td>{% if row.current_shipment %}{{ row.current_shipment.consignee.get_full_name|default:row.current_shipment.consignee.username }}{% else %}-{% endif %}</td>
                         <td class="cs-action">

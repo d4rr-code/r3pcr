@@ -1,10 +1,20 @@
-{% extends 'declarant/base_declarant.html' %}
+{% extends 'consignee/base_consignee.html' %}
 {% block title %}Global Parameters{% endblock %}
 {% block page_title %}Global Parameters{% endblock %}
 {% block nav_system_ref %}active{% endblock %}
 
+{% block extra_css %}
+.card {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    padding: 20px;
+}
+{% endblock %}
+
 {% block content %}
-<a href="{% url 'declarant:system_reference' %}" style="display: inline-flex; align-items: center; gap: 8px; color: #1B3358; text-decoration: none; font-size: 13px; font-weight: 700; margin-bottom: 16px;">
+<a href="{% url 'consignee:system_reference' %}" style="display: inline-flex; align-items: center; gap: 8px; color: #1B3358; text-decoration: none; font-size: 13px; font-weight: 700; margin-bottom: 16px;">
     <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.707 6.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L12 5.414V13a1 1 0 11-2 0V5.414L9.121 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" transform="rotate(90 10 10)"/></svg>
     Back to System Reference
 </a>

@@ -82,6 +82,7 @@
     grid-template-columns: minmax(0, 1fr) 220px;
     gap: 12px;
     margin-top: 12px;
+    align-items: start;
 }
 .dash-bottom-row {
     display: grid;
@@ -116,6 +117,12 @@
 
 /* Prevent chart canvas from forcing the card wider than available space */
 #shipmentChart { max-width: 100%; display: block; }
+.shipment-overview-card { padding: 16px 18px; }
+.shipment-chart-wrap {
+    position: relative;
+    height: 180px;
+    min-height: 180px;
+}
 
 /* ── Clickable KPI card links ─────────────────────────────────────────────── */
 a.status-card {
@@ -347,7 +354,7 @@ a.status-card:hover {
 <div class="dash-chart-row">
 
     <!-- Shipment Overview Line Chart -->
-    <div class="c-card">
+    <div class="c-card shipment-overview-card">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
             <p class="c-card-title" style="margin:0;">Shipment Overview</p>
             <div style="display:flex; align-items:center; gap:6px;">
@@ -355,7 +362,7 @@ a.status-card:hover {
                 <span class="chart-filter-btn">Last 4 Months</span>
             </div>
         </div>
-        <div style="position:relative; height:200px;">
+        <div class="shipment-chart-wrap">
             <canvas id="shipmentChart"></canvas>
         </div>
     </div>

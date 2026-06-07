@@ -4,6 +4,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 
 from apps.accounts.models import User
+from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
 from .models import Notification
 
 
@@ -39,6 +40,70 @@ def send_transition_email(recipient, shipment, subject, message):
             print(f'[Notification email error] {e}')
 
     threading.Thread(target=_send, daemon=True).start()
+
+
+def send_assessed_email(shipment):
+    consignee = getattr(shipment, 'consignee', None)
+    if not consignee or not consignee.email:
+        return
+
+    fan_doc = shipment.documents.filter(document_type='sad').first()
+    rows = fan_assessment_rows(fan_doc)
+    lines = [
+        f'Hello {consignee.get_full_name() or consignee.username},',
+        '',
+        f'Your shipment {shipment.hawb_number} has been assessed by BOC.',
+    ]
+
+    if fan_assessment_has_values(rows):
+        lines.extend(['', 'Brief assessment overview:'])
+        for row in rows:
+            value = str(row.get('value') or '').strip()
+            if value:
+                lines.append(f"- {row['label']}: PHP {value}")
+    else:
+        lines.extend([
+            '',
+            'The official assessment details will be available once the FAN breakdown is verified.',
+        ])
+
+    lines.extend([
+        '',
+        'Please log in to R3-PCR to view the full shipment details, FAN document, and payment instructions.',
+        '',
+        'RTripleJ PrimeCargo Relay',
+    ])
+
+    send_transition_email(
+        recipient=consignee,
+        shipment=shipment,
+        subject=f'R3-PCR: Shipment Assessed - {shipment.hawb_number}',
+        message='\n'.join(lines),
+    )
+
+
+def send_billed_email(shipment):
+    consignee = getattr(shipment, 'consignee', None)
+    if not consignee or not consignee.email:
+        return
+
+    message = '\n'.join([
+        f'Hello {consignee.get_full_name() or consignee.username},',
+        '',
+        f'Your shipment {shipment.hawb_number} has been fully processed and billed.',
+        '',
+        'The final billing or completion documents are now available in R3-PCR.',
+        'Please log in to view the full shipment details, documents, and completion status.',
+        '',
+        'RTripleJ PrimeCargo Relay',
+    ])
+
+    send_transition_email(
+        recipient=consignee,
+        shipment=shipment,
+        subject=f'R3-PCR: Shipment Completed and Billed - {shipment.hawb_number}',
+        message=message,
+    )
 
 
 def notify_incoming_shipment(shipment):
