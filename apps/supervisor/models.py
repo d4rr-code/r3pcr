@@ -80,3 +80,78 @@ class Announcement(models.Model):
         if self.target_audience == 'all':
             return ['consignee', 'declarant']
         return [self.target_audience]
+
+
+class IssueReport(models.Model):
+    CATEGORY_CHOICES = [
+        ('login_account', 'Login or Account'),
+        ('shipment_submission', 'Shipment Submission'),
+        ('document_upload', 'Document Upload'),
+        ('ocr_extraction', 'OCR / Extraction'),
+        ('duty_computation', 'Duty Computation'),
+        ('wmcda_advisory', 'WMCDA Advisory'),
+        ('notifications_email', 'Notifications or Email'),
+        ('dashboard_analytics', 'Dashboard / Analytics'),
+        ('page_display_ui', 'Page Display / UI'),
+        ('other', 'Other'),
+    ]
+
+    LOCATION_CHOICES = [
+        ('dashboard', 'Dashboard'),
+        ('new_submission', 'New Submission'),
+        ('my_submissions', 'My Submissions'),
+        ('process_shipment', 'Process Shipment'),
+        ('ecdt_workspace', 'ECDT Workspace'),
+        ('notifications', 'Notifications'),
+        ('system_reference', 'System Reference'),
+        ('other', 'Other'),
+    ]
+
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('normal', 'Normal'),
+        ('urgent', 'Urgent'),
+    ]
+
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('in_review', 'In Review'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    ]
+
+    reporter = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.CASCADE,
+        related_name='issue_reports',
+    )
+    reporter_role = models.CharField(max_length=20)
+    related_shipment = models.ForeignKey(
+        'shipments.Shipment',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='issue_reports',
+    )
+    category = models.CharField(max_length=40, choices=CATEGORY_CHOICES)
+    location = models.CharField(max_length=40, choices=LOCATION_CHOICES)
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='normal')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    title = models.CharField(max_length=160)
+    description = models.TextField()
+    attachment = models.FileField(upload_to='issue_reports/', null=True, blank=True)
+    supervisor_note = models.TextField(blank=True)
+    handled_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='handled_issue_reports',
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.get_category_display()} - {self.title}'

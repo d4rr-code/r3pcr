@@ -1,0 +1,108 @@
+{% extends 'declarant/base_declarant.html' %}
+{% block title %}Report an Issue{% endblock %}
+{% block page_title %}Report an Issue{% endblock %}
+{% block nav_report_issue %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+.issue-layout { display:grid; grid-template-columns:minmax(0, 1.1fr) minmax(320px, .9fr); gap:18px; }
+.issue-card { background:#fff; border:1px solid #E5E7EB; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+.issue-title { margin:0 0 14px; color:#0B2A55; font-size:18px; font-weight:800; }
+.issue-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.issue-field { display:flex; flex-direction:column; gap:6px; }
+.issue-field label { color:#374151; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; }
+.issue-field input, .issue-field select, .issue-field textarea { width:100%; border:1px solid #D1D5DB; border-radius:8px; padding:10px 12px; color:#111827; font-size:14px; background:#fff; }
+.issue-field textarea { min-height:140px; resize:vertical; }
+.issue-span { grid-column:1 / -1; }
+.issue-btn { border:0; border-radius:8px; background:#255EE8; color:#fff; font-weight:800; padding:11px 16px; cursor:pointer; }
+.issue-list { display:flex; flex-direction:column; gap:12px; }
+.issue-row { border:1px solid #E5E7EB; border-radius:10px; padding:14px; background:#F8FAFC; }
+.issue-meta { display:flex; flex-wrap:wrap; gap:8px; color:#6B7280; font-size:12px; margin-top:6px; }
+.issue-pill { border-radius:999px; padding:3px 9px; font-size:11px; font-weight:800; background:#EEF2FF; color:#1D4ED8; }
+@media (max-width: 980px) { .issue-layout, .issue-grid { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if messages %}
+    {% for message in messages %}
+    <div style="padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; background:{% if message.tags == 'error' %}#FEF2F2{% else %}#ECFDF5{% endif %}; color:{% if message.tags == 'error' %}#991B1B{% else %}#047857{% endif %}; border:1px solid {% if message.tags == 'error' %}#FCA5A5{% else %}#86EFAC{% endif %};">
+        {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}
+
+<div class="issue-layout">
+    <form class="issue-card" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <h2 class="issue-title">Submit a System Issue</h2>
+        <div class="issue-grid">
+            <div class="issue-field issue-span">
+                <label for="title">Short Title</label>
+                <input id="title" name="title" maxlength="160" required placeholder="Example: OCR extracted the same item twice">
+            </div>
+            <div class="issue-field">
+                <label for="category">Issue Type</label>
+                <select id="category" name="category" required>
+                    {% for value, label in category_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="issue-field">
+                <label for="location">Where It Happened</label>
+                <select id="location" name="location" required>
+                    {% for value, label in location_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="issue-field">
+                <label for="priority">Priority</label>
+                <select id="priority" name="priority" required>
+                    {% for value, label in priority_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="issue-field">
+                <label for="related_shipment">Related Shipment</label>
+                <select id="related_shipment" name="related_shipment">
+                    <option value="">Not related to a shipment</option>
+                    {% for shipment in shipments %}
+                    <option value="{{ shipment.id }}">{{ shipment.hawb_number }} - {{ shipment.get_status_display }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="issue-field issue-span">
+                <label for="description">What Happened</label>
+                <textarea id="description" name="description" required placeholder="Describe the page, shipment, button, document, or calculation involved."></textarea>
+            </div>
+            <div class="issue-field issue-span">
+                <label for="attachment">Screenshot or File</label>
+                <input id="attachment" name="attachment" type="file">
+            </div>
+        </div>
+        <div style="margin-top:16px;"><button class="issue-btn" type="submit">Submit Issue Report</button></div>
+    </form>
+
+    <section class="issue-card">
+        <h2 class="issue-title">My Issue Reports</h2>
+        <div class="issue-list">
+            {% for report in reports %}
+            <article class="issue-row">
+                <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+                    <strong style="color:#0B2A55;">{{ report.title }}</strong>
+                    <span class="issue-pill">{{ report.get_status_display }}</span>
+                </div>
+                <div class="issue-meta">
+                    <span>{{ report.get_category_display }}</span>
+                    <span>{{ report.get_priority_display }}</span>
+                    {% if report.related_shipment %}<span>{{ report.related_shipment.hawb_number }}</span>{% endif %}
+                    <span>{{ report.created_at|date:"M d, Y" }}</span>
+                </div>
+                {% if report.supervisor_note %}
+                <p style="margin:10px 0 0; color:#4B5563; font-size:13px;">{{ report.supervisor_note }}</p>
+                {% endif %}
+            </article>
+            {% empty %}
+            <p style="color:#6B7280; font-size:14px;">No issue reports submitted yet.</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

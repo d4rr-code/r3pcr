@@ -2,10 +2,12 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
+from apps.accounts.models import User
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
 from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
 from apps.notifications.utils import create_notification, notify_incoming_shipment, notify_shipment_status_change
+from apps.supervisor.models import IssueReport
 from .models import Feedback
 
 
@@ -256,6 +258,75 @@ def dashboard(request):
 @consignee_required
 def system_reference(request):
     return render(request, 'consignee/system_reference.html', {})
+
+
+def _notify_supervisors_of_issue(issue):
+    supervisors = User.objects.filter(role='supervisor', is_active=True)
+    for supervisor in supervisors:
+        create_notification(
+            recipient=supervisor,
+            shipment=issue.related_shipment,
+            notification_type='general',
+            title='New System Issue Report',
+            message=(
+                f'{issue.reporter.get_full_name() or issue.reporter.username} '
+                f'reported a {issue.get_category_display()} issue: {issue.title}'
+            ),
+        )
+
+
+@login_required
+@consignee_required
+def report_issue(request):
+    shipments = Shipment.objects.filter(consignee=request.user).order_by('-submitted_at')
+
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        category = request.POST.get('category', '').strip()
+        location = request.POST.get('location', '').strip()
+        priority = request.POST.get('priority', 'normal').strip()
+        description = request.POST.get('description', '').strip()
+        shipment_id = request.POST.get('related_shipment', '').strip()
+
+        valid_categories = {choice[0] for choice in IssueReport.CATEGORY_CHOICES}
+        valid_locations = {choice[0] for choice in IssueReport.LOCATION_CHOICES}
+        valid_priorities = {choice[0] for choice in IssueReport.PRIORITY_CHOICES}
+
+        if not title or not description:
+            messages.error(request, 'Please provide a short title and describe the issue.')
+        elif category not in valid_categories or location not in valid_locations or priority not in valid_priorities:
+            messages.error(request, 'Please select valid issue details.')
+        else:
+            related_shipment = None
+            if shipment_id:
+                related_shipment = shipments.filter(id=shipment_id).first()
+                if not related_shipment:
+                    messages.error(request, 'Selected shipment is not available.')
+                    return redirect('consignee:report_issue')
+
+            issue = IssueReport.objects.create(
+                reporter=request.user,
+                reporter_role=request.user.role,
+                related_shipment=related_shipment,
+                category=category,
+                location=location,
+                priority=priority,
+                title=title,
+                description=description,
+                attachment=request.FILES.get('attachment'),
+            )
+            _notify_supervisors_of_issue(issue)
+            messages.success(request, 'Issue report submitted. A supervisor can now review it.')
+            return redirect('consignee:report_issue')
+
+    reports = IssueReport.objects.filter(reporter=request.user).select_related('related_shipment', 'handled_by')
+    return render(request, 'consignee/report_issue.html', {
+        'shipments': shipments,
+        'reports': reports,
+        'category_choices': IssueReport.CATEGORY_CHOICES,
+        'location_choices': IssueReport.LOCATION_CHOICES,
+        'priority_choices': IssueReport.PRIORITY_CHOICES,
+    })
 
 
 @login_required

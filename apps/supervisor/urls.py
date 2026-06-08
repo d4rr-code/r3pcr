@@ -37,6 +37,8 @@ urlpatterns = [
     path('feedbacks/',                           views.manage_feedbacks,         name='feedbacks'),
     path('feedbacks/approve/<int:feedback_id>/', views.approve_feedback,         name='approve_feedback'),
     path('feedbacks/reject/<int:feedback_id>/',  views.reject_feedback,          name='reject_feedback'),
+    path('issue-reports/',                       views.issue_reports,            name='issue_reports'),
+    path('issue-reports/<int:report_id>/update/', views.update_issue_report,      name='update_issue_report'),
 
     # Shipment Records & Client Lists
     path('shipments/',           views.shipment_records, name='shipment_records'),

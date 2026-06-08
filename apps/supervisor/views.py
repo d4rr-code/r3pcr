@@ -135,7 +135,7 @@ from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
 from apps.notifications.utils import create_notification, notify_shipment_status_change
 from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
-from .models import SystemConfig, Announcement
+from .models import SystemConfig, Announcement, IssueReport
 
 
 def supervisor_required(view_func):
@@ -929,12 +929,12 @@ def _analytics_context_response(request):
     monthly_chart_labels = json.dumps(_overview_labels)
     monthly_chart_data   = json.dumps(_overview_data)
 
-    # Due date monitoring — business-day buckets for active (non-terminal) shipments
-    _terminal_statuses = ['paid', 'released', 'billed']
+    # Pre-clearance SLA buckets stop once the shipment reaches BOC assessment.
+    _preclearance_done_statuses = ['assessed', 'paid', 'released', 'billed']
     _now    = timezone.now()
     _today  = _now.date()
     _d1 = _d3 = _d5 = _d5plus = 0
-    _active_qs = chart_qs.exclude(status__in=_terminal_statuses)
+    _active_qs = chart_qs.exclude(status__in=_preclearance_done_statuses)
     _due_total = _active_qs.count()
     for _s in _active_qs.values('urgency', 'submitted_at'):
         _alloc     = _urgency_days_for(_s['urgency'])
@@ -1800,6 +1800,84 @@ def reject_feedback(request, feedback_id):
     return redirect('supervisor:feedbacks')
 
 
+#  System Issue Reports
+
+@login_required
+@supervisor_required
+def issue_reports(request):
+    status_f = request.GET.get('status', '').strip()
+    priority_f = request.GET.get('priority', '').strip()
+    role_f = request.GET.get('role', '').strip()
+
+    reports = IssueReport.objects.select_related(
+        'reporter', 'related_shipment', 'handled_by'
+    )
+    if status_f:
+        reports = reports.filter(status=status_f)
+    if priority_f:
+        reports = reports.filter(priority=priority_f)
+    if role_f:
+        reports = reports.filter(reporter_role=role_f)
+
+    counts = {
+        'open': IssueReport.objects.filter(status='open').count(),
+        'in_review': IssueReport.objects.filter(status='in_review').count(),
+        'resolved': IssueReport.objects.filter(status='resolved').count(),
+        'closed': IssueReport.objects.filter(status='closed').count(),
+    }
+
+    return render(request, 'supervisor/issue_reports.html', {
+        'reports': reports,
+        'counts': counts,
+        'status_choices': IssueReport.STATUS_CHOICES,
+        'priority_choices': IssueReport.PRIORITY_CHOICES,
+        'active_status': status_f,
+        'active_priority': priority_f,
+        'active_role': role_f,
+    })
+
+
+@login_required
+@supervisor_required
+def update_issue_report(request, report_id):
+    if request.method != 'POST':
+        return redirect('supervisor:issue_reports')
+
+    issue = get_object_or_404(IssueReport, id=report_id)
+    old_status = issue.status
+    status = request.POST.get('status', issue.status).strip()
+    note = request.POST.get('supervisor_note', '').strip()
+    valid_statuses = {choice[0] for choice in IssueReport.STATUS_CHOICES}
+
+    if status not in valid_statuses:
+        messages.error(request, 'Please choose a valid issue status.')
+        return redirect('supervisor:issue_reports')
+
+    issue.status = status
+    issue.supervisor_note = note
+    issue.handled_by = request.user
+    if status in {'resolved', 'closed'} and old_status not in {'resolved', 'closed'}:
+        issue.resolved_at = timezone.now()
+    elif status not in {'resolved', 'closed'}:
+        issue.resolved_at = None
+    issue.save(update_fields=[
+        'status', 'supervisor_note', 'handled_by', 'resolved_at', 'updated_at',
+    ])
+
+    create_notification(
+        recipient=issue.reporter,
+        shipment=issue.related_shipment,
+        notification_type='general',
+        title='Issue Report Updated',
+        message=(
+            f'Your issue report "{issue.title}" is now '
+            f'{issue.get_status_display()}. {note or ""}'
+        ).strip(),
+    )
+    messages.success(request, 'Issue report updated and reporter notified.')
+    return redirect('supervisor:issue_reports')
+
+
 #  Shipment Records (dedicated browse page)
 
 @login_required
@@ -2172,6 +2250,7 @@ def declarant_detail(request, user_id):
     )
     cleared_statuses = ['approved', 'released', 'billed']
     terminal_statuses = ['paid', 'released', 'billed']
+    preclearance_done_statuses = ['assessed', 'paid', 'released', 'billed']
     now = timezone.now()
 
     status_counts = {
@@ -2265,7 +2344,7 @@ def declarant_detail(request, user_id):
 
     due_buckets = {'one_day': 0, 'three_days': 0, 'five_days': 0, 'over_five': 0}
     _today_d = now.date()
-    for shipment in all_shipments.exclude(status__in=terminal_statuses):
+    for shipment in all_shipments.exclude(status__in=preclearance_done_statuses):
         alloc     = _urgency_days_for(shipment.urgency)
         deadline  = _add_business_days(shipment.submitted_at, alloc)
         remaining = _business_days_diff(_today_d, deadline)

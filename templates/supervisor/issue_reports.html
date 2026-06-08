@@ -1,0 +1,83 @@
+{% extends 'supervisor/base_supervisor.html' %}
+{% block title %}Issue Reports{% endblock %}
+{% block page_title %}Issue Reports{% endblock %}
+{% block nav_issue_reports %}active{% endblock %}
+
+{% block content %}
+{% if messages %}
+    {% for message in messages %}
+    <div style="padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; background:{% if message.tags == 'error' %}#FEF2F2{% else %}#ECFDF5{% endif %}; color:{% if message.tags == 'error' %}#991B1B{% else %}#047857{% endif %}; border:1px solid {% if message.tags == 'error' %}#FCA5A5{% else %}#86EFAC{% endif %};">
+        {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}
+
+<div style="display:grid; grid-template-columns:repeat(4, minmax(130px, 1fr)); gap:12px; margin-bottom:16px;">
+    <div class="card" style="padding:16px;"><div style="font-size:12px; color:#6B7280; font-weight:800;">OPEN</div><div style="font-size:28px; color:#0B2A55; font-weight:900;">{{ counts.open }}</div></div>
+    <div class="card" style="padding:16px;"><div style="font-size:12px; color:#6B7280; font-weight:800;">IN REVIEW</div><div style="font-size:28px; color:#0B2A55; font-weight:900;">{{ counts.in_review }}</div></div>
+    <div class="card" style="padding:16px;"><div style="font-size:12px; color:#6B7280; font-weight:800;">RESOLVED</div><div style="font-size:28px; color:#0B2A55; font-weight:900;">{{ counts.resolved }}</div></div>
+    <div class="card" style="padding:16px;"><div style="font-size:12px; color:#6B7280; font-weight:800;">CLOSED</div><div style="font-size:28px; color:#0B2A55; font-weight:900;">{{ counts.closed }}</div></div>
+</div>
+
+<div class="card" style="padding:18px; margin-bottom:16px;">
+    <form method="get" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+        <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:800; color:#374151;">Status
+            <select name="status" style="border:1px solid #D1D5DB; border-radius:8px; padding:9px 12px; min-width:150px;">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}<option value="{{ value }}" {% if active_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </label>
+        <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:800; color:#374151;">Priority
+            <select name="priority" style="border:1px solid #D1D5DB; border-radius:8px; padding:9px 12px; min-width:150px;">
+                <option value="">All priorities</option>
+                {% for value, label in priority_choices %}<option value="{{ value }}" {% if active_priority == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </label>
+        <label style="display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:800; color:#374151;">Reporter
+            <select name="role" style="border:1px solid #D1D5DB; border-radius:8px; padding:9px 12px; min-width:150px;">
+                <option value="">All users</option>
+                <option value="consignee" {% if active_role == 'consignee' %}selected{% endif %}>Consignee</option>
+                <option value="declarant" {% if active_role == 'declarant' %}selected{% endif %}>Declarant</option>
+            </select>
+        </label>
+        <button type="submit" style="border:0; border-radius:8px; background:#1B3358; color:#fff; padding:10px 16px; font-weight:800;">Apply Filters</button>
+    </form>
+</div>
+
+<div style="display:flex; flex-direction:column; gap:14px;">
+    {% for report in reports %}
+    <section class="card" style="padding:18px;">
+        <div style="display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap;">
+            <div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                    <span style="font-size:11px; font-weight:900; color:#1D4ED8; background:#EEF2FF; border-radius:999px; padding:4px 9px;">{{ report.get_status_display }}</span>
+                    <span style="font-size:11px; font-weight:900; color:#047857; background:#ECFDF5; border-radius:999px; padding:4px 9px;">{{ report.get_priority_display }}</span>
+                    <span style="font-size:11px; font-weight:900; color:#92400E; background:#FEF3C7; border-radius:999px; padding:4px 9px;">{{ report.get_category_display }}</span>
+                </div>
+                <h3 style="margin:0; color:#0B2A55; font-size:18px;">{{ report.title }}</h3>
+                <p style="margin:6px 0 0; color:#6B7280; font-size:13px;">
+                    {{ report.reporter.get_full_name|default:report.reporter.username }} - {{ report.reporter_role|title }} - {{ report.created_at|date:"M d, Y g:i A" }}
+                    {% if report.related_shipment %} - {{ report.related_shipment.hawb_number }}{% endif %}
+                </p>
+            </div>
+            {% if report.attachment %}
+            <a href="{{ report.attachment.url }}" target="_blank" style="color:#255EE8; font-size:13px; font-weight:800;">View Attachment</a>
+            {% endif %}
+        </div>
+
+        <p style="margin:14px 0; color:#374151; line-height:1.6; font-size:14px;">{{ report.description }}</p>
+
+        <form method="post" action="{% url 'supervisor:update_issue_report' report.id %}" style="display:grid; grid-template-columns:180px minmax(0, 1fr) auto; gap:10px; align-items:start;">
+            {% csrf_token %}
+            <select name="status" style="border:1px solid #D1D5DB; border-radius:8px; padding:10px 12px;">
+                {% for value, label in status_choices %}<option value="{{ value }}" {% if report.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <textarea name="supervisor_note" rows="2" placeholder="Supervisor note for the reporter" style="border:1px solid #D1D5DB; border-radius:8px; padding:10px 12px; resize:vertical;">{{ report.supervisor_note }}</textarea>
+            <button type="submit" style="border:0; border-radius:8px; background:#255EE8; color:#fff; padding:10px 14px; font-weight:800;">Update</button>
+        </form>
+    </section>
+    {% empty %}
+    <div class="card" style="padding:32px; text-align:center; color:#6B7280;">No issue reports match the current filters.</div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -11,6 +11,7 @@ urlpatterns = [
     path('system-reference/parameters/',      views.system_parameters, name='system_parameters'),
     path('system-reference/fees/',            views.system_fees, name='system_fees'),
     path('system-reference/wmcda/',           views.system_wmcda, name='system_wmcda'),
+    path('report-issue/',                     views.report_issue, name='report_issue'),
     path('shipment/<int:shipment_id>/',       views.shipment_detail, name='shipment_detail'),
     path('cancel/<int:shipment_id>/',         views.cancel_submission,  name='cancel'),
     path('shipment/<int:shipment_id>/feedback/',       views.submit_feedback,     name='feedback'),
