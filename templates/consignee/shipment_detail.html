@@ -917,7 +917,6 @@ body {
                     {% if advisory.declarant_recommendation == 'air' %}Air Freight
                     {% elif advisory.declarant_recommendation == 'lcl' %}LCL - Less Container Load
                     {% elif advisory.declarant_recommendation == 'fcl' %}FCL - Full Container Load
-                    {% elif advisory.declarant_recommendation == 'land' %}Land Freight
                     {% endif %}
                     {% if advisory.declarant_note %}<br>{{ advisory.declarant_note }}{% endif %}
                 </p>

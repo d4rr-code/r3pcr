@@ -427,8 +427,6 @@ a.status-card:hover {
                 <div style="flex:{{ item.count }}; background:#F97316;"></div>
                 {% elif item.shipment_type == 'air' %}
                 <div style="flex:{{ item.count }}; background:#1B3358;"></div>
-                {% elif item.shipment_type == 'land' %}
-                <div style="flex:{{ item.count }}; background:#22C55E;"></div>
                 {% else %}
                 <div style="flex:{{ item.count }}; background:#9CA3AF;"></div>
                 {% endif %}
@@ -445,7 +443,6 @@ a.status-card:hover {
                         {% if item.shipment_type == 'fcl' %}#607D8B
                         {% elif item.shipment_type == 'lcl' %}#F97316
                         {% elif item.shipment_type == 'air' %}#1B3358
-                        {% elif item.shipment_type == 'land' %}#22C55E
                         {% else %}#9CA3AF{% endif %};"></span>
                     {{ item.label }} ({% widthratio item.count total 100 %}%)
                 </div>

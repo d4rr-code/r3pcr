@@ -1,17 +1,22 @@
 import json
 import logging
+import os
 import re
 import threading
+import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, date as date_type
+from decimal import Decimal, InvalidOperation
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count, Avg, Sum, Min, Max, F, ExpressionWrapper, DurationField, Q
 from django.db.models.functions import TruncDay, TruncMonth, TruncYear
+from django.core.files.storage import default_storage
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.text import slugify
 from django.core.mail import send_mail
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -130,7 +135,7 @@ def _send_mail_async(subject, message, from_email, recipient_list, html_message=
     threading.Thread(target=_send, daemon=True).start()
 from apps.accounts.models import User
 from apps.accounts.views import _validate_phone_number
-from apps.shipments.models import Shipment, HSCode, StatusLog
+from apps.shipments.models import Shipment, HSCode, StatusLog, TariffSchedule, HSCodeRate
 from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
 from apps.notifications.utils import create_notification, notify_shipment_status_change
@@ -201,7 +206,7 @@ def _analytics_report_data(request):
     ids = qs.values_list('id', flat=True)
     advisory_qs = ShippingAdvisory.objects.filter(shipment_id__in=ids)
     wmcda_total = advisory_qs.filter(recommended_type__isnull=False).count()
-    wmcda_labels = {'air': 'Air Freight', 'lcl': 'LCL Sea', 'fcl': 'FCL Sea', 'land': 'Land Freight'}
+    wmcda_labels = {'air': 'Air Freight', 'lcl': 'LCL Sea', 'fcl': 'FCL Sea'}
     wmcda_counts = {
         row['recommended_type']: row['count']
         for row in advisory_qs.values('recommended_type').annotate(count=Count('id'))
@@ -209,7 +214,7 @@ def _analytics_report_data(request):
     }
     wmcda_avg = advisory_qs.aggregate(
         avg_air=Avg('air_score'), avg_lcl=Avg('lcl_score'),
-        avg_fcl=Avg('fcl_score'), avg_land=Avg('land_score'),
+        avg_fcl=Avg('fcl_score'),
     )
     wmcda_rows = []
     for key, label in wmcda_labels.items():
@@ -743,7 +748,6 @@ def _analytics_context_response(request):
         ('air',  'Air Freight',  '#f59e0b', 'AIR'),
         ('lcl',  'LCL Sea',      '#38bdf8', 'LCL'),
         ('fcl',  'FCL Sea',      '#8b5cf6', 'FCL'),
-        ('land', 'Land Freight', '#84cc16', 'LAND'),
     ]
     advisory_qs = ShippingAdvisory.objects.filter(shipment_id__in=_chart_ids_qs)
     wmcda_total = advisory_qs.filter(recommended_type__isnull=False).count()
@@ -756,7 +760,7 @@ def _analytics_context_response(request):
     # Batch avg scores in one query
     _wmcda_avg_agg = advisory_qs.aggregate(
         avg_air=Avg('air_score'), avg_lcl=Avg('lcl_score'),
-        avg_fcl=Avg('fcl_score'), avg_land=Avg('land_score'),
+        avg_fcl=Avg('fcl_score'),
     )
     wmcda_scoreboard = []
     for key, label, color, icon in _wmcda_meta:
@@ -768,7 +772,7 @@ def _analytics_context_response(request):
             'count': count, 'pct': pct, 'avg_score': avg_score,
         })
     wmcda_scoreboard.sort(key=lambda x: x['count'], reverse=True)
-    rank_labels = ['1st', '2nd', '3rd', '4th']
+    rank_labels = ['1st', '2nd', '3rd']
     for i, row in enumerate(wmcda_scoreboard):
         row['rank'] = rank_labels[i] if i < len(rank_labels) else f'{i+1}th'
     wmcda_max = wmcda_scoreboard[0]['count'] if wmcda_scoreboard else 1
@@ -850,7 +854,6 @@ def _analytics_context_response(request):
     # Shipment type KPI counts (all-time)
     shipment_type_counts = {
         'air':  all_shipments.filter(shipment_type='air').count(),
-        'land': all_shipments.filter(shipment_type='land').count(),
         'lcl':  all_shipments.filter(shipment_type='lcl').count(),
         'fcl':  all_shipments.filter(shipment_type='fcl').count(),
     }
@@ -957,10 +960,9 @@ def _analytics_context_response(request):
     due_date_chart_labels = json.dumps(['1 Day Left', '3 Days Left', '5 Days Left', '5+ Days Left'])
     due_date_chart_colors = json.dumps(['#dc0000', '#f75b5b', '#f9a1a1', '#ffd6d6'])
 
-    # WMCDA vertical bar chart — fixed order: LCL, Land, Air, FCL
+    # WMCDA vertical bar chart - fixed order: LCL, Air, FCL
     _wmcda_bar_order = [
         ('lcl',  'LCL Sea',      '#38bdf8'),
-        ('land', 'Land Freight', '#84cc16'),
         ('air',  'Air Freight',  '#f59e0b'),
         ('fcl',  'FCL Sea',      '#8b5cf6'),
     ]
@@ -1018,7 +1020,6 @@ def _analytics_context_response(request):
         ('air',  'Air',  '#F59E0B'),
         ('lcl',  'LCL',  '#38BDF8'),
         ('fcl',  'FCL',  '#8B5CF6'),
-        ('land', 'Land', '#22C55E'),
     ]
     cost_by_type = []
     for code, label, color in _cost_type_meta:
@@ -1556,11 +1557,173 @@ def config_wmcda(request):
     return render(request, 'supervisor/config_wmcda.html', {'config': config, 'config_meta': meta})
 
 
+def _selected_tariff_schedule(request):
+    schedule_id = (request.POST.get('schedule') or request.GET.get('schedule') or '').strip()
+    schedules = list(TariffSchedule.objects.all())
+    selected = None
+    if schedule_id:
+        try:
+            selected = next((s for s in schedules if s.id == int(schedule_id)), None)
+        except ValueError:
+            selected = None
+    if selected is None:
+        selected = next((s for s in schedules if s.is_active), None)
+    if selected is None and schedules:
+        selected = schedules[0]
+    return schedules, selected
+
+
+def _apply_schedule_rates(hs_codes, schedule):
+    if not hs_codes:
+        return hs_codes
+    rate_map = {}
+    if schedule:
+        ids = [hs.id for hs in hs_codes]
+        rate_map = {
+            rate.hs_code_id: rate
+            for rate in HSCodeRate.objects.filter(schedule=schedule, hs_code_id__in=ids)
+        }
+    for hs in hs_codes:
+        schedule_rate = rate_map.get(hs.id)
+        hs.display_duty_rate = schedule_rate.duty_rate if schedule_rate else hs.duty_rate
+        hs.has_schedule_rate = bool(schedule_rate)
+    return hs_codes
+
+
+def _clean_tariff_text(value):
+    if value is None:
+        return ''
+    return ' '.join(str(value).strip().split())
+
+
+def _parse_tariff_rate(value):
+    if value is None or value == '':
+        return None
+    try:
+        rate = Decimal(str(value).replace('%', '').strip())
+    except (InvalidOperation, ValueError):
+        return None
+    if rate < 0 or rate > 100:
+        return None
+    return rate
+
+
+def _unique_tariff_code(base):
+    base = slugify(base or 'tariff-schedule')[:70] or 'tariff-schedule'
+    candidate = base
+    suffix = 2
+    while TariffSchedule.objects.filter(code=candidate).exists():
+        candidate = f'{base[:65]}-{suffix}'
+        suffix += 1
+    return candidate
+
+
+def _read_tariff_workbook(path, rate_column):
+    try:
+        import openpyxl
+    except ImportError:
+        raise ValueError('openpyxl is required to import tariff schedules.')
+
+    try:
+        with default_storage.open(path, 'rb') as f:
+            workbook = openpyxl.load_workbook(f, read_only=True, data_only=True)
+    except Exception as exc:
+        raise ValueError(f'Could not open workbook: {exc}')
+
+    try:
+        if 'Tariff Codes' not in workbook.sheetnames:
+            raise ValueError('Sheet "Tariff Codes" was not found.')
+
+        worksheet = workbook['Tariff Codes']
+        rows = worksheet.iter_rows(values_only=True)
+        try:
+            headers = [_clean_tariff_text(value).lower() for value in next(rows)]
+        except StopIteration:
+            raise ValueError('Sheet "Tariff Codes" is empty.')
+
+        required = ['ahtn_code', 'description', 'chapter']
+        missing = [col for col in required if col not in headers]
+        if missing:
+            raise ValueError(f'Missing required column(s): {", ".join(missing)}')
+
+        available_rate_columns = [col for col in headers if col == 'mfn_rate' or col.startswith('mfn_')]
+        selected_rate_column = (rate_column or '').strip().lower()
+        if not selected_rate_column:
+            selected_rate_column = 'mfn_rate' if 'mfn_rate' in headers else (available_rate_columns[-1] if available_rate_columns else '')
+        if selected_rate_column not in headers:
+            raise ValueError(
+                f'Rate column "{selected_rate_column or "(blank)"}" was not found. '
+                f'Available MFN columns: {", ".join(available_rate_columns) or "none"}.'
+            )
+
+        idx = {name: headers.index(name) for name in set(required + [selected_rate_column])}
+        records = {}
+        stats = {
+            'total_rows': 0,
+            'valid_rows': 0,
+            'new_codes': 0,
+            'existing_codes': 0,
+            'blank_or_invalid_rates': 0,
+            'missing_required': 0,
+            'duplicate_rows': 0,
+        }
+        warnings = []
+
+        existing_codes = set(HSCode.objects.values_list('code', flat=True))
+
+        for row_number, row in enumerate(rows, start=2):
+            stats['total_rows'] += 1
+            code = _clean_tariff_text(row[idx['ahtn_code']] if len(row) > idx['ahtn_code'] else '')
+            description = _clean_tariff_text(row[idx['description']] if len(row) > idx['description'] else '')
+            chapter = _clean_tariff_text(row[idx['chapter']] if len(row) > idx['chapter'] else '')
+            rate = _parse_tariff_rate(row[idx[selected_rate_column]] if len(row) > idx[selected_rate_column] else None)
+
+            if not code or not description or not chapter:
+                stats['missing_required'] += 1
+                if len(warnings) < 12:
+                    warnings.append(f'Row {row_number}: missing HS code, description, or chapter.')
+                continue
+            if rate is None:
+                stats['blank_or_invalid_rates'] += 1
+                if len(warnings) < 12:
+                    warnings.append(f'Row {row_number}: blank or invalid rate for {code}.')
+                continue
+            if code in records:
+                stats['duplicate_rows'] += 1
+                if len(warnings) < 12:
+                    warnings.append(f'Row {row_number}: duplicate HS code {code}; latest row will be used.')
+
+            records[code] = {
+                'code': code,
+                'description': description,
+                'chapter': chapter,
+                'duty_rate': rate,
+                'source_row': row_number,
+            }
+
+        stats['valid_rows'] = len(records)
+        stats['existing_codes'] = sum(1 for code in records if code in existing_codes)
+        stats['new_codes'] = stats['valid_rows'] - stats['existing_codes']
+        sample_records = list(records.values())[:10]
+
+        return {
+            'rate_column': selected_rate_column,
+            'available_rate_columns': available_rate_columns,
+            'stats': stats,
+            'warnings': warnings,
+            'records': records,
+            'sample_records': sample_records,
+        }
+    finally:
+        workbook.close()
+
+
 @login_required
 @supervisor_required
 def config_hscodes_sections(request):
     """Show all 21 HS sections with chapter/code counts."""
     q = request.GET.get('q', '').strip()
+    tariff_schedules, selected_schedule = _selected_tariff_schedule(request)
     hs_list = HSCode.objects.filter(is_active=True).values('chapter')
     chapter_counts = {}
     for hs in hs_list:
@@ -1586,6 +1749,7 @@ def config_hscodes_sections(request):
                 is_active=True,
             ).order_by('code')[:60]
         )
+        _apply_schedule_rates(search_results, selected_schedule)
         for hs in search_results:
             hs.chapter_num = _chapter_num(hs.chapter)
 
@@ -1593,6 +1757,158 @@ def config_hscodes_sections(request):
         'sections': sections,
         'q': q,
         'search_results': search_results,
+        'tariff_schedules': tariff_schedules,
+        'selected_schedule': selected_schedule,
+    })
+
+
+@login_required
+@supervisor_required
+def upload_tariff_schedule(request):
+    preview = None
+    pending = request.session.get('pending_tariff_import')
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'preview')
+
+        if action == 'confirm':
+            if not pending:
+                messages.error(request, 'No tariff import is waiting for confirmation.')
+                return redirect('supervisor:upload_tariff_schedule')
+
+            try:
+                parsed = _read_tariff_workbook(pending['path'], pending['rate_column'])
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return redirect('supervisor:upload_tariff_schedule')
+
+            if parsed['stats']['valid_rows'] == 0:
+                messages.error(request, 'No valid tariff rows were found to import.')
+                return redirect('supervisor:upload_tariff_schedule')
+
+            make_active = bool(pending.get('make_active'))
+            schedule = TariffSchedule.objects.create(
+                name=pending['schedule_name'],
+                code=_unique_tariff_code(pending.get('schedule_code') or pending['schedule_name']),
+                rate_basis='mfn',
+                effective_from=pending.get('effective_from') or None,
+                effective_to=pending.get('effective_to') or None,
+                is_active=make_active,
+                source_file=pending.get('original_filename', ''),
+                notes=(
+                    f'Imported from tariff upload using column {parsed["rate_column"]}. '
+                    f'Valid rows: {parsed["stats"]["valid_rows"]}.'
+                ),
+                imported_by=request.user,
+                imported_at=timezone.now(),
+            )
+
+            hs_by_code = {
+                hs.code: hs
+                for hs in HSCode.objects.filter(code__in=parsed['records'].keys())
+            }
+            new_hs = []
+            for code, record in parsed['records'].items():
+                if code not in hs_by_code:
+                    new_hs.append(HSCode(
+                        code=code,
+                        description=record['description'],
+                        chapter=record['chapter'],
+                        duty_rate=record['duty_rate'] if make_active else Decimal('0'),
+                        is_active=True,
+                    ))
+            if new_hs:
+                HSCode.objects.bulk_create(new_hs, batch_size=1000)
+                hs_by_code.update({
+                    hs.code: hs
+                    for hs in HSCode.objects.filter(code__in=[obj.code for obj in new_hs])
+                })
+
+            rates = []
+            current_updates = []
+            for code, record in parsed['records'].items():
+                hs = hs_by_code.get(code)
+                if not hs:
+                    continue
+                hs.description = record['description']
+                hs.chapter = record['chapter']
+                hs.is_active = True
+                if make_active:
+                    hs.duty_rate = record['duty_rate']
+                current_updates.append(hs)
+                rates.append(HSCodeRate(
+                    hs_code=hs,
+                    schedule=schedule,
+                    duty_rate=record['duty_rate'],
+                    source_row=record['source_row'],
+                    updated_by=request.user,
+                ))
+
+            HSCode.objects.bulk_update(
+                current_updates,
+                ['description', 'chapter', 'is_active', 'duty_rate'] if make_active else ['description', 'chapter', 'is_active'],
+                batch_size=1000,
+            )
+            HSCodeRate.objects.bulk_create(rates, batch_size=1000)
+
+            request.session.pop('pending_tariff_import', None)
+            if default_storage.exists(pending['path']):
+                default_storage.delete(pending['path'])
+
+            messages.success(
+                request,
+                f'Tariff schedule "{schedule.name}" imported with {len(rates)} rate row(s).'
+            )
+            return redirect(f'{reverse("supervisor:config_hscodes_sections")}?schedule={schedule.id}')
+
+        upload = request.FILES.get('tariff_file')
+        schedule_name = request.POST.get('schedule_name', '').strip()
+        schedule_code = request.POST.get('schedule_code', '').strip()
+        rate_column = request.POST.get('rate_column', '').strip().lower()
+        effective_from = request.POST.get('effective_from', '').strip()
+        effective_to = request.POST.get('effective_to', '').strip()
+        make_active = bool(request.POST.get('make_active'))
+
+        if not upload or not schedule_name:
+            messages.error(request, 'Please choose an Excel file and enter a schedule name.')
+            return redirect('supervisor:upload_tariff_schedule')
+        if TariffSchedule.objects.filter(name=schedule_name).exists():
+            messages.error(request, 'A tariff schedule with that name already exists.')
+            return redirect('supervisor:upload_tariff_schedule')
+
+        filename = f'tariff_uploads/{uuid.uuid4().hex}_{os.path.basename(upload.name)}'
+        saved_path = default_storage.save(filename, upload)
+        try:
+            parsed = _read_tariff_workbook(saved_path, rate_column)
+        except ValueError as exc:
+            if default_storage.exists(saved_path):
+                default_storage.delete(saved_path)
+            messages.error(request, str(exc))
+            return redirect('supervisor:upload_tariff_schedule')
+
+        request.session['pending_tariff_import'] = {
+            'path': saved_path,
+            'original_filename': upload.name,
+            'schedule_name': schedule_name,
+            'schedule_code': schedule_code,
+            'rate_column': parsed['rate_column'],
+            'effective_from': effective_from,
+            'effective_to': effective_to,
+            'make_active': make_active,
+        }
+        preview = {
+            'schedule_name': schedule_name,
+            'schedule_code': schedule_code,
+            'effective_from': effective_from,
+            'effective_to': effective_to,
+            'make_active': make_active,
+            'filename': upload.name,
+            **parsed,
+        }
+
+    return render(request, 'supervisor/upload_tariff_schedule.html', {
+        'preview': preview,
+        'pending': pending,
     })
 
 
@@ -1601,6 +1917,7 @@ def config_hscodes_sections(request):
 def config_hscodes_section(request, section_num):
     """List chapters in one section."""
     from apps.declarant.views import _CHAPTER_TITLES
+    tariff_schedules, selected_schedule = _selected_tariff_schedule(request)
 
     section_data = next((s for s in _HS_SECTIONS if s[0] == section_num), None)
     if not section_data:
@@ -1630,6 +1947,8 @@ def config_hscodes_section(request, section_num):
     return render(request, 'supervisor/config_hscodes_section.html', {
         'section_num': num, 'section_roman': roman, 'section_title': title,
         'chapters': chapter_list,
+        'tariff_schedules': tariff_schedules,
+        'selected_schedule': selected_schedule,
     })
 
 
@@ -1638,6 +1957,7 @@ def config_hscodes_section(request, section_num):
 def config_hscodes_chapter(request, chapter_num):
     """View/edit all HS codes in a specific chapter."""
     q = request.GET.get('q', '').strip()
+    tariff_schedules, selected_schedule = _selected_tariff_schedule(request)
     section_data = next(
         ((num, roman, title) for num, roman, title, chs in _HS_SECTIONS if chapter_num in chs),
         (None, '', '')
@@ -1646,6 +1966,7 @@ def config_hscodes_chapter(request, chapter_num):
 
     all_hs   = list(HSCode.objects.filter(is_active=True).order_by('code'))
     hs_codes = [hs for hs in all_hs if _chapter_num(hs.chapter) == chapter_num]
+    _apply_schedule_rates(hs_codes, selected_schedule)
 
     if request.method == 'POST':
         hs_ids   = request.POST.getlist('hs_id[]')
@@ -1656,13 +1977,26 @@ def config_hscodes_chapter(request, chapter_num):
                 hs       = HSCode.objects.get(id=int(hs_id))
                 rate_val = float(rate)
                 if 0 <= rate_val <= 100:
-                    hs.duty_rate = rate_val
-                    hs.save(update_fields=['duty_rate'])
+                    if selected_schedule:
+                        HSCodeRate.objects.update_or_create(
+                            hs_code=hs,
+                            schedule=selected_schedule,
+                            defaults={
+                                'duty_rate': rate_val,
+                                'updated_by': request.user,
+                            },
+                        )
+                    if not selected_schedule or selected_schedule.is_active:
+                        hs.duty_rate = rate_val
+                        hs.save(update_fields=['duty_rate'])
                     updated += 1
             except (HSCode.DoesNotExist, ValueError):
                 pass
         messages.success(request, f'{updated} duty rate{"s" if updated != 1 else ""} saved.')
-        return redirect('supervisor:config_hscodes_chapter', chapter_num=chapter_num)
+        redirect_url = reverse('supervisor:config_hscodes_chapter', args=[chapter_num])
+        if selected_schedule:
+            redirect_url = f'{redirect_url}?schedule={selected_schedule.id}'
+        return redirect(redirect_url)
 
     return render(request, 'supervisor/config_hscodes_chapter.html', {
         'chapter_num': chapter_num,
@@ -1670,6 +2004,8 @@ def config_hscodes_chapter(request, chapter_num):
         'section_num': section_num, 'section_roman': section_roman,
         'section_title': section_title, 'hs_codes': hs_codes,
         'q': q,
+        'tariff_schedules': tariff_schedules,
+        'selected_schedule': selected_schedule,
     })
 
 
@@ -1919,7 +2255,6 @@ def shipment_records(request):
     }
     shipment_type_counts = {
         'air': stat_qs.filter(shipment_type='air').count(),
-        'land': stat_qs.filter(shipment_type='land').count(),
         'lcl': stat_qs.filter(shipment_type='lcl').count(),
         'fcl': stat_qs.filter(shipment_type='fcl').count(),
     }
@@ -1943,13 +2278,11 @@ def shipment_records(request):
         {'key': 'fcl', 'label': 'Full Container Load', 'count': shipment_type_counts['fcl'], 'color': '#6f8b9b'},
         {'key': 'air', 'label': 'Airfreight', 'count': shipment_type_counts['air'], 'color': '#24466e'},
         {'key': 'lcl', 'label': 'Less Container Load', 'count': shipment_type_counts['lcl'], 'color': '#f59e0b'},
-        {'key': 'land', 'label': 'Land', 'count': shipment_type_counts['land'], 'color': '#22c55e'},
     ]
     shipment_type_filter_choices = [
         ('air', 'Air'),
         ('lcl', 'LCL'),
         ('fcl', 'FCL'),
-        ('land', 'Land'),
     ]
     for row in shipping_type_overview:
         row['pct'] = round(row['count'] / total_shipments * 100) if total_shipments else 0
@@ -2305,7 +2638,6 @@ def declarant_detail(request, user_id):
         ('fcl', 'Full Container Load (FCL)', '#6F8B9B'),
         ('air', 'Airfreight', '#24466E'),
         ('lcl', 'Less Container Load (LCL)', '#F59E0B'),
-        ('land', 'Land', '#20B86F'),
     ]
     type_counts = {
         row['shipment_type']: row['count']

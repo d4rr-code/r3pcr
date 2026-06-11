@@ -29,10 +29,8 @@ class Shipment(models.Model):
 
     SHIPMENT_TYPE_CHOICES = [
         ('air',  'Air Freight'),
-        ('sea',  'Sea Freight'),
         ('lcl',  'LCL - Less Container Load'),
         ('fcl',  'FCL - Full Container Load'),
-        ('land', 'Land Freight'),
     ]
 
     URGENCY_CHOICES = [
@@ -212,6 +210,85 @@ class HSCode(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.description[:50]}"
+
+    def duty_rate_for(self, schedule=None):
+        if schedule:
+            rate = self.schedule_rates.filter(schedule=schedule).first()
+            if rate:
+                return rate.duty_rate
+        return self.duty_rate
+
+
+class TariffSchedule(models.Model):
+    RATE_BASIS_CHOICES = [
+        ('mfn', 'MFN'),
+        ('preferential', 'Preferential'),
+        ('other', 'Other'),
+    ]
+
+    name = models.CharField(max_length=160, unique=True)
+    code = models.SlugField(max_length=80, unique=True)
+    rate_basis = models.CharField(max_length=20, choices=RATE_BASIS_CHOICES, default='mfn')
+    effective_from = models.DateField(null=True, blank=True)
+    effective_to = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=False)
+    source_file = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+    imported_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='imported_tariff_schedules',
+    )
+    imported_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_active', '-effective_from', 'name']
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.is_active:
+            TariffSchedule.objects.exclude(pk=self.pk).update(is_active=False)
+
+    def __str__(self):
+        return self.name
+
+    @classmethod
+    def active(cls):
+        return cls.objects.filter(is_active=True).first()
+
+
+class HSCodeRate(models.Model):
+    hs_code = models.ForeignKey(
+        HSCode,
+        on_delete=models.CASCADE,
+        related_name='schedule_rates',
+    )
+    schedule = models.ForeignKey(
+        TariffSchedule,
+        on_delete=models.CASCADE,
+        related_name='rates',
+    )
+    duty_rate = models.DecimalField(max_digits=8, decimal_places=4)
+    source_row = models.PositiveIntegerField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='updated_hs_code_rates',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('hs_code', 'schedule')
+        ordering = ['hs_code__code']
+
+    def __str__(self):
+        return f'{self.hs_code.code} - {self.schedule.name}: {self.duty_rate}%'
 
 
 class ShipmentHSCode(models.Model):

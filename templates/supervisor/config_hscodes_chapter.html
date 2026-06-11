@@ -35,6 +35,32 @@
 </p>
 {% endif %}
 
+<div class="card" style="padding:16px 18px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+    <div>
+        <p style="margin:0; color:#1B3358; font-size:14px; font-weight:800;">Tariff Schedule</p>
+        <p style="margin:4px 0 0; color:#6B7280; font-size:12px;">
+            {% if selected_schedule %}
+                Editing {{ selected_schedule.name }}{% if selected_schedule.is_active %} (active, syncs to current rates){% endif %}
+            {% else %}
+                Editing legacy HS code duty rates
+            {% endif %}
+        </p>
+    </div>
+    {% if tariff_schedules %}
+    <form method="GET" style="display:flex; align-items:center; gap:8px;">
+        {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+        <select name="schedule" class="form-input" style="height:38px; min-width:260px; font-size:13px;">
+            {% for schedule in tariff_schedules %}
+            <option value="{{ schedule.id }}" {% if selected_schedule and selected_schedule.id == schedule.id %}selected{% endif %}>
+                {{ schedule.name }}{% if schedule.is_active %} - active{% endif %}
+            </option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary" style="height:38px; font-size:12px; padding:0 16px;">View</button>
+    </form>
+    {% endif %}
+</div>
+
 {% if hs_codes %}
 
 <!-- Search Bar -->
@@ -58,6 +84,7 @@
 
 <form method="POST">
     {% csrf_token %}
+    {% if selected_schedule %}<input type="hidden" name="schedule" value="{{ selected_schedule.id }}">{% endif %}
 
     <div class="card" style="padding:0; overflow:hidden; margin-bottom:16px;">
         <div style="padding:14px 20px; background:#F8FAFC; border-bottom:1px solid #FFFFFF;
@@ -102,12 +129,12 @@
                         <td style="padding:11px 16px; text-align:center;">
                             <div style="position:relative; display:inline-block; width:100px;">
                                 <input type="number" name="hs_rate[]"
-                                       value="{{ hs.duty_rate }}"
+                                       value="{{ hs.display_duty_rate|default:hs.duty_rate }}"
                                        step="0.01" min="0" max="100"
                                        class="form-input"
                                        style="padding:6px 28px 6px 10px; font-size:13px;
                                               text-align:right; width:100%;
-                                              color:{% if hs.duty_rate == 0 %}#9CA3AF{% else %}#1A1A2E{% endif %};">
+                                              color:{% if hs.display_duty_rate == 0 %}#9CA3AF{% else %}#1A1A2E{% endif %};">
                                 <span style="position:absolute; right:10px; top:50%; transform:translateY(-50%);
                                              color:#9CA3AF; font-size:12px; pointer-events:none;">%</span>
                             </div>
