@@ -63,7 +63,7 @@
 .urg-card.s-rush .urg-icon { background:rgba(239,68,68,.18); color:#EF4444; }
 
 /* ── Shipping type cards ────────────────────────────────────────────────── */
-.ship-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.ship-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
 .ship-card {
     border:1.5px solid #E5E7EB; border-radius:12px;
     padding:14px 10px 12px; text-align:center;

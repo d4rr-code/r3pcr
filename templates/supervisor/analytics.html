@@ -12,7 +12,6 @@
     --line: #E7ECF2;
     --soft: #F7F9FC;
     --air: #25466F;
-    --land: #263B59;
     --lcl: #2C527D;
     --fcl: #24466E;
     color: #172033;
@@ -579,10 +578,6 @@ canvas { cursor: pointer; }
             <a class="dash-card mini-card" href="{% url 'supervisor:shipment_records' %}?stype=air">
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--air);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409L10 15.857l6.725 2.105a1 1 0 001.17-1.409l-7-14z"/></svg></span>Air</p>
                 <p class="metric-value">{{ shipment_type_counts.air }}</p>
-            </a>
-            <a class="dash-card mini-card" href="{% url 'supervisor:shipment_records' %}?stype=land">
-                <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--land);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M3 7h10l4 4v4h-2a2 2 0 11-4 0H8a2 2 0 11-4 0H2V8a1 1 0 011-1z"/></svg></span>Land</p>
-                <p class="metric-value">{{ shipment_type_counts.land }}</p>
             </a>
             <a class="dash-card mini-card" href="{% url 'supervisor:shipment_records' %}?stype=lcl">
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--lcl);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M2 13h16l-2 4H5l-3-4zm2-8h12v7H4V5zm2 2v3h8V7H6z"/></svg></span>LCL</p>

@@ -1,0 +1,135 @@
+{% extends 'supervisor/base_supervisor.html' %}
+{% block title %}Upload Tariff Schedule{% endblock %}
+{% block page_title %}Upload Tariff Schedule{% endblock %}
+{% block nav_config %}active{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:18px;">
+    <a href="{% url 'supervisor:config_hscodes_sections' %}" class="btn btn-secondary" style="font-size:12px; padding:8px 16px;">
+        Back to HS Code Duty Rates
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div style="padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px;
+                background:{% if message.tags == 'error' %}#FEF2F2{% else %}#ECFDF5{% endif %};
+                color:{% if message.tags == 'error' %}#991B1B{% else %}#047857{% endif %};
+                border:1px solid {% if message.tags == 'error' %}#FCA5A5{% else %}#86EFAC{% endif %};">
+        {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card" style="padding:20px; margin-bottom:18px;">
+    <h2 style="margin:0 0 6px; color:#1B3358; font-size:18px;">New Tariff Schedule</h2>
+    <p style="margin:0 0 18px; color:#6B7280; font-size:13px;">
+        Upload an Excel workbook with a <strong>Tariff Codes</strong> sheet. Required columns are
+        <strong>ahtn_code</strong>, <strong>description</strong>, <strong>chapter</strong>, and a rate column such as
+        <strong>mfn_rate</strong> or <strong>mfn_2029</strong>.
+    </p>
+
+    <form method="POST" enctype="multipart/form-data" style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="preview">
+
+        <label style="display:flex; flex-direction:column; gap:6px; color:#374151; font-size:12px; font-weight:800;">
+            Schedule Name
+            <input class="form-input" name="schedule_name" required placeholder="AHTN 2029 MFN">
+        </label>
+
+        <label style="display:flex; flex-direction:column; gap:6px; color:#374151; font-size:12px; font-weight:800;">
+            Schedule Code
+            <input class="form-input" name="schedule_code" placeholder="ahtn-2029-mfn">
+        </label>
+
+        <label style="display:flex; flex-direction:column; gap:6px; color:#374151; font-size:12px; font-weight:800;">
+            Effective From
+            <input class="form-input" type="date" name="effective_from">
+        </label>
+
+        <label style="display:flex; flex-direction:column; gap:6px; color:#374151; font-size:12px; font-weight:800;">
+            Effective To
+            <input class="form-input" type="date" name="effective_to">
+        </label>
+
+        <label style="display:flex; flex-direction:column; gap:6px; color:#374151; font-size:12px; font-weight:800;">
+            Rate Column
+            <input class="form-input" name="rate_column" placeholder="mfn_rate or mfn_2029">
+            <span style="color:#9CA3AF; font-weight:500;">Leave blank to auto-pick mfn_rate or the last mfn_* column.</span>
+        </label>
+
+        <label style="display:flex; flex-direction:column; gap:6px; color:#374151; font-size:12px; font-weight:800;">
+            Excel File
+            <input class="form-input" type="file" name="tariff_file" accept=".xlsx" required>
+        </label>
+
+        <label style="grid-column:1 / -1; display:flex; align-items:center; gap:8px; color:#374151; font-size:13px;">
+            <input type="checkbox" name="make_active" value="1">
+            Make this the active tariff schedule after import
+        </label>
+
+        <div style="grid-column:1 / -1;">
+            <button type="submit" class="btn btn-primary" style="font-size:13px; padding:10px 18px;">Preview Import</button>
+        </div>
+    </form>
+</div>
+
+{% if preview %}
+<div class="card" style="padding:20px; margin-bottom:18px;">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:16px;">
+        <div>
+            <h2 style="margin:0; color:#1B3358; font-size:18px;">Preview: {{ preview.schedule_name }}</h2>
+            <p style="margin:6px 0 0; color:#6B7280; font-size:13px;">
+                File: {{ preview.filename }} - Rate column: {{ preview.rate_column }}
+                {% if preview.make_active %}- Will become active{% endif %}
+            </p>
+        </div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn-primary" style="font-size:13px; padding:10px 18px;">Confirm Import</button>
+        </form>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(4, minmax(120px, 1fr)); gap:10px; margin-bottom:16px;">
+        <div style="background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px; padding:12px;"><div style="color:#6B7280; font-size:11px; font-weight:800;">VALID ROWS</div><div style="color:#1B3358; font-size:24px; font-weight:900;">{{ preview.stats.valid_rows }}</div></div>
+        <div style="background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px; padding:12px;"><div style="color:#6B7280; font-size:11px; font-weight:800;">NEW CODES</div><div style="color:#1B3358; font-size:24px; font-weight:900;">{{ preview.stats.new_codes }}</div></div>
+        <div style="background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px; padding:12px;"><div style="color:#6B7280; font-size:11px; font-weight:800;">EXISTING CODES</div><div style="color:#1B3358; font-size:24px; font-weight:900;">{{ preview.stats.existing_codes }}</div></div>
+        <div style="background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px; padding:12px;"><div style="color:#6B7280; font-size:11px; font-weight:800;">INVALID RATES</div><div style="color:#1B3358; font-size:24px; font-weight:900;">{{ preview.stats.blank_or_invalid_rates }}</div></div>
+    </div>
+
+    {% if preview.warnings %}
+    <div style="background:#FFFBEB; border:1px solid #FCD34D; border-radius:8px; padding:12px; margin-bottom:16px;">
+        <p style="margin:0 0 8px; color:#92400E; font-size:13px; font-weight:800;">Review Warnings</p>
+        {% for warning in preview.warnings %}
+        <p style="margin:4px 0; color:#92400E; font-size:12px;">{{ warning }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#F8FAFC;">
+                    <th style="padding:9px 12px; color:#6B7280; font-size:11px; text-align:left;">HS Code</th>
+                    <th style="padding:9px 12px; color:#6B7280; font-size:11px; text-align:left;">Description</th>
+                    <th style="padding:9px 12px; color:#6B7280; font-size:11px; text-align:left;">Chapter</th>
+                    <th style="padding:9px 12px; color:#6B7280; font-size:11px; text-align:right;">Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in preview.sample_records %}
+                <tr style="border-top:1px solid #EEF2F7;">
+                    <td style="padding:9px 12px; color:#16A34A; font-family:monospace; font-weight:800;">{{ row.code }}</td>
+                    <td style="padding:9px 12px; color:#374151; font-size:13px;">{{ row.description }}</td>
+                    <td style="padding:9px 12px; color:#6B7280; font-size:13px;">{{ row.chapter }}</td>
+                    <td style="padding:9px 12px; color:#111827; font-size:13px; font-weight:800; text-align:right;">{{ row.duty_rate }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

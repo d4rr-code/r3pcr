@@ -523,7 +523,6 @@ def shipment_detail(request, shipment_id):
         'air': 'Air Freight',
         'lcl': 'LCL - Less Container Load',
         'fcl': 'FCL - Full Container Load',
-        'land': 'Land Freight',
     }
 
     def _rating(score):
@@ -1034,7 +1033,6 @@ def _ecdt_xlsx(request, shipment, computation, advisory):
             ('Air Freight',               'air',  advisory.air_score),
             ('LCL (Less Container Load)', 'lcl',  advisory.lcl_score),
             ('FCL (Full Container Load)', 'fcl',  advisory.fcl_score),
-            ('Land Freight',              'land', advisory.land_score),
         ]
         for mode_label, key, score in sorted(
             mode_scores, key=lambda x: (x[2] or 0), reverse=True
@@ -1325,7 +1323,6 @@ def _ecdt_pdf(request, shipment, computation, advisory):
             ('Air Freight',               'air',  advisory.air_score),
             ('LCL (Less Container Load)', 'lcl',  advisory.lcl_score),
             ('FCL (Full Container Load)', 'fcl',  advisory.fcl_score),
-            ('Land Freight',              'land', advisory.land_score),
         ]
         adv_rows = [[
             Paragraph('<b>MODE</b>',   hdr8(TA_LEFT)),

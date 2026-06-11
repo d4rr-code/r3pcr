@@ -445,7 +445,6 @@ def dashboard(request):
         ('fcl', 'Full Container Load (FCL)', '#6F8B9B'),
         ('air', 'Airfreight', '#24466E'),
         ('lcl', 'Less Container Load (LCL)', '#F59E0B'),
-        ('land', 'Land', '#20B86F'),
     ]
     type_counts = {
         row['shipment_type']: row['count']
@@ -687,7 +686,7 @@ def system_wmcda(request):
         {
             'key': 'wmcda_w_weight',
             'label': 'Weight',
-            'description': 'Weighs the gross cargo weight when scoring modes. Higher weight prioritizes modes suited for heavier shipments (FCL/Land).',
+            'description': 'Weighs the gross cargo weight when scoring modes. Higher weight prioritizes modes suited for heavier shipments such as FCL.',
         },
         {
             'key': 'wmcda_w_distance',

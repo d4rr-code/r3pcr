@@ -168,7 +168,6 @@ class ShippingAdvisory(models.Model):
         ('lcl', 'LCL - Less Container Load'),
         ('fcl', 'FCL - Full Container Load'),
         ('air', 'Air Freight'),
-        ('land', 'Land Freight'),
     ]
 
     shipment = models.OneToOneField(
@@ -183,7 +182,6 @@ class ShippingAdvisory(models.Model):
     lcl_score  = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
     fcl_score  = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
     air_score  = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
-    land_score = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
 
     recommended_type = models.CharField(
         max_length=10, choices=SHIPPING_TYPE_CHOICES, null=True, blank=True
