@@ -1,63 +1,112 @@
 {% extends 'consignee/base_consignee.html' %}
 
+{% load static %}
+
 {% block title %}Notification{% endblock %}
 {% block page_title %}Notification Detail{% endblock %}
 {% block nav_notifications %}active{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet"
+      href="{% static 'notifications/css/notification_detail.css' %}">
+{% endblock %}
+
 {% block content %}
 
-<div>
+<div class="notification-detail-page">
+
+    <!-- Back Link -->
 
     <a href="{% url 'notifications:list' %}"
-       style="color:#6B7280; font-size:13px; text-decoration:none; display:inline-flex;
-              align-items:center; gap:6px; margin-bottom:20px;">
+       class="notification-back-link">
+
         &larr; Back to Notifications
+
     </a>
 
-    <div class="card">
-        <div style="display:flex; align-items:flex-start; justify-content:space-between;
-                    gap:12px; margin-bottom:20px;">
-            <div>
-                <h2 style="color:#1A1A2E; font-size:18px; font-weight:600; margin-bottom:6px;">
+    <!-- Card -->
+
+    <div class="c-card notification-detail-card">
+
+        <div class="notification-header">
+
+            <div class="notification-header-content">
+
+                <h2 class="notification-title">
+
                     {{ notif.title }}
+
                 </h2>
-                <span style="color:#9CA3AF; font-size:12px;">
+
+                <span class="notification-date">
+
                     {{ notif.created_at|date:"F d, Y \a\t H:i" }}
+
                 </span>
+
             </div>
-            <span class="badge badge-info" style="white-space:nowrap; flex-shrink:0;">
+
+            <span class="badge badge-info notification-type-badge">
+
                 {{ notif.get_notification_type_display }}
+
             </span>
+
         </div>
 
-        <hr style="border:none; border-top:1px solid #F0F2F5; margin-bottom:20px;">
+        <hr class="notification-divider">
 
-        <p style="color:#374151; font-size:14px; line-height:1.7; margin-bottom:24px;">
+        <p class="notification-message">
+
             {{ notif.message }}
+
         </p>
 
-        {% if notif.shipment %}
-        <div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px;
-                    padding:14px 18px; margin-bottom:20px;">
-            <p style="color:#9CA3AF; font-size:11px; text-transform:uppercase;
-                      letter-spacing:.06em; margin-bottom:6px;">
+                {% if notif.shipment %}
+
+        <div class="notification-shipment-box">
+
+            <p class="notification-shipment-label">
+
                 Shipment Reference
+
             </p>
-            <p style="color:#1A1A2E; font-size:15px; font-weight:600;">
+
+            <p class="notification-shipment-number">
+
                 {{ notif.shipment.hawb_number }}
+
             </p>
-            <p style="color:#6B7280; font-size:12px; margin-top:4px;">
+
+            <p class="notification-shipment-meta">
+
                 Status:
-                <strong>{{ notif.shipment.get_status_display }}</strong>
+
+                <strong>
+
+                    {{ notif.shipment.get_status_display }}
+
+                </strong>
+
                 &nbsp;|&nbsp;
-                Submitted: {{ notif.shipment.submitted_at|date:"M d, Y" }}
+
+                Submitted:
+
+                {{ notif.shipment.submitted_at|date:"M d, Y" }}
+
             </p>
+
         </div>
 
-        <a href="{% url 'consignee:my_submissions' %}" class="btn btn-primary">
+        <a href="{% url 'consignee:my_submissions' %}"
+           class="btn btn-primary notification-action-btn">
+
             View My Submissions
+
         </a>
+
         {% endif %}
+
     </div>
 
 </div>

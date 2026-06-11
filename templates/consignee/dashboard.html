@@ -1,187 +1,20 @@
 {% extends 'consignee/base_consignee.html' %}
+{% load static %}
 {% block title %}Dashboard{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 
 {% block extra_css %}
-/* ── Status grid ─────────────────────────────────────────────────────────── */
-.dash-status-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    flex: 1 1 0;     /* flex-basis 0 forces it to actually respect minmax */
-    min-width: 0;
-    overflow: hidden;
-}
-.status-card {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.04);
-    padding: 12px 14px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-    min-width: 0;
-    overflow: hidden;
-}
-/* LEFT group: circular icon + label + sub */
-.sc-left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-    flex: 1;
-}
-.sc-icon {
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-}
-.sc-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; overflow: hidden; }
-.sc-label {
-    font-size: 9.5px; font-weight: 800;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.sc-sub {
-    font-size: 8.5px; color: #9CA3AF;
-    line-height: 1.3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.sc-count {
-    font-size: 26px; font-weight: 800; line-height: 1;
-    color: #1B3358;
-    flex-shrink: 0;
-}
-
-/* ── Total card ──────────────────────────────────────────────────────────── */
-.dash-total-card {
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 12px;
-    width: 150px;
-    flex-shrink: 0;
-    text-align: center;
-}
-
-/* ── Chart row ───────────────────────────────────────────────────────────── */
-.dash-chart-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 220px;
-    gap: 12px;
-    margin-top: 12px;
-    align-items: start;
-}
-.dash-bottom-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 220px;
-    gap: 12px;
-    margin-top: 12px;
-}
-.c-card-title {
-    font-size: 14px; font-weight: 700; color: #1B3358; margin-bottom: 14px;
-}
-.chart-filter-btn {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 10px;
-    background: #F3F4F6;
-    border: 1px solid #E5E7EB;
-    border-radius: 6px;
-    font-size: 11px; color: #374151; cursor: pointer;
-    font-family: 'Inter', sans-serif;
-}
-
-/* ── Reminder ────────────────────────────────────────────────────────────── */
-.reminder-item { padding: 10px 0; border-bottom: 1px solid #F3F4F6; }
-.reminder-item:last-child { border-bottom: none; padding-bottom: 0; }
-.reminder-ref { font-size: 12px; font-weight: 700; color: #1B3358; margin-bottom: 3px; word-break: break-all; }
-.reminder-red    { font-size: 11px; font-weight: 600; color: #EF4444; }
-.reminder-amber  { font-size: 11px; font-weight: 600; color: #F59E0B; }
-.reminder-desc   { font-size: 11px; color: #6B7280; margin-top: 3px; line-height: 1.4; word-break: break-word; }
-
-/* Grid children must have min-width:0 so they can shrink */
-.dash-chart-row > *,
-.dash-bottom-row > * { min-width: 0; overflow: hidden; }
-
-/* Prevent chart canvas from forcing the card wider than available space */
-#shipmentChart { max-width: 100%; display: block; }
-.shipment-overview-card { padding: 16px 18px; }
-.shipment-chart-wrap {
-    position: relative;
-    height: 180px;
-    min-height: 180px;
-}
-
-/* ── Clickable KPI card links ─────────────────────────────────────────────── */
-a.status-card {
-    text-decoration: none;
-    color: inherit;
-    transition: box-shadow 0.18s ease, transform 0.15s ease;
-}
-a.status-card:hover {
-    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-    transform: translateY(-2px);
-}
-.dash-total-link {
-    text-decoration: none;
-    display: block;
-    width: 150px;
-    flex-shrink: 0;
-}
-.dash-total-link .dash-total-card {
-    transition: box-shadow 0.18s ease, transform 0.15s ease;
-}
-.dash-total-link:hover .dash-total-card {
-    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-    transform: translateY(-2px);
-}
-
-/* ── Shipping type bar ───────────────────────────────────────────────────── */
-.ship-type-bar {
-    height: 12px; border-radius: 6px; overflow: hidden;
-    display: flex; margin: 8px 0;
-}
-.ship-type-bar div { height: 100%; }
-.ship-type-grid {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 8px; margin-top: 8px;
-}
-.ship-type-item {
-    padding: 8px 10px;
-    background: #F8FAFC;
-    border-radius: 8px;
-    border: 1px solid #F1F5F9;
-}
-.ship-type-label {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 10px; color: #6B7280; font-weight: 500;
-    margin-bottom: 4px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.ship-type-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
-.ship-type-count { font-size: 22px; font-weight: 800; color: #1B3358; line-height: 1; }
+<link rel="stylesheet" href="{% static 'consignee/css/dashboard.css' %}">
 {% endblock %}
 
 {% block content %}
 
-<!-- ── Welcome + Month Picker ─────────────────────────────────────────────── -->
+<!-- -- Welcome + Month Picker ----------------------------------------------- -->
 <div style="margin-bottom:16px;">
     <h1 style="font-size:22px; font-weight:700; color:#1B3358; margin-bottom:10px;">
         Welcome Back {{ user.first_name|default:user.username }}!
     </h1>
-    <div class="c-month-pill" id="mpbtn-main" onclick="openMonthPicker('mpbtn-main')" style="display:inline-flex;">
+    <div class="c-month-pill" id="mpbtn-main" data-month-picker-trigger style="display:inline-flex;">
         <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
             <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/>
         </svg>
@@ -189,7 +22,7 @@ a.status-card:hover {
     </div>
 </div>
 
-<!-- ── Status Grid + Total ───────────────────────────────────────────────── -->
+<!-- -- Status Grid + Total ------------------------------------------------- -->
 <div style="display:flex; gap:10px; align-items:stretch; min-width:0; overflow:hidden;">
     <div class="dash-status-grid" style="flex:1; min-width:0;">
 
@@ -350,7 +183,7 @@ a.status-card:hover {
     </a>
 </div>
 
-<!-- ── Chart Row ──────────────────────────────────────────────────────────── -->
+<!-- -- Chart Row ------------------------------------------------------------ -->
 <div class="dash-chart-row">
 
     <!-- Shipment Overview Line Chart -->
@@ -396,7 +229,7 @@ a.status-card:hover {
     </div>
 </div>
 
-<!-- ── Bottom Row ─────────────────────────────────────────────────────────── -->
+<!-- -- Bottom Row ----------------------------------------------------------- -->
 <div class="dash-bottom-row">
 
     <!-- Shipping Type Overview -->
@@ -406,7 +239,7 @@ a.status-card:hover {
                 <p style="font-size:13px; font-weight:700; color:#1B3358; margin:0 0 2px;">Shipping Type Overview</p>
                 <p style="font-size:10px; color:#9CA3AF;">Breakdown of shipments based on cargo structure and handling type</p>
             </div>
-            <button id="mpbtn-shipping" class="chart-filter-btn" style="flex-shrink:0; margin-left:8px;" onclick="openMonthPicker('mpbtn-shipping')">
+            <button id="mpbtn-shipping" class="chart-filter-btn" data-month-picker-trigger style="flex-shrink:0; margin-left:8px;">
                 <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
                     <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/>
                 </svg>
@@ -421,17 +254,10 @@ a.status-card:hover {
 
         <div class="ship-type-bar">
             {% for item in mode_breakdown %}
-                {% if item.shipment_type == 'fcl' %}
-                <div style="flex:{{ item.count }}; background:#607D8B;"></div>
-                {% elif item.shipment_type == 'lcl' %}
-                <div style="flex:{{ item.count }}; background:#F97316;"></div>
-                {% elif item.shipment_type == 'air' %}
-                <div style="flex:{{ item.count }}; background:#1B3358;"></div>
-                {% else %}
-                <div style="flex:{{ item.count }}; background:#9CA3AF;"></div>
-                {% endif %}
+                <div class="ship-type-segment ship-type-{{ item.shipment_type|default:'other' }}"
+                     data-count="{{ item.count }}"></div>
             {% empty %}
-            <div style="flex:1; background:#E5E7EB;"></div>
+            <div class="ship-type-segment ship-type-empty" data-count="1"></div>
             {% endfor %}
         </div>
 
@@ -439,11 +265,7 @@ a.status-card:hover {
             {% for item in mode_breakdown %}
             <div class="ship-type-item">
                 <div class="ship-type-label">
-                    <span class="ship-type-dot" style="background:
-                        {% if item.shipment_type == 'fcl' %}#607D8B
-                        {% elif item.shipment_type == 'lcl' %}#F97316
-                        {% elif item.shipment_type == 'air' %}#1B3358
-                        {% else %}#9CA3AF{% endif %};"></span>
+                    <span class="ship-type-dot ship-type-{{ item.shipment_type|default:'other' }}"></span>
                     {{ item.label }} ({% widthratio item.count total 100 %}%)
                 </div>
                 <p class="ship-type-count">{{ item.count }}</p>
@@ -461,7 +283,7 @@ a.status-card:hover {
                 <p style="font-size:13px; font-weight:700; color:#1B3358; margin:0 0 2px;">Urgency Level Overview</p>
                 <p style="font-size:10px; color:#9CA3AF; margin:0;">Distribution of shipment urgency levels</p>
             </div>
-            <button id="mpbtn-urgency" class="chart-filter-btn" style="flex-shrink:0; margin-left:8px;" onclick="openMonthPicker('mpbtn-urgency')">
+            <button id="mpbtn-urgency" class="chart-filter-btn" data-month-picker-trigger style="flex-shrink:0; margin-left:8px;">
                 <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
                     <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/>
                 </svg>
@@ -479,12 +301,7 @@ a.status-card:hover {
             {% for item in urgency_breakdown %}
             <div style="display:flex; align-items:center; justify-content:space-between; font-size:10.5px;">
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <span style="width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; background:
-                        {% if item.urgency == 'standard' or item.urgency == 'normal' %}#3B82F6
-                        {% elif item.urgency == 'priority' %}#F59E0B
-                        {% elif item.urgency == 'urgent' %}#F97316
-                        {% elif item.urgency == 'rush' %}#EF4444
-                        {% else %}#9CA3AF{% endif %};"></span>
+                    <span class="urgency-dot urgency-{{ item.urgency|default:'other' }}"></span>
                     <span style="color:#374151;">{{ item.label }}</span>
                 </div>
                 <span style="font-weight:700; color:#1B3358;">{{ item.count }}</span>
@@ -496,14 +313,14 @@ a.status-card:hover {
     </div>
 </div>
 
-<!-- ── Month Picker Popover ───────────────────────────────────────────────── -->
+<!-- -- Month Picker Popover ------------------------------------------------- -->
 <div id="month-picker" style="display:none; position:fixed; z-index:999; background:#fff; border-radius:14px;
      box-shadow:0 8px 32px rgba(0,0,0,0.15); padding:18px; min-width:260px;">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
         <span id="picker-year-label" style="font-size:15px; font-weight:700; color:#1B3358;">{{ current_year }}</span>
         <div style="display:flex; gap:6px;">
-            <button onclick="pickerYear(-1)" style="background:none;border:none;cursor:pointer;font-size:14px;color:#6B7280;">&#8963;</button>
-            <button onclick="pickerYear(1)"  style="background:none;border:none;cursor:pointer;font-size:14px;color:#6B7280; transform:rotate(180deg);">&#8963;</button>
+            <button data-picker-year="-1" style="background:none;border:none;cursor:pointer;font-size:14px;color:#6B7280;">&#8963;</button>
+            <button data-picker-year="1" style="background:none;border:none;cursor:pointer;font-size:14px;color:#6B7280; transform:rotate(180deg);">&#8963;</button>
         </div>
     </div>
     <div id="month-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px;"></div>
@@ -513,177 +330,22 @@ a.status-card:hover {
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script>
-// ── Shipment Overview Line Chart ──────────────────────────────────────────────
-var shipmentCtx = document.getElementById('shipmentChart').getContext('2d');
-
-function makeGradient() {
-    var g = shipmentCtx.createLinearGradient(0, 0, 0, 200);
-    g.addColorStop(0, 'rgba(27,51,88,0.18)');
-    g.addColorStop(1, 'rgba(27,51,88,0.00)');
-    return g;
+<script id="dashboard-config" type="application/json">
+{
+    "chartDataUrl": "{% url 'consignee:chart_data' %}",
+    "currentYear": {{ current_year }},
+    "monthlyLabels": {{ monthly_labels|safe }},
+    "monthlyData": {{ monthly_data|safe }},
+    "urgencyData": [
+        {% for item in urgency_breakdown %}
+        {
+            "label": "{{ item.label|escapejs }}",
+            "count": {{ item.count }},
+            "color": "{% if item.urgency == "standard" or item.urgency == "normal" %}#3B82F6{% elif item.urgency == "priority" %}#F59E0B{% elif item.urgency == "urgent" %}#F97316{% elif item.urgency == "rush" %}#EF4444{% else %}#9CA3AF{% endif %}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ]
 }
-
-var shipmentChart = new Chart(shipmentCtx, {
-    type: 'line',
-    data: {
-        labels: {{ monthly_labels|safe }},
-        datasets: [{
-            label: 'Shipment Overview',
-            data: {{ monthly_data|safe }},
-            borderColor: '#1B3358',
-            borderWidth: 2,
-            backgroundColor: makeGradient(),
-            pointBackgroundColor: '#1B3358',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            tension: 0.35,
-            fill: true,
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: '#1B3358',
-                titleColor: '#fff',
-                bodyColor: '#fff',
-                padding: 10,
-                cornerRadius: 8,
-                displayColors: false,
-                callbacks: {
-                    title: function(items) { return items[0].label; },
-                    label: function(item) { return item.raw + ' shipment' + (item.raw !== 1 ? 's' : ''); }
-                }
-            }
-        },
-        scales: {
-            x: { grid: { color: '#F3F4F6' }, ticks: { font: { size: 11, family: 'Inter' }, color: '#9CA3AF', maxRotation: 0 } },
-            y: { grid: { color: '#F3F4F6' }, ticks: { font: { size: 11, family: 'Inter' }, color: '#9CA3AF', precision: 0 }, beginAtZero: true }
-        }
-    }
-});
-
-// ── Chart filter controls ─────────────────────────────────────────────────────
-var chartDataUrl     = '{% url "consignee:chart_data" %}';
-
-function fetchChartData() {
-    fetch(chartDataUrl)
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-            shipmentChart.data.labels = d.labels;
-            shipmentChart.data.datasets[0].data = d.data;
-            shipmentChart.data.datasets[0].backgroundColor = makeGradient();
-            shipmentChart.update();
-        })
-        .catch(function(e) { console.warn('Chart fetch error', e); });
-}
-
-// ── Urgency Donut Chart ───────────────────────────────────────────────────────
-var urgencyData = [
-    {% for item in urgency_breakdown %}
-    { label: '{{ item.label }}', count: {{ item.count }}, color:
-        '{% if item.urgency == "standard" or item.urgency == "normal" %}#3B82F6{% elif item.urgency == "priority" %}#F59E0B{% elif item.urgency == "urgent" %}#F97316{% elif item.urgency == "rush" %}#EF4444{% else %}#9CA3AF{% endif %}'
-    },
-    {% empty %}
-    { label: 'None', count: 1, color: '#E5E7EB' }
-    {% endfor %}
-];
-var urgencyCtx = document.getElementById('urgencyChart').getContext('2d');
-new Chart(urgencyCtx, {
-    type: 'doughnut',
-    data: {
-        labels: urgencyData.map(function(d){ return d.label; }),
-        datasets: [{
-            data: urgencyData.map(function(d){ return d.count; }),
-            backgroundColor: urgencyData.map(function(d){ return d.color; }),
-            borderWidth: 2,
-            borderColor: '#fff',
-            hoverOffset: 4,
-        }]
-    },
-    options: {
-        cutout: '68%',
-        responsive: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: function(c){ return c.label + ': ' + c.raw; } } }
-        }
-    }
-});
-
-// ── Month Picker (shared across all filter buttons) ───────────────────────────
-var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-var pickerState = { year: {{ current_year }}, month: new Date().getMonth() };
-var currentPickerTarget = null;
-
-function openMonthPicker(triggerId) {
-    var btn    = document.getElementById(triggerId);
-    var picker = document.getElementById('month-picker');
-    // Toggle off if same button clicked again
-    if (picker.style.display !== 'none' && currentPickerTarget === triggerId) {
-        picker.style.display = 'none';
-        currentPickerTarget = null;
-        return;
-    }
-    currentPickerTarget = triggerId;
-    var rect = btn.getBoundingClientRect();
-    picker.style.top  = (rect.bottom + 8) + 'px';
-    // Prevent picker from going off-screen right edge
-    var left = rect.left;
-    if (left + 270 > window.innerWidth) { left = window.innerWidth - 278; }
-    picker.style.left = left + 'px';
-    picker.style.display = 'block';
-    renderMonthGrid();
-}
-
-function renderMonthGrid() {
-    document.getElementById('picker-year-label').textContent = pickerState.year;
-    var grid = document.getElementById('month-grid');
-    grid.innerHTML = '';
-    MONTHS.forEach(function(m, i) {
-        var b = document.createElement('button');
-        b.textContent = m;
-        var active = (i === pickerState.month);
-        b.style.cssText = [
-            'padding:8px;border-radius:8px;border:none;cursor:pointer;',
-            'font-family:Inter,sans-serif;font-size:12px;',
-            'font-weight:' + (active ? '700' : '500') + ';',
-            'background:' + (active ? '#1B3358' : 'transparent') + ';',
-            'color:' + (active ? '#fff' : '#374151') + ';',
-        ].join('');
-        b.onmouseover = function() { if (!active) b.style.background = '#F3F4F6'; };
-        b.onmouseout  = function() { if (!active) b.style.background = 'transparent'; };
-        b.onclick = function() {
-            pickerState.month = i;
-            var label = m + ' ' + pickerState.year;
-            // Update every month-label span on the page
-            document.querySelectorAll('.mp-label').forEach(function(el) {
-                el.textContent = label;
-            });
-            document.getElementById('month-picker').style.display = 'none';
-            currentPickerTarget = null;
-        };
-        grid.appendChild(b);
-    });
-}
-function pickerYear(dir) { pickerState.year += dir; renderMonthGrid(); }
-
-document.addEventListener('click', function(e) {
-    var picker = document.getElementById('month-picker');
-    if (!picker || picker.style.display === 'none') return;
-    // Check if click is inside picker or inside whichever button opened it
-    if (picker.contains(e.target)) return;
-    if (currentPickerTarget) {
-        var triggerBtn = document.getElementById(currentPickerTarget);
-        if (triggerBtn && triggerBtn.contains(e.target)) return;
-    }
-    picker.style.display = 'none';
-    currentPickerTarget = null;
-});
 </script>
+<script src="{% static 'consignee/js/dashboard.js' %}"></script>
 {% endblock %}

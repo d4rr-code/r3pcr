@@ -1,81 +1,24 @@
 {% extends 'consignee/base_consignee.html' %}
+{% load static %}
 
 {% block title %}My Submissions{% endblock %}
 {% block nav_submissions %}active{% endblock %}
 
 {% block extra_css %}
-/* ── Status badge variants ─────────────────────────────── */
-.sbadge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 600;
-    white-space: nowrap;
-}
-.s-arrived   { background: #FEF3C7; color: #B45309; }
-.s-lodgement { background: #E0F2FE; color: #0369A1; }
-.s-paid      { background: #DCFCE7; color: #15803D; }
-.s-computed  { background: #DBEAFE; color: #1D4ED8; }
-.s-ongoing   { background: #FFEDD5; color: #C2410C; }
-.s-released  { background: #CCFBF1; color: #0F766E; }
-.s-approved  { background: #DCFCE7; color: #15803D; }
-.s-assessed  { background: #EDE9FE; color: #6D28D9; }
-.s-billed    { background: #F1F5F9; color: #475569; }
-.s-incoming  { background: #F3F4F6; color: #6B7280; }
-.s-rejected  { background: #FEE2E2; color: #B91C1C; }
-.s-revision  { background: #FEF9C3; color: #854D0E; }
-.s-flagged   { background: #FEF2F2; color: #B91C1C; }
-.s-default   { background: #F3F4F6; color: #6B7280; }
-.section-kicker {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 14px;
-    margin: 22px 0 10px;
-}
-.section-kicker h2 {
-    color: #1A1A2E;
-    font-size: 16px;
-    font-weight: 800;
-    margin: 0;
-}
-.section-kicker p {
-    color: #9CA3AF;
-    font-size: 12px;
-    margin: 3px 0 0;
-}
-.section-count {
-    color: #6B7280;
-    font-size: 14px;
-    font-weight: 800;
-}
-.empty-icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 16px;
-    color: #CBD5E1;
-}
-.inline-status-note {
-    display: block;
-    color: #9CA3AF;
-    font-size: 10px;
-    line-height: 1.25;
-    margin-top: 2px;
-}
+    <link rel="stylesheet" href="{% static 'consignee/css/my_submissions.css' %}">
 {% endblock %}
 
 {% block content %}
 
 <!-- ── Page Header ───────────────────────────────────────────────────────────── -->
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+<div class="page-header">
     <div>
-        <h1 style="font-size:20px; font-weight:700; color:#1A1A2E;">My Submissions</h1>
-        <p style="font-size:13px; color:#6B7280; margin-top:2px;">
-            Total Shipments: <strong style="color:#1A1A2E;">{{ total_shipments }}</strong>
+        <h1 class="page-title">My Submissions</h1>
+        <p class="page-subtitle">
+            Total Shipments: <strong class="stat-primary">{{ total_shipments }}</strong>
             {% if flagged_shipments %}
-                <span style="color:#D1D5DB;">/</span>
-                Flagged: <strong style="color:#B91C1C;">{{ flagged_shipments|length }}</strong>
+                <span class="sep">/</span>
+                Flagged: <strong class="stat-flagged">{{ flagged_shipments|length }}</strong>
             {% endif %}
         </p>
     </div>
@@ -88,25 +31,25 @@
 </div>
 
 <!-- ── Filter Bar ────────────────────────────────────────────────────────────── -->
-<div class="c-card" style="margin-bottom:16px; padding:16px 20px;">
-    <form method="GET" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+<div class="c-card filter-card">
+    <form method="GET" class="filter-form">
 
         <!-- Search Ref No -->
-        <div style="flex:1; min-width:180px;">
+        <div class="search-field">
             <label class="c-label">Shipment Ref No.</label>
-            <div style="position:relative;">
-                <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9CA3AF;pointer-events:none;"
+            <div class="input-with-icon">
+                 <svg class="icon-left" 
                      width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/>
                 </svg>
-                <input type="text" name="q" value="{{ q }}"
-                       class="c-input" style="padding-left:34px;"
-                       placeholder="Search ref no...">
+                  <input type="text" name="q" value="{{ q }}"
+                      class="c-input input-icon"
+                      placeholder="Search ref no...">
             </div>
         </div>
 
         <!-- Status -->
-        <div style="min-width:150px;">
+        <div class="filter-field">
             <label class="c-label">Status</label>
             <select name="status" class="c-input">
                 <option value=""            {% if not status_filter %}selected{% endif %}>All Statuses</option>
@@ -126,21 +69,21 @@
         </div>
 
         <!-- Date From -->
-        <div style="min-width:130px;">
+        <div class="filter-field">
             <label class="c-label">Date From</label>
             <input type="date" name="date_from" value="{{ date_from }}" class="c-input">
         </div>
 
         <!-- Date To -->
-        <div style="min-width:130px;">
+        <div class="filter-field">
             <label class="c-label">Date To</label>
             <input type="date" name="date_to" value="{{ date_to }}" class="c-input">
         </div>
 
-        <div style="display:flex; gap:8px; align-self:flex-end;">
-            <button type="submit" class="c-btn c-btn-primary" style="padding:9px 18px;">Search</button>
+        <div class="filter-actions">
+            <button type="submit" class="c-btn c-btn-primary btn-small">Search</button>
             {% if q or status_filter or date_from or date_to %}
-            <a href="{% url 'consignee:my_submissions' %}" class="c-btn c-btn-outline" style="padding:8px 18px;">
+            <a href="{% url 'consignee:my_submissions' %}" class="c-btn c-btn-outline btn-small">
                 Clear
             </a>
             {% endif %}
@@ -149,9 +92,9 @@
 </div>
 
 <!-- ── Submissions Table ─────────────────────────────────────────────────────── -->
-<div class="c-card" style="padding:0; overflow:hidden;">
+<div class="c-card card-no-padding">
     {% if shipments %}
-    <div style="overflow-x:auto;">
+    <div class="table-responsive">
         <table class="c-table">
             <thead>
                 <tr>
@@ -162,7 +105,7 @@
                     <th>Shipment Type</th>
                     <th>Submitted</th>
                     <th>Last Updated</th>
-                    <th style="text-align:center;">Actions</th>
+                    <th class="text-center">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -170,21 +113,15 @@
                 <tr>
                     <!-- Ref No. -->
                     <td>
-                        <span style="font-weight:600; color:#1A1A2E; font-size:13px;">
-                            {{ shipment.hawb_number }}
-                        </span>
+                        <span class="ref-number">{{ shipment.hawb_number }}</span>
                         {% if shipment.has_deficiency %}
                         <br>
-                        <span style="font-size:10px; color:#DC2626; font-weight:600;">
-                            Deficiency
-                        </span>
+                        <span class="deficiency">Deficiency</span>
                         {% endif %}
                     </td>
 
                     <!-- Import Type -->
-                    <td style="color:#6B7280;">
-                        {{ shipment.get_import_type_display|default:"—" }}
-                    </td>
+                    <td class="muted">{{ shipment.get_import_type_display|default:"—" }}</td>
 
                     <!-- Urgency -->
                     <td>
@@ -197,7 +134,7 @@
                         {% elif shipment.urgency == 'rush' %}
                             <span class="c-badge badge-rush">Rush</span>
                         {% else %}
-                            <span style="color:#D1D5DB; font-size:12px;">—</span>
+                            <span class="muted-dash">—</span>
                         {% endif %}
                     </td>
 
@@ -233,50 +170,33 @@
                     </td>
 
                     <!-- Shipment Type -->
-                    <td style="color:#6B7280;">
-                        {{ shipment.get_shipment_type_display|default:"—" }}
-                    </td>
+                    <td class="muted">{{ shipment.get_shipment_type_display|default:"—" }}</td>
 
                     <!-- Submitted -->
-                    <td style="white-space:nowrap;">
-                        <span style="color:#374151; font-size:12.5px;">{{ shipment.submitted_at|date:"M d, Y" }}</span>
+                    <td class="meta-time">
+                        <span class="meta-primary">{{ shipment.submitted_at|date:"M d, Y" }}</span>
                         <br>
-                        <span style="color:#9CA3AF; font-size:11px;">{{ shipment.submitted_at|date:"H:i" }}</span>
+                        <span class="meta-secondary">{{ shipment.submitted_at|date:"H:i" }}</span>
                     </td>
 
                     <!-- Last Updated -->
-                    <td style="white-space:nowrap;">
-                        <span style="color:#374151; font-size:12.5px;">{{ shipment.updated_at|date:"M d, Y" }}</span>
+                    <td class="meta-time">
+                        <span class="meta-primary">{{ shipment.updated_at|date:"M d, Y" }}</span>
                         <br>
-                        <span style="color:#9CA3AF; font-size:11px;">{{ shipment.updated_at|date:"H:i" }}</span>
+                        <span class="meta-secondary">{{ shipment.updated_at|date:"H:i" }}</span>
                     </td>
 
                     <!-- Actions -->
-                    <td style="text-align:center;">
-                        <div style="display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:wrap;">
-                            <a href="{% url 'consignee:shipment_detail' shipment.id %}"
-                               class="c-btn c-btn-primary" style="padding:5px 16px; font-size:12px;">
-                                View
-                            </a>
+                    <td class="text-center">
+                        <div class="actions-row">
+                            <a href="{% url 'consignee:shipment_detail' shipment.id %}" class="c-btn c-btn-primary btn-compact">View</a>
                             {% if shipment.can_cancel %}
-                            <form method="POST"
-                                  action="{% url 'consignee:cancel' shipment.id %}"
-                                  onsubmit="return confirm('Cancel shipment {{ shipment.hawb_number }}? This cannot be undone.');"
-                                  style="margin:0;">
+                            <form method="POST" action="{% url 'consignee:cancel' shipment.id %}" onsubmit="return confirm('Cancel shipment {{ shipment.hawb_number }}? This cannot be undone.');" class="inline-form">
                                 {% csrf_token %}
-                                <button type="submit" class="c-btn"
-                                        style="padding:5px 14px; font-size:12px;
-                                               background:#FEE2E2; color:#B91C1C;
-                                               border:1px solid #FECACA;">
-                                    Cancel
-                                </button>
+                                <button type="submit" class="c-btn btn-cancel">Cancel</button>
                             </form>
                             {% elif shipment.cancel_expired %}
-                            <span style="font-size:11px; color:#D1D5DB; padding:5px 10px;
-                                         border:1px solid #E5E7EB; border-radius:8px;
-                                         cursor:not-allowed;" title="1-hour cancellation window has passed">
-                                Expired
-                            </span>
+                            <span class="expired-badge" title="1-hour cancellation window has passed">Expired</span>
                             {% endif %}
                         </div>
                     </td>
@@ -288,10 +208,10 @@
 
     {% elif not flagged_shipments %}
     <!-- Empty state -->
-    <div style="padding:64px 32px; text-align:center; color:#9CA3AF;">
-        <div style="font-size:48px; margin-bottom:16px; line-height:1;">No items</div>
-        <p style="font-size:16px; font-weight:600; color:#6B7280; margin-bottom:6px;">No submissions found</p>
-        <p style="font-size:13px; margin-bottom:24px; max-width:320px; margin-left:auto; margin-right:auto;">
+    <div class="empty-state">
+        <div class="empty-state-huge">No items</div>
+        <p class="empty-title">No submissions found</p>
+        <p class="empty-desc">
             {% if q or status_filter or date_from or date_to %}
                 No shipments match your current filters. Try adjusting your search.
             {% else %}
@@ -299,13 +219,9 @@
             {% endif %}
         </p>
         {% if q or status_filter or date_from or date_to %}
-        <a href="{% url 'consignee:my_submissions' %}" class="c-btn c-btn-outline">
-            Clear Filters
-        </a>
+        <a href="{% url 'consignee:my_submissions' %}" class="c-btn c-btn-outline">Clear Filters</a>
         {% else %}
-        <a href="{% url 'consignee:submit' %}" class="c-btn c-btn-primary">
-            Submit Your First Shipment
-        </a>
+        <a href="{% url 'consignee:submit' %}" class="c-btn c-btn-primary">Submit Your First Shipment</a>
         {% endif %}
     </div>
     {% endif %}
@@ -319,8 +235,8 @@
     </div>
 </div>
 
-<div class="c-card" style="padding:0; overflow:hidden;">
-    <div style="overflow-x:auto;">
+<div class="c-card card-no-padding">
+    <div class="table-responsive">
         <table class="c-table">
             <thead>
                 <tr>
@@ -331,20 +247,16 @@
                     <th>Shipment Type</th>
                     <th>Submitted</th>
                     <th>Last Updated</th>
-                    <th style="text-align:center;">Actions</th>
+                    <th class="text-center">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for shipment in flagged_shipments %}
                 <tr>
                     <td>
-                        <span style="font-weight:600; color:#1A1A2E; font-size:13px;">
-                            {{ shipment.hawb_number }}
-                        </span>
+                        <span class="ref-number">{{ shipment.hawb_number }}</span>
                     </td>
-                    <td style="color:#6B7280;">
-                        {{ shipment.get_import_type_display|default:"-" }}
-                    </td>
+                    <td class="muted">{{ shipment.get_import_type_display|default:"-" }}</td>
                     <td>
                         {% if shipment.urgency == 'standard' %}
                             <span class="c-badge badge-standard">Standard</span>
@@ -355,31 +267,26 @@
                         {% elif shipment.urgency == 'rush' %}
                             <span class="c-badge badge-rush">Rush</span>
                         {% else %}
-                            <span style="color:#D1D5DB; font-size:12px;">-</span>
+                            <span class="muted-dash">-</span>
                         {% endif %}
                     </td>
                     <td>
                         <span class="sbadge s-flagged">On Hold</span>
                         <span class="inline-status-note">{{ shipment.deficiency_notes|default:"Documents need revision" }}</span>
                     </td>
-                    <td style="color:#6B7280;">
-                        {{ shipment.get_shipment_type_display|default:"-" }}
-                    </td>
-                    <td style="white-space:nowrap;">
-                        <span style="color:#374151; font-size:12.5px;">{{ shipment.submitted_at|date:"M d, Y" }}</span>
+                    <td class="muted">{{ shipment.get_shipment_type_display|default:"-" }}</td>
+                    <td class="meta-time">
+                        <span class="meta-primary">{{ shipment.submitted_at|date:"M d, Y" }}</span>
                         <br>
-                        <span style="color:#9CA3AF; font-size:11px;">{{ shipment.submitted_at|date:"H:i" }}</span>
+                        <span class="meta-secondary">{{ shipment.submitted_at|date:"H:i" }}</span>
                     </td>
-                    <td style="white-space:nowrap;">
-                        <span style="color:#374151; font-size:12.5px;">{{ shipment.updated_at|date:"M d, Y" }}</span>
+                    <td class="meta-time">
+                        <span class="meta-primary">{{ shipment.updated_at|date:"M d, Y" }}</span>
                         <br>
-                        <span style="color:#9CA3AF; font-size:11px;">{{ shipment.updated_at|date:"H:i" }}</span>
+                        <span class="meta-secondary">{{ shipment.updated_at|date:"H:i" }}</span>
                     </td>
-                    <td style="text-align:center;">
-                        <a href="{% url 'consignee:shipment_detail' shipment.id %}"
-                           class="c-btn c-btn-primary" style="padding:5px 16px; font-size:12px;">
-                            View
-                        </a>
+                    <td class="text-center">
+                        <a href="{% url 'consignee:shipment_detail' shipment.id %}" class="c-btn c-btn-primary btn-compact">View</a>
                     </td>
                 </tr>
                 {% endfor %}
