@@ -1,22 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+
 /* Status grid */
 .dash-status-grid {
+    font-family: 'Poppins', sans-serif;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
     flex: 1 1 0;
     min-width: 0;
     overflow: hidden;
+    column-gap: 9px;
+    row-gap: 7px;
 }
 
 .status-card {
     background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 2px 10px rgba(0, 0, 0, 0.04);
-    padding: 12px 14px;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 6px 18px rgba(15, 23, 42, 0.06);
+    padding: 9px 28px;
+    min-height: 58px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 6px;
+    gap: 33px;
     min-width: 0;
     overflow: hidden;
 }
@@ -24,7 +29,7 @@
 .sc-left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     min-width: 0;
     flex: 1;
 }
@@ -39,6 +44,13 @@
     flex-shrink: 0;
 }
 
+.sc-icon img {
+    width: 76px;
+    height: 46px;
+    object-fit: contain;
+    display: block;
+}
+
 .sc-text {
     display: flex;
     flex-direction: column;
@@ -48,46 +60,49 @@
 }
 
 .sc-label {
-    font-size: 9.5px;
-    font-weight: 800;
-    letter-spacing: 0.5px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
     text-transform: uppercase;
-    line-height: 1.2;
+    line-height: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .sc-sub {
-    font-size: 8.5px;
-    color: #9CA3AF;
-    line-height: 1.3;
-    white-space: nowrap;
+    font-size: 8px;
+    color: #6B7280;
+    line-height: 1.05;
+    white-space: normal;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .sc-count {
-    font-size: 26px;
-    font-weight: 800;
+    font-size: 37px;
+    font-weight: 700;
     line-height: 1;
     color: #1B3358;
+    letter-spacing: 0.3px;
     flex-shrink: 0;
 }
 
 /* Total card */
 .dash-total-card {
     background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 6px 18px rgba(15, 23, 42, 0.06);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 20px 12px;
-    width: 150px;
+    padding: 21px 10px;
+    min-height: 118px;
+    width: 190px;
     flex-shrink: 0;
     text-align: center;
+    font-family: 'Poppins', sans-serif;
 }
 
 /* Chart layout */
@@ -113,6 +128,7 @@
 }
 
 .c-card-title {
+    font-family: 'Poppins', sans-serif;
     font-size: 14px;
     font-weight: 700;
     color: #1B3358;
@@ -120,6 +136,7 @@
 }
 
 .chart-filter-btn {
+    font-family: 'Poppins', sans-serif;
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -130,7 +147,7 @@
     font-size: 11px;
     color: #374151;
     cursor: pointer;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Poppins', sans-serif;
 }
 
 #shipmentChart {
@@ -192,6 +209,8 @@ a.status-card {
     text-decoration: none;
     color: inherit;
     transition: box-shadow 0.18s ease, transform 0.15s ease;
+    height: 99px;
+    font-family: 'Poppins', sans-serif;
 }
 
 a.status-card:hover {
@@ -202,17 +221,182 @@ a.status-card:hover {
 .dash-total-link {
     text-decoration: none;
     display: block;
-    width: 150px;
+    width: 190px;
     flex-shrink: 0;
+}
+
+.dash-summary-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 240px;
+    flex-shrink: 0;
+}
+
+.summary-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+.summary-icon-wrap {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.summary-icon-wrap img {
+    width: 76px;
+    height: 46px;
+    object-fit: contain;
+    display: block;
+}
+
+.summary-text {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.overall-icon-wrap {
+    width: 44px;
+    height: 44px;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.overall-icon-wrap img {
+    width: 100%;
+    height: 77%;
+    object-fit: contain;
+    display: block;
+}
+
+.dash-flags-card {
+    width: 236px;
+    min-height: 103px;
+    padding: 9px 43px 7px 25px;
+    box-sizing: border-box;
+}
+
+.dash-summary-stack > .dash-flags-card {
+    text-decoration: none;
+    color: inherit;
+}
+
+.dash-flags-card .flags-icon-wrap {
+    width: 36px;
+    height: 36px;
+}
+
+.dash-flags-card .flags-icon-wrap img {
+    width: 76px;
+    height: 46px;
+    object-fit: contain;
+    display: block;
+}
+
+.dash-flags-card .flags-label {
+    color: #FF0000;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    line-height: 1;
+}
+
+.dash-flags-card .flags-count {
+    color: #FF0000;
+    font-size: 37px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.2px;
+    margin-left: auto;
 }
 
 .dash-total-link .dash-total-card {
     transition: box-shadow 0.18s ease, transform 0.15s ease;
+    width: 236px;
 }
 
 .dash-total-link:hover .dash-total-card {
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
     transform: translateY(-2px);
+}
+
+/* Status specific colors */
+.status-arrived .sc-label,
+.status-arrived .sc-count {
+    color: #F6B74A;
+}
+
+.status-lodgement .sc-label,
+.status-lodgement .sc-count {
+    color: #00B5E2;
+}
+
+.status-paid .sc-label,
+.status-paid .sc-count {
+    color: #0A6B2E;
+}
+
+.status-computed .sc-label,
+.status-computed .sc-count {
+    color: #2E67C8;
+}
+
+.status-ongoing .sc-label,
+.status-ongoing .sc-count {
+    color: #FF6A00;
+}
+
+.status-released .sc-label,
+.status-released .sc-count {
+    color: #00A89A;
+}
+
+.status-approved .sc-label,
+.status-approved .sc-count {
+    color: #32CD5A;
+}
+
+.status-assessed .sc-label,
+.status-assessed .sc-count {
+    color: #6D37D6;
+}
+
+.status-billed .sc-label,
+.status-billed .sc-count {
+    color: #6F7A8E;
+}
+
+.total-title {
+    font-size: 23px;
+    font-weight: 800;
+    color: #1B3358;
+    letter-spacing: -0.2px;
+    margin: 0 0 3px;
+    line-height: 1;
+}
+
+.total-subtitle {
+    font-size: 9px;
+    color: #9CA3AF;
+    margin: 0 0 22px;
+    line-height: 1.2;
+}
+
+.total-count {
+    font-size: 55px;
+    font-weight: 700;
+    color: #1B3358;
+    line-height: 1;
+    margin: 0;
 }
 
 /* Shipping type bar */

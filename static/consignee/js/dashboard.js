@@ -85,10 +85,14 @@
         });
     }
 
-    window.fetchChartData = function () {
+    window.fetchChartData = function (year, month) {
         if (!config.chartDataUrl || !shipmentChart) return;
 
-        fetch(config.chartDataUrl)
+        var url = new URL(config.chartDataUrl, window.location.origin);
+        url.searchParams.set('year', year);
+        url.searchParams.set('month', month);
+
+        fetch(url.toString())
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 shipmentChart.data.labels = d.labels;
@@ -135,10 +139,14 @@
     }
 
     var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var today = new Date();
     var pickerState = {
-        year: config.currentYear || new Date().getFullYear(),
-        month: new Date().getMonth()
+        year: parseInt(config.selectedYear, 10) || config.currentYear || today.getFullYear(),
+        month: (parseInt(config.selectedMonth, 10) || (today.getMonth() + 1)) - 1
     };
+    if (pickerState.month < 0 || pickerState.month > 11) {
+        pickerState.month = today.getMonth();
+    }
     var currentPickerTarget = null;
 
     window.openMonthPicker = function (triggerId) {
@@ -184,7 +192,7 @@
             b.textContent = m;
             b.style.cssText = [
                 'padding:8px;border-radius:8px;border:none;cursor:pointer;',
-                'font-family:Inter,sans-serif;font-size:12px;',
+                'font-family:Poppins,sans-serif;font-size:12px;',
                 'font-weight:' + (active ? '700' : '500') + ';',
                 'background:' + (active ? '#1B3358' : 'transparent') + ';',
                 'color:' + (active ? '#fff' : '#374151') + ';',
@@ -200,14 +208,21 @@
 
             b.onclick = function () {
                 pickerState.month = i;
+                var selectedMonth = i + 1;
                 var label = m + ' ' + pickerState.year;
 
                 document.querySelectorAll('.mp-label').forEach(function (el) {
                     el.textContent = label;
                 });
 
+                var newUrl = new URL(window.location.href);
+                newUrl.searchParams.set('year', pickerState.year);
+                newUrl.searchParams.set('month', selectedMonth);
+
                 document.getElementById('month-picker').style.display = 'none';
                 currentPickerTarget = null;
+
+                window.location.href = newUrl.toString();
             };
 
             grid.appendChild(b);
@@ -230,6 +245,12 @@
             window.pickerYear(parseInt(button.dataset.pickerYear, 10));
         });
     });
+
+    document.querySelectorAll('.mp-label').forEach(function (el) {
+        el.textContent = months[pickerState.month] + ' ' + pickerState.year;
+    });
+
+    window.fetchChartData(pickerState.year, pickerState.month + 1);
 
     document.querySelectorAll('.ship-type-segment[data-count]').forEach(function (segment) {
         var count = parseFloat(segment.dataset.count);

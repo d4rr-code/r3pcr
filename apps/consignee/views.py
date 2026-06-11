@@ -158,26 +158,49 @@ def dashboard(request):
     import calendar
     from django.db.models import Count
     from django.db.models.functions import ExtractMonth, ExtractYear
-    shipments = Shipment.objects.filter(consignee=request.user)
-    total = shipments.count()
+
+    today = timezone.localdate()
+    selected_year = request.GET.get('year')
+    selected_month = request.GET.get('month')
+
+    try:
+        selected_year = int(selected_year) if selected_year else today.year
+    except (TypeError, ValueError):
+        selected_year = today.year
+
+    try:
+        selected_month = int(selected_month) if selected_month else today.month
+    except (TypeError, ValueError):
+        selected_month = today.month
+
+    if selected_month < 1 or selected_month > 12:
+        selected_month = today.month
+
+    shipments_all = Shipment.objects.filter(consignee=request.user)
+    shipments_filtered = shipments_all.filter(
+        submitted_at__year=selected_year,
+        submitted_at__month=selected_month,
+    )
+    total = shipments_all.count()
 
     status_counts = {
-        'incoming':     shipments.filter(status='incoming').count(),
-        'arrived':      shipments.filter(status='arrived').count(),
-        'computed':     shipments.filter(status='computed').count(),
-        'approved':     shipments.filter(status='approved').count(),
-        'rejected':     shipments.filter(status='rejected').count(),
-        'for_revision': shipments.filter(status='for_revision').count(),
-        'lodgement':    shipments.filter(status='lodgement').count(),
-        'ongoing':      shipments.filter(status='ongoing').count(),
-        'assessed':     shipments.filter(status='assessed').count(),
-        'paid':         shipments.filter(status='paid').count(),
-        'released':     shipments.filter(status='released').count(),
-        'billed':       shipments.filter(status='billed').count(),
+        'incoming':     shipments_all.filter(status='incoming').count(),
+        'arrived':      shipments_all.filter(status='arrived').count(),
+        'computed':     shipments_all.filter(status='computed').count(),
+        'approved':     shipments_all.filter(status='approved').count(),
+        'rejected':     shipments_all.filter(status='rejected').count(),
+        'for_revision': shipments_all.filter(status='for_revision').count(),
+        'lodgement':    shipments_all.filter(status='lodgement').count(),
+        'ongoing':      shipments_all.filter(status='ongoing').count(),
+        'assessed':     shipments_all.filter(status='assessed').count(),
+        'paid':         shipments_all.filter(status='paid').count(),
+        'released':     shipments_all.filter(status='released').count(),
+        'billed':       shipments_all.filter(status='billed').count(),
+        'flags':        shipments_all.filter(has_deficiency=True).count(),
     }
 
     import_breakdown = list(
-        shipments.values('import_type')
+        shipments_all.values('import_type')
                  .annotate(count=Count('id'))
                  .order_by('-count')
     )
@@ -186,7 +209,7 @@ def dashboard(request):
         item['label'] = import_labels.get(item['import_type'], item['import_type'])
 
     mode_breakdown = list(
-        shipments.values('shipment_type')
+        shipments_all.values('shipment_type')
                  .annotate(count=Count('id'))
                  .order_by('-count')
     )
@@ -195,7 +218,7 @@ def dashboard(request):
         item['label'] = mode_labels.get(item['shipment_type'], item['shipment_type'] or 'Not specified')
 
     urgency_breakdown = list(
-        shipments.values('urgency')
+        shipments_all.values('urgency')
                  .annotate(count=Count('id'))
                  .order_by('-count')
     )
@@ -203,11 +226,10 @@ def dashboard(request):
     for item in urgency_breakdown:
         item['label'] = urgency_labels.get(item['urgency'], item['urgency'] or 'Unknown')
 
-    # ── Monthly chart data (current year) ────────────────────────────────────
-    today = timezone.localdate()
+    # ── Monthly chart data (4-month window ending at selected month) ─────────
     month_points = []
     for offset in range(3, -1, -1):
-        year, month = today.year, today.month - offset
+        year, month = selected_year, selected_month - offset
         while month <= 0:
             month += 12
             year -= 1
@@ -216,7 +238,7 @@ def dashboard(request):
     start_year, start_month = month_points[0]
     start_date = today.replace(year=start_year, month=start_month, day=1)
     monthly_qs = (
-        shipments
+        shipments_all
         .filter(submitted_at__date__gte=start_date)
         .annotate(year=ExtractYear('submitted_at'), month=ExtractMonth('submitted_at'))
         .values('year', 'month')
@@ -235,11 +257,14 @@ def dashboard(request):
         'import_breakdown':   import_breakdown,
         'mode_breakdown':     mode_breakdown,
         'urgency_breakdown':  urgency_breakdown,
-        'recent_shipments':   shipments.order_by('-submitted_at'),
+        'recent_shipments':   shipments_all.order_by('-submitted_at'),
         'monthly_labels':     json.dumps(monthly_labels),
         'monthly_data':       json.dumps(monthly_data),
         'monthly_total':      sum(monthly_data),
-        'current_year':       today.year,
+        'current_year':       selected_year,
+        'selected_month':     selected_month,
+        'selected_year':      selected_year,
+        'selected_label':     f'{calendar.month_abbr[selected_month]} {selected_year}',
     }
 
     from apps.supervisor.models import Announcement
@@ -1408,13 +1433,29 @@ def chart_data(request):
     from django.http import JsonResponse
 
     today = timezone.localdate()
+    year = request.GET.get('year')
+    month = request.GET.get('month')
+
+    try:
+        year = int(year) if year else today.year
+    except (TypeError, ValueError):
+        year = today.year
+
+    try:
+        month = int(month) if month else today.month
+    except (TypeError, ValueError):
+        month = today.month
+
+    if month < 1 or month > 12:
+        month = today.month
+
     month_points = []
     for offset in range(3, -1, -1):
-        year, month = today.year, today.month - offset
-        while month <= 0:
-            month += 12
-            year -= 1
-        month_points.append((year, month))
+        point_year, point_month = year, month - offset
+        while point_month <= 0:
+            point_month += 12
+            point_year -= 1
+        month_points.append((point_year, point_month))
 
     start_year, start_month = month_points[0]
     start_date = today.replace(year=start_year, month=start_month, day=1)
@@ -1426,9 +1467,9 @@ def chart_data(request):
     )
     lookup = {(row['year'], row['month']): row['count'] for row in rows}
     if month_points[0][0] == month_points[-1][0]:
-        labels = [calendar.month_abbr[month] for _, month in month_points]
+        labels = [calendar.month_abbr[point_month] for _, point_month in month_points]
     else:
-        labels = [f'{calendar.month_abbr[month]} {str(year)[-2:]}' for year, month in month_points]
+        labels = [f'{calendar.month_abbr[point_month]} {str(point_year)[-2:]}' for point_year, point_month in month_points]
     data = [lookup.get(point, 0) for point in month_points]
 
     return JsonResponse({'labels': labels, 'data': data})

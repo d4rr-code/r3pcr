@@ -713,28 +713,6 @@ body {
     font-size: 12.5px;
 }
 
-/* ===================================================================
-   MONTH PICKER
-=================================================================== */
-
-.c-month-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    background: #F3F4F6;
-    border: 1.5px solid #E5E7EB;
-    border-radius: 20px;
-    cursor: pointer;
-    color: #374151;
-    font-size: 12px;
-    font-weight: 500;
-    transition: border-color .15s;
-}
-
-.c-month-pill:hover {
-    border-color: #1B3358;
-}
 
 /* ===================================================================
    DJANGO MESSAGES
