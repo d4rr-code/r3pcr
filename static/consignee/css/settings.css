@@ -1,0 +1,252 @@
+/* ─────────────────────────────────────────────────────────────────
+   Settings Page Styles
+   ───────────────────────────────────────────────────────────────── */
+
+.info-field {
+    padding: 10px 14px;
+    background: #F3F4F6;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #374151;
+    min-height: 40px;
+    line-height: 1.4;
+}
+
+.req-item {
+    font-size: 11px;
+    color: #9CA3AF;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.2s;
+}
+
+.req-item.met {
+    color: #16A34A;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Page Title
+   ───────────────────────────────────────────────────────────────── */
+
+.settings-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1A1A2E;
+    margin-bottom: 20px;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Card Sections
+   ───────────────────────────────────────────────────────────────── */
+
+.settings-card {
+    margin-bottom: 20px;
+}
+
+.settings-card:last-child {
+    margin-bottom: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Section Headers
+   ───────────────────────────────────────────────────────────────── */
+
+.settings-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.settings-section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1A1A2E;
+    margin: 0 0 3px 0;
+}
+
+.settings-section-desc {
+    font-size: 12px;
+    color: #9CA3AF;
+    margin: 0;
+}
+
+.settings-edit-btn {
+    padding: 7px 16px;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Profile Grid
+   ───────────────────────────────────────────────────────────────── */
+
+.settings-profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Role Badge
+   ───────────────────────────────────────────────────────────────── */
+
+.settings-role-badge {
+    margin-top: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    background: #EFF6FF;
+    border-radius: 8px;
+}
+
+.settings-role-label {
+    font-size: 11px;
+    color: #6B7280;
+    font-weight: 500;
+}
+
+.settings-role-value {
+    font-size: 12px;
+    color: #1D4ED8;
+    font-weight: 700;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Form Sections
+   ───────────────────────────────────────────────────────────────── */
+
+.settings-divider {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #F3F4F6;
+}
+
+.settings-divider-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 14px 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Username Change Form
+   ───────────────────────────────────────────────────────────────── */
+
+.settings-username-form {
+    max-width: 100%;
+}
+
+.settings-username-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.settings-username-input-group {
+    flex: 1;
+}
+
+.settings-username-btn {
+    white-space: nowrap;
+}
+
+.settings-username-hint {
+    font-size: 11px;
+    color: #9CA3AF;
+    margin-top: 8px;
+}
+
+.settings-username-hint strong {
+    color: #374151;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Password Change Card
+   ───────────────────────────────────────────────────────────────── */
+
+.settings-password-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1A1A2E;
+    margin: 0 0 4px 0;
+}
+
+.settings-password-desc {
+    font-size: 12px;
+    color: #9CA3AF;
+    margin: 0 0 20px 0;
+}
+
+.settings-password-form {
+    max-width: 100%;
+}
+
+.settings-password-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.settings-password-requirements {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.settings-password-requirement-icon {
+    font-size: 12px;
+}
+
+.settings-password-btn {
+    margin-top: 20px;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Form Helper Text
+   ───────────────────────────────────────────────────────────────── */
+
+.settings-helper-text {
+    font-size: 10px;
+    color: #9CA3AF;
+    margin: 3px 0 0 0;
+}
+
+.settings-form-buttons {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Responsive
+   ───────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .settings-profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-section-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .settings-edit-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .settings-username-row {
+        flex-direction: column;
+    }
+
+    .settings-username-btn {
+        width: 100%;
+    }
+}

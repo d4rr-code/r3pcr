@@ -1,0 +1,148 @@
+/* ── Section labels ──────────────────────────────────────────────────────── */
+.sub-hint  { font-size:11px; color:#9CA3AF; font-weight:500; margin:0 0 3px; }
+.sub-label {
+    display:block; font-size:11px; font-weight:700;
+    letter-spacing:0.9px; text-transform:uppercase;
+    color:#374151; margin-bottom:14px;
+}
+.sub-req      { color:#EF4444; }
+.sub-optional { font-weight:400; text-transform:none; letter-spacing:0; font-size:11px; color:#9CA3AF; }
+
+/* ── Import type select ─────────────────────────────────────────────────── */
+.sub-select {
+    width:100%; max-width:400px; padding:10px 36px 10px 14px;
+    border:1px solid #E5E7EB; border-radius:8px;
+    font-size:13px; color:#374151; font-family:'Inter',sans-serif;
+    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 20 20' fill='%236B7280'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E") no-repeat right 14px center;
+    -webkit-appearance:none; appearance:none; cursor:pointer;
+}
+.sub-select:focus { outline:none; border-color:#1B3358; box-shadow:0 0 0 3px rgba(27,51,88,.08); }
+
+/* ── Urgency cards ──────────────────────────────────────────────────────── */
+.urg-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.urg-card {
+    border:1.5px solid #E5E7EB; border-radius:12px;
+    padding:14px 10px 12px; text-align:center;
+    cursor:pointer; transition:all 0.15s;
+    background:#fff; user-select:none;
+}
+.urg-card:hover { border-color:#D1D5DB; background:#F9FAFB; }
+.urg-icon {
+    width:38px; height:38px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    margin:0 auto 8px; background:#F3F4F6; color:#9CA3AF;
+    transition:all 0.15s;
+}
+.urg-name { font-size:12px; font-weight:700; color:#1A1A2E; margin-bottom:3px; }
+.urg-desc { font-size:10px; color:#9CA3AF; margin-bottom:3px; line-height:1.4; }
+.urg-days { font-size:10px; font-weight:600; color:#6B7280; }
+
+/* selected states — dark rich backgrounds matching Figma */
+.urg-card.s-std  { border-color:#2563EB; background:#152847; }
+.urg-card.s-std  .urg-name { color:#93C5FD; }
+.urg-card.s-std  .urg-desc { color:#4A6FA5; }
+.urg-card.s-std  .urg-days { color:#60A5FA; }
+.urg-card.s-std  .urg-icon { background:rgba(59,130,246,.18); color:#60A5FA; }
+
+.urg-card.s-pri  { border-color:#F59E0B; background:#3A2500; }
+.urg-card.s-pri  .urg-name { color:#FCD34D; }
+.urg-card.s-pri  .urg-desc { color:#856219; }
+.urg-card.s-pri  .urg-days { color:#F59E0B; }
+.urg-card.s-pri  .urg-icon { background:rgba(245,158,11,.18); color:#F59E0B; }
+
+.urg-card.s-urg  { border-color:#F97316; background:#2D1100; }
+.urg-card.s-urg  .urg-name { color:#F97316; }
+.urg-card.s-urg  .urg-desc { color:#92400E; }
+.urg-card.s-urg  .urg-days { color:#FB923C; }
+.urg-card.s-urg  .urg-icon { background:rgba(249,115,22,.18); color:#F97316; }
+
+.urg-card.s-rush { border-color:#EF4444; background:#3B0606; }
+.urg-card.s-rush .urg-name { color:#FCA5A5; }
+.urg-card.s-rush .urg-desc { color:#7F1D1D; }
+.urg-card.s-rush .urg-days { color:#EF4444; }
+.urg-card.s-rush .urg-icon { background:rgba(239,68,68,.18); color:#EF4444; }
+
+/* ── Shipping type cards ────────────────────────────────────────────────── */
+.ship-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.ship-card {
+    border:1.5px solid #E5E7EB; border-radius:12px;
+    padding:14px 10px 12px; text-align:center;
+    cursor:pointer; transition:all 0.15s;
+    background:#fff; user-select:none;
+}
+.ship-card:hover { border-color:#D1D5DB; background:#F9FAFB; }
+.ship-icon { display:flex; align-items:center; justify-content:center; margin:0 auto 8px; color:#9CA3AF; transition:color 0.15s; }
+.ship-name { font-size:12px; font-weight:700; color:#374151; margin-bottom:3px; transition:color 0.15s; }
+.ship-sub  { font-size:10px; color:#9CA3AF; line-height:1.5; transition:color 0.15s; }
+.ship-card.s-sel { border-color:#1B3358; background:#1B3358; }
+.ship-card.s-sel .ship-icon { color:#fff; }
+.ship-card.s-sel .ship-name { color:#fff; }
+.ship-card.s-sel .ship-sub  { color:#93B8D8; }
+
+/* ── Upload zones ───────────────────────────────────────────────────────── */
+.upload-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.document-upload-head {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    min-height:36px;
+    margin-bottom:8px;
+}
+.document-upload-head p {
+    font-size:12px;
+    font-weight:600;
+    color:#374151;
+    margin:0;
+}
+.template-download-btn {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    min-height:36px;
+    padding:8px 18px;
+    border:1px solid #BAE6FD;
+    border-radius:7px;
+    background:#E0F2FE;
+    color:#0369A1;
+    font-size:12px;
+    font-weight:800;
+    line-height:1;
+    text-decoration:none;
+    white-space:nowrap;
+    box-shadow:0 1px 2px rgba(14,165,233,.08);
+}
+.template-download-btn:hover {
+    background:#BAE6FD;
+    border-color:#7DD3FC;
+    color:#075985;
+}
+.template-download-btn svg { width:15px; height:15px; flex-shrink:0; }
+.upload-zone {
+    border:1.5px dashed #D1D5DB; border-radius:10px;
+    padding:20px 12px 16px; text-align:center;
+    cursor:pointer; background:#FAFAFA;
+    transition:border-color 0.15s, background 0.15s;
+    position:relative;
+}
+.upload-zone:hover, .upload-zone.dz-over { border-color:#1B3358; background:#EEF3FA; }
+.upload-zone .up-icon { color:#C8D3DE; margin-bottom:8px; }
+.upload-zone .up-text { font-size:11px; font-weight:600; color:#374151; margin-bottom:3px; }
+.upload-zone .up-hint { font-size:10px; color:#9CA3AF; margin-bottom:10px; line-height:1.4; }
+.upload-zone .up-browse {
+    display:inline-block; padding:4px 16px;
+    border:1px solid #D1D5DB; border-radius:6px;
+    font-size:11px; font-weight:600; color:#374151;
+    background:#fff; font-family:'Inter',sans-serif;
+    pointer-events:none;
+}
+.upload-zone .up-fname { font-size:10px; color:#1B3358; font-weight:600; margin-top:8px; word-break:break-all; min-height:14px; }
+
+/* ── Values grid ────────────────────────────────────────────────────────── */
+.values-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.val-label { font-size:10px; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px; }
+.val-sub   { font-size:10px; color:#9CA3AF; margin-bottom:6px; min-height:14px; }
+
+/* ── Divider ────────────────────────────────────────────────────────────── */
+.sub-hr { border:none; border-top:1px solid #E5E7EB; margin:20px 0; }

@@ -1,62 +1,148 @@
 {% extends 'consignee/base_consignee.html' %}
+
+{% load static %}
+
 {% block title %}Global Parameters{% endblock %}
 {% block page_title %}Global Parameters{% endblock %}
 {% block nav_system_ref %}active{% endblock %}
 
 {% block extra_css %}
-.card {
-    background: #fff;
-    border-radius: 14px;
-    border: 1px solid #E5E7EB;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
-    padding: 20px;
-}
+<link rel="stylesheet"
+      href="{% static 'consignee/css/global_parameters.css' %}">
 {% endblock %}
 
 {% block content %}
-<a href="{% url 'consignee:system_reference' %}" style="display: inline-flex; align-items: center; gap: 8px; color: #1B3358; text-decoration: none; font-size: 13px; font-weight: 700; margin-bottom: 16px;">
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.707 6.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L12 5.414V13a1 1 0 11-2 0V5.414L9.121 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" transform="rotate(90 10 10)"/></svg>
+
+<a href="{% url 'consignee:system_reference' %}"
+   class="gp-back-link">
+
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd"
+              d="M7.707 6.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L12 5.414V13a1 1 0 11-2 0V5.414L9.121 6.707a1 1 0 01-1.414 0z"
+              clip-rule="evenodd"
+              transform="rotate(90 10 10)"/>
+    </svg>
+
     Back to System Reference
+
 </a>
 
-<div class="card" style="margin-bottom: 24px;">
-    <h2 style="color: #1B3358; margin: 0 0 8px; font-size: 18px; font-weight: 700;">Exchange Rates</h2>
-    <p style="color: #6B7280; margin: 0; font-size: 13px;">Current system-wide exchange rates (PHP per foreign currency unit)</p>
+<div class="gp-card gp-header-card">
+
+    <h2>
+
+        Exchange Rates
+
+    </h2>
+
+    <p>
+
+        Current system-wide exchange rates (PHP per foreign currency unit)
+
+    </p>
+
 </div>
 
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+<div class="gp-rate-grid">
+
     {% for code, rate in parameters.items %}
-    <div class="card" style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px;">
+
+    <div class="gp-card gp-rate-card">
+
         <div>
-            <p style="color:#1B3358; font-weight:800; font-size:16px; margin:0;">{{ code }}</p>
-            <p style="color:#9CA3AF; font-size:11px; margin:2px 0 0;">per 1 {{ code }}</p>
+
+            <p class="gp-currency">
+
+                {{ code }}
+
+            </p>
+
+            <p class="gp-unit">
+
+                per 1 {{ code }}
+
+            </p>
+
         </div>
-        <div style="text-align:right;">
+
+        <div class="gp-rate-value">
+
             {% if rate != '—' %}
-                <p style="color:#111827; font-weight:700; font-size:18px; margin:0;">₱{{ rate }}</p>
+
+                <p class="gp-rate">
+
+                    ₱{{ rate }}
+
+                </p>
+
             {% else %}
-                <p style="color:#9CA3AF; font-size:15px; margin:0;">—</p>
+
+                <p class="gp-empty">
+
+                    —
+
+                </p>
+
             {% endif %}
+
         </div>
+
     </div>
+
     {% endfor %}
+
 </div>
 
-<div class="card" style="margin: 24px 0 16px;">
-    <h2 style="color: #1B3358; margin: 0 0 8px; font-size: 18px; font-weight: 700;">Urgency Business Days</h2>
-    <p style="color: #6B7280; margin: 0; font-size: 13px;">Read-only target processing windows configured by the supervisor</p>
+<div class="gp-card gp-header-card">
+
+    <h2>
+
+        Urgency Business Days
+
+    </h2>
+
+    <p>
+
+        Read-only target processing windows configured by the supervisor
+
+    </p>
+
 </div>
 
-<div style="display:grid; grid-template-columns:repeat(4, minmax(120px, 1fr)); gap:16px;">
+<div class="gp-days-grid">
+
     {% for item in urgency_days %}
-    <div class="card" style="padding:16px 20px;">
-        <p style="color:#6B7280; font-size:11px; font-weight:800; margin:0 0 8px; text-transform:uppercase;">{{ item.label }}</p>
-        <p style="color:#1B3358; font-weight:800; font-size:24px; margin:0;">{{ item.value }} days</p>
+
+    <div class="gp-card gp-day-card">
+
+        <p class="gp-day-label">
+
+            {{ item.label }}
+
+        </p>
+
+        <p class="gp-day-value">
+
+            {{ item.value }} days
+
+        </p>
+
     </div>
+
     {% endfor %}
+
 </div>
 
-<div style="margin-top: 20px; padding: 14px 16px; background: #EFF6FF; border: 1px solid #93C5FD; border-radius: 8px; font-size: 13px; color: #1D4ED8;">
-    <strong>Note:</strong> These rates and urgency windows are used by the system for duty computation and shipment tracking. Urgency windows count business days only, excluding weekends. Contact the supervisor to update these values.
+<div class="gp-note">
+
+    <strong>Note:</strong>
+
+    These rates and urgency windows are used by the system for duty computation and shipment tracking.
+
+    Urgency windows count business days only, excluding weekends.
+
+    Contact the supervisor to update these values.
+
 </div>
+
 {% endblock %}

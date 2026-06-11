@@ -1,0 +1,261 @@
+/* ==========================================================================
+   BACK LINK
+   ========================================================================== */
+
+.gp-back-link{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    margin-bottom:16px;
+
+    color:#1B3358;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    text-decoration:none;
+
+}
+
+.gp-back-link:hover{
+
+    opacity:.85;
+
+}
+
+/* ==========================================================================
+   CARD
+   ========================================================================== */
+
+.gp-card{
+
+    background:#FFFFFF;
+
+    border:1px solid #E5E7EB;
+
+    border-radius:14px;
+
+    padding:20px;
+
+    box-shadow:
+
+        0 1px 3px rgba(0,0,0,.06),
+
+        0 4px 16px rgba(0,0,0,.04);
+
+}
+
+.gp-header-card{
+
+    margin-bottom:24px;
+
+}
+
+.gp-header-card h2{
+
+    margin:0 0 8px;
+
+    color:#1B3358;
+
+    font-size:18px;
+
+    font-weight:700;
+
+}
+
+.gp-header-card p{
+
+    margin:0;
+
+    color:#6B7280;
+
+    font-size:13px;
+
+}
+
+/* ==========================================================================
+   EXCHANGE RATES
+   ========================================================================== */
+
+.gp-rate-grid{
+
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:16px;
+
+}
+
+.gp-rate-card{
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    padding:16px 20px;
+
+}
+
+.gp-currency{
+
+    margin:0;
+
+    color:#1B3358;
+
+    font-size:16px;
+
+    font-weight:800;
+
+}
+
+.gp-unit{
+
+    margin:2px 0 0;
+
+    color:#9CA3AF;
+
+    font-size:11px;
+
+}
+
+.gp-rate-value{
+
+    text-align:right;
+
+}
+
+.gp-rate{
+
+    margin:0;
+
+    color:#111827;
+
+    font-size:18px;
+
+    font-weight:700;
+
+}
+
+.gp-empty{
+
+    margin:0;
+
+    color:#9CA3AF;
+
+    font-size:15px;
+
+}
+
+/* ==========================================================================
+   URGENCY DAYS
+   ========================================================================== */
+
+.gp-days-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(4,minmax(120px,1fr));
+
+    gap:16px;
+
+}
+
+.gp-day-card{
+
+    padding:16px 20px;
+
+}
+
+.gp-day-label{
+
+    margin:0 0 8px;
+
+    color:#6B7280;
+
+    font-size:11px;
+
+    font-weight:800;
+
+    text-transform:uppercase;
+
+}
+
+.gp-day-value{
+
+    margin:0;
+
+    color:#1B3358;
+
+    font-size:24px;
+
+    font-weight:800;
+
+}
+
+/* ==========================================================================
+   NOTE
+   ========================================================================== */
+
+.gp-note{
+
+    margin-top:20px;
+
+    padding:14px 16px;
+
+    background:#EFF6FF;
+
+    border:1px solid #93C5FD;
+
+    border-radius:8px;
+
+    color:#1D4ED8;
+
+    font-size:13px;
+
+    line-height:1.6;
+
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width:900px){
+
+    .gp-rate-grid{
+
+        grid-template-columns:1fr;
+
+    }
+
+    .gp-days-grid{
+
+        grid-template-columns:repeat(2,1fr);
+
+    }
+
+}
+
+@media (max-width:640px){
+
+    .gp-days-grid{
+
+        grid-template-columns:1fr;
+
+    }
+
+    .gp-card{
+
+        padding:16px;
+
+    }
+
+}

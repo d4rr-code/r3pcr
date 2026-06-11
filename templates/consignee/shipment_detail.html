@@ -1,443 +1,11 @@
 {% extends 'consignee/base_consignee.html' %}
+{% load static %}
 
 {% block title %}Shipment - {{ shipment.hawb_number }}{% endblock %}
 {% block nav_submissions %}active{% endblock %}
 
 {% block extra_css %}
-body {
-    --bg-page: #f2f2f2;
-    --topbar-bg: #f8fafc;
-    --card-bg: #ffffff;
-    --border: #e5e7eb;
-    --text-primary: #18345a;
-    --text-secondary: #4b5563;
-    --text-muted: #8b8f96;
-    background: #f2f2f2;
-}
-.content,
-.c-content { padding: 28px 32px 36px; background: #f2f2f2; }
-.shipment-page { max-width: 1180px; margin: 0 auto; color: #1f2933; }
-.shipment-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 22px;
-}
-.shipment-title h2 {
-    color: #18345a;
-    font-size: 28px;
-    font-weight: 800;
-    line-height: 1.1;
-    margin: 0 0 4px;
-    letter-spacing: 0;
-}
-.shipment-title p { color: #606873; font-size: 13px; margin: 0; }
-.header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.back-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    min-height: 38px;
-    padding: 0 18px;
-    color: #ffffff;
-    background: #18345a;
-    border-radius: 7px;
-    font-size: 12px;
-    font-weight: 800;
-    text-decoration: none;
-    box-shadow: 0 12px 24px rgba(24,52,90,.22);
-}
-.btn-icon { width: 15px; height: 15px; flex: 0 0 auto; }
-.detail-card {
-    background: #ffffff;
-    border: 1px solid #e4e5e7;
-    border-radius: 8px;
-    box-shadow: 0 16px 32px rgba(22, 27, 32, .10);
-    overflow: hidden;
-}
-.card-pad { padding: 30px 42px; }
-.section-title {
-    color: #18345a;
-    font-size: 17px;
-    font-weight: 800;
-    margin: 0;
-}
-.section-subtitle { color: #59616c; font-size: 11px; margin: 4px 0 0; }
-.card-head {
-    padding: 26px 32px 22px;
-    border-bottom: 1px solid #e5e7eb;
-}
-.status-card { padding: 34px 54px 28px; margin-bottom: 30px; }
-.status-progress {
-    display: grid;
-    grid-template-columns: repeat(10, minmax(78px, 1fr));
-    overflow-x: auto;
-    padding: 4px 0;
-}
-.status-step {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    color: #2e3238;
-    font-size: 9px;
-    font-weight: 800;
-    text-align: center;
-    letter-spacing: 0;
-    text-transform: uppercase;
-    min-width: 78px;
-}
-.status-step::before {
-    content: "";
-    position: absolute;
-    top: 9px;
-    left: -50%;
-    width: 100%;
-    height: 2px;
-    background: #b9babd;
-    z-index: 0;
-}
-.status-step:first-child::before { display: none; }
-.status-step.completed::before,
-.status-step.current::before { background: #6b7f9b; }
-.progress-dot {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #b9babd;
-    position: relative;
-    z-index: 1;
-    flex-shrink: 0;
-}
-.status-step.completed .progress-dot { background: #5f718d; }
-.status-step.current .progress-dot {
-    width: 20px;
-    height: 20px;
-    background: #006cb6;
-    box-shadow: 0 0 0 7px rgba(0,108,182,.16), 0 0 18px rgba(0,108,182,.55);
-}
-.status-step.current span:last-child { color: #002f62; }
-.status-note,
-.status-alert {
-    border-radius: 7px;
-    padding: 12px 16px;
-    margin-top: 20px;
-    font-size: 12px;
-    line-height: 1.5;
-}
-.status-note { background: #f8fafc; border-left: 4px solid #18345a; color: #4b5563; }
-.status-note strong { color: #18345a; text-transform: uppercase; font-size: 10px; letter-spacing: .5px; }
-.status-alert.revision { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
-.status-alert.rejected { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
-.top-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.45fr) minmax(280px, .95fr);
-    gap: 48px;
-    margin-bottom: 36px;
-}
-.info-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 34px;
-    padding: 28px 32px 32px;
-}
-.info-item.full { grid-column: 1 / -1; }
-.eyebrow {
-    color: #606873;
-    font-size: 11px;
-    font-weight: 800;
-    text-transform: uppercase;
-    margin: 0 0 6px;
-}
-.info-value { color: #1f2024; font-size: 16px; font-weight: 800; margin: 0; }
-.doc-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    min-height: 66px;
-    padding: 0 38px;
-    border-bottom: 1px solid #e5e7eb;
-}
-.doc-row:last-child { border-bottom: 0; }
-.doc-row span { color: #1f2024; font-size: 16px; font-weight: 600; }
-.doc-row a { color: #18345a; font-size: 11px; font-weight: 800; }
-.computation-card { margin-bottom: 40px; }
-.computation-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 30px 44px 26px;
-    border-bottom: 1px solid #e5e7eb;
-}
-.download-links { display: flex; gap: 18px; flex-wrap: wrap; }
-.download-links a {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
-    font-weight: 900;
-    text-decoration: none;
-    text-transform: uppercase;
-}
-.download-pdf { color: #ff3600; }
-.download-excel { color: #22a348; }
-.warning-strip {
-    display: inline-flex;
-    align-items: center;
-    gap: 11px;
-    background: #ffd3b5;
-    color: #f25a00;
-    border-radius: 4px;
-    min-height: 52px;
-    padding: 0 22px;
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-    margin-bottom: 26px;
-}
-.metric-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
-    margin-bottom: 30px;
-}
-.metric {
-    background: #d3d3d3;
-    border-radius: 7px;
-    text-align: center;
-    padding: 22px 12px 18px;
-}
-.metric-label { color: #5f6063; font-size: 10px; text-transform: uppercase; margin: 0 0 8px; }
-.metric-value { color: #050607; font-size: 26px; line-height: 1; font-weight: 900; margin: 0; }
-.metric-help { color: #60636a; font-size: 11px; margin: 8px 0 0; }
-.calc-table-wrap {
-    overflow-x: auto;
-    border: 1px solid #c7c8ca;
-    border-radius: 4px;
-    margin-bottom: 0;
-}
-.ecdt-collapse {
-    border: 1px solid #d7dce3;
-    border-radius: 7px;
-    overflow: hidden;
-    background: #ffffff;
-}
-.ecdt-collapse summary {
-    min-height: 48px;
-    padding: 0 18px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    color: #18345a;
-    font-size: 12px;
-    font-weight: 900;
-    text-transform: uppercase;
-    cursor: pointer;
-    list-style: none;
-    background: #f8fafc;
-}
-.ecdt-collapse summary::-webkit-details-marker { display: none; }
-.ecdt-collapse summary::after {
-    content: "+";
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: #e8eef5;
-    color: #18345a;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    line-height: 1;
-    flex-shrink: 0;
-}
-.ecdt-collapse[open] summary::after { content: "-"; }
-.ecdt-collapse-body { padding: 20px; }
-.ecdt-collapse .computation-split { margin: 20px 0 0; }
-.calc-table { width: 100%; border-collapse: collapse; min-width: 760px; }
-.calc-table th {
-    background: #d3d3d3;
-    color: #696b70;
-    padding: 13px 18px;
-    text-align: center;
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-.calc-table td {
-    color: #111216;
-    padding: 18px;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 800;
-    border-top: 1px solid #eeeeef;
-}
-.calc-table tbody tr:nth-child(odd) { background: #ffffff; }
-.calc-table tbody tr:nth-child(even) { background: #f8f8f8; }
-.computation-split {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    border-top: 1px solid #cfd1d4;
-    margin: 58px -42px 0;
-}
-.split-panel { padding: 30px 58px 34px; }
-.split-panel + .split-panel { border-left: 1px solid #cfd1d4; }
-.split-title {
-    text-align: center;
-    color: #383b41;
-    font-size: 16px;
-    font-weight: 900;
-    margin: 0 0 34px;
-    text-transform: uppercase;
-}
-.fee-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 18px;
-    color: #3b3f46;
-    font-size: 12px;
-    margin-bottom: 12px;
-}
-.fee-row strong { color: #111216; }
-.fee-total {
-    border-top: 1px solid #aeb2b7;
-    padding-top: 12px;
-    margin-top: 14px;
-    font-weight: 900;
-}
-.review-box {
-    border-top: 1px solid #d7d9dc;
-    margin: 0 -42px -30px;
-    padding: 26px 42px 30px;
-}
-.review-title { color: #111216; font-size: 15px; font-weight: 900; margin: 0 0 4px; }
-.review-text { color: #111216; font-size: 11px; font-weight: 600; margin: 0 0 16px; }
-.action-row { display: flex; gap: 12px; flex-wrap: wrap; }
-.outline-action {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    min-height: 36px;
-    padding: 0 18px;
-    border-radius: 5px;
-    background: transparent;
-    font-size: 11px;
-    font-weight: 900;
-    text-transform: uppercase;
-    cursor: pointer;
-}
-.outline-action.revise { color: #ff5a00; border: 2px solid #ff5a00; }
-.outline-action.approve { color: #18b853; border: 2px solid #3bcf6f; }
-.outline-action.reject { color: #dc2626; border: 2px solid #ef4444; }
-.bottom-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(280px, .9fr);
-    gap: 30px;
-}
-.advisory-body { padding: 42px 48px 34px; }
-.advisory-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 22px;
-    margin-bottom: 24px;
-}
-.advisory-mode { color: #18345a; font-size: 28px; font-weight: 900; margin: 2px 0 0; }
-.score-box { color: #18345a; text-align: right; font-size: 14px; font-weight: 900; }
-.score-box strong { display: block; font-size: 28px; margin-top: 2px; }
-.future-advisory {
-    border: 1px solid #c8d7eb;
-    border-left: 5px solid #18345a;
-    background: #f6f9fd;
-    padding: 16px 18px;
-    margin-bottom: 20px;
-}
-.future-advisory p { margin: 0; }
-.future-advisory .label {
-    color: #69717c;
-    font-size: 10px;
-    font-weight: 900;
-    text-transform: uppercase;
-}
-.future-advisory .mode {
-    color: #18345a;
-    font-size: 22px;
-    font-weight: 900;
-    margin-top: 3px;
-}
-.advisory-summary {
-    color: #313943;
-    font-size: 12px;
-    line-height: 1.45;
-    margin-top: 10px;
-}
-.advisory-summary.match { color: #167c3d; }
-.advisory-compare {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 22px;
-}
-.compare-tile {
-    border: 1px solid #d9dee5;
-    background: #fff;
-    padding: 12px 14px;
-}
-.compare-tile strong {
-    color: #18345a;
-    display: block;
-    font-size: 14px;
-    margin-top: 3px;
-}
-.compare-tile em {
-    color: #69717c;
-    display: block;
-    font-size: 11px;
-    font-style: normal;
-    margin-top: 4px;
-}
-.compare-tile span { color: #69717c; font-size: 10px; font-weight: 900; text-transform: uppercase; }
-.bar-group { display: flex; flex-direction: column; gap: 18px; }
-.bar-label { color: #606873; font-size: 14px; margin-bottom: 8px; }
-.bar-track { width: 100%; height: 15px; background: #cecece; border-radius: 999px; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 999px; }
-.bar-fill.cost { background: #42cf67; }
-.bar-fill.time { background: #3379d6; }
-.bar-fill.weight { background: #ffd72d; }
-.bar-fill.distance { background: #3b82f6; }
-.advisory-foot { color: #69717c; font-size: 10px; margin-top: 28px; }
-.history-list { padding: 24px 34px 34px; }
-.history-item { display: flex; gap: 14px; margin-bottom: 22px; }
-.history-item:last-child { margin-bottom: 0; }
-.history-dot { width: 20px; height: 20px; border-radius: 50%; background: #d7d7d7; flex: 0 0 auto; margin-top: 2px; }
-.history-status { color: #17191d; font-size: 16px; font-weight: 900; margin: 0; text-transform: capitalize; }
-.history-meta { color: #575f6b; font-size: 10px; margin: 2px 0 0; }
-.history-note { color: #22252a; font-size: 11px; font-style: italic; margin: 4px 0 0; line-height: 1.4; }
-.sad-card { margin-bottom: 34px; }
-.sad-body { padding: 24px 32px 30px; color: #4b5563; font-size: 13px; }
-.sad-link { color: #18345a; font-weight: 800; }
-.empty-state { color: #606873; font-size: 13px; padding: 30px 32px; text-align: center; }
-
-@media (max-width: 980px) {
-    .content,
-    .c-content { padding: 22px 16px 30px; }
-    .shipment-header, .computation-head { align-items: flex-start; flex-direction: column; }
-    .header-actions { width: 100%; }
-    .top-grid, .bottom-grid, .computation-split { grid-template-columns: 1fr; gap: 20px; }
-    .split-panel + .split-panel { border-left: 0; border-top: 1px solid #cfd1d4; }
-    .metric-grid, .info-grid { grid-template-columns: 1fr; }
-    .card-pad { padding: 24px 18px; }
-    .computation-split, .review-box { margin-left: -18px; margin-right: -18px; }
-    .split-panel { padding: 26px 28px; }
-    .shipment-title h2 { font-size: 22px; }
-    .advisory-mode { font-size: 22px; }
-    .advisory-compare { grid-template-columns: 1fr; }
-}
+    <link rel="stylesheet" href="{% static 'consignee/css/shipment_detail.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -503,7 +71,7 @@ body {
                         <input type="file" name="airway_bill" accept=".pdf,.jpg,.jpeg,.png">
                     </label>
                 </div>
-                <button type="submit" class="back-btn" style="border:0; cursor:pointer;" onclick="return confirm('Resubmit corrected documents? Your declarant will be notified.')">
+                <button type="submit" class="back-btn" style="border:0; cursor:pointer;" data-action="resubmit-docs">
                     <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                         <path d="M9.25 13.25a.75.75 0 001.5 0V4.636l2.955 3.129a.75.75 0 001.09-1.03l-4.25-4.5a.75.75 0 00-1.09 0l-4.25 4.5a.75.75 0 101.09 1.03L9.25 4.636v8.614z"/>
                         <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
@@ -706,13 +274,7 @@ body {
                     <form method="POST" action="{% url 'consignee:revise_computation' shipment.id %}" id="form-revise">
                         {% csrf_token %}
                         <input type="hidden" name="notes" id="notes-revise">
-                        <button type="button" class="outline-action revise" onclick="
-                            var n = prompt('Optional - describe what needs to be corrected:', '');
-                            if (n === null) return;
-                            document.getElementById('notes-revise').value = n;
-                            if (confirm('Request revision? The declarant will be notified to review and recompute.'))
-                                document.getElementById('form-revise').submit();
-                        ">
+                        <button type="button" class="outline-action revise" data-action="revise-computation">
                             <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466.75.75 0 10-1.06 1.06 7 7 0 0011.716-3.138.75.75 0 00-1.455-.388zM4.688 8.576a5.5 5.5 0 019.201-2.466.75.75 0 101.06-1.06A7 7 0 003.233 8.188a.75.75 0 001.455.388z" clip-rule="evenodd"/>
                                 <path fill-rule="evenodd" d="M2.22 8.72a.75.75 0 011.06 0l1.47 1.47 1.47-1.47a.75.75 0 011.06 1.06l-2 2a.75.75 0 01-1.06 0l-2-2a.75.75 0 010-1.06zm10.5-.5a.75.75 0 011.06 0l2 2a.75.75 0 010 1.06l-2 2a.75.75 0 11-1.06-1.06l1.47-1.47-1.47-1.47a.75.75 0 010-1.06z" clip-rule="evenodd"/>
@@ -722,7 +284,7 @@ body {
                     </form>
                     <form method="POST" action="{% url 'consignee:approve_computation' shipment.id %}">
                         {% csrf_token %}
-                        <button type="submit" class="outline-action approve" onclick="return confirm('Approve the computation and proceed to customs lodgement?')">
+                        <button type="submit" class="outline-action approve" data-action="approve-computation">
                             <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-7.25 9.5a.75.75 0 01-1.127.075l-4.25-4.25a.75.75 0 111.06-1.06l3.648 3.647 6.724-8.821a.75.75 0 011.052-.143z" clip-rule="evenodd"/>
                             </svg>
@@ -891,19 +453,19 @@ body {
                 <div class="bar-group">
                     <div>
                         <div class="bar-label">Cost Efficiency {% widthratio declared_breakdown.cost 1 100 %}%</div>
-                        <div class="bar-track"><div class="bar-fill cost" style="width:{% widthratio declared_breakdown.cost 1 100 %}%;"></div></div>
+                        <div class="bar-track"><div class="bar-fill cost" data-width="{% widthratio declared_breakdown.cost 1 100 %}"></div></div>
                     </div>
                     <div>
                         <div class="bar-label">Transit Time {% widthratio declared_breakdown.time 1 100 %}%</div>
-                        <div class="bar-track"><div class="bar-fill time" style="width:{% widthratio declared_breakdown.time 1 100 %}%;"></div></div>
+                        <div class="bar-track"><div class="bar-fill time" data-width="{% widthratio declared_breakdown.time 1 100 %}"></div></div>
                     </div>
                     <div>
                         <div class="bar-label">Weight Suitability {% widthratio declared_breakdown.weight 1 100 %}%</div>
-                        <div class="bar-track"><div class="bar-fill weight" style="width:{% widthratio declared_breakdown.weight 1 100 %}%;"></div></div>
+                        <div class="bar-track"><div class="bar-fill weight" data-width="{% widthratio declared_breakdown.weight 1 100 %}"></div></div>
                     </div>
                     <div>
                         <div class="bar-label">Distance Score {% widthratio declared_breakdown.distance 1 100 %}%</div>
-                        <div class="bar-track"><div class="bar-fill distance" style="width:{% widthratio declared_breakdown.distance 1 100 %}%;"></div></div>
+                        <div class="bar-track"><div class="bar-fill distance" data-width="{% widthratio declared_breakdown.distance 1 100 %}"></div></div>
                     </div>
                 </div>
                 {% endif %}
@@ -956,4 +518,8 @@ body {
         </section>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'consignee/js/shipment_detail.js' %}"></script>
 {% endblock %}
