@@ -1,0 +1,337 @@
+
+.notification-detail-page{
+
+    max-width:900px;
+
+    margin:0 auto;
+
+}
+
+/* ==========================================================================
+   BACK LINK
+   ========================================================================== */
+
+.notification-back-link{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:6px;
+
+    margin-bottom:20px;
+
+    font-size:13px;
+
+    color:#6B7280;
+
+    text-decoration:none;
+
+    transition:color .18s ease;
+
+}
+
+.notification-back-link:hover{
+
+    color:#1B3358;
+
+}
+
+/* ==========================================================================
+   CARD
+   ========================================================================== */
+
+.notification-detail-card{
+
+    padding:24px;
+
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+.notification-header{
+
+    display:flex;
+
+    align-items:flex-start;
+
+    justify-content:space-between;
+
+    gap:12px;
+
+    margin-bottom:20px;
+
+}
+
+.notification-header-content{
+
+    flex:1;
+
+    min-width:0;
+
+}
+
+.notification-title{
+
+    margin:0 0 6px;
+
+    color:#1A1A2E;
+
+    font-size:18px;
+
+    font-weight:600;
+
+    line-height:1.4;
+
+    word-break:break-word;
+
+}
+
+.notification-date{
+
+    color:#9CA3AF;
+
+    font-size:12px;
+
+}
+
+.notification-type-badge{
+
+    white-space:nowrap;
+
+    flex-shrink:0;
+
+}
+
+/* ==========================================================================
+   DIVIDER
+   ========================================================================== */
+
+.notification-divider{
+
+    border:none;
+
+    border-top:1px solid #F0F2F5;
+
+    margin:0 0 20px;
+
+}
+
+/* ==========================================================================
+   MESSAGE
+   ========================================================================== */
+
+.notification-message{
+
+    margin:0 0 24px;
+
+    color:#374151;
+
+    font-size:14px;
+
+    line-height:1.7;
+
+    word-break:break-word;
+
+}
+/* ==========================================================================
+   SHIPMENT REFERENCE BOX
+   ========================================================================== */
+
+.notification-shipment-box{
+
+    background:#F9FAFB;
+
+    border:1px solid #E5E7EB;
+
+    border-radius:8px;
+
+    padding:14px 18px;
+
+    margin-bottom:20px;
+
+}
+
+.notification-shipment-label{
+
+    margin:0 0 6px;
+
+    color:#9CA3AF;
+
+    font-size:11px;
+
+    font-weight:600;
+
+    text-transform:uppercase;
+
+    letter-spacing:.06em;
+
+}
+
+.notification-shipment-number{
+
+    margin:0;
+
+    color:#1A1A2E;
+
+    font-size:15px;
+
+    font-weight:600;
+
+    line-height:1.4;
+
+    word-break:break-word;
+
+}
+
+.notification-shipment-meta{
+
+    margin:4px 0 0;
+
+    color:#6B7280;
+
+    font-size:12px;
+
+    line-height:1.5;
+
+}
+
+.notification-shipment-meta strong{
+
+    color:#1B3358;
+
+    font-weight:600;
+
+}
+
+/* ==========================================================================
+   ACTION BUTTON
+   ========================================================================== */
+
+.notification-action-btn{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:6px;
+
+    min-width:180px;
+
+    transition:
+
+        transform .15s ease,
+
+        box-shadow .18s ease;
+
+}
+
+.notification-action-btn:hover{
+
+    transform:translateY(-1px);
+
+    box-shadow:
+
+        0 6px 18px rgba(27,51,88,.12);
+
+}
+
+.notification-action-btn:active{
+
+    transform:translateY(0);
+
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width:768px){
+
+    .notification-detail-card{
+
+        padding:20px;
+
+    }
+
+    .notification-header{
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+    }
+
+    .notification-type-badge{
+
+        margin-top:4px;
+
+    }
+
+    .notification-title{
+
+        font-size:17px;
+
+    }
+
+}
+
+@media (max-width:480px){
+
+    .notification-detail-card{
+
+        padding:16px;
+
+    }
+
+    .notification-title{
+
+        font-size:16px;
+
+    }
+
+    .notification-message{
+
+        font-size:13px;
+
+    }
+
+    .notification-shipment-number{
+
+        font-size:14px;
+
+    }
+
+    .notification-action-btn{
+
+        width:100%;
+
+    }
+
+}
+
+/* ==========================================================================
+   OPTIONAL UTILITIES
+   ========================================================================== */
+
+.notification-center{
+
+    text-align:center;
+
+}
+
+.notification-full{
+
+    width:100%;
+
+}
+
+.notification-hidden{
+
+    display:none !important;
+
+}
