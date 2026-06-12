@@ -20,6 +20,22 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',')
 
 
+# ── Production security hardening ──────────────────────────────────────────────
+# Only active when DEBUG is off (i.e. on Railway/production); local dev is
+# unaffected so HTTP localhost still works.
+if not DEBUG:
+    # Railway terminates TLS at a proxy and forwards the scheme in this header —
+    # required so Django knows the request is HTTPS (otherwise SSL redirect loops).
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000          # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+
 INSTALLED_APPS = [
     'anymail',
     'django.contrib.admin',

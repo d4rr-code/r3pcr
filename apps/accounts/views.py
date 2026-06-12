@@ -6,8 +6,15 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.core.mail import send_mail
+from django.core.cache import cache
 from django.conf import settings
 from .models import User, OTP
+
+
+# ─── Brute-force throttling ───────────────────────────────────────────────────
+LOGIN_FAIL_LIMIT  = 8           # failed password attempts per account...
+LOGIN_FAIL_WINDOW = 15 * 60     # ...within this many seconds before a cooloff
+OTP_ATTEMPT_LIMIT = 5           # wrong OTP codes before the login is reset
 
 
 # ─── Field validation helpers ─────────────────────────────────────────────────
@@ -132,9 +139,19 @@ def login_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
+
+        # ── Brute-force throttle (per account, with cooloff) ──
+        fail_key = f'login_fail:{(username or "").strip().lower()}'
+        if cache.get(fail_key, 0) >= LOGIN_FAIL_LIMIT:
+            messages.error(request,
+                'Too many failed login attempts for this account. '
+                'Please wait about 15 minutes and try again.')
+            return render(request, 'accounts/login.html')
+
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
+            cache.delete(fail_key)               # reset on success
             # ── Remember Me ──
             if not request.POST.get('remember_me'):
                 request.session.set_expiry(0)        # expires when browser closes
@@ -188,7 +205,13 @@ def login_view(request):
 
             return redirect('accounts:verify_otp')
         else:
-            messages.error(request, 'Invalid username or password.')
+            attempts = cache.get(fail_key, 0) + 1
+            cache.set(fail_key, attempts, LOGIN_FAIL_WINDOW)
+            remaining = max(0, LOGIN_FAIL_LIMIT - attempts)
+            msg = 'Invalid username or password.'
+            if remaining <= 3:
+                msg += f' {remaining} attempt(s) left before a temporary lockout.'
+            messages.error(request, msg)
 
     return render(request, 'accounts/login.html')
 
@@ -201,6 +224,15 @@ def verify_otp_view(request):
         return redirect('accounts:login')
 
     if request.method == 'POST':
+        # ── Brute-force cap on the 6-digit code ──
+        attempts = request.session.get('otp_attempts', 0)
+        if attempts >= OTP_ATTEMPT_LIMIT:
+            OTP.objects.filter(user_id=user_id, is_used=False).update(is_used=True)
+            request.session.pop('pre_auth_user_id', None)
+            request.session.pop('otp_attempts', None)
+            messages.error(request, 'Too many incorrect codes. Please log in again.')
+            return redirect('accounts:login')
+
         entered_code = request.POST.get('otp_code')
         try:
             user = User.objects.get(id=user_id)
@@ -209,25 +241,31 @@ def verify_otp_view(request):
                 otp.is_used = True
                 otp.save()
                 login(request, user)
-                del request.session['pre_auth_user_id']
+                request.session.pop('pre_auth_user_id', None)
+                request.session.pop('otp_attempts', None)
                 messages.success(request, f'Welcome, {user.first_name or user.username}!')
                 return redirect_by_role(user)
             else:
-                messages.error(request, 'Invalid or expired OTP.')
+                attempts += 1
+                request.session['otp_attempts'] = attempts
+                remaining = max(0, OTP_ATTEMPT_LIMIT - attempts)
+                messages.error(request, f'Invalid or expired OTP. {remaining} attempt(s) left.')
         except (User.DoesNotExist, OTP.DoesNotExist):
             messages.error(request, 'Something went wrong. Please try again.')
             return redirect('accounts:login')
 
-    # ── DEV HINT: surface OTP on screen so testers don't need inbox access ──
+    # ── DEV HINT: surface OTP on screen ONLY in local/dev (never in production,
+    #    where it would leak the code and defeat the whole OTP step) ──
     dev_otp = None
-    try:
-        _hint_user = User.objects.get(id=user_id)
-        _hint_otp  = OTP.objects.filter(user=_hint_user, is_used=False).latest('created_at')
-        if _hint_otp.is_valid():
-            dev_otp = _hint_otp.code
-    except Exception:
-        pass
-    # ── remove the three lines above + dev_otp context key when going live ──
+    _is_local = ('console' in getattr(settings, 'EMAIL_BACKEND', '')
+                 or getattr(settings, 'REGISTRATION_EMAIL_DEV_LINKS', False))
+    if _is_local:
+        try:
+            _hint_otp = OTP.objects.filter(user_id=user_id, is_used=False).latest('created_at')
+            if _hint_otp.is_valid():
+                dev_otp = _hint_otp.code
+        except Exception:
+            pass
 
     return render(request, 'accounts/verify_otp.html', {'dev_otp': dev_otp})
 
