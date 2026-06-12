@@ -12,14 +12,23 @@ from .models import User, OTP
 
 # ─── Field validation helpers ─────────────────────────────────────────────────
 
+def _normalize_phone_number(phone):
+    """Reduce any PH mobile entry to the canonical 11-digit 09xxxxxxxxx form.
+    Accepts +63/63 prefixes and stray spaces/dashes; returns '' if unusable."""
+    if not phone:
+        return ''
+    digits = re.sub(r'\D', '', phone)
+    if digits.startswith('63') and len(digits) == 12:
+        digits = '0' + digits[2:]      # 639xxxxxxxxx -> 09xxxxxxxxx
+    return digits
+
+
 def _validate_phone_number(phone):
     if not phone:
         return None
-    if len(phone) > 18:
-        return 'Phone number is too long. Use 09XX-XXX-XXXX or +63-9XX-XXX-XXXX.'
-    ph_mobile = re.compile(r'^(?:09\d{2}[- ]?\d{3}[- ]?\d{4}|\+63[- ]?9\d{2}[- ]?\d{3}[- ]?\d{4})$')
-    if not ph_mobile.match(phone):
-        return 'Phone number must be a valid PH mobile number: 09XX-XXX-XXXX or +63-9XX-XXX-XXXX.'
+    digits = _normalize_phone_number(phone)
+    if not re.fullmatch(r'09\d{9}', digits):
+        return 'Enter a valid PH mobile number in the format 09xxxxxxxxx (11 digits).'
     return None
 
 
@@ -32,8 +41,8 @@ def _validate_profile_fields(first_name, last_name, email, phone='', company='')
         errors.append('First name is required.')
     elif len(first_name) < 2:
         errors.append('First name must be at least 2 characters.')
-    elif len(first_name) > 50:
-        errors.append('First name cannot exceed 50 characters.')
+    elif len(first_name) > 30:
+        errors.append('First name cannot exceed 30 characters.')
     elif not re.match(r"^[a-zA-ZÀ-ÿ\s\-'.]+$", first_name):
         errors.append('First name may only contain letters, spaces, hyphens, and apostrophes.')
 
@@ -42,16 +51,21 @@ def _validate_profile_fields(first_name, last_name, email, phone='', company='')
         errors.append('Last name is required.')
     elif len(last_name) < 2:
         errors.append('Last name must be at least 2 characters.')
-    elif len(last_name) > 50:
-        errors.append('Last name cannot exceed 50 characters.')
+    elif len(last_name) > 30:
+        errors.append('Last name cannot exceed 30 characters.')
     elif not re.match(r"^[a-zA-ZÀ-ÿ\s\-'.]+$", last_name):
         errors.append('Last name may only contain letters, spaces, hyphens, and apostrophes.')
 
-    # Email
+    # Email — use Django's validator for robust format checking
     if not email:
         errors.append('Email address is required.')
-    elif not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$', email):
-        errors.append('Enter a valid email address.')
+    else:
+        from django.core.validators import validate_email as _dj_validate_email
+        from django.core.exceptions import ValidationError as _DjVErr
+        try:
+            _dj_validate_email(email)
+        except _DjVErr:
+            errors.append('Enter a valid email address (e.g. juandelacruz@gmail.com).')
 
     # Phone (optional) — Philippine format: 09XX-XXX-XXXX or +639XX-XXX-XXXX
     if phone:
@@ -63,6 +77,32 @@ def _validate_profile_fields(first_name, last_name, email, phone='', company='')
     if company and len(company) > 100:
         errors.append('Company name cannot exceed 100 characters.')
 
+    return errors
+
+
+def _validate_password_strength(password):
+    """Enforce the character-class rules shown on the registration form, plus
+    Django's configured validators (common/numeric/similarity) as a backstop.
+    Returns a list of error strings."""
+    errors = []
+    if len(password) < 8:
+        errors.append('Password must be at least 8 characters.')
+    if not re.search(r'[A-Z]', password):
+        errors.append('Password must include at least one uppercase letter.')
+    if not re.search(r'[a-z]', password):
+        errors.append('Password must include at least one lowercase letter.')
+    if not re.search(r'[0-9]', password):
+        errors.append('Password must include at least one number.')
+    if not re.search(r'[^A-Za-z0-9]', password):
+        errors.append('Password must include at least one special character.')
+
+    if not errors:
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as _DjVErr
+        try:
+            validate_password(password)
+        except _DjVErr as ve:
+            errors.extend(ve.messages)
     return errors
 
 
@@ -112,7 +152,11 @@ def login_view(request):
             OTP.objects.create(user=user, code=otp_code)
             request.session['pre_auth_user_id'] = user.id
 
-            _is_local = settings.DEBUG or 'console' in getattr(settings, 'EMAIL_BACKEND', '')
+            # Only suppress real sending when using the console backend (or the
+            # explicit dev-link flag) — NOT merely because DEBUG is on, so OTP
+            # emails actually send once a real backend (Gmail/Resend) is set.
+            _is_local = ('console' in getattr(settings, 'EMAIL_BACKEND', '')
+                         or getattr(settings, 'REGISTRATION_EMAIL_DEV_LINKS', False))
             if _is_local:
                 # Local development: print OTP to terminal, no email sent
                 print(f'\n{"="*40}')
@@ -224,11 +268,19 @@ def resend_otp(request):
 # ─── Self-Registration (Consignee) ────────────────────────────────────────────
 
 def _generate_username(first_name, last_name):
-    """Auto-generate a unique username: firstname.lastname, firstname.lastname2, ..."""
-    import re
-    base = re.sub(r'[^a-z0-9]', '', f'{first_name}{last_name}'.lower())
+    """Auto-generate a compact unique username: first initial + last name,
+    lowercased and length-capped. e.g. 'Juan Dela Cruz' -> 'jdelacruz'.
+    Falls back to fuller name parts when the result would be too short."""
+    first = re.sub(r'[^a-z0-9]', '', (first_name or '').lower())
+    last  = re.sub(r'[^a-z0-9]', '', (last_name or '').lower())
+
+    base = (first[:1] + last) if (first and last) else (first or last)
+    base = base[:15]                       # not too long
+    if len(base) < 5:                      # not too short
+        base = (first + last)[:15] or base
     if not base:
         base = 'user'
+
     username = base
     counter  = 2
     while User.objects.filter(username=username).exists():
@@ -255,10 +307,9 @@ def register_view(request):
 
         # ── Validation ──
         errors = _validate_profile_fields(first_name, last_name, email, phone_number, company_name)
+        errors.extend(_validate_password_strength(password))
         if password != password2:
             errors.append('Passwords do not match.')
-        if len(password) < 8:
-            errors.append('Password must be at least 8 characters.')
         if email and User.objects.filter(email=email).exists():
             errors.append('Email already registered.')
 
@@ -268,6 +319,9 @@ def register_view(request):
             return render(request, 'accounts/register.html', {
                 'form_data': request.POST,
             })
+
+        # Store the phone in canonical 09xxxxxxxxx form.
+        phone_number = _normalize_phone_number(phone_number)
 
         # ── Create inactive user pending supervisor approval ──
         user = User.objects.create_user(
@@ -323,6 +377,130 @@ def register_view(request):
         return redirect('accounts:login')
 
     return render(request, 'accounts/register.html')
+
+
+# ─── Registration email confirmation link (no user yet) ──────────────────────
+
+def _registration_is_local():
+    backend = getattr(settings, 'EMAIL_BACKEND', '')
+    return 'console' in backend or getattr(settings, 'REGISTRATION_EMAIL_DEV_LINKS', False)
+
+
+def _email_is_verified(request, email):
+    """True if the session's pending token is verified and matches this email."""
+    from .models import EmailVerification
+    token = request.session.get('reg_verify_token')
+    if not token or not email:
+        return False
+    ev = EmailVerification.objects.filter(token=token).first()
+    return bool(ev and ev.is_verified and ev.email.lower() == email.lower())
+
+
+def send_verification_email(request):
+    """AJAX: email a one-click confirmation link to the address on the
+    registration form. The token is stored in the DB (and bound to the
+    session) so clicking the link from any tab/device confirms it."""
+    from django.http import JsonResponse
+    from django.core.validators import validate_email as _dj_validate_email
+    from django.core.exceptions import ValidationError as _DjVErr
+    from django.urls import reverse
+    from .models import EmailVerification
+    import secrets
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Invalid request.'}, status=405)
+
+    email = request.POST.get('email', '').strip()
+    if not email:
+        return JsonResponse({'ok': False, 'error': 'Please enter your email address first.'})
+    try:
+        _dj_validate_email(email)
+    except _DjVErr:
+        return JsonResponse({'ok': False, 'error': 'Enter a valid email address (e.g. juandelacruz@gmail.com).'})
+    if User.objects.filter(email__iexact=email).exists():
+        return JsonResponse({'ok': False, 'error': 'This email is already registered.'})
+
+    token = secrets.token_urlsafe(32)
+    EmailVerification.objects.create(email=email.lower(), token=token)
+    request.session['reg_verify_token'] = token
+
+    link = request.build_absolute_uri(
+        reverse('accounts:confirm_email', args=[token])
+    )
+
+    payload = {'ok': True, 'message': f'A verification link has been sent to {email}. '
+                                      'Open it to confirm your email, then return here.'}
+    if _registration_is_local():
+        print(f'\n{"="*60}\n[DEV VERIFY EMAIL] {email}\n[DEV VERIFY LINK] {link}\n{"="*60}\n')
+        payload['dev_link'] = link            # surfaced on-screen for local testing
+    else:
+        try:
+            send_mail(
+                subject='R3-PCR - Verify your email',
+                message=(f'Confirm your email to complete your R3-PCR registration:\n\n{link}\n\n'
+                         f'This link expires in 30 minutes. If you did not request this, ignore this email.'),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                html_message=f'''
+                    <div style="font-family:Arial,sans-serif;max-width:440px;margin:0 auto;">
+                        <h2 style="color:#3b82f6;">Verify your email</h2>
+                        <p>Confirm your email address to complete your R3-PCR registration.</p>
+                        <p style="margin:24px 0;">
+                            <a href="{link}" style="background:#1d4ed8;color:#fff;text-decoration:none;
+                               padding:12px 22px;border-radius:8px;font-weight:600;display:inline-block;">
+                               Verify Email
+                            </a>
+                        </p>
+                        <p style="color:#64748b;font-size:12px;">Or paste this link into your browser:<br>{link}</p>
+                        <p style="color:#94a3b8;font-size:12px;">This link expires in 30 minutes.
+                           If you did not request this, ignore this email.</p>
+                    </div>
+                ''',
+            )
+        except Exception as e:
+            EmailVerification.objects.filter(token=token).delete()
+            request.session.pop('reg_verify_token', None)
+            print(f'[EMAIL ERROR] registration verify email for {email}: {e}')
+            return JsonResponse({
+                'ok': False,
+                'error': 'Could not send verification email. Please check the email service settings and try again.',
+            }, status=500)
+    return JsonResponse(payload)
+
+
+def confirm_email(request, token):
+    """GET landing for the email link — marks the token verified and shows
+    a confirmation page directing the user back to the registration tab."""
+    from .models import EmailVerification
+    ev = EmailVerification.objects.filter(token=token).first()
+
+    status = 'invalid'
+    email = ''
+    if ev:
+        email = ev.email
+        if ev.is_verified:
+            status = 'ok'
+        elif ev.is_expired():
+            status = 'expired'
+        else:
+            ev.is_verified = True
+            ev.verified_at = timezone.now()
+            ev.save(update_fields=['is_verified', 'verified_at'])
+            status = 'ok'
+
+    return render(request, 'accounts/confirm_email.html', {'status': status, 'email': email})
+
+
+def check_email_verified(request):
+    """AJAX poll: report whether the session's pending email has been confirmed."""
+    from django.http import JsonResponse
+    from .models import EmailVerification
+    token = request.session.get('reg_verify_token')
+    ev = EmailVerification.objects.filter(token=token).first() if token else None
+    return JsonResponse({
+        'verified': bool(ev and ev.is_verified),
+        'email': ev.email if ev else '',
+    })
 
 
 # ─── Forgot Password ─────────────────────────────────────────────────────────
@@ -544,3 +722,4 @@ def redirect_by_role(user):
     elif user.role == 'supervisor':
         return redirect('/supervisor/dashboard/')
     return redirect('accounts:login')
+

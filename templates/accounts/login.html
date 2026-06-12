@@ -65,8 +65,10 @@
     <main class="login-section">
         <div class="dark-overlay"></div>
         <div class="login-container">
-            <h1 id="welcomeText"> Welcome Back!</h1>
-            <p class="subtitle" id="subtitleText">
+            <h1 id="welcomeText" data-en="Welcome Back!" data-fil="Maligayang Pagbabalik!"> Welcome Back!</h1>
+            <p class="subtitle" id="subtitleText"
+               data-en="You're one step away from better shipment visibility."
+               data-fil="Isang hakbang na lang patungo sa mas mahusay na visibility ng shipment.">
                 You're one step away from better shipment visibility.
             </p>
 
@@ -85,24 +87,26 @@
                 {% csrf_token %}
                 <!-- USERNAME -->
                 <div class="form-group">
-                    <label id="usernameLabel"> USERNAME </label>
+                    <label id="usernameLabel" data-en="USERNAME" data-fil="USERNAME"> USERNAME </label>
                     <input
                     type="text"
                     name="username"
                     id="usernameInput"
                     placeholder="Enter your username"
+                    data-en-ph="Enter your username" data-fil-ph="Ilagay ang iyong username"
                     required>
                 </div>
 
                 <!-- PASSWORD -->
                 <div class="form-group">
-                    <label id="passwordLabel"> PASSWORD </label>
+                    <label id="passwordLabel" data-en="PASSWORD" data-fil="PASSWORD"> PASSWORD </label>
                     <div class="password-wrapper">
                         <input
                         type="password"
                         name="password"
                         id="password"
                         placeholder="Enter your password"
+                        data-en-ph="Enter your password" data-fil-ph="Ilagay ang iyong password"
                         required>
                         <button type="button" class="toggle-password" id="togglePassword">
                             <i class="fa-regular fa-eye"></i>
@@ -114,12 +118,12 @@
                 <div class="remember-row" style="justify-content:space-between;">
                     <div class="remember-me">
                         <input type="checkbox" name="remember_me" id="rememberMe">
-                        <span id="rememberText">Remember Me</span>
+                        <span id="rememberText" data-en="Remember Me" data-fil="Tandaan Ako">Remember Me</span>
                     </div>
                 </div>
 
                 <!-- LOGIN BUTTON -->
-                <button type="submit" class="login-button" id="loginBtn"> LOG IN </button>
+                <button type="submit" class="login-button" id="loginBtn" data-en="LOG IN" data-fil="MAG-LOG IN"> LOG IN </button>
             </form>
 
             <!-- HELP -->
@@ -173,6 +177,7 @@
     </footer>
 
     <!-- JS -->
+    <script src="{% static 'js/i18n.js' %}"></script>
     <script src="{% static 'accounts/js/loginpage.js' %}"></script>
 
 </body>

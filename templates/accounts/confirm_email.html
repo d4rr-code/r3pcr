@@ -1,0 +1,59 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R3-PCR | Email Verification</title>
+    <link rel="icon" href="{% static 'images/rtriplej-favicon.png' %}" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            background: #18345a; padding: 24px;
+        }
+        .card {
+            background: #fff; border-radius: 16px; max-width: 440px; width: 100%;
+            padding: 40px 32px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,.25);
+        }
+        .icon {
+            width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 18px;
+            display: flex; align-items: center; justify-content: center; font-size: 32px;
+        }
+        .icon.ok   { background: #DCFCE7; color: #15803D; }
+        .icon.bad  { background: #FEE2E2; color: #B91C1C; }
+        h1 { font-size: 20px; color: #18345a; margin: 0 0 10px; }
+        p  { font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 8px; }
+        .email { font-weight: 600; color: #18345a; }
+        .btn {
+            display: inline-block; margin-top: 20px; background: #1d4ed8; color: #fff;
+            text-decoration: none; padding: 11px 22px; border-radius: 8px; font-weight: 600; font-size: 14px;
+        }
+        .hint { font-size: 12px; color: #94a3b8; margin-top: 18px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        {% if status == 'ok' %}
+            <div class="icon ok">&#10003;</div>
+            <h1>Email Verified</h1>
+            <p>Your email <span class="email">{{ email }}</span> has been confirmed.</p>
+            <p>Return to your registration tab — the <strong>Submit Registration</strong> button is now enabled.</p>
+            <p class="hint">You can safely close this tab.</p>
+        {% elif status == 'expired' %}
+            <div class="icon bad">&#33;</div>
+            <h1>Link Expired</h1>
+            <p>This verification link has expired.</p>
+            <p>Go back to the registration page and click <strong>Verify Email</strong> again to get a fresh link.</p>
+            <a class="btn" href="{% url 'accounts:register' %}">Back to Registration</a>
+        {% else %}
+            <div class="icon bad">&#33;</div>
+            <h1>Invalid Link</h1>
+            <p>This verification link is not valid.</p>
+            <a class="btn" href="{% url 'accounts:register' %}">Back to Registration</a>
+        {% endif %}
+    </div>
+</body>
+</html>

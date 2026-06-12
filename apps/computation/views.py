@@ -134,7 +134,7 @@ from .ocr import process_document
 from apps.declarant.views import declarant_required
 
 
-# â”€â”€â”€ Lookup Tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Lookup Tables ────────────────────────────────────────────────────────────
 
 _BF_DEFAULT_TIERS = [
     {'max': 10000,    'fee': '1300'},
@@ -217,16 +217,16 @@ def _store_document_ocr(doc, fields, raw_text, quality):
     doc.save(update_fields=['ocr_text', 'ocr_fields_json', 'ocr_quality', 'ocr_ran_at'])
 
 
-# â”€â”€â”€ Per-Item ECDT Formula â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Per-Item ECDT Formula ────────────────────────────────────────────────────
 
 def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
                  arrastre=0, wharfage=0, csf_php=0, bank_charges=0):
     """
     items_data keys: exw_usd, freight_usd, insurance_usd, duty_rate,
                      description, quantity, hs_code_id, gw, nw, pkgs
-    D/V = EXW + Freight + Insurance  (no auto-3% O/C â€” matches client CDT tool)
+    D/V = EXW + Freight + Insurance  (no auto-3% O/C — matches client CDT tool)
     Total Landed Cost excludes VAT; VAT = 12% of Total Landed Cost
-    Brokerage Fee: tiered table up to â‚±200,000, then +0.125% of excess
+    Brokerage Fee: tiered table up to ₱200,000, then +0.125% of excess
     """
     usd_exchange_rate = Decimal(str(usd_exchange_rate or exchange_rate))
     computed_items = []
@@ -281,7 +281,7 @@ def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
     bank_charges_d  = Decimal(str(bank_charges or 0))
 
     # Total Landed Cost = DV + Bank Charges + CUD + BF + Arrastre + Wharfage + CDS + IPF
-    # NOTE: CSF is NOT included in TLC â€” it appears only in the BOC fees total (FCL)
+    # NOTE: CSF is NOT included in TLC — it appears only in the BOC fees total (FCL)
     total_landed_cost = round(
         taxable_value + bank_charges_d + customs_duties + brokerage_fee
         + cds + ipf + arrastre_d + wharfage_d, 2
@@ -313,7 +313,7 @@ def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
     return computed_items, summary
 
 
-# â”€â”€â”€ OCR Merge Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── OCR Merge Helpers ───────────────────────────────────────────────────────
 
 # Priority order per field: which document type to prefer when the same field
 # appears in more than one document.
@@ -385,7 +385,7 @@ def merge_ocr_results(results):
     return merged
 
 
-# â”€â”€â”€ OCR Extract (single document â€” kept for fallback) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── OCR Extract (single document — kept for fallback) ───────────────────────
 
 @login_required
 def ocr_extract(request, shipment_id, doc_id):
@@ -419,7 +419,7 @@ def ocr_extract(request, shipment_id, doc_id):
                 request.session['ocr_shipment_id'] = shipment_id
                 found    = sum(1 for v in fields.values() if isinstance(v, dict) and v.get('value'))
                 item_msg = f', {len(line_items)} line items detected' if line_items else ''
-                request.session['ocr_toast'] = ('success', f'OCR complete â€” {found} fields extracted{item_msg}.')
+                request.session['ocr_toast'] = ('success', f'OCR complete — {found} fields extracted{item_msg}.')
                 print(f'[OCR] Success: {found} fields, {len(line_items)} items')
             else:
                 request.session['ocr_toast'] = ('warning', 'OCR ran but found no structured fields. Fill in manually.')
@@ -434,7 +434,7 @@ def ocr_extract(request, shipment_id, doc_id):
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
-# â”€â”€â”€ OCR Extract All (single button â€” merges all documents) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── OCR Extract All (single button — merges all documents) ──────────────────
 
 @login_required
 def ocr_extract_all(request, shipment_id):
@@ -487,7 +487,7 @@ def ocr_extract_all(request, shipment_id):
 
     request.session['ocr_toast'] = (
         'info',
-        f'Scanning {len(documents)} document{"s" if len(documents) != 1 else ""}â€¦ '
+        f'Scanning {len(documents)} document{"s" if len(documents) != 1 else ""}… '
         'Results will appear automatically in a few seconds.'
     )
     return redirect('declarant:process', shipment_id=shipment_id)
@@ -711,7 +711,7 @@ def compute_shipment(request, shipment_id):
             )
             csf_php_val     = csf_usd_val * usd_exchange_rate
 
-            # â”€â”€ Server-side port fee defaults (only when declarant left all at 0) â”€â”€
+            # ── Server-side port fee defaults (only when declarant left all at 0) ──
             # This mirrors the JS auto-fill so submissions without JS still get
             # the correct defaults applied.
             _stype = (shipment.shipment_type or '').lower()
@@ -762,7 +762,7 @@ def compute_shipment(request, shipment_id):
             units         = _pad(units,          '')
             unit_prices   = _pad(unit_prices,    '')
 
-            # Build HS code string lookup map (id â†’ code string)
+            # Build HS code string lookup map (id → code string)
             valid_hs_ids = [int(h) for h in hs_code_ids if h and h.strip().isdigit()]
             hs_code_map  = {
                 str(obj.id): obj.code
@@ -794,7 +794,7 @@ def compute_shipment(request, shipment_id):
                 messages.error(request, 'Add at least one item with a value.')
                 raise ValueError('no items')
 
-            # â”€â”€ Proportional freight/insurance server-side distribution â”€â”€â”€â”€â”€â”€
+            # ── Proportional freight/insurance server-side distribution ──────
             # If the declarant entered a global total_freight / total_insurance
             # but left all per-item values at 0, distribute proportionally by EXW.
             total_exw_for_dist = sum(Decimal(str(it['exw_usd'])) for it in items_data) or Decimal('1')
@@ -883,7 +883,7 @@ def compute_shipment(request, shipment_id):
                     )
                 )
 
-            # â”€â”€ Auto-run WMCDA alongside ECDT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            # ── Auto-run WMCDA alongside ECDT ──────────────────────────────────
             try:
                 wmcda_weight   = float(shipment.gross_weight or 0)
                 wmcda_volume   = float(request.POST.get('cargo_volume', 0) or 0)
@@ -911,7 +911,7 @@ def compute_shipment(request, shipment_id):
                     }
                 )
 
-                # â”€â”€ Historical recommendation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                # ── Historical recommendation ──────────────────────────────────
                 if shipment.shipment_type:
                     past = (
                         ShippingAdvisory.objects
@@ -948,7 +948,7 @@ def compute_shipment(request, shipment_id):
             items = result = None
 
     else:
-        # â”€â”€ GET: pre-load saved data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── GET: pre-load saved data ───────────────────────────────────────────
         if existing:
             items = existing.get_items()
 
@@ -1001,7 +1001,7 @@ def compute_shipment(request, shipment_id):
             except Exception:
                 pass
 
-        # OCR pre-fill â€” prefer DB-persisted ShipmentLineItem over session
+        # OCR pre-fill — prefer DB-persisted ShipmentLineItem over session
         if not items and request.GET.get('ocr') == '1':
             db_items = ShipmentLineItem.objects.filter(
                 shipment=shipment, source='ocr'
@@ -1038,7 +1038,7 @@ def compute_shipment(request, shipment_id):
             _ocr_flds  = request.session.get('ocr_fields', {}) if _ocr_sid == shipment_id else {}
 
             if _raw_items:
-                # â”€â”€ Multi-item path: one row per extracted line item â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                # ── Multi-item path: one row per extracted line item ──────────
                 items = [
                     {
                         'no':             i,
@@ -1065,7 +1065,7 @@ def compute_shipment(request, shipment_id):
                     for i, it in enumerate(_raw_items, 1)
                 ]
             elif _ocr_flds:
-                # â”€â”€ Single-total fallback: one row from merged OCR totals â”€â”€â”€â”€â”€
+                # ── Single-total fallback: one row from merged OCR totals ─────
                 def _val(k):
                     v = _ocr_flds.get(k, {})
                     return v.get('value', '') if isinstance(v, dict) else v
@@ -1172,7 +1172,7 @@ def compute_shipment(request, shipment_id):
         prefill_volume = '0'
         prefill_volume_src = 'manual'
 
-    # â”€â”€ HS Code Suggestions (rule-based + historical) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── HS Code Suggestions (rule-based + historical) ──────────────────────────
     # Collect the richest available description text in priority order:
     # 1. shipment.description, 2. OCR item descriptions, 3. saved item descriptions
     hs_suggestions = []
@@ -1196,7 +1196,7 @@ def compute_shipment(request, shipment_id):
                 defaults={'is_suggested': True, 'is_confirmed': False}
             )
 
-    # â”€â”€ Declared mode focused breakdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Declared mode focused breakdown ──────────────────────────────────────────
     declared_score     = None
     declared_breakdown = None
     declared_rating    = None
@@ -1282,7 +1282,7 @@ def compute_shipment(request, shipment_id):
     return render(request, 'computation/compute.html', context)
 
 
-# â”€â”€â”€ HS Code Suggestion Engine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── HS Code Suggestion Engine ───────────────────────────────────────────────
 
 def _can_download_computation(user, shipment):
     is_assigned_declarant = user.role == 'declarant' and shipment.declarant == user
@@ -1527,7 +1527,21 @@ _HS_STOPWORDS = {
     'total','value','price','currency','origin','country','weight','gross',
     'net','freight','insurance','shipment','shipper','consignee','code',
     'number','date','page','carton','cartons','package','packages',
+    'name','address','contact','telephone','email','port','loading',
+    'discharge','company','limited','ltd','corp','inc','manila','china',
+    'usd','eur','php','amount','unit',
 }
+
+
+_HS_PHRASE_BOOSTS = [
+    (('circuit', 'board'), ('printed circuit', 'circuit')),
+    (('printed', 'circuit'), ('printed circuit', 'circuit')),
+    (('usb',), ('connector', 'conductor', 'wire', 'cable')),
+    (('cable',), ('connector', 'conductor', 'wire', 'cable')),
+    (('wire',), ('connector', 'conductor', 'wire', 'cable')),
+    (('connector',), ('connector', 'conductor', 'wire', 'cable')),
+    (('led',), ('lamp', 'lighting', 'diode', 'semiconductor')),
+]
 
 
 def _hs_normalize_word(word):
@@ -1571,6 +1585,91 @@ def _hs_code_candidates(value):
     return list(dict.fromkeys(candidates))
 
 
+def _hs_code_digits(value):
+    return re.sub(r'\D', '', str(value or ''))
+
+
+def find_hs_by_document_code(value):
+    """
+    Resolve an HS code printed in a supplier document.
+
+    OCR may read the same code as 8534.00.00, 85340000, or 8534 00 00.
+    We compare digit-normalized codes first so exact document codes are pinned
+    instead of falling back to the first broad chapter/prefix match.
+    """
+    digits = _hs_code_digits(value)
+    if len(digits) < 6 or len(digits) > 10:
+        return None
+
+    hs_qs = HSCode.objects.filter(is_active=True)
+    variants = _hs_code_candidates(value)
+    exact = hs_qs.filter(code__in=variants).first()
+    if exact:
+        return exact
+
+    candidates = list(
+        hs_qs.filter(code__startswith=digits[:4])
+        .only('id', 'code', 'description', 'duty_rate', 'chapter')
+    )
+    if not candidates:
+        return None
+
+    exact_digit_matches = [hs for hs in candidates if _hs_code_digits(hs.code) == digits]
+    if exact_digit_matches:
+        return exact_digit_matches[0]
+
+    if len(digits) >= 8:
+        same_subheading = [
+            hs for hs in candidates
+            if _hs_code_digits(hs.code).startswith(digits[:8])
+        ]
+        if same_subheading:
+            same_subheading.sort(
+                key=lambda hs: (
+                    0 if _hs_code_digits(hs.code).endswith('00') else 1,
+                    len(_hs_code_digits(hs.code)),
+                    hs.code,
+                )
+            )
+            return same_subheading[0]
+
+    same_heading = [
+        hs for hs in candidates
+        if _hs_code_digits(hs.code).startswith(digits[:6])
+    ]
+    if same_heading:
+        same_heading.sort(key=lambda hs: (len(_hs_code_digits(hs.code)), hs.code))
+        return same_heading[0]
+    return None
+
+
+def extract_document_hs_codes(text):
+    """Return unique HS-like codes explicitly printed in OCR text."""
+    if not text:
+        return []
+    patterns = [
+        r'\bH\.?\s*S\.?\s*(?:CODE|NO\.?|NUMBER)?\s*[:\-]?\s*([0-9][0-9\s.]{5,18})',
+        r'\b(?:HTS|AHTN|TARIFF(?:\s+CODE)?|CUSTOMS\s+TARIFF(?:\s+NO\.?)?)\s*[:\-]?\s*([0-9][0-9\s.]{5,18})',
+        r'\b(\d{4}[.]\d{2}[.]\d{2}(?:[.]\d{2})?)\b',
+        r'\b(\d{8}|\d{10})\b',
+    ]
+    found = []
+    for pattern in patterns:
+        for raw in re.findall(pattern, text, re.IGNORECASE):
+            digits = _hs_code_digits(raw)
+            if len(digits) in (6, 8, 10):
+                found.append(raw)
+
+    unique = []
+    seen = set()
+    for raw in found:
+        digits = _hs_code_digits(raw)
+        if digits not in seen:
+            seen.add(digits)
+            unique.append(raw)
+    return unique
+
+
 def suggest_hs_codes(text, top_n=5):
     """
     Two-layer HS code recommendation engine.
@@ -1594,9 +1693,19 @@ def suggest_hs_codes(text, top_n=5):
     if not unique_keywords:
         return []
 
+    query_keywords = list(unique_keywords)
+    source_words = set(unique_keywords)
+    for required_terms, target_terms in _HS_PHRASE_BOOSTS:
+        if all(term in source_words for term in required_terms):
+            for term in target_terms:
+                for raw in re.findall(r'[a-zA-Z]{3,}', term):
+                    token = _hs_normalize_word(raw)
+                    if token not in query_keywords and token not in _HS_STOPWORDS:
+                        query_keywords.append(token)
+
     # Layer 1 — DB-level OR prefilter (avoids loading all 9,268 rows per call)
     q = Q()
-    for kw in unique_keywords[:12]:   # cap keyword count to keep query manageable
+    for kw in query_keywords[:18]:   # cap keyword count to keep query manageable
         q |= Q(description__icontains=kw)
 
     candidates = list(
@@ -1608,13 +1717,25 @@ def suggest_hs_codes(text, top_n=5):
 
     # Score candidates in Python.
     # Note: AHTN descriptions are often very short ("Sunglasses", "Centrifuges"),
-    # so requiring â‰¥2 hits would filter out many valid matches.
+    # so requiring ≥2 hits would filter out many valid matches.
     # Minimum threshold = 1; higher scores naturally rank better matches first.
     scored = []
     for hs in candidates:
         hs_text = (hs.description or '').lower()
         hs_words = set(_hs_keyword_tokens(hs_text))
         score = 0.0
+        for required_terms, target_terms in _HS_PHRASE_BOOSTS:
+            if all(term in source_words for term in required_terms):
+                if any(term in hs_text for term in target_terms):
+                    score += 3.0
+        if {'circuit', 'board'}.issubset(source_words) or {'printed', 'circuit'}.issubset(source_words):
+            if hs_text.startswith('printed circuit'):
+                score += 8.0
+            if 'manufacture of printed circuit' in hs_text:
+                score -= 4.0
+        if {'cable'}.issubset(source_words) or {'wire'}.issubset(source_words):
+            if hs_text.startswith('electric conductor') or hs_text.startswith('insulated wire'):
+                score += 5.0
         for position, kw in enumerate(unique_keywords):
             hit = False
             if kw in hs_words:
@@ -1631,7 +1752,7 @@ def suggest_hs_codes(text, top_n=5):
     if not scored:
         return []
 
-    # Layer 2 â€” historical boost from confirmed past assignments
+    # Layer 2 — historical boost from confirmed past assignments
     hist = dict(
         ShipmentHSCode.objects
         .filter(is_confirmed=True)
@@ -1647,7 +1768,7 @@ def suggest_hs_codes(text, top_n=5):
     return [hs for hs, _ in scored[:top_n]]
 
 
-# â”€â”€â”€ HS Code Suggest (AJAX) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── HS Code Suggest (AJAX) ───────────────────────────────────────────────────
 
 def _hs_payload(hs, source):
     return {
@@ -1689,6 +1810,9 @@ def hs_suggestions(request, shipment_id):
 
     q = request.GET.get('q', '').strip()
     if q:
+        direct = find_hs_by_document_code(q)
+        if direct:
+            return JsonResponse([_hs_payload(direct, 'suggested')], safe=False)
         results = HSCode.objects.filter(
             Q(code__icontains=q) | Q(description__icontains=q),
             is_active=True,
@@ -1699,9 +1823,9 @@ def hs_suggestions(request, shipment_id):
     rows = []
     seen = set()
 
-    direct_codes = re.findall(r'\b\d{4}(?:\.\d{2}){1,3}\b|\b\d{6,10}\b', raw_text or '')
+    direct_codes = extract_document_hs_codes(raw_text or '')
     for code in direct_codes:
-        hs = HSCode.objects.filter(Q(code=code) | Q(code__icontains=code), is_active=True).first()
+        hs = find_hs_by_document_code(code)
         if hs and hs.id not in seen:
             rows.append(_hs_payload(hs, 'document'))
             seen.add(hs.id)
@@ -1786,17 +1910,7 @@ def hs_code_suggest(request):
 
         # ── Priority 1: HS code explicitly printed in the document ────────────
         if doc_hs:
-            doc_hs_codes = _hs_code_candidates(doc_hs)
-            doc_hs_digits = re.sub(r'\D', '', doc_hs)
-            doc_hs_norm = next((code for code in doc_hs_codes if '.' in code), '')
-            hs_obj = None
-            if doc_hs_codes:
-                hs_qs = HSCode.objects.filter(is_active=True)
-                hs_obj = hs_qs.filter(code__in=doc_hs_codes).first()
-                if not hs_obj and doc_hs_norm:
-                    hs_obj = hs_qs.filter(code__startswith=doc_hs_norm[:7]).first()
-                if not hs_obj and len(doc_hs_digits) >= 4:
-                    hs_obj = hs_qs.filter(code__startswith=doc_hs_digits[:4]).first()
+            hs_obj = find_hs_by_document_code(doc_hs)
             if hs_obj:
                 pinned.append({
                     'id':      hs_obj.id,
@@ -1857,7 +1971,7 @@ def hs_code_suggest(request):
         return JsonResponse({'suggestions': [], 'error': str(e)})
 
 
-# â”€â”€â”€ Update ShipmentLineItem HS Code (AJAX PATCH) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Update ShipmentLineItem HS Code (AJAX PATCH) ────────────────────────────
 
 @login_required
 def update_line_item_hs(request, item_id):
@@ -1907,7 +2021,7 @@ def update_line_item_hs(request, item_id):
     })
 
 
-# â”€â”€â”€ HS Code Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── HS Code Search ───────────────────────────────────────────────────────────
 
 @login_required
 def hs_code_search(request):
@@ -1924,7 +2038,7 @@ def hs_code_search(request):
     })
 
 
-# â”€â”€â”€ Graduated WMCDA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Graduated WMCDA ─────────────────────────────────────────────────────────
 
 def _lerp(x, x0, x1, y0, y1):
     if x <= x0: return y0
@@ -2049,7 +2163,7 @@ def shipping_advisory(request, shipment_id):
     result = breakdown = explanation = None
     scores = None
 
-    # â”€â”€ Auto-populate from shipment + computation data â”€â”€
+    # ── Auto-populate from shipment + computation data ──
     computation = getattr(shipment, 'computation', None)
 
     if existing:
@@ -2079,7 +2193,7 @@ def shipping_advisory(request, shipment_id):
             auto_value = 0.0
         auto_volume   = 0.0
         auto_urgency  = shipment.urgency
-        auto_distance = 2600.0  # Default: Incheon, Korea â†’ Manila, Philippines
+        auto_distance = 2600.0  # Default: Incheon, Korea → Manila, Philippines
 
     # Determine which fields were auto-populated vs missing
     missing_fields = []
@@ -2141,7 +2255,7 @@ def shipping_advisory(request, shipment_id):
                     recipient=shipment.consignee,
                     shipment=shipment,
                     notification_type='status_update',
-                    title=f'Shipping Advisory Ready â€” {shipment.hawb_number}',
+                    title=f'Shipping Advisory Ready — {shipment.hawb_number}',
                     message=(
                         f'WMCDA Recommendation: {label_map.get(recommended, recommended.upper())}. '
                         f'{explanation[:120] if explanation else ""}'
@@ -2153,7 +2267,7 @@ def shipping_advisory(request, shipment_id):
         except Exception as e:
             messages.error(request, f'Error: {e}')
 
-    # â”€â”€ Historical advisory counts (same shipment type as this shipment) â”€â”€â”€â”€â”€â”€â”€
+    # ── Historical advisory counts (same shipment type as this shipment) ───────
     wmcda_history = None
     if shipment.shipment_type:
         from collections import Counter
@@ -2199,7 +2313,7 @@ def shipping_advisory(request, shipment_id):
     return render(request, 'computation/advisory.html', context)
 
 
-# â”€â”€â”€ Save Declarant Advisory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Save Declarant Advisory ──────────────────────────────────────────────────
 
 @login_required
 def save_declarant_advisory(request, shipment_id):
@@ -2238,7 +2352,7 @@ def save_declarant_advisory(request, shipment_id):
                 recipient=shipment.consignee,
                 shipment=shipment,
                 notification_type='status_update',
-                title=f'Declarant Advisory â€” {shipment.hawb_number}',
+                title=f'Declarant Advisory — {shipment.hawb_number}',
                 message=(
                     f'Your declarant recommends {mode_label} for your shipment. '
                     f'{note}' if note else f'Your declarant recommends {mode_label} for your shipment.'
@@ -2246,8 +2360,9 @@ def save_declarant_advisory(request, shipment_id):
             )
         except Exception:
             pass
-        messages.success(request, f'Advisory saved â€” {mode_label} recommended to consignee.')
+        messages.success(request, f'Advisory saved — {mode_label} recommended to consignee.')
     else:
         messages.success(request, 'Declarant advisory cleared.')
 
     return redirect('computation:advisory', shipment_id=shipment_id)
+

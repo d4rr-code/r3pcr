@@ -6,6 +6,7 @@ import os
 import io
 import base64
 import requests as http_requests
+from decimal import Decimal, InvalidOperation
 
 
 def _w(value, conf=0.85):
@@ -1309,30 +1310,78 @@ def extract_fields_from_packing_list(text):
 
 def extract_fields_from_fan(text):
     """Extract key assessment amounts from a Final Assessment Notice."""
-    def _amount(patterns):
-        for pat in patterns:
-            m = re.search(pat, text, re.IGNORECASE | re.MULTILINE)
-            if m:
-                return _clean_number(m.group(1))
-        return ''
+    amount_pattern = r'([0-9][0-9,.\s]*[0-9])'
 
-    customs_duty = _amount([
-        r'(?:Customs\s+Duty|Dut(?:y|ies)|CUD)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
-        r'(?:Amount\s+of\s+Duty)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
+    def _fan_number(value):
+        raw = re.sub(r'[^0-9,.\-]', '', str(value or '').replace(' ', ''))
+        if not raw:
+            return ''
+        if '.' not in raw and ',' in raw:
+            parts = raw.split(',')
+            if len(parts[-1]) == 2:
+                raw = ''.join(parts[:-1]) + '.' + parts[-1]
+            else:
+                raw = ''.join(parts)
+        else:
+            raw = raw.replace(',', '')
+        return re.sub(r'[^0-9.\-]', '', raw)
+
+    def _amount_after(labels, prefer_last=False):
+        matches = []
+        for label in labels:
+            pat = rf'{label}\s*(?:PHP|Php|P)?\s*[:\-]?\s*{amount_pattern}'
+            for m in re.finditer(pat, text, re.IGNORECASE | re.MULTILINE):
+                matches.append(_fan_number(m.group(1)))
+        matches = [m for m in matches if m]
+        if not matches:
+            return ''
+        return matches[-1] if prefer_last else matches[0]
+
+    def _decimal(value):
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+
+    customs_duty = _amount_after([
+        r'CUSTOMS\s+DUTY',
+        r'AMOUNT\s+OF\s+DUTY',
+        r'\bCUD\b',
     ])
-    vat = _amount([
-        r'(?:Value\s+Added\s+Tax|VAT)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
+    vat = _amount_after([
+        r'TOTAL\s+VAT',
+        r'VALUE\s+ADDED\s+TAX',
+        r'\bVAT\b',
+    ], prefer_last=True)
+    total_taxes = _amount_after([
+        r'TOTAL\s+ITEM\s+TAXES',
+        r'TOTAL\s+DUTIES\s+AND\s+TAXES',
+        r'DUTIES\s+AND\s+TAXES',
+        r'TOTAL\s+TAXES',
     ])
-    total_taxes = _amount([
-        r'(?:Total\s+Taxes?|Total\s+Duties\s+and\s+Taxes|Duties\s+and\s+Taxes)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
+    total_fees = _amount_after([
+        r'TOTAL\s+FEES',
+        r'TOTAL\s+GLOBAL\s+TAXES',
+        r'OTHER\s+CHARGES',
+        r'CHARGES\s+AND\s+FEES',
     ])
-    total_fees = _amount([
-        r'(?:Total\s+Fees?|Other\s+Charges|Charges\s+and\s+Fees)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
-    ])
-    total_payable = _amount([
-        r'(?:Total\s+Assessment|Amount\s+Payable|Total\s+Amount\s+Payable|Grand\s+Total|Total\s+Payable)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
-        r'(?:Total\s+Amount\s+Due|Amount\s+Due)\s*[:\-]?\s*(?:PHP|Php|P|₱)?\s*([\d,]+\.?\d*)',
-    ])
+    total_payable = _amount_after([
+        r'TOTAL\s+ASSESSMENT',
+        r'TOTAL\s+AMOUNT\s+PAYABLE',
+        r'AMOUNT\s+PAYABLE',
+        r'GRAND\s+TOTAL',
+        r'TOTAL\s+PAYABLE',
+        r'TOTAL\s+AMOUNT\s+DUE',
+        r'AMOUNT\s+DUE',
+    ], prefer_last=True)
+
+    taxes = _decimal(total_taxes)
+    fees = _decimal(total_fees)
+    payable = _decimal(total_payable)
+    if taxes is not None and fees is not None:
+        computed_payable = taxes + fees
+        if payable is None or abs(payable - computed_payable) > Decimal('1.00'):
+            total_payable = f'{computed_payable:.2f}'
 
     return {
         'customs_duty':  _w(customs_duty, 0.80),

@@ -229,13 +229,22 @@ def dashboard(request):
         monthly_labels = [f'{calendar.month_abbr[month]} {str(year)[-2:]}' for year, month in month_points]
     monthly_data = [monthly_lookup.get(point, 0) for point in month_points]
 
+    # Reminder panel — only actionable shipments, capped so the panel stays
+    # compact and doesn't stretch the dashboard with empty space.
+    recent_shipments = shipments.order_by('-submitted_at')
+    reminders = [
+        s for s in recent_shipments
+        if s.has_deficiency or s.status in ('arrived', 'computed')
+    ][:4]
+
     context = {
         'total': total,
         **status_counts,
         'import_breakdown':   import_breakdown,
         'mode_breakdown':     mode_breakdown,
         'urgency_breakdown':  urgency_breakdown,
-        'recent_shipments':   shipments.order_by('-submitted_at'),
+        'recent_shipments':   recent_shipments,
+        'reminders':          reminders,
         'monthly_labels':     json.dumps(monthly_labels),
         'monthly_data':       json.dumps(monthly_data),
         'monthly_total':      sum(monthly_data),
@@ -614,12 +623,12 @@ def upload_receipt(request, shipment_id):
         file = request.FILES.get('payment_receipt')
         if not file:
             messages.error(request, 'Please select a file to upload.')
-        elif shipment.status != 'paid':
-            messages.error(request, 'Payment receipt can only be uploaded when shipment is marked Paid.')
+        elif shipment.status not in ('assessed', 'paid', 'released', 'billed'):
+            messages.error(request, 'Payment receipt can only be uploaded once your shipment is assessed.')
         else:
             shipment.payment_receipt = file
             shipment.payment_receipt_uploaded_at = timezone.now()
-            shipment.save()
+            shipment.save(update_fields=['payment_receipt', 'payment_receipt_uploaded_at', 'updated_at'])
 
             # Audit trail — record receipt upload in status log
             StatusLog.objects.create(
@@ -627,7 +636,7 @@ def upload_receipt(request, shipment_id):
                 changed_by=request.user,
                 old_status=shipment.status,
                 new_status=shipment.status,
-                notes='Payment receipt uploaded by consignee.',
+                notes='Consignee payment receipt uploaded for declarant verification.',
             )
 
             # Notify declarant
@@ -636,10 +645,13 @@ def upload_receipt(request, shipment_id):
                     recipient=shipment.declarant,
                     shipment=shipment,
                     notification_type='status_update',
-                    title=f'Payment Receipt Uploaded — {shipment.hawb_number}',
-                    message=f'{request.user.get_full_name() or request.user.username} uploaded a payment receipt.',
+                    title=f'Consignee Payment Receipt Uploaded - {shipment.hawb_number}',
+                    message=(
+                        f'{request.user.get_full_name() or request.user.username} uploaded a payment receipt '
+                        'for your verification. This does not mark the shipment paid until you confirm it in BOC/eTrade.'
+                    ),
                 )
-            messages.success(request, 'Payment receipt uploaded successfully.')
+            messages.success(request, 'Payment receipt uploaded successfully. Your declarant has been notified for verification.')
 
     return redirect('consignee:shipment_detail', shipment_id=shipment_id)
 

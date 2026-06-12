@@ -1207,7 +1207,11 @@ def process_shipment(request, shipment_id):
 
     if _ocr_raw_parts:
         try:
-            from apps.computation.views import suggest_hs_codes as _suggest_hs_codes
+            from apps.computation.views import (
+                extract_document_hs_codes as _extract_document_hs_codes,
+                find_hs_by_document_code as _find_hs_by_document_code,
+                suggest_hs_codes as _suggest_hs_codes,
+            )
             _combined_ocr = ' '.join(_ocr_raw_parts)[:5000]
             _seen_hs_ids = set()
             _pinned = []
@@ -1216,38 +1220,11 @@ def process_shipment(request, shipment_id):
             # Handles common OCR variants:
             # "HS CODE: 49111010", "H.S. Code 4911 10 10",
             # "Tariff Code: 4911.10.00", and standalone dotted/spaced codes.
-            _hs_from_text = []
-            _hs_patterns = [
-                r'\bH\.?\s*S\.?\s*(?:CODE|NO\.?|NUMBER)?\s*[:\-]?\s*([0-9][0-9\s.]{5,18})',
-                r'\b(?:HTS|TARIFF(?:\s+CODE)?|CUSTOMS\s+TARIFF(?:\s+NO\.?)?)\s*[:\-]?\s*([0-9][0-9\s.]{5,18})',
-                r'\b(\d{4}[.\s]?\d{2}[.\s]?\d{2}(?:[.\s]?\d{2})?)\b',
-            ]
-            for _pat in _hs_patterns:
-                _hs_from_text.extend(re.findall(_pat, _combined_ocr, re.IGNORECASE))
-
-            for _raw in _hs_from_text:
-                _digits = re.sub(r'\D', '', _raw.strip())
-                if len(_digits) < 6 or len(_digits) > 10:
-                    continue
-                # Normalise to dotted format: 49111010 → 4911.10.10
-                if len(_digits) == 6:
-                    _norm = f'{_digits[:4]}.{_digits[4:]}'
-                elif len(_digits) == 8:
-                    _norm = f'{_digits[:4]}.{_digits[4:6]}.{_digits[6:]}'
-                elif len(_digits) == 10:
-                    _norm = f'{_digits[:4]}.{_digits[4:6]}.{_digits[6:8]}.{_digits[8:]}'
-                else:
-                    _norm = '.'.join(re.findall(r'\d{2,4}', _raw.strip()))
-
-                _hs_obj = (
-                    HSCode.objects.filter(code__in=[_norm, _digits], is_active=True).first()
-                    or HSCode.objects.filter(code__startswith=_norm[:7], is_active=True).first()
-                    or HSCode.objects.filter(code__startswith=_digits[:4], is_active=True).first()
-                )
+            for _raw in _extract_document_hs_codes(_combined_ocr):
+                _hs_obj = _find_hs_by_document_code(_raw)
                 if _hs_obj and _hs_obj.id not in _seen_hs_ids:
                     _pinned.append(_hs_obj)
                     _seen_hs_ids.add(_hs_obj.id)
-
             # ── Pass 2: keyword-based matches to fill remaining slots ─────────
             _kw = _suggest_hs_codes(_combined_ocr, top_n=8)
             for _hs in _kw:
@@ -1433,10 +1410,39 @@ def payment_confirmation(request, shipment_id):
 
 # ─── Upload FAN Document ──────────────────────────────────────────────────────
 
+def _process_fan_document_ocr(fan_doc):
+    """Run FAN OCR from local or remote storage-backed files."""
+    temp_path = None
+    try:
+        try:
+            source_path = fan_doc.file.path
+        except NotImplementedError:
+            suffix = os.path.splitext(fan_doc.file.name or '')[1] or '.bin'
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                for chunk in fan_doc.file.chunks():
+                    tmp.write(chunk)
+                temp_path = tmp.name
+            source_path = temp_path
+
+        fields, raw_text, quality = process_document(source_path, 'sad')
+        fan_doc.ocr_text = raw_text
+        fan_doc.ocr_fields_json = json.dumps(fields)
+        fan_doc.ocr_quality = quality
+        fan_doc.ocr_ran_at = timezone.now()
+        fan_doc.save(update_fields=['ocr_text', 'ocr_fields_json', 'ocr_quality', 'ocr_ran_at'])
+        return True
+    finally:
+        if temp_path:
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+
 @login_required
 @declarant_required
 def upload_sad(request, shipment_id):
-    """Declarant uploads the Final Assessment Notice at assessed stage."""
+    """Declarant uploads the FAN Document and advances ongoing shipments to assessed."""
     if request.method != 'POST':
         return redirect('declarant:process', shipment_id=shipment_id)
 
@@ -1445,14 +1451,16 @@ def upload_sad(request, shipment_id):
         messages.error(request, 'You are not assigned to this shipment.')
         return redirect('declarant:queue')
 
-    if shipment.status not in ('assessed', 'paid', 'released', 'billed'):
-        messages.error(request, 'FAN document can only be uploaded once shipment is assessed.')
+    if shipment.status not in ('ongoing', 'assessed', 'paid', 'released', 'billed'):
+        messages.error(request, 'FAN Document can only be uploaded once shipment is ongoing or assessed.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
     file = request.FILES.get('sad_file')
     if not file:
         messages.error(request, 'Please select a file to upload.')
         return redirect('declarant:process', shipment_id=shipment_id)
+
+    old_status = shipment.status
 
     # Replace any existing FAN document
     shipment.documents.filter(document_type='sad').delete()
@@ -1461,15 +1469,23 @@ def upload_sad(request, shipment_id):
         document_type='sad',
         file=file,
     )
+    ocr_ok = False
     try:
-        fields, raw_text, quality = process_document(fan_doc.file.path, 'sad')
-        fan_doc.ocr_text = raw_text
-        fan_doc.ocr_fields_json = json.dumps(fields)
-        fan_doc.ocr_quality = quality
-        fan_doc.ocr_ran_at = timezone.now()
-        fan_doc.save(update_fields=['ocr_text', 'ocr_fields_json', 'ocr_quality', 'ocr_ran_at'])
+        ocr_ok = _process_fan_document_ocr(fan_doc)
     except Exception as exc:
         print(f'[FAN OCR] failed for shipment {shipment.id}: {exc}')
+
+    if old_status == 'ongoing':
+        shipment.status = 'assessed'
+        shipment.save(update_fields=['status', 'updated_at'])
+        StatusLog.objects.create(
+            shipment=shipment,
+            changed_by=request.user,
+            old_status=old_status,
+            new_status='assessed',
+            notes='FAN Document uploaded by declarant.',
+        )
+        send_assessed_email(shipment)
 
     create_notification(
         recipient=shipment.consignee,
@@ -1477,12 +1493,17 @@ def upload_sad(request, shipment_id):
         notification_type='status_update',
         title=f'FAN Document Available — {shipment.hawb_number}',
         message=(
-            'The Final Assessment Notice (FAN) document has been uploaded by your declarant. '
+            'The FAN Document has been uploaded by your declarant. '
             'Please check your shipment details for the official BOC assessment amount.'
         ),
     )
 
-    messages.success(request, 'FAN document uploaded. The consignee has been notified.')
+    if old_status == 'ongoing':
+        messages.success(request, 'FAN Document uploaded. Shipment status updated to assessed and the consignee has been notified.')
+    else:
+        messages.success(request, 'FAN Document uploaded. The consignee has been notified.')
+    if not ocr_ok:
+        messages.warning(request, 'FAN OCR could not prefill the assessment breakdown. Please encode the values manually from the uploaded document.')
     return redirect('declarant:process', shipment_id=shipment_id)
 
 
@@ -1500,7 +1521,7 @@ def save_fan_assessment(request, shipment_id):
 
     fan_doc = shipment.documents.filter(document_type='sad').first()
     if not fan_doc:
-        messages.error(request, 'Upload the FAN document before saving an assessment breakdown.')
+        messages.error(request, 'Upload the FAN Document before saving an assessment breakdown.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
     try:
@@ -1542,9 +1563,9 @@ def upload_supporting_document(request, shipment_id, stage):
             'doc_type': 'payment_proof',
             'next_status': 'paid',
             'from_status': 'assessed',
-            'title': 'Payment Proof Available',
-            'label': 'payment proof / BOC receipt',
-            'message': 'Payment proof or BOC receipt has been uploaded for your shipment.',
+            'title': 'BOC / eTrade Payment Receipt Available',
+            'label': 'BOC / eTrade payment receipt',
+            'message': 'The official BOC / eTrade payment receipt has been uploaded for your shipment.',
         },
         'release': {
             'allowed': {'paid', 'released', 'billed'},
@@ -1847,5 +1868,7 @@ def save_ocr_items(request, shipment_id):
     return HttpResponseRedirect(
         reverse('computation:compute', kwargs={'shipment_id': shipment_id})
     )
+
+
 
 
