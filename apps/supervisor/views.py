@@ -1047,14 +1047,12 @@ def _top_declarant(declarant_data):
     return top
 
 
-def _analytics_context_response(request):
-    all_shipments = Shipment.objects.all()
-
-    #  Chart/KPI filters (date range + declarant)
+def _analytics_filters(request, all_shipments):
+    """Parse GET filters and build the chart + shipment-table querysets."""
     date_from        = request.GET.get('date_from', '').strip()
     date_to          = request.GET.get('date_to', '').strip()
     declarant_filter = request.GET.get('declarant', '').strip()
-    overview_range  = request.GET.get('overview_range', 'year').strip().lower()
+    overview_range   = request.GET.get('overview_range', 'year').strip().lower()
     if overview_range not in {'year', '6m'}:
         overview_range = 'year'
 
@@ -1066,9 +1064,6 @@ def _analytics_context_response(request):
     if declarant_filter:
         chart_qs = chart_qs.filter(declarant__username=declarant_filter)
 
-    chart_total = chart_qs.count()
-
-    #  Shipment table filters (search + status + date) 
     q        = request.GET.get('q', '').strip()
     status_f = request.GET.get('status_f', '').strip()
 
@@ -1087,8 +1082,17 @@ def _analytics_context_response(request):
     if date_to:
         table_qs = table_qs.filter(submitted_at__date__lte=date_to)
 
-    #  KPI strip (always all-time) 
-    total_all = all_shipments.count()
+    return {
+        'date_from': date_from, 'date_to': date_to,
+        'declarant_filter': declarant_filter, 'overview_range': overview_range,
+        'q': q, 'status_f': status_f,
+        'chart_qs': chart_qs, 'chart_total': chart_qs.count(),
+        'table_qs': table_qs,
+    }
+
+
+def _kpi_strip():
+    """All-time computed/approved presentation counts + consignee approval rate."""
     total_computed_presented = (
         StatusLog.objects.filter(new_status='computed')
         .values('shipment_id').distinct().count()
@@ -1097,10 +1101,37 @@ def _analytics_context_response(request):
         StatusLog.objects.filter(new_status='approved')
         .values('shipment_id').distinct().count()
     )
-    consignee_approval_rate = (
-        round(total_consignee_approved / total_computed_presented * 100, 1)
-        if total_computed_presented else 0
-    )
+    return {
+        'total_computed_presented': total_computed_presented,
+        'total_consignee_approved': total_consignee_approved,
+        'consignee_approval_rate': (
+            round(total_consignee_approved / total_computed_presented * 100, 1)
+            if total_computed_presented else 0
+        ),
+    }
+
+
+def _analytics_context_response(request):
+    all_shipments = Shipment.objects.all()
+
+    # Filters + chart/table querysets
+    _f = _analytics_filters(request, all_shipments)
+    date_from        = _f['date_from']
+    date_to          = _f['date_to']
+    declarant_filter = _f['declarant_filter']
+    overview_range   = _f['overview_range']
+    q                = _f['q']
+    status_f         = _f['status_f']
+    chart_qs         = _f['chart_qs']
+    chart_total      = _f['chart_total']
+    table_qs         = _f['table_qs']
+
+    #  KPI strip (always all-time)
+    total_all = all_shipments.count()
+    _kpi = _kpi_strip()
+    total_computed_presented = _kpi['total_computed_presented']
+    total_consignee_approved = _kpi['total_consignee_approved']
+    consignee_approval_rate  = _kpi['consignee_approval_rate']
 
     # Materialise chart_qs IDs once — reused for status, WMCDA and declarant sections
     _chart_ids_qs = chart_qs.values_list('id', flat=True)
