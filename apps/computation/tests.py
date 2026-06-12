@@ -6,6 +6,7 @@ view before it is refactored, so the refactor can be proven behavior-preserving
 
 Run:  python manage.py test apps.computation --settings=config.settings_test
 """
+import json
 from decimal import Decimal
 
 from django.test import TestCase
@@ -15,7 +16,7 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.supervisor.models import SystemConfig
-from apps.computation.models import DutyComputation, ShippingAdvisory
+from apps.computation.models import DutyComputation, ShipmentLineItem, ShippingAdvisory
 from apps.computation.views import compute_ecdt
 
 
@@ -212,3 +213,66 @@ class ComputeShipmentPostTests(TestCase):
         self.assertEqual(DutyComputation.objects.filter(shipment=self.shipment).count(), 0)
         self.shipment.refresh_from_db()
         self.assertEqual(self.shipment.status, 'arrived')
+
+
+class ComputeShipmentGetTests(TestCase):
+    """Lock the GET pre-load behavior: which item source wins and renders."""
+
+    def setUp(self):
+        self.declarant = User.objects.create_user(
+            username='declarant_g', password='x', role='declarant',
+            email='declarant_g@test.local',
+        )
+        self.consignee = User.objects.create_user(
+            username='consignee_g', password='x', role='consignee',
+            email='consignee_g@test.local',
+        )
+        self.hs = HSCode.objects.create(
+            code='9999.00.00', description='Get widgets',
+            duty_rate=Decimal('5.00'), is_active=True,
+        )
+        self.shipment = Shipment.objects.create(
+            hawb_number='R3PCR-GET-0001',
+            consignee=self.consignee, declarant=self.declarant,
+            shipment_type='lcl', status='arrived', invoice_currency='USD',
+            gross_weight=Decimal('80.00'),
+        )
+        _today_iso = timezone.localdate().isoformat()
+        SystemConfig.objects.create(key='rate_USD', value='50.0000')
+        SystemConfig.objects.create(key='exchange_rates_last_success', value=_today_iso)
+        SystemConfig.objects.create(key='exchange_rates_last_attempt', value=_today_iso)
+        self.client.force_login(self.declarant)
+        self.url = reverse('computation:compute', args=[self.shipment.id])
+
+    def test_get_renders_ok(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'computation/compute.html')
+
+    def test_get_prefills_items_from_existing_computation(self):
+        saved_items = [{
+            'no': 1, 'description': 'Saved item', 'exw': 1000.0,
+            'duty_rate': 5.0, 'hs_code_id': str(self.hs.id),
+            'dv_php': 50000.0, 'cud': 2500.0,
+        }]
+        DutyComputation.objects.create(
+            shipment=self.shipment, exchange_rate=Decimal('50'),
+            items_json=json.dumps(saved_items),
+            computed_by=self.declarant,
+        )
+        resp = self.client.get(self.url)
+        items = resp.context['items']
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]['description'], 'Saved item')
+
+    def test_get_prefills_from_draft_line_items_when_no_computation(self):
+        ShipmentLineItem.objects.create(
+            shipment=self.shipment, description='Draft widget',
+            total_val_usd=Decimal('250.0000'), hs_code=self.hs,
+            duty_rate=Decimal('5.0000'), source='manual', row_order=1,
+        )
+        resp = self.client.get(self.url)
+        items = resp.context['items']
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]['description'], 'Draft widget')
+        self.assertEqual(items[0]['exw'], 250.0)

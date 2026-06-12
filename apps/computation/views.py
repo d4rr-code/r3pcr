@@ -827,6 +827,134 @@ def _parse_posted_line_items(request):
     ]
 
 
+def _load_items_for_get(request, shipment, existing, shipment_id):
+    """Build the item rows that pre-fill the compute form on GET.
+
+    Returns the first non-empty source, in priority order:
+      1. a saved DutyComputation,
+      2. persisted ShipmentLineItem drafts,
+      3. OCR-persisted line items (?ocr=1),
+      4. session OCR items / merged fields (?ocr=1).
+    Returns None when nothing is available.
+    """
+    # 1. Saved computation
+    items = existing.get_items() if existing else None
+
+    # 2. ShipmentLineItem drafts
+    if not items:
+        draft_rows = ShipmentLineItem.objects.filter(
+            shipment=shipment
+        ).select_related('hs_code').order_by('row_order')
+        if draft_rows.exists():
+            items = []
+            for i, li in enumerate(draft_rows, 1):
+                items.append({
+                    'no':             i,
+                    'line_item_id':   li.id,
+                    'description':    li.description if li.description != '(draft)' else '',
+                    'exw':            float(li.total_val_usd) if li.total_val_usd else '',
+                    'quantity':       float(li.quantity) if li.quantity else '',
+                    'unit':           li.unit or '',
+                    'unit_price':     float(li.unit_price) if li.unit_price else '',
+                    'hs_code_id':     li.hs_code_id or '',
+                    'hs_code':        li.hs_code.code if li.hs_code else '',
+                    'duty_rate':      float(li.duty_rate) if li.duty_rate else '',
+                    'item_freight':   float(li.freight) if li.freight else '',
+                    'item_insurance': float(li.insurance) if li.insurance else '',
+                    'gw':             float(li.gross_weight) if li.gross_weight else '',
+                    'nw':             float(li.net_weight) if li.net_weight else '',
+                    'pkgs':           li.packages if li.packages else '',
+                    'dv_php':         None,
+                    'dv_usd':         None,
+                    'cud':            None,
+                    'is_extracted':   li.source == 'ocr',
+                    'confidence':     float(li.confidence),
+                })
+
+    # 3. OCR-persisted line items
+    if not items and request.GET.get('ocr') == '1':
+        db_items = ShipmentLineItem.objects.filter(
+            shipment=shipment, source='ocr'
+        ).select_related('hs_code').order_by('row_order')
+        if db_items.exists():
+            items = []
+            for i, li in enumerate(db_items, 1):
+                hs_id   = li.hs_code_id or ''
+                hs_rate = float(li.hs_code.duty_rate) if li.hs_code else 0
+                items.append({
+                    'no':           i,
+                    'line_item_id': li.id,
+                    'description':  li.description,
+                    'exw':          float(li.total_val_usd) if li.total_val_usd else '',
+                    'quantity':     float(li.quantity) if li.quantity else '1',
+                    'unit':         li.unit or '',
+                    'unit_price':   float(li.unit_price) if li.unit_price else '',
+                    'hs_code_id':   hs_id,
+                    'duty_rate':    hs_rate,
+                    'dv_php':       None,
+                    'cud':          None,
+                    'item_freight': None,
+                    'item_insurance': None,
+                    'dv_usd':       None,
+                    'gw': '', 'nw': '', 'pkgs': '',
+                    'is_extracted': True,
+                    'confidence':   float(li.confidence),
+                })
+
+    # 4. Session OCR items / merged fields
+    if not items and request.GET.get('ocr') == '1':
+        _ocr_sid   = request.session.get('ocr_shipment_id')
+        _raw_items = request.session.get('ocr_items',  []) if _ocr_sid == shipment_id else []
+        _ocr_flds  = request.session.get('ocr_fields', {}) if _ocr_sid == shipment_id else {}
+
+        if _raw_items:
+            # Multi-item path: one row per extracted line item
+            items = [
+                {
+                    'no':             i,
+                    'line_item_id':   '',
+                    'description':    it.get('description', ''),
+                    'exw':            it.get('total_value', '') or '',
+                    'quantity':       it.get('quantity', '') or '1',
+                    'unit':           it.get('unit', ''),
+                    'unit_price':     it.get('unit_price', ''),
+                    'hs_code_id':     it.get('hs_code_id', ''),
+                    'duty_rate':      it.get('duty_rate', 0),
+                    'dv_php':         None,
+                    'cud':            None,
+                    'item_freight':   None,
+                    'item_insurance': None,
+                    'other_charges':  None,
+                    'dv_usd':         None,
+                    'gw':             it.get('gross_weight', ''),
+                    'nw':             it.get('net_weight', ''),
+                    'pkgs':           it.get('num_packages', ''),
+                    'is_extracted':   True,
+                    'confidence':     it.get('confidence', 0.0),
+                }
+                for i, it in enumerate(_raw_items, 1)
+            ]
+        elif _ocr_flds:
+            # Single-total fallback: one row from merged OCR totals
+            def _val(k):
+                v = _ocr_flds.get(k, {})
+                return v.get('value', '') if isinstance(v, dict) else v
+            items = [{
+                'no': 1, 'description': _val('description'),
+                'exw': _val('declared_value'),
+                'quantity': _val('total_quantity') or '1',
+                'unit': '', 'unit_price': '',
+                'hs_code_id': '', 'duty_rate': 0,
+                'dv_php': None, 'cud': None,
+                'item_freight': None, 'item_insurance': None,
+                'other_charges': None, 'dv_usd': None,
+                'is_extracted': True,
+                'confidence': _ocr_flds.get('description', {}).get('confidence', 0.0) if isinstance(_ocr_flds.get('description', {}), dict) else 0.0,
+            }]
+
+    return items
+
+
 @login_required
 def compute_shipment(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id)
@@ -1001,39 +1129,7 @@ def compute_shipment(request, shipment_id):
 
     else:
         # ── GET: pre-load saved data ───────────────────────────────────────────
-        if existing:
-            items = existing.get_items()
-
-        # If no full computation items yet, restore from ShipmentLineItem drafts
-        if not items:
-            draft_rows = ShipmentLineItem.objects.filter(
-                shipment=shipment
-            ).select_related('hs_code').order_by('row_order')
-            if draft_rows.exists():
-                items = []
-                for i, li in enumerate(draft_rows, 1):
-                    items.append({
-                        'no':             i,
-                        'line_item_id':   li.id,
-                        'description':    li.description if li.description != '(draft)' else '',
-                        'exw':            float(li.total_val_usd) if li.total_val_usd else '',
-                        'quantity':       float(li.quantity) if li.quantity else '',
-                        'unit':           li.unit or '',
-                        'unit_price':     float(li.unit_price) if li.unit_price else '',
-                        'hs_code_id':     li.hs_code_id or '',
-                        'hs_code':        li.hs_code.code if li.hs_code else '',
-                        'duty_rate':      float(li.duty_rate) if li.duty_rate else '',
-                        'item_freight':   float(li.freight) if li.freight else '',
-                        'item_insurance': float(li.insurance) if li.insurance else '',
-                        'gw':             float(li.gross_weight) if li.gross_weight else '',
-                        'nw':             float(li.net_weight) if li.net_weight else '',
-                        'pkgs':           li.packages if li.packages else '',
-                        'dv_php':         None,
-                        'dv_usd':         None,
-                        'cud':            None,
-                        'is_extracted':   li.source == 'ocr',
-                        'confidence':     float(li.confidence),
-                    })
+        items = _load_items_for_get(request, shipment, existing, shipment_id)
 
         if advisory_ex:
             wmcda_scores = {
@@ -1052,87 +1148,6 @@ def compute_shipment(request, shipment_id):
                 )
             except Exception:
                 pass
-
-        # OCR pre-fill — prefer DB-persisted ShipmentLineItem over session
-        if not items and request.GET.get('ocr') == '1':
-            db_items = ShipmentLineItem.objects.filter(
-                shipment=shipment, source='ocr'
-            ).select_related('hs_code').order_by('row_order')
-
-            if db_items.exists():
-                items = []
-                for i, li in enumerate(db_items, 1):
-                    hs_id   = li.hs_code_id or ''
-                    hs_rate = float(li.hs_code.duty_rate) if li.hs_code else 0
-                    items.append({
-                        'no':           i,
-                        'line_item_id': li.id,
-                        'description':  li.description,
-                        'exw':          float(li.total_val_usd) if li.total_val_usd else '',
-                        'quantity':     float(li.quantity) if li.quantity else '1',
-                        'unit':         li.unit or '',
-                        'unit_price':   float(li.unit_price) if li.unit_price else '',
-                        'hs_code_id':   hs_id,
-                        'duty_rate':    hs_rate,
-                        'dv_php':       None,
-                        'cud':          None,
-                        'item_freight': None,
-                        'item_insurance': None,
-                        'dv_usd':       None,
-                        'gw': '', 'nw': '', 'pkgs': '',
-                        'is_extracted': True,
-                        'confidence':   float(li.confidence),
-                    })
-
-        if not items and request.GET.get('ocr') == '1':
-            _ocr_sid   = request.session.get('ocr_shipment_id')
-            _raw_items = request.session.get('ocr_items',  []) if _ocr_sid == shipment_id else []
-            _ocr_flds  = request.session.get('ocr_fields', {}) if _ocr_sid == shipment_id else {}
-
-            if _raw_items:
-                # ── Multi-item path: one row per extracted line item ──────────
-                items = [
-                    {
-                        'no':             i,
-                        'line_item_id':   '',
-                        'description':    it.get('description', ''),
-                        'exw':            it.get('total_value', '') or '',
-                        'quantity':       it.get('quantity', '') or '1',
-                        'unit':           it.get('unit', ''),
-                        'unit_price':     it.get('unit_price', ''),
-                        'hs_code_id':     it.get('hs_code_id', ''),
-                        'duty_rate':      it.get('duty_rate', 0),
-                        'dv_php':         None,
-                        'cud':            None,
-                        'item_freight':   None,
-                        'item_insurance': None,
-                        'other_charges':  None,
-                        'dv_usd':         None,
-                        'gw':             it.get('gross_weight', ''),
-                        'nw':             it.get('net_weight', ''),
-                        'pkgs':           it.get('num_packages', ''),
-                        'is_extracted':   True,
-                        'confidence':     it.get('confidence', 0.0),
-                    }
-                    for i, it in enumerate(_raw_items, 1)
-                ]
-            elif _ocr_flds:
-                # ── Single-total fallback: one row from merged OCR totals ─────
-                def _val(k):
-                    v = _ocr_flds.get(k, {})
-                    return v.get('value', '') if isinstance(v, dict) else v
-                items = [{
-                    'no': 1, 'description': _val('description'),
-                    'exw': _val('declared_value'),
-                    'quantity': _val('total_quantity') or '1',
-                    'unit': '', 'unit_price': '',
-                    'hs_code_id': '', 'duty_rate': 0,
-                    'dv_php': None, 'cud': None,
-                    'item_freight': None, 'item_insurance': None,
-                    'other_charges': None, 'dv_usd': None,
-                    'is_extracted': True,
-                    'confidence': _ocr_flds.get('description', {}).get('confidence', 0.0) if isinstance(_ocr_flds.get('description', {}), dict) else 0.0,
-                }]
 
         # Historical on load
         wmcda_history = _wmcda_history(shipment)
