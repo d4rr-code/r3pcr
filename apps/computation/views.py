@@ -638,6 +638,128 @@ def draft_globals(request, shipment_id):
 
 # ─── Computation ──────────────────────────────────────────────────────────────
 
+def _apply_port_fee_defaults(shipment, container_type, arrastre, wharfage,
+                             csf_usd_val, csf_php_val, usd_exchange_rate):
+    """Apply server-side LCL/FCL port-fee defaults when the declarant left BOTH
+    arrastre and wharfage at 0.
+
+    Mirrors the client-side JS auto-fill so no-JS submissions still get the
+    right terminal charges. AIR/LAND keep 0. Returns the (possibly updated)
+    (arrastre, wharfage, csf_usd_val, csf_php_val) tuple.
+    """
+    if arrastre != Decimal('0') or wharfage != Decimal('0'):
+        return arrastre, wharfage, csf_usd_val, csf_php_val
+
+    _stype = (shipment.shipment_type or '').lower()
+    _csize = container_type.lower() if container_type else ''
+    if _stype in ('lcl', 'sea'):
+        arrastre    = Decimal('5496.00')
+        wharfage    = Decimal('519.35')
+        csf_usd_val = Decimal('0.00')
+        csf_php_val = Decimal('0.00')
+    elif _stype == 'fcl':
+        if '40' in _csize:
+            arrastre    = Decimal('12608.00')
+            wharfage    = Decimal('779.05')
+            csf_usd_val = Decimal('10.00')
+        else:                              # default: 20FT
+            arrastre    = Decimal('5496.00')
+            wharfage    = Decimal('519.35')
+            csf_usd_val = Decimal('5.00')
+        csf_php_val = csf_usd_val * usd_exchange_rate
+    # AIR / LAND: leave at 0
+    return arrastre, wharfage, csf_usd_val, csf_php_val
+
+
+def _distribute_freight_insurance(items_data, request):
+    """Spread a global total_freight / total_insurance across items by EXW share.
+
+    Only applies when the declarant entered a positive global total but left ALL
+    per-item values at 0 (otherwise per-item values are respected). Mutates
+    items_data in place and returns it.
+    """
+    total_exw_for_dist = sum(Decimal(str(it['exw_usd'])) for it in items_data) or Decimal('1')
+    total_freight_global   = Decimal(request.POST.get('total_freight',   '0') or '0')
+    total_insurance_global = Decimal(request.POST.get('total_insurance', '0') or '0')
+    all_fr_zero  = all(Decimal(str(it.get('freight_usd',   0) or 0)) == 0 for it in items_data)
+    all_ins_zero = all(Decimal(str(it.get('insurance_usd', 0) or 0)) == 0 for it in items_data)
+    if all_fr_zero and total_freight_global > 0:
+        for it in items_data:
+            prop = Decimal(str(it['exw_usd'])) / total_exw_for_dist
+            it['freight_usd'] = float(round(total_freight_global * prop, 4))
+    if all_ins_zero and total_insurance_global > 0:
+        for it in items_data:
+            prop = Decimal(str(it['exw_usd'])) / total_exw_for_dist
+            it['insurance_usd'] = float(round(total_insurance_global * prop, 4))
+    return items_data
+
+
+def _parse_posted_line_items(request):
+    """Parse the repeated item-row fields of a compute POST into items_data.
+
+    Reads the parallel description[] / exw_value[] / ... lists, pads them all to
+    the length of description[], resolves each row's HS-code string, and keeps
+    only rows with a positive EXW. Freight / insurance / duty default to '0' so
+    downstream Decimal() parsing is safe.
+    """
+    descriptions  = request.POST.getlist('description[]')
+    exw_values    = request.POST.getlist('exw_value[]')
+    freights_list = request.POST.getlist('item_freight[]')
+    ins_list      = request.POST.getlist('item_insurance[]')
+    quantities    = request.POST.getlist('quantity[]')
+    units         = request.POST.getlist('unit[]')
+    unit_prices   = request.POST.getlist('unit_price[]')
+    hs_code_ids   = request.POST.getlist('hs_code_id[]')
+    duty_rates    = request.POST.getlist('item_duty_rate[]')
+    gws           = request.POST.getlist('gw[]')
+    nws           = request.POST.getlist('nw[]')
+    pkgs_list     = request.POST.getlist('pkgs[]')
+
+    # Pad all lists to same length as descriptions
+    n = len(descriptions)
+    def _pad(lst, default=''):
+        return (lst + [default] * n)[:n]
+    freights_list = _pad(freights_list, '0')
+    ins_list      = _pad(ins_list,      '0')
+    hs_code_ids   = _pad(hs_code_ids,   '')
+    duty_rates    = _pad(duty_rates,     '0')
+    gws           = _pad(gws,            '')
+    nws           = _pad(nws,            '')
+    pkgs_list     = _pad(pkgs_list,      '')
+    quantities    = _pad(quantities,     '')
+    units         = _pad(units,          '')
+    unit_prices   = _pad(unit_prices,    '')
+
+    # Build HS code string lookup map (id → code string)
+    valid_hs_ids = [int(h) for h in hs_code_ids if h and h.strip().isdigit()]
+    hs_code_map  = {
+        str(obj.id): obj.code
+        for obj in HSCode.objects.filter(id__in=valid_hs_ids).only('id', 'code')
+    } if valid_hs_ids else {}
+
+    return [
+        {
+            'description':    d.strip(),
+            'exw_usd':        e,
+            'freight_usd':    f  or '0',
+            'insurance_usd':  ins or '0',
+            'quantity':       q,
+            'unit':           unit,
+            'unit_price':     unit_price,
+            'hs_code_id':     h,
+            'hs_code':        hs_code_map.get(str(h).strip(), ''),
+            'duty_rate':      dr or '0',
+            'gw':             gw,
+            'nw':             nw,
+            'pkgs':           pk,
+        }
+        for d, e, f, ins, q, unit, unit_price, h, dr, gw, nw, pk
+        in zip(descriptions, exw_values, freights_list, ins_list,
+               quantities, units, unit_prices, hs_code_ids, duty_rates, gws, nws, pkgs_list)
+        if e and float(e) > 0
+    ]
+
+
 @login_required
 def compute_shipment(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id)
@@ -711,105 +833,17 @@ def compute_shipment(request, shipment_id):
             )
             csf_php_val     = csf_usd_val * usd_exchange_rate
 
-            # ── Server-side port fee defaults (only when declarant left all at 0) ──
-            # This mirrors the JS auto-fill so submissions without JS still get
-            # the correct defaults applied.
-            _stype = (shipment.shipment_type or '').lower()
-            _csize = container_type.lower() if container_type else ''
-            if arrastre == Decimal('0') and wharfage == Decimal('0'):
-                if _stype in ('lcl', 'sea'):
-                    arrastre    = Decimal('5496.00')
-                    wharfage    = Decimal('519.35')
-                    csf_usd_val = Decimal('0.00')
-                    csf_php_val = Decimal('0.00')
-                elif _stype == 'fcl':
-                    if '40' in _csize:
-                        arrastre    = Decimal('12608.00')
-                        wharfage    = Decimal('779.05')
-                        csf_usd_val = Decimal('10.00')
-                    else:                              # default: 20FT
-                        arrastre    = Decimal('5496.00')
-                        wharfage    = Decimal('519.35')
-                        csf_usd_val = Decimal('5.00')
-                    csf_php_val = csf_usd_val * usd_exchange_rate
-                # AIR / LAND: leave at 0
+            arrastre, wharfage, csf_usd_val, csf_php_val = _apply_port_fee_defaults(
+                shipment, container_type, arrastre, wharfage,
+                csf_usd_val, csf_php_val, usd_exchange_rate,
+            )
 
-            descriptions  = request.POST.getlist('description[]')
-            exw_values    = request.POST.getlist('exw_value[]')
-            freights_list = request.POST.getlist('item_freight[]')
-            ins_list      = request.POST.getlist('item_insurance[]')
-            quantities    = request.POST.getlist('quantity[]')
-            units         = request.POST.getlist('unit[]')
-            unit_prices   = request.POST.getlist('unit_price[]')
-            hs_code_ids   = request.POST.getlist('hs_code_id[]')
-            duty_rates    = request.POST.getlist('item_duty_rate[]')
-            gws           = request.POST.getlist('gw[]')
-            nws           = request.POST.getlist('nw[]')
-            pkgs_list     = request.POST.getlist('pkgs[]')
-
-            # Pad all lists to same length as descriptions
-            n = len(descriptions)
-            def _pad(lst, default=''):
-                return (lst + [default] * n)[:n]
-            freights_list = _pad(freights_list, '0')
-            ins_list      = _pad(ins_list,      '0')
-            hs_code_ids   = _pad(hs_code_ids,   '')
-            duty_rates    = _pad(duty_rates,     '0')
-            gws           = _pad(gws,            '')
-            nws           = _pad(nws,            '')
-            pkgs_list     = _pad(pkgs_list,      '')
-            quantities    = _pad(quantities,     '')
-            units         = _pad(units,          '')
-            unit_prices   = _pad(unit_prices,    '')
-
-            # Build HS code string lookup map (id → code string)
-            valid_hs_ids = [int(h) for h in hs_code_ids if h and h.strip().isdigit()]
-            hs_code_map  = {
-                str(obj.id): obj.code
-                for obj in HSCode.objects.filter(id__in=valid_hs_ids).only('id', 'code')
-            } if valid_hs_ids else {}
-
-            items_data = [
-                {
-                    'description':    d.strip(),
-                    'exw_usd':        e,
-                    'freight_usd':    f  or '0',
-                    'insurance_usd':  ins or '0',
-                    'quantity':       q,
-                    'unit':           unit,
-                    'unit_price':     unit_price,
-                    'hs_code_id':     h,
-                    'hs_code':        hs_code_map.get(str(h).strip(), ''),
-                    'duty_rate':      dr or '0',
-                    'gw':             gw,
-                    'nw':             nw,
-                    'pkgs':           pk,
-                }
-                for d, e, f, ins, q, unit, unit_price, h, dr, gw, nw, pk
-                in zip(descriptions, exw_values, freights_list, ins_list,
-                       quantities, units, unit_prices, hs_code_ids, duty_rates, gws, nws, pkgs_list)
-                if e and float(e) > 0
-            ]
+            items_data = _parse_posted_line_items(request)
             if not items_data:
                 messages.error(request, 'Add at least one item with a value.')
                 raise ValueError('no items')
 
-            # ── Proportional freight/insurance server-side distribution ──────
-            # If the declarant entered a global total_freight / total_insurance
-            # but left all per-item values at 0, distribute proportionally by EXW.
-            total_exw_for_dist = sum(Decimal(str(it['exw_usd'])) for it in items_data) or Decimal('1')
-            total_freight_global   = Decimal(request.POST.get('total_freight',   '0') or '0')
-            total_insurance_global = Decimal(request.POST.get('total_insurance', '0') or '0')
-            all_fr_zero  = all(Decimal(str(it.get('freight_usd',   0) or 0)) == 0 for it in items_data)
-            all_ins_zero = all(Decimal(str(it.get('insurance_usd', 0) or 0)) == 0 for it in items_data)
-            if all_fr_zero and total_freight_global > 0:
-                for it in items_data:
-                    prop = Decimal(str(it['exw_usd'])) / total_exw_for_dist
-                    it['freight_usd'] = float(round(total_freight_global * prop, 4))
-            if all_ins_zero and total_insurance_global > 0:
-                for it in items_data:
-                    prop = Decimal(str(it['exw_usd'])) / total_exw_for_dist
-                    it['insurance_usd'] = float(round(total_insurance_global * prop, 4))
+            _distribute_freight_insurance(items_data, request)
 
             items, summary = compute_ecdt(
                 items_data, exchange_rate, usd_exchange_rate=usd_exchange_rate,

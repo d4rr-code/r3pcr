@@ -160,6 +160,45 @@ class ComputeShipmentPostTests(TestCase):
         self.assertIsNotNone(advisory)
         self.assertEqual(advisory.distance_km, 2600)
 
+    def test_lcl_port_fee_defaults_applied_when_left_zero(self):
+        """When the declarant leaves both arrastre and wharfage at 0 on an LCL
+        shipment, the server fills the standard defaults (₱5,496 / ₱519.35)."""
+        data = self._post_data()
+        data['arrastre'] = '0'
+        data['wharfage'] = '0'
+        self.client.post(self.url, data)
+        dc = DutyComputation.objects.get(shipment=self.shipment)
+        self.assertEqual(dc.arrastre, Decimal('5496.00'))
+        self.assertEqual(dc.wharfage, Decimal('519.35'))
+
+    def test_global_freight_distributed_across_items_by_exw(self):
+        """A global total_freight with all per-item freight 0 is split by EXW
+        share. Two items 750/250 EXW sharing 100 freight -> 75 / 25."""
+        hs = self.hs
+        data = {
+            'invoice_currency': 'USD', 'exchange_rate': '50.0000',
+            'arrastre': '1000', 'wharfage': '500', 'bank_charges': '0',
+            'csf_usd': '0', 'charge_mode': 'lcl', 'cargo_volume': '0',
+            'distance_km': '2600', 'container_type': '',
+            'total_freight': '100', 'total_insurance': '0',
+            'description[]': ['A', 'B'],
+            'exw_value[]': ['750', '250'],
+            'item_freight[]': ['0', '0'],
+            'item_insurance[]': ['0', '0'],
+            'quantity[]': ['1', '1'], 'unit[]': ['pcs', 'pcs'],
+            'unit_price[]': ['750', '250'],
+            'hs_code_id[]': [str(hs.id), str(hs.id)],
+            'item_duty_rate[]': ['10', '10'],
+            'gw[]': ['1', '1'], 'nw[]': ['1', '1'], 'pkgs[]': ['1', '1'],
+        }
+        self.client.post(self.url, data)
+        dc = DutyComputation.objects.get(shipment=self.shipment)
+        items = dc.get_items()
+        self.assertEqual(items[0]['item_freight'], 75.0)
+        self.assertEqual(items[1]['item_freight'], 25.0)
+        # total_freight stored on the model is the distributed sum.
+        self.assertEqual(dc.total_freight, Decimal('100.00'))
+
     def test_non_assigned_declarant_is_denied(self):
         other = User.objects.create_user(
             username='other_dec', password='x', role='declarant',
