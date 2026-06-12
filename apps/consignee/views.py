@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -9,6 +10,8 @@ from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
 from apps.notifications.utils import create_notification, notify_incoming_shipment, notify_shipment_status_change
 from apps.supervisor.models import IssueReport
 from .models import Feedback
+
+logger = logging.getLogger('r3pcr.consignee')
 
 
 # ─── Role Guard ───────────────────────────────────────────────────────────────
@@ -577,8 +580,8 @@ def shipment_detail(request, shipment_id):
                         f'For similar future shipments, WMCDA suggests {recommendation_label} '
                         f'instead of {declared_label} based on cost, time, cargo size, and distance.'
                     )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug('Advisory summary build failed: %s', e)
 
     sad_document = shipment.documents.filter(document_type='sad').first()
     fan_rows = fan_assessment_rows(sad_document)

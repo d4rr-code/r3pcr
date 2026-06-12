@@ -244,8 +244,8 @@ def _tesseract_image_to_text(image):
         try:
             processed.close()
             original.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug('Image cleanup failed: %s', e)
         return text
 
     # Fallback — PSM 3 (fully automatic layout) on original (unprocessed)
@@ -259,8 +259,8 @@ def _tesseract_image_to_text(image):
     try:
         processed.close()
         original.close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug('Image cleanup failed: %s', e)
     return result
 
 

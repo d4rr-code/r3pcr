@@ -1338,8 +1338,8 @@ def shipment_detail(request, shipment_id):
                     elif declared_score >= 0.65: declared_rating = 'Good'
                     elif declared_score >= 0.50: declared_rating = 'Fair'
                     else:                        declared_rating = 'Poor'
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug('Declared-score breakdown failed: %s', e)
 
     return render(request, 'supervisor/shipment_detail.html', {
         'shipment':           shipment,

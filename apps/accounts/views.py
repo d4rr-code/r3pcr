@@ -255,7 +255,7 @@ def verify_otp_view(request):
             _hint_otp = OTP.objects.filter(user_id=user_id, is_used=False).latest('created_at')
             if _hint_otp.is_valid():
                 dev_otp = _hint_otp.code
-        except Exception:
+        except OTP.DoesNotExist:
             pass
 
     return render(request, 'accounts/verify_otp.html', {'dev_otp': dev_otp})

@@ -4,7 +4,7 @@ import os
 import re
 import tempfile
 import threading
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 logger = logging.getLogger('r3pcr.computation')
 
@@ -636,12 +636,12 @@ def draft_globals(request, shipment_id):
             if cargo_volume is not None:
                 try:
                     advisory_defaults['cargo_volume'] = Decimal(str(cargo_volume or 0))
-                except Exception:
+                except (InvalidOperation, ValueError, TypeError):
                     pass
             if distance_km is not None:
                 try:
                     advisory_defaults['distance_km'] = Decimal(str(distance_km or 0))
-                except Exception:
+                except (InvalidOperation, ValueError, TypeError):
                     pass
             if advisory_defaults:
                 ShippingAdvisory.objects.update_or_create(
@@ -653,8 +653,8 @@ def draft_globals(request, shipment_id):
                         **advisory_defaults,
                     }
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug('Advisory pre-fill from draft globals failed: %s', e)
 
     return JsonResponse({'ok': True})
 
@@ -1004,7 +1004,7 @@ def _resolve_prefill_distance_volume(shipment, advisory_ex, ocr_fields):
                 continue
             try:
                 stored = json.loads(doc.ocr_fields_json)
-            except Exception:
+            except (ValueError, TypeError):
                 continue
 
             if not ocr_country:
@@ -1261,8 +1261,8 @@ def compute_shipment(request, shipment_id):
                     advisory_ex.urgency_level,
                     float(advisory_ex.distance_km),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug('WMCDA breakdown re-derive (GET) failed: %s', e)
 
         # Historical on load
         wmcda_history = _wmcda_history(shipment)
@@ -2263,8 +2263,8 @@ def shipping_advisory(request, shipment_id):
             scores, result, breakdown, explanation = compute_wmcda(
                 auto_weight, auto_volume, auto_value, auto_urgency, auto_distance
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug('WMCDA breakdown re-derive failed: %s', e)
     else:
         # Pull weight from shipment model field
         auto_weight = float(shipment.gross_weight) if shipment.gross_weight else 0.0
@@ -2345,8 +2345,8 @@ def shipping_advisory(request, shipment_id):
                         f'{explanation[:120] if explanation else ""}'
                     ),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug('Advisory-ready notification failed: %s', e)
 
         except Exception as e:
             messages.error(request, f'Error: {e}')
@@ -2442,8 +2442,8 @@ def save_declarant_advisory(request, shipment_id):
                     f'{note}' if note else f'Your declarant recommends {mode_label} for your shipment.'
                 ),
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug('Declarant-advisory notification failed: %s', e)
         messages.success(request, f'Advisory saved — {mode_label} recommended to consignee.')
     else:
         messages.success(request, 'Declarant advisory cleared.')

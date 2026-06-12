@@ -277,8 +277,8 @@ def _send_overdue_emails(overdue_shipments, today):
                         recipient_list=recipients,
                         fail_silently=True,
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug('Overdue-shipment email failed: %s', e)
 
             # Mark notified today (outside the email try so it always saves)
             Shipment.objects.filter(pk=shipment.pk).update(overdue_notified_at=today)
