@@ -375,6 +375,155 @@ def extract_text_from_file(file_path):
         return ''
 
 
+# ── OCR line-item extraction: skip words, patterns + helpers (module-level) ──
+# Hoisted out of _extract_line_items so the regexes compile once (not per call)
+# and the pattern cascade can be flattened into _match_item_row().
+SKIP_WORDS = {
+    # totals / summaries
+    'subtotal', 'sub-total', 'sub total', 'grand total', 'total', 'discount',
+    'net value', 'net amount', 'net price', 'value of goods', 'invoice amount',
+    'total amount', 'total value', 'credit', 'debit', 'balance', 'position',
+    # logistics / charges
+    'freight', 'insurance', 'shipping', 'handling', 'tax', 'vat', 'charges',
+    'surcharge', 'customs', 'duty', 'fee', 'commission',
+    # contact / header lines
+    'tel', 'tel.', 'fax', 'fax.', 'email', 'e-mail', 'phone', 'mobile',
+    'hotline', 'website', 'www.', 'address', 'addr.',
+    # banking / payment details — must never become an item description
+    'iban', 'bic', 'swift', 'sort code', 'account no', 'bank account',
+    'routing', 'beneficiary', 'correspondent',
+    # document / header words
+    'invoice', 'description', 'item', 'qty', 'quantity', 'unit', 'price',
+    'amount', 'no.', 'number', 'date', 'currency', 'terms', 'payment',
+    'bank', 'page', 'consignee', 'shipper', 'marks', 'country of origin',
+    'gross weight', 'net weight', 'packing', 'carton', 'certificate',
+    'warranty', 'incoterm', 'delivery', 'order', 'contract', 'ref',
+}
+
+# Building-block sub-patterns
+_M = r'(?:US\$|USD\s*|EUR\s*|PHP\s*|HKD\s*|CNY\s*|\$|€)?[\d,]+(?:\.\d{1,4})?'
+_U = r'(?:PCS|PIECES|UNITS?|CTN|CTNS?|SET|SETS|ROLLS?|BOX(?:ES)?|KGS?|KG|EA|PAIRS?|PC|NOS?|LOTS?|PKGS?|PKG|BAGS?|BDL|BDLS?|PK|BTL|BTLS?)'
+_HS = r'\d{4}(?:[\s.]?\d{2}){1,3}'
+_CC = r'[A-Z]{2}'
+_PKG = r'(?:BOX(?:ES)?|CTN|CTNS?|CARTONS?|PKGS?|PKG|PALLETS?|CASES?)'
+
+# Pattern A — line with embedded HS code (and optional country code)
+pat_A = re.compile(
+    rf'^(?:\d+[\s.)]+)?(.+?)\s*({_HS})\s+(?:{_CC}\s+)?(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s*$',
+    re.IGNORECASE,
+)
+# Pattern B — standard invoice line (no HS, no country code)
+pat_B = re.compile(
+    rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s*$',
+    re.IGNORECASE,
+)
+# Pattern C — packing list (desc qty unit gross_wt net_wt pkgs)
+pat_C = re.compile(
+    rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s+(\d+)\s*$',
+    re.IGNORECASE,
+)
+pat_C2 = re.compile(
+    rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d[\d,]*(?:\.\d+)?)\s*({_U})\s+(\d[\d,]*(?:\.\d+)?)\s*{_PKG}\s+([\d,]+(?:\.\d+)?)\s+([\d,]+(?:\.\d+)?)\s+([\d,]+(?:\.\d+)?)\s*$',
+    re.IGNORECASE,
+)
+pat_C3 = re.compile(
+    r'^(?:\d+[\s.)]+)?\S+\s+\S+\s+(.+?)\s+kg\s+.*?\s+(\d[\d,]*(?:[.,]\d+)?)\s*(PCS?|PC|PIECES|UNITS?)\s+([\d,]+(?:[.,]\d+)?)\s*kg\s+([\d,]+(?:[.,]\d+)?)\s*$',
+    re.IGNORECASE,
+)
+# Pattern D — qty-only line (desc qty [unit] total, no unit price)
+pat_D = re.compile(
+    rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d{{1,8}})\s*({_U})?\s+({_M})\s*$',
+    re.IGNORECASE,
+)
+# Pattern E — broad fallback: any desc + a decimal amount
+pat_E = re.compile(
+    r'^(?:\d+[\s.)]+)?([A-Za-z][A-Za-z0-9\s\-/,()]{3,80}?)\s+([\d,]+\.\d{1,4})\s*$',
+    re.IGNORECASE,
+)
+
+# "HS CODE: XXXX.XX" label scanner
+_hs_label_pat = re.compile(
+    r'(?:\bHS[\s._-]*CODE\b|\bCustoms\s+tariff\s+no\.?)\s*[:\-]?\s*(\d{4}(?:[.\s]?\d{2}){1,3})',
+    re.IGNORECASE,
+)
+
+
+def _normalize_hs_code(raw):
+    digits = re.sub(r'\D', '', str(raw or ''))
+    if len(digits) == 6:
+        return f'{digits[:4]}.{digits[4:]}'
+    if len(digits) == 8:
+        return f'{digits[:4]}.{digits[4:6]}.{digits[6:]}'
+    if len(digits) == 10:
+        return f'{digits[:4]}.{digits[4:6]}.{digits[6:8]}.{digits[8:]}'
+    return re.sub(r'\s+', '.', str(raw or '').strip())
+
+
+def _match_item_row(line):
+    """Try the line-item patterns in specificity order (A, C2, C3, C, B, D, E)
+    and return the parsed fields of the first match, or None.
+
+    Flattens what used to be a 7-deep if/else cascade. Returned keys are a
+    subset of: desc_raw, qty, unit, unit_price_str, amount_str, gross_weight,
+    net_weight, packages, inline_doc_hs_code, plus matched_pattern + confidence.
+    """
+    m = pat_A.match(line)
+    if m:
+        return {
+            'desc_raw': m.group(1), 'inline_doc_hs_code': _normalize_hs_code(m.group(2)),
+            'qty': m.group(3), 'unit': m.group(4) or '',
+            'unit_price_str': m.group(5), 'amount_str': m.group(6),
+            'matched_pattern': 'A', 'confidence': 0.90,
+        }
+    m = pat_C2.match(line)
+    if m:
+        return {
+            'desc_raw': m.group(1), 'qty': m.group(2), 'unit': m.group(3) or '',
+            'packages': _clean_number(m.group(4)),
+            'gross_weight': _clean_number(m.group(5)),
+            'net_weight': _clean_number(m.group(6)),
+            'matched_pattern': 'C2', 'confidence': 0.88,
+        }
+    m = pat_C3.match(line)
+    if m:
+        return {
+            'desc_raw': m.group(1), 'qty': m.group(2), 'unit': m.group(3) or '',
+            'gross_weight': _clean_number(m.group(4).replace(',', '.')),
+            'net_weight': _clean_number(m.group(5).replace(',', '.')),
+            'matched_pattern': 'C3', 'confidence': 0.86,
+        }
+    m = pat_C.match(line)
+    if m:
+        return {
+            'desc_raw': m.group(1), 'qty': m.group(2), 'unit': m.group(3) or '',
+            'gross_weight': _clean_number(m.group(4)),
+            'net_weight': _clean_number(m.group(5)),
+            'packages': _clean_number(m.group(6)),
+            'matched_pattern': 'C', 'confidence': 0.80,
+        }
+    m = pat_B.match(line)
+    if m:
+        return {
+            'desc_raw': m.group(1), 'qty': m.group(2), 'unit': m.group(3) or '',
+            'unit_price_str': m.group(4), 'amount_str': m.group(5),
+            'matched_pattern': 'B', 'confidence': 0.80,
+        }
+    m = pat_D.match(line)
+    if m:
+        return {
+            'desc_raw': m.group(1), 'qty': m.group(2), 'unit': m.group(3) or '',
+            'amount_str': m.group(4),
+            'matched_pattern': 'D', 'confidence': 0.65,
+        }
+    m = pat_E.match(line)
+    if m:
+        return {
+            'desc_raw': m.group(1), 'amount_str': m.group(2), 'qty': '', 'unit': '',
+            'matched_pattern': 'E', 'confidence': 0.50,
+        }
+    return None
+
+
 def _extract_line_items(text):
     """
     Extract individual line-item rows from commercial invoice / packing list text.
@@ -390,102 +539,7 @@ def _extract_line_items(text):
     Returns a list of dicts: [{description, quantity, unit, unit_price, total_value}, ...]
     Returns [] only when no reliable item rows are found.
     """
-    SKIP_WORDS = {
-        # totals / summaries
-        'subtotal', 'sub-total', 'sub total', 'grand total', 'total', 'discount',
-        'net value', 'net amount', 'net price', 'value of goods', 'invoice amount',
-        'total amount', 'total value', 'credit', 'debit', 'balance', 'position',
-        # logistics / charges
-        'freight', 'insurance', 'shipping', 'handling', 'tax', 'vat', 'charges',
-        'surcharge', 'customs', 'duty', 'fee', 'commission',
-        # contact / header lines
-        'tel', 'tel.', 'fax', 'fax.', 'email', 'e-mail', 'phone', 'mobile',
-        'hotline', 'website', 'www.', 'address', 'addr.',
-        # banking / payment details — must never become an item description
-        'iban', 'bic', 'swift', 'sort code', 'account no', 'bank account',
-        'routing', 'beneficiary', 'correspondent',
-        # document / header words
-        'invoice', 'description', 'item', 'qty', 'quantity', 'unit', 'price',
-        'amount', 'no.', 'number', 'date', 'currency', 'terms', 'payment',
-        'bank', 'page', 'consignee', 'shipper', 'marks', 'country of origin',
-        'gross weight', 'net weight', 'packing', 'carton', 'certificate',
-        'warranty', 'incoterm', 'delivery', 'order', 'contract', 'ref',
-    }
-
-    # ── Building-block sub-patterns ───────────────────────────────────────────
-    # Money: optional currency prefix, digits with commas, optional decimals
-    _M = r'(?:US\$|USD\s*|EUR\s*|PHP\s*|HKD\s*|CNY\s*|\$|€)?[\d,]+(?:\.\d{1,4})?'
-    # Unit of measure
-    _U = r'(?:PCS|PIECES|UNITS?|CTN|CTNS?|SET|SETS|ROLLS?|BOX(?:ES)?|KGS?|KG|EA|PAIRS?|PC|NOS?|LOTS?|PKGS?|PKG|BAGS?|BDL|BDLS?|PK|BTL|BTLS?)'
-    # HS code: 4 digits then 1–3 groups of 2 digits separated by optional space or dot
-    _HS = r'\d{4}(?:[\s.]?\d{2}){1,3}'
-    # 2-letter country / origin code (appears between HS and qty in some invoices)
-    _CC = r'[A-Z]{2}'
-    _PKG = r'(?:BOX(?:ES)?|CTN|CTNS?|CARTONS?|PKGS?|PKG|PALLETS?|CASES?)'
-
-    # ── Pattern A ─ line with embedded HS code (and optional country code) ───
-    # e.g. "THE PENINSULA GROUP MAGAZINE 2025  4911 1010  HK  625  US$3.00  US$1,875.00"
-    pat_A = re.compile(
-        rf'^(?:\d+[\s.)]+)?(.+?)\s*({_HS})\s+(?:{_CC}\s+)?(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s*$',
-        re.IGNORECASE,
-    )
-
-    # ── Pattern B ─ standard invoice line (no HS, no country code) ───────────
-    # e.g. "1 PLASTIC BOTTLE 500ML  100  PCS  2.50  250.00"
-    pat_B = re.compile(
-        rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s*$',
-        re.IGNORECASE,
-    )
-
-    # ── Pattern C ─ packing list (desc qty unit gross_wt net_wt pkgs) ────────
-    # e.g. "NASAL SPRAY 200  PCS  15.00  12.00  10"
-    pat_C = re.compile(
-        rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d[\d,]*(?:\.\d+)?)\s*({_U})?\s+({_M})\s+({_M})\s+(\d+)\s*$',
-        re.IGNORECASE,
-    )
-
-    pat_C2 = re.compile(
-        rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d[\d,]*(?:\.\d+)?)\s*({_U})\s+(\d[\d,]*(?:\.\d+)?)\s*{_PKG}\s+([\d,]+(?:\.\d+)?)\s+([\d,]+(?:\.\d+)?)\s+([\d,]+(?:\.\d+)?)\s*$',
-        re.IGNORECASE,
-    )
-
-    pat_C3 = re.compile(
-        r'^(?:\d+[\s.)]+)?\S+\s+\S+\s+(.+?)\s+kg\s+.*?\s+(\d[\d,]*(?:[.,]\d+)?)\s*(PCS?|PC|PIECES|UNITS?)\s+([\d,]+(?:[.,]\d+)?)\s*kg\s+([\d,]+(?:[.,]\d+)?)\s*$',
-        re.IGNORECASE,
-    )
-
-    # ── Pattern D ─ qty-only line (desc qty [unit] total, no unit price) ─────
-    # e.g. "SAMPLE ITEM  50  PCS  1,250.00"
-    pat_D = re.compile(
-        rf'^(?:\d+[\s.)]+)?(.+?)\s+(\d{{1,8}})\s*({_U})?\s+({_M})\s*$',
-        re.IGNORECASE,
-    )
-
-    # ── Pattern E ─ broad fallback: any desc + a decimal amount ───────────────
-    # e.g. "LABORATORY OVEN 3,500.00"  or  "Spare Parts for Centrifuge 1250.00"
-    pat_E = re.compile(
-        r'^(?:\d+[\s.)]+)?([A-Za-z][A-Za-z0-9\s\-/,()]{3,80}?)\s+([\d,]+\.\d{1,4})\s*$',
-        re.IGNORECASE,
-    )
-
-    # ── Pre-scan: locate "HS CODE: XXXX.XX" labels at each line index ──────────
-    # Real invoices print the HS code on the line immediately after the item.
-    # Pattern handles: "HS CODE: 3923.30", "HS CODE 3923.30", "HSCODE:3923.30",
-    #                  "HS CODE: 3923 30 00", "HS: 9616.10"
-    _hs_label_pat = re.compile(
-        r'(?:\bHS[\s._-]*CODE\b|\bCustoms\s+tariff\s+no\.?)\s*[:\-]?\s*(\d{4}(?:[.\s]?\d{2}){1,3})',
-        re.IGNORECASE,
-    )
     lines = text.splitlines()
-    def _normalize_hs_code(raw):
-        digits = re.sub(r'\D', '', str(raw or ''))
-        if len(digits) == 6:
-            return f'{digits[:4]}.{digits[4:]}'
-        if len(digits) == 8:
-            return f'{digits[:4]}.{digits[4:6]}.{digits[6:]}'
-        if len(digits) == 10:
-            return f'{digits[:4]}.{digits[4:6]}.{digits[6:8]}.{digits[8:]}'
-        return re.sub(r'\s+', '.', str(raw or '').strip())
 
     _hs_at_line = {}  # line_index → normalized HS code string  e.g. "3923.30"
     for _i, _ln in enumerate(lines):
@@ -537,65 +591,21 @@ def _extract_line_items(text):
         if re.search(r'\bIBAN\b|\bBIC\b|\bSWIFT\b|\bDE\d{2}\b', line, re.IGNORECASE):
             continue
 
-        matched_pattern = None
-        desc_raw = qty = unit = unit_price_str = amount_str = ''
-        gross_weight = net_weight = packages = ''
-        inline_doc_hs_code = None
-        confidence = 0.70
-
-        # Try patterns in specificity order: A (most specific) → D (least)
-        m = pat_A.match(line)
-        if m:
-            desc_raw = m.group(1)
-            inline_doc_hs_code = _normalize_hs_code(m.group(2))
-            qty, unit = m.group(3), m.group(4) or ''
-            unit_price_str, amount_str = m.group(5), m.group(6)
-            matched_pattern, confidence = 'A', 0.90
-        else:
-            m = pat_C2.match(line)
-            if m:
-                desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
-                packages     = _clean_number(m.group(4))
-                gross_weight = _clean_number(m.group(5))
-                net_weight   = _clean_number(m.group(6))
-                matched_pattern, confidence = 'C2', 0.88
-            else:
-                m = pat_C3.match(line)
-                if m:
-                    desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
-                    gross_weight = _clean_number(m.group(4).replace(',', '.'))
-                    net_weight   = _clean_number(m.group(5).replace(',', '.'))
-                    matched_pattern, confidence = 'C3', 0.86
-                else:
-                    m = pat_C.match(line)
-                    if m:
-                        desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
-                        gross_weight = _clean_number(m.group(4))
-                        net_weight   = _clean_number(m.group(5))
-                        packages     = _clean_number(m.group(6))
-                        matched_pattern, confidence = 'C', 0.80
-                    else:
-                        m = pat_B.match(line)
-                        if m:
-                            desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
-                            unit_price_str, amount_str = m.group(4), m.group(5)
-                            matched_pattern, confidence = 'B', 0.80
-                        else:
-                            m = pat_D.match(line)
-                            if m:
-                                desc_raw, qty, unit = m.group(1), m.group(2), m.group(3) or ''
-                                amount_str = m.group(4)
-                                matched_pattern, confidence = 'D', 0.65
-                            else:
-                                m = pat_E.match(line)
-                                if m:
-                                    desc_raw   = m.group(1)
-                                    amount_str = m.group(2)
-                                    qty = unit = ''
-                                    matched_pattern, confidence = 'E', 0.50
-
-        if not matched_pattern:
+        # Try patterns in specificity order: A → C2 → C3 → C → B → D → E
+        match = _match_item_row(line)
+        if not match:
             continue
+        desc_raw           = match.get('desc_raw', '')
+        qty                = match.get('qty', '')
+        unit               = match.get('unit', '')
+        unit_price_str     = match.get('unit_price_str', '')
+        amount_str         = match.get('amount_str', '')
+        gross_weight       = match.get('gross_weight', '')
+        net_weight         = match.get('net_weight', '')
+        packages           = match.get('packages', '')
+        inline_doc_hs_code = match.get('inline_doc_hs_code')
+        matched_pattern    = match['matched_pattern']
+        confidence         = match['confidence']
 
         # Description must contain at least one word of ≥3 letters
         has_word_description = bool(re.search(r'[A-Za-z]{3,}', desc_raw))
