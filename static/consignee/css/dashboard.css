@@ -321,3 +321,176 @@ a.status-card:hover {
 .urgency-other {
     background: #9CA3AF;
 }
+
+@media (max-width: 1180px) {
+    .dash-status-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dash-chart-row,
+    .dash-bottom-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .dash-bottom-row {
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-welcome h1 {
+        font-size: 20px !important;
+        line-height: 1.2;
+    }
+
+    .dash-summary-row {
+        flex-direction: column;
+        overflow: visible !important;
+    }
+
+    .dash-status-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        overflow: visible;
+    }
+
+    .status-card {
+        min-height: 74px;
+        padding: 11px 12px;
+        align-items: flex-start;
+    }
+
+    .sc-left {
+        align-items: flex-start;
+    }
+
+    .sc-icon {
+        width: 32px;
+        height: 32px;
+    }
+
+    .sc-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .sc-label,
+    .sc-sub {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    .sc-label {
+        font-size: 9px;
+    }
+
+    .sc-sub {
+        font-size: 8px;
+    }
+
+    .sc-count {
+        font-size: 22px;
+    }
+
+    .dash-total-link,
+    .dash-total-card {
+        width: 100%;
+    }
+
+    .dash-total-card {
+        min-height: 108px;
+        padding: 16px;
+    }
+
+    .dash-total-card p:last-child {
+        font-size: 42px !important;
+    }
+
+    .dashboard-card-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 8px;
+    }
+
+    .dashboard-filter-group {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .chart-filter-btn {
+        min-height: 32px;
+    }
+
+    .shipment-overview-card,
+    .shipping-type-card,
+    .urgency-card {
+        padding: 14px !important;
+    }
+
+    .shipment-chart-wrap {
+        height: 210px;
+        min-height: 210px;
+    }
+
+    #reminder-list {
+        max-height: none !important;
+        overflow-y: visible !important;
+        padding-right: 0 !important;
+    }
+
+    .ship-type-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ship-type-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .ship-type-label {
+        margin-bottom: 0;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+}
+
+@media (max-width: 480px) {
+    .dash-status-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .status-card {
+        min-height: 64px;
+        align-items: center;
+    }
+
+    .sc-left {
+        align-items: center;
+    }
+
+    .sc-sub {
+        font-size: 8.5px;
+    }
+
+    .dashboard-filter-group .chart-filter-btn,
+    .dashboard-card-header .chart-filter-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .shipment-chart-wrap {
+        height: 190px;
+        min-height: 190px;
+    }
+
+    .c-card-title {
+        font-size: 13px;
+    }
+
+    .ship-type-count {
+        font-size: 20px;
+    }
+}

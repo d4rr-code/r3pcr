@@ -72,3 +72,43 @@
 .modal-content{display:none}
 .modal-declarant{color:#1B3358;font-weight:500;margin-top:4px}
 .ajax-error{color:#EF4444}
+
+@media (max-width:768px){
+    .notif-header{align-items:flex-start;flex-direction:column;margin-bottom:14px}
+    .notif-header-left{align-items:flex-start;flex-direction:column;gap:6px}
+    .notif-title{font-size:20px}
+    .mark-all-form,.n-mark-all-btn{width:100%}
+    .n-mark-all-btn{justify-content:center;min-height:38px}
+
+    .n-toolbar{align-items:stretch;flex-direction:column;padding:12px}
+    .n-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}
+    .n-tab{min-width:0;padding:10px 8px;font-size:12px}
+    .search-form,.n-search-wrap,.n-search{width:100%}
+
+    .notif-row{gap:10px;padding:14px 12px}
+    .notif-head-row{flex-direction:column;gap:2px}
+    .notif-title{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.35}
+    .notif-msg{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.45}
+    .notif-ts{font-size:10.5px}
+    .notif-chevron{align-self:center}
+
+    #notif-backdrop{padding:10px}
+    #notif-modal{width:100%;max-width:100%;max-height:92vh;border-radius:14px}
+    .modal-header{padding:20px 18px 0}
+    .modal-hawb{font-size:17px;overflow-wrap:anywhere;padding-right:32px}
+    .modal-badge-row,.modal-message,.modal-footer{padding-left:18px;padding-right:18px}
+    .modal-divider{margin-left:18px;margin-right:18px}
+    .modal-info-grid{grid-template-columns:1fr;margin:14px 18px}
+}
+
+@media (max-width:480px){
+    .n-tabs{grid-template-columns:1fr}
+    .n-tab{border-right:0;border-bottom:1.5px solid #E5E7EB}
+    .n-tab:last-child{border-bottom:0}
+    .notif-row{align-items:flex-start}
+    .notif-dot{margin-top:6px}
+    .notif-chevron{display:none}
+    .n-empty{padding:42px 14px}
+    .modal-close{top:10px;right:10px}
+    .modal-info-cell{padding:12px 14px}
+}

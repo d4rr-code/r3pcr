@@ -193,7 +193,7 @@
             These values are <strong style="color:#374151;">unverified</strong> — your declarant will confirm them against the documents.
         </p>
         <!-- Currency selector — affects declared invoice value only -->
-        <div style="margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="currency-row" style="margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
             <label style="font-size:12px; font-weight:700; color:#374151;">Invoice Currency:</label>
             <select name="invoice_currency" id="invoice_currency" class="c-input"
                     style="width:auto; min-width:200px; padding:7px 14px;"
@@ -347,7 +347,7 @@
         <p style="font-size:11px; color:#9CA3AF; margin-bottom:10px;">
             e.g. Certificate of Origin, Import Permit, Authorization Letter
         </p>
-        <div style="max-width:360px;">
+        <div class="supporting-upload-wrap" style="max-width:360px;">
             <div class="upload-zone" id="zone-other"
                  onclick="trigFile('f-other')"
                  ondragover="dzOver(event,'zone-other')"
@@ -370,7 +370,7 @@
     </div>
 
     <!-- ── Submit Buttons ─────────────────────────────────────────────────────── -->
-    <div style="display:flex; gap:12px; padding-top:20px; border-top:1px solid #E5E7EB;">
+    <div class="submit-actions" style="display:flex; gap:12px; padding-top:20px; border-top:1px solid #E5E7EB;">
         <button type="submit" class="c-btn c-btn-primary"
                 style="padding:11px 28px; font-size:13px; font-weight:700; letter-spacing:0.4px;">
             + SUBMIT SHIPMENT

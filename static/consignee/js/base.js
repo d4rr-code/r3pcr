@@ -15,7 +15,7 @@
 
     const savedState = localStorage.getItem(STORAGE_KEY);
 
-    if (savedState === "1") {
+    if (savedState === "1" && window.innerWidth > 1024) {
 
         sidebar.classList.add("expanded");
         main.classList.add("sidebar-open");
@@ -49,13 +49,19 @@ function toggleMobileSidebar() {
 
     const sidebar = document.getElementById("c-sidebar");
     const overlay = document.getElementById("c-overlay");
+    const hamburger = document.getElementById("c-hamburger");
 
     if (!sidebar || !overlay) {
         return;
     }
 
-    sidebar.classList.toggle("mobile-open");
-    overlay.classList.toggle("visible");
+    const isOpen = sidebar.classList.toggle("mobile-open");
+    overlay.classList.toggle("visible", isOpen);
+    document.body.classList.toggle("c-menu-open", isOpen);
+
+    if (hamburger) {
+        hamburger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    }
 
 }
 
@@ -63,6 +69,7 @@ function closeMobileSidebar() {
 
     const sidebar = document.getElementById("c-sidebar");
     const overlay = document.getElementById("c-overlay");
+    const hamburger = document.getElementById("c-hamburger");
 
     if (!sidebar || !overlay) {
         return;
@@ -70,6 +77,11 @@ function closeMobileSidebar() {
 
     sidebar.classList.remove("mobile-open");
     overlay.classList.remove("visible");
+    document.body.classList.remove("c-menu-open");
+
+    if (hamburger) {
+        hamburger.setAttribute("aria-expanded", "false");
+    }
 
 }
 

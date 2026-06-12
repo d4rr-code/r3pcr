@@ -198,4 +198,33 @@
 
     }
 
+    .ref-card{
+
+        padding:16px;
+
+    }
+
+    .ref-title{
+
+        font-size:15px;
+
+    }
+
+}
+
+@media (max-width:480px){
+
+    .system-header-card{
+
+        border-radius:10px;
+
+    }
+
+    .system-header-card p,
+    .ref-desc{
+
+        font-size:12px;
+
+    }
+
 }

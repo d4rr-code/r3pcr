@@ -16,6 +16,10 @@ body {
     overflow-x: hidden;
 }
 
+body.c-menu-open {
+    overflow: hidden;
+}
+
 /* ===================================================================
    SIDEBAR
 =================================================================== */
@@ -577,6 +581,11 @@ body {
 
 }
 
+.c-notif-badge,
+.c-nav-badge {
+    font-variant-numeric: tabular-nums;
+}
+
 /* ===================================================================
    PAGE CONTENT
 =================================================================== */
@@ -654,6 +663,10 @@ body {
         margin-left: 64px;
     }
 
+    .sidebar-toggle {
+        display: none;
+    }
+
     .c-sidebar {
         width: 64px !important;
     }
@@ -692,16 +705,28 @@ body {
 
     }
 
-    .c-sidebar.mobile-open {
+    .c-sidebar-logo {
+        justify-content: flex-start;
+        padding: 16px 18px;
+    }
 
+    .c-sidebar.mobile-open,
+    .c-sidebar.expanded.mobile-open {
+
+        width: 220px !important;
         transform: translateX(0);
 
+    }
+
+    .c-sidebar.mobile-open .c-sidebar-logo-mini {
+        opacity: 0 !important;
+        pointer-events: none !important;
     }
 
     .c-sidebar.mobile-open .c-nav-label,
     .c-sidebar.mobile-open .c-sidebar-user {
 
-        display: flex !important;
+        display: block !important;
 
         opacity: 1 !important;
 
@@ -709,6 +734,7 @@ body {
 
     .c-sidebar.mobile-open .c-sidebar-logo img {
 
+        display: block !important;
         opacity: 1 !important;
 
         pointer-events: auto !important;
@@ -723,6 +749,20 @@ body {
 
     }
 
+    .c-sidebar.mobile-open .c-nav-badge {
+        position: static !important;
+        width: auto !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        max-width: 42px !important;
+        margin-left: auto !important;
+        padding: 0 6px !important;
+        border: 0 !important;
+        color: #FFFFFF !important;
+        font-size: 10px !important;
+        line-height: 18px !important;
+    }
+
     .c-main,
     .c-main.sidebar-open {
 
@@ -732,7 +772,11 @@ body {
 
     .c-topbar {
 
-        padding: 12px 14px 6px;
+        position: sticky;
+        top: 0;
+        z-index: 120;
+        padding: 10px 14px 8px;
+        background: #F0F2F5;
 
     }
 
@@ -763,6 +807,33 @@ body {
 
         grid-template-columns: 1fr !important;
 
+    }
+
+}
+
+@media (max-width: 480px) {
+
+    .c-sidebar {
+        width: min(84vw, 280px) !important;
+    }
+
+    .c-sidebar.mobile-open,
+    .c-sidebar.expanded.mobile-open {
+        width: min(84vw, 280px) !important;
+    }
+
+    .c-topbar-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .c-content {
+        padding: 0 10px 20px;
+    }
+
+    .c-card {
+        padding: 14px;
+        border-radius: 10px;
     }
 
 }

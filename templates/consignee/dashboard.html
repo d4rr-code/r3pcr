@@ -10,7 +10,7 @@
 {% block content %}
 
 <!-- -- Welcome + Month Picker ----------------------------------------------- -->
-<div style="margin-bottom:16px;">
+<div class="dashboard-welcome" style="margin-bottom:16px;">
     <h1 style="font-size:22px; font-weight:700; color:#1B3358; margin-bottom:10px;">
         Welcome Back {{ user.first_name|default:user.username }}!
     </h1>
@@ -23,7 +23,7 @@
 </div>
 
 <!-- -- Status Grid + Total ------------------------------------------------- -->
-<div style="display:flex; gap:10px; align-items:stretch; min-width:0; overflow:hidden;">
+<div class="dash-summary-row" style="display:flex; gap:10px; align-items:stretch; min-width:0; overflow:hidden;">
     <div class="dash-status-grid" style="flex:1; min-width:0;">
 
         <!-- ARRIVED -->
@@ -188,9 +188,9 @@
 
     <!-- Shipment Overview Line Chart -->
     <div class="c-card shipment-overview-card">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <div class="dashboard-card-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
             <p class="c-card-title" style="margin:0;">Shipment Overview</p>
-            <div style="display:flex; align-items:center; gap:6px;">
+            <div class="dashboard-filter-group" style="display:flex; align-items:center; gap:6px;">
                 <span class="chart-filter-btn">By Month</span>
                 <span class="chart-filter-btn">Last 4 Months</span>
             </div>
@@ -229,8 +229,8 @@
 <div class="dash-bottom-row">
 
     <!-- Shipping Type Overview -->
-    <div class="c-card" style="padding:16px 18px;">
-        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+    <div class="c-card shipping-type-card" style="padding:16px 18px;">
+        <div class="dashboard-card-header" style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
             <div>
                 <p style="font-size:13px; font-weight:700; color:#1B3358; margin:0 0 2px;">Shipping Type Overview</p>
                 <p style="font-size:10px; color:#9CA3AF;">Breakdown of shipments based on cargo structure and handling type</p>
@@ -273,8 +273,8 @@
     </div>
 
     <!-- Urgency Level Donut -->
-    <div class="c-card" style="display:flex; flex-direction:column; padding:16px 18px;">
-        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+    <div class="c-card urgency-card" style="display:flex; flex-direction:column; padding:16px 18px;">
+        <div class="dashboard-card-header" style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
             <div>
                 <p style="font-size:13px; font-weight:700; color:#1B3358; margin:0 0 2px;">Urgency Level Overview</p>
                 <p style="font-size:10px; color:#9CA3AF; margin:0;">Distribution of shipment urgency levels</p>
