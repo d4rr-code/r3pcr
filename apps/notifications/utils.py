@@ -1,3 +1,4 @@
+import logging
 import threading
 
 from django.conf import settings
@@ -6,6 +7,8 @@ from django.core.mail import send_mail
 from apps.accounts.models import User
 from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
 from .models import Notification
+
+logger = logging.getLogger('r3pcr.notifications')
 
 
 def create_notification(recipient, shipment, notification_type, title, message, announcement=None):
@@ -19,7 +22,7 @@ def create_notification(recipient, shipment, notification_type, title, message, 
             message=message,
         )
     except Exception as e:
-        print(f'[Notification error] {e}')
+        logger.warning('Notification create failed: %s', e)
         return None
 
 

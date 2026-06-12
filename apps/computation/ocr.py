@@ -1,12 +1,15 @@
 import pytesseract
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 from pdf2image import convert_from_path
+import logging
 import re
 import os
 import io
 import base64
 import requests as http_requests
 from decimal import Decimal, InvalidOperation
+
+logger = logging.getLogger('r3pcr.ocr')
 
 
 def _w(value, conf=0.85):
@@ -124,10 +127,10 @@ def _vision_api_call(api_key, image_bytes):
             data = resp.json()
             return data['responses'][0].get('fullTextAnnotation', {}).get('text', '')
         else:
-            print(f"Vision API error {resp.status_code}: {resp.text[:300]}")
+            logger.warning("Vision API error %s: %s", resp.status_code, resp.text[:300])
             return ''
     except Exception as e:
-        print(f"Vision API request error: {e}")
+        logger.warning("Vision API request error: %s", e)
         return ''
 
 
@@ -171,7 +174,7 @@ def _tesseract_confidence(image, config):
         if confs:
             return sum(confs) / len(confs)
     except Exception as e:
-        print(f"[OCR] Tesseract confidence check failed: {e}")
+        logger.warning("Tesseract confidence check failed: %s", e)
     return 0
 
 
@@ -214,7 +217,7 @@ def _tesseract_extract(image, config):
         confidence = sum(conf_scores) / len(conf_scores) if conf_scores else 0
         return text, confidence
     except Exception as e:
-        print(f"[OCR] Tesseract extract failed ({config}): {e}")
+        logger.warning("Tesseract extract failed (%s): %s", config, e)
         return '', 0
 
 
@@ -233,7 +236,7 @@ def _tesseract_image_to_text(image):
     # Primary attempt — PSM 6 on preprocessed image
     text, confidence = _tesseract_extract(processed, '--psm 6')
     useful_chars = len(re.findall(r'[A-Za-z0-9]', text or ''))
-    print(f"[OCR] Tesseract psm6: {len(text)} chars, conf {confidence:.1f}, useful {useful_chars}")
+    logger.debug("Tesseract psm6: %s chars, conf %.1f, useful %s", len(text), confidence, useful_chars)
 
     quality = assess_quality(text)
     if quality != 'poor':
@@ -246,10 +249,10 @@ def _tesseract_image_to_text(image):
         return text
 
     # Fallback — PSM 3 (fully automatic layout) on original (unprocessed)
-    print("[OCR] psm6 quality poor — falling back to psm3 on original image")
+    logger.debug("psm6 quality poor — falling back to psm3 on original image")
     fb_text, fb_conf = _tesseract_extract(original, '--psm 3')
     fb_useful = len(re.findall(r'[A-Za-z0-9]', fb_text or ''))
-    print(f"[OCR] Tesseract psm3 fallback: {len(fb_text)} chars, conf {fb_conf:.1f}, useful {fb_useful}")
+    logger.debug("Tesseract psm3 fallback: %s chars, conf %.1f, useful %s", len(fb_text), fb_conf, fb_useful)
 
     # Pick whichever produced more readable content
     result = fb_text if fb_useful > useful_chars else text
@@ -269,11 +272,11 @@ def _image_to_text(image, api_key=''):
             vision_text = _vision_api_call(api_key, buf.getvalue())
             buf.close()
             if assess_quality(vision_text) != 'poor':
-                print(f"[OCR] Vision accepted: {len(vision_text)} chars")
+                logger.debug("Vision accepted: %s chars", len(vision_text))
                 return vision_text
-            print("[OCR] Vision output poor/empty; falling back to Tesseract")
+            logger.debug("Vision output poor/empty; falling back to Tesseract")
         except Exception as e:
-            print(f"[OCR] Vision path failed; falling back to Tesseract: {e}")
+            logger.warning("Vision path failed; falling back to Tesseract: %s", e)
     return _tesseract_image_to_text(image)
 
 
@@ -291,7 +294,7 @@ def _extract_text_from_pdf_direct(file_path):
             pages_text.append(text)
         return '\n'.join(pages_text).strip()
     except Exception as e:
-        print(f"[OCR] pypdf direct extraction failed: {e}")
+        logger.warning("pypdf direct extraction failed: %s", e)
         return ''
 
 
@@ -318,11 +321,11 @@ def extract_text_from_file(file_path):
             # ── Fast path: direct text extraction from digital PDFs ──────────
             direct_text = _extract_text_from_pdf_direct(file_path)
             if assess_quality(direct_text) != 'poor':
-                print(f"[OCR] pypdf direct: {len(direct_text)} chars extracted")
+                logger.debug("pypdf direct: %s chars extracted", len(direct_text))
                 return direct_text
 
             # ── Image-based OCR path (for scanned PDFs) ──────────────────────
-            print(f"[OCR] pypdf got {len(direct_text.strip())} chars — falling back to image OCR")
+            logger.debug("pypdf got %s chars — falling back to image OCR", len(direct_text.strip()))
             poppler_path = os.getenv('POPPLER_PATH') or None
 
             # Determine page count without loading all pages into memory
@@ -348,7 +351,7 @@ def extract_text_from_file(file_path):
 
                     # _image_to_text: Vision API → if poor/failed → Tesseract
                     page_text = _image_to_text(image, api_key)
-                    print(f"[OCR] page {page_num}: {len(page_text)} chars")
+                    logger.debug("page %s: %s chars", page_num, len(page_text))
                     full_text += page_text + '\n'
 
                     # Explicitly release page memory before next iteration
@@ -357,7 +360,7 @@ def extract_text_from_file(file_path):
                     gc.collect()
 
                 except Exception as page_err:
-                    print(f"[OCR] page {page_num} error: {page_err}")
+                    logger.warning("page %s error: %s", page_num, page_err)
                     break
 
             return full_text
@@ -371,7 +374,7 @@ def extract_text_from_file(file_path):
             return ''
 
     except Exception as e:
-        print(f"[OCR] extraction error: {e}")
+        logger.warning("extraction error: %s", e)
         return ''
 
 

@@ -1,9 +1,12 @@
 import json
+import logging
 import os
 import re
 import tempfile
 import threading
 from decimal import Decimal
+
+logger = logging.getLogger('r3pcr.computation')
 
 _RATE_KEYS = {
     'USD': 'rate_USD', 'EUR': 'rate_EUR', 'JPY': 'rate_JPY',
@@ -429,11 +432,11 @@ def ocr_extract(request, shipment_id, doc_id):
             doc.file.close()
             tmp_path = tmp.name
         try:
-            print(f'[OCR] Starting: {doc.file.name} | type={doc.document_type}')
+            logger.debug('OCR starting: %s | type=%s', doc.file.name, doc.document_type)
             fields, raw_text, quality = process_document(tmp_path, doc.document_type)
             _store_document_ocr(doc, fields, raw_text, quality)
-            print(f'[OCR] Raw text length: {len(raw_text) if raw_text else 0} chars')
-            print(f'[OCR] Fields returned: {list(fields.keys()) if fields else None}')
+            logger.debug('OCR raw text length: %s chars', len(raw_text) if raw_text else 0)
+            logger.debug('OCR fields returned: %s', list(fields.keys()) if fields else None)
 
             if fields:
                 line_items = fields.pop('__items__', [])
@@ -443,16 +446,15 @@ def ocr_extract(request, shipment_id, doc_id):
                 found    = sum(1 for v in fields.values() if isinstance(v, dict) and v.get('value'))
                 item_msg = f', {len(line_items)} line items detected' if line_items else ''
                 request.session['ocr_toast'] = ('success', f'OCR complete — {found} fields extracted{item_msg}.')
-                print(f'[OCR] Success: {found} fields, {len(line_items)} items')
+                logger.info('OCR success: %s fields, %s items', found, len(line_items))
             else:
                 request.session['ocr_toast'] = ('warning', 'OCR ran but found no structured fields. Fill in manually.')
-                print(f'[OCR] No fields extracted. Raw text snippet: {repr(raw_text[:200]) if raw_text else "EMPTY"}')
+                logger.info('OCR found no fields. Raw text snippet: %s',
+                            repr(raw_text[:200]) if raw_text else 'EMPTY')
         finally:
             os.unlink(tmp_path)
     except Exception as e:
-        import traceback
-        print(f'[OCR] Exception: {e}')
-        traceback.print_exc()
+        logger.exception('OCR failed for doc %s: %s', getattr(doc, 'id', '?'), e)
         request.session['ocr_toast'] = ('error', f'OCR failed: {e}')
     return redirect('declarant:process', shipment_id=shipment_id)
 
@@ -488,22 +490,20 @@ def ocr_extract_all(request, shipment_id):
                     doc.file.close()
                     tmp_path = tmp.name
                 try:
-                    print(f'[OCR-ALL] Processing {doc_type}: {doc.file.name}')
+                    logger.debug('OCR-all processing %s: %s', doc_type, doc.file.name)
                     fields, raw_text, quality = process_document(tmp_path, doc_type)
                     _store_document_ocr(doc, fields, raw_text, quality)
                     found = sum(1 for v in (fields or {}).values()
                                 if isinstance(v, dict) and v.get('value'))
-                    print(f'[OCR-ALL] {doc_type}: quality={quality}, {found} fields, '
-                          f'{len(raw_text or "")} chars')
+                    logger.debug('OCR-all %s: quality=%s, %s fields, %s chars',
+                                 doc_type, quality, found, len(raw_text or ''))
                 finally:
                     try:
                         os.unlink(tmp_path)
                     except OSError:
                         pass
             except Exception as e:
-                import traceback
-                traceback.print_exc()
-                print(f'[OCR-ALL] Failed on {doc_type}: {e}')
+                logger.exception('OCR-all failed on %s: %s', doc_type, e)
 
     t = threading.Thread(target=_run_all, args=(documents,), daemon=True)
     t.start()
@@ -725,7 +725,7 @@ def _run_wmcda_and_advisory(request, shipment, total_exw):
             }
         )
     except Exception as wmcda_err:
-        print(f'WMCDA auto-compute error: {wmcda_err}')
+        logger.warning('WMCDA auto-compute error: %s', wmcda_err)
 
 
 def _apply_port_fee_defaults(shipment, container_type, arrastre, wharfage,
@@ -2051,7 +2051,7 @@ def hs_code_suggest(request):
         return JsonResponse({'suggestions': pinned + extra})
 
     except Exception as e:
-        print(f'[hs_code_suggest] Error: {e}')
+        logger.warning('hs_code_suggest error: %s', e)
         return JsonResponse({'suggestions': [], 'error': str(e)})
 
 

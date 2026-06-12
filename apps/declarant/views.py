@@ -1,5 +1,6 @@
 import datetime
 import json
+import logging
 import os
 import re
 import tempfile
@@ -24,6 +25,8 @@ from apps.computation.ocr import process_document, _extract_line_items, _extract
 from apps.computation.models import ShipmentLineItem
 from apps.supervisor.models import IssueReport
 from apps.supervisor.views import _HS_SECTIONS, _chapter_num
+
+logger = logging.getLogger('r3pcr.declarant')
 
 _CHAPTER_TITLES = {
     1: 'Live animals',
@@ -314,7 +317,7 @@ def _ocr_scan_in_background(doc_ids):
             try:
                 _run_and_store_document_ocr(doc)
             except Exception as e:
-                print(f'[OCR-ASYNC] doc {doc.id} ({doc.document_type}) failed: {e}')
+                logger.warning('OCR-async failed for doc %s (%s): %s', doc.id, doc.document_type, e)
     finally:
         connection.close()   # don't leak this thread's DB connection
 
@@ -1236,7 +1239,7 @@ def _collect_ocr_hs_suggestions(docs_by_type):
                 seen_ids.add(hs.id)
         return pinned[:10]
     except Exception as e:
-        print(f'[HS-OCR] suggestion error: {e}')
+        logger.warning('HS-OCR suggestion error: %s', e)
         return []
 
 
@@ -1501,7 +1504,7 @@ def upload_sad(request, shipment_id):
     try:
         ocr_ok = _process_fan_document_ocr(fan_doc)
     except Exception as exc:
-        print(f'[FAN OCR] failed for shipment {shipment.id}: {exc}')
+        logger.warning('FAN OCR failed for shipment %s: %s', shipment.id, exc)
 
     if old_status == 'ongoing':
         shipment.status = 'assessed'

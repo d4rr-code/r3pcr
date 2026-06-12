@@ -1,3 +1,4 @@
+import logging
 import re
 import threading
 from django.shortcuts import render, redirect
@@ -9,6 +10,8 @@ from django.core.mail import send_mail
 from django.core.cache import cache
 from django.conf import settings
 from .models import User, OTP
+
+logger = logging.getLogger('r3pcr.accounts')
 
 
 # ─── Brute-force throttling ───────────────────────────────────────────────────
@@ -166,11 +169,8 @@ def login_view(request):
             _is_local = ('console' in getattr(settings, 'EMAIL_BACKEND', '')
                          or getattr(settings, 'REGISTRATION_EMAIL_DEV_LINKS', False))
             if _is_local:
-                # Local development: print OTP to terminal, no email sent
-                print(f'\n{"="*40}')
-                print(f'[DEV OTP] User: {user.username}')
-                print(f'[DEV OTP] Code: {otp_code}')
-                print(f'{"="*40}\n')
+                # Local development: log OTP to terminal, no email sent
+                logger.info('[DEV OTP] User: %s | Code: %s', user.username, otp_code)
                 messages.info(request, f'[DEV] OTP: {otp_code} — check your terminal.')
             else:
                 _send_mail_async(
@@ -460,7 +460,7 @@ def send_verification_email(request):
     payload = {'ok': True, 'message': f'A verification link has been sent to {email}. '
                                       'Open it to confirm your email, then return here.'}
     if _registration_is_local():
-        print(f'\n{"="*60}\n[DEV VERIFY EMAIL] {email}\n[DEV VERIFY LINK] {link}\n{"="*60}\n')
+        logger.info('[DEV VERIFY] email=%s link=%s', email, link)
         payload['dev_link'] = link            # surfaced on-screen for local testing
     else:
         try:
@@ -489,7 +489,7 @@ def send_verification_email(request):
         except Exception as e:
             EmailVerification.objects.filter(token=token).delete()
             request.session.pop('reg_verify_token', None)
-            print(f'[EMAIL ERROR] registration verify email for {email}: {e}')
+            logger.warning('Registration verify email failed for %s: %s', email, e)
             return JsonResponse({
                 'ok': False,
                 'error': 'Could not send verification email. Please check the email service settings and try again.',
