@@ -44,13 +44,15 @@ class ComputeShipmentPostTests(TestCase):
             invoice_currency='USD',
             gross_weight=Decimal('100.00'),
         )
-        # Deterministic USD rate + short-circuit the daily live-rate network call
-        # (ensure_daily_exchange_rates skips fetching when today's attempt exists).
+        # Deterministic USD rate + short-circuit the daily live-rate network call.
+        # ensure_daily_exchange_rates() compares the stored success/attempt dates
+        # against timezone.localdate(), so seed them with localdate() (NOT
+        # now()/UTC, which can be a different calendar day and let the live fetch
+        # leak through and overwrite rate_USD).
         SystemConfig.objects.create(key='rate_USD', value='50.0000')
-        SystemConfig.objects.create(
-            key='exchange_rates_last_attempt',
-            value=timezone.now().isoformat(),
-        )
+        _today_iso = timezone.localdate().isoformat()
+        SystemConfig.objects.create(key='exchange_rates_last_success', value=_today_iso)
+        SystemConfig.objects.create(key='exchange_rates_last_attempt', value=_today_iso)
         self.client.force_login(self.declarant)
         self.url = reverse('computation:compute', args=[self.shipment.id])
 

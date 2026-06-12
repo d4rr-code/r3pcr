@@ -638,6 +638,73 @@ def draft_globals(request, shipment_id):
 
 # ─── Computation ──────────────────────────────────────────────────────────────
 
+def _wmcda_history(shipment):
+    """Most-common historical WMCDA recommendation for this shipment's type.
+
+    Returns a summary dict (total, top_mode, top_pct, mode_label, ship_type) or
+    None when the shipment has no type or there is no prior advisory history.
+    """
+    if not shipment.shipment_type:
+        return None
+    past = (
+        ShippingAdvisory.objects
+        .filter(shipment__shipment_type=shipment.shipment_type,
+                recommended_type__isnull=False)
+        .exclude(shipment=shipment)
+        .values_list('recommended_type', flat=True)
+    )
+    if not past:
+        return None
+    from collections import Counter
+    counts   = Counter(past)
+    top_mode = counts.most_common(1)[0]
+    pct      = round(top_mode[1] / len(past) * 100)
+    return {
+        'total':       len(past),
+        'top_mode':    top_mode[0],
+        'top_pct':     pct,
+        'mode_label':  {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL'}.get(top_mode[0], top_mode[0].upper()),
+        'ship_type':   shipment.get_shipment_type_display(),
+    }
+
+
+def _run_wmcda_and_advisory(request, shipment, total_exw):
+    """Compute the WMCDA scores for this POST and upsert the ShippingAdvisory.
+
+    Best-effort: any failure is caught so a WMCDA problem never blocks the
+    (already-saved) ECDT computation. On a POST the result is only persisted —
+    the page redirects, so the scores are not rendered here.
+    """
+    try:
+        wmcda_weight   = float(shipment.gross_weight or 0)
+        wmcda_volume   = float(request.POST.get('cargo_volume', 0) or 0)
+        wmcda_value    = float(total_exw)
+        wmcda_urgency  = shipment.urgency or 'normal'
+        wmcda_distance = float(request.POST.get('distance_km') or 2600)
+
+        wmcda_scores, wmcda_recommended, _breakdown, _explanation = compute_wmcda(
+            wmcda_weight, wmcda_volume, wmcda_value, wmcda_urgency, wmcda_distance
+        )
+
+        ShippingAdvisory.objects.update_or_create(
+            shipment=shipment,
+            defaults={
+                'gross_weight':     wmcda_weight,
+                'cargo_volume':     wmcda_volume,
+                'declared_value':   wmcda_value,
+                'urgency_level':    wmcda_urgency,
+                'distance_km':      wmcda_distance,
+                'lcl_score':        wmcda_scores['lcl'],
+                'fcl_score':        wmcda_scores['fcl'],
+                'air_score':        wmcda_scores['air'],
+                'recommended_type': wmcda_recommended,
+                'computed_by':      request.user,
+            }
+        )
+    except Exception as wmcda_err:
+        print(f'WMCDA auto-compute error: {wmcda_err}')
+
+
 def _apply_port_fee_defaults(shipment, container_type, arrastre, wharfage,
                              csf_usd_val, csf_php_val, usd_exchange_rate):
     """Apply server-side LCL/FCL port-fee defaults when the declarant left BOTH
@@ -917,61 +984,8 @@ def compute_shipment(request, shipment_id):
                     )
                 )
 
-            # ── Auto-run WMCDA alongside ECDT ──────────────────────────────────
-            try:
-                wmcda_weight   = float(shipment.gross_weight or 0)
-                wmcda_volume   = float(request.POST.get('cargo_volume', 0) or 0)
-                wmcda_value    = float(total_exw)
-                wmcda_urgency  = shipment.urgency or 'normal'
-                # NOTE: prefill_distance is only computed later (GET/tail path),
-                # so it must NOT be referenced here — doing so raised a NameError
-                # that the broad except below swallowed, silently skipping WMCDA
-                # on any POST that didn't include distance_km. Fall back to 2600.
-                wmcda_distance = float(request.POST.get('distance_km') or 2600)
-
-                wmcda_scores, wmcda_recommended, wmcda_breakdown, wmcda_explanation = compute_wmcda(
-                    wmcda_weight, wmcda_volume, wmcda_value, wmcda_urgency, wmcda_distance
-                )
-
-                ShippingAdvisory.objects.update_or_create(
-                    shipment=shipment,
-                    defaults={
-                        'gross_weight':     wmcda_weight,
-                        'cargo_volume':     wmcda_volume,
-                        'declared_value':   wmcda_value,
-                        'urgency_level':    wmcda_urgency,
-                        'distance_km':      wmcda_distance,
-                        'lcl_score':        wmcda_scores['lcl'],
-                        'fcl_score':        wmcda_scores['fcl'],
-                        'air_score':        wmcda_scores['air'],
-                        'recommended_type': wmcda_recommended,
-                        'computed_by':      request.user,
-                    }
-                )
-
-                # ── Historical recommendation ──────────────────────────────────
-                if shipment.shipment_type:
-                    past = (
-                        ShippingAdvisory.objects
-                        .filter(shipment__shipment_type=shipment.shipment_type,
-                                recommended_type__isnull=False)
-                        .exclude(shipment=shipment)
-                        .values_list('recommended_type', flat=True)
-                    )
-                    if past:
-                        from collections import Counter
-                        counts   = Counter(past)
-                        top_mode = counts.most_common(1)[0]
-                        pct      = round(top_mode[1] / len(past) * 100)
-                        wmcda_history = {
-                            'total':       len(past),
-                            'top_mode':    top_mode[0],
-                            'top_pct':     pct,
-                            'mode_label':  {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL'}.get(top_mode[0], top_mode[0].upper()),
-                            'ship_type':   shipment.get_shipment_type_display(),
-                        }
-            except Exception as wmcda_err:
-                print(f'WMCDA auto-compute error: {wmcda_err}')
+            # ── Auto-run WMCDA alongside ECDT (best-effort; persisted only) ────
+            _run_wmcda_and_advisory(request, shipment, total_exw)
 
             # Consignee notification is sent by notify_shipment_status_change above
             # when the status transitions to 'computed'. No duplicate needed here.
@@ -1121,26 +1135,7 @@ def compute_shipment(request, shipment_id):
                 }]
 
         # Historical on load
-        if shipment.shipment_type:
-            past = (
-                ShippingAdvisory.objects
-                .filter(shipment__shipment_type=shipment.shipment_type,
-                        recommended_type__isnull=False)
-                .exclude(shipment=shipment)
-                .values_list('recommended_type', flat=True)
-            )
-            if past:
-                from collections import Counter
-                counts   = Counter(past)
-                top_mode = counts.most_common(1)[0]
-                pct      = round(top_mode[1] / len(past) * 100)
-                wmcda_history = {
-                    'total':       len(past),
-                    'top_mode':    top_mode[0],
-                    'top_pct':     pct,
-                    'mode_label':  {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL'}.get(top_mode[0], top_mode[0].upper()),
-                    'ship_type':   shipment.get_shipment_type_display(),
-                }
+        wmcda_history = _wmcda_history(shipment)
 
     ocr_fields = request.session.get('ocr_fields', {}) if request.session.get('ocr_shipment_id') == shipment_id else {}
     ocr_items  = request.session.get('ocr_items',  []) if request.session.get('ocr_shipment_id') == shipment_id else []
