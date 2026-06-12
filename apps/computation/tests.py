@@ -9,7 +9,7 @@ Run:  python manage.py test apps.computation --settings=config.settings_test
 import json
 from decimal import Decimal
 
-from django.test import TestCase
+from django.test import TestCase, SimpleTestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -18,6 +18,63 @@ from apps.shipments.models import Shipment, HSCode, ShipmentDocument, ShipmentHS
 from apps.supervisor.models import SystemConfig
 from apps.computation.models import DutyComputation, ShipmentLineItem, ShippingAdvisory
 from apps.computation.views import compute_ecdt
+from apps.computation.ocr import _extract_line_items
+
+
+class ExtractLineItemsTests(SimpleTestCase):
+    """Lock the current parsing behavior of _extract_line_items (nesting-depth-8
+    pattern cascade) before flattening it. Values captured from the live function."""
+
+    def test_pattern_b_standard_invoice_line(self):
+        items = _extract_line_items('1 PLASTIC BOTTLE 500ML  100  PCS  2.50  250.00')
+        self.assertEqual(len(items), 1)
+        it = items[0]
+        self.assertEqual(it['description'], 'PLASTIC BOTTLE 500ML')
+        self.assertEqual(it['quantity'], '100')
+        self.assertEqual(it['unit'], 'PCS')
+        self.assertEqual(it['unit_price'], '2.50')
+        self.assertEqual(it['total_value'], 250.0)
+        self.assertEqual(it['confidence'], 0.8)
+        self.assertIsNone(it['doc_hs_code'])
+
+    def test_pattern_a_embedded_hs_and_country_code(self):
+        items = _extract_line_items(
+            'THE PENINSULA GROUP MAGAZINE 2025  4911 1010  HK  625  US$3.00  US$1,875.00'
+        )
+        self.assertEqual(len(items), 1)
+        it = items[0]
+        self.assertEqual(it['description'], 'THE PENINSULA GROUP MAGAZINE 2025')
+        self.assertEqual(it['quantity'], '625')
+        self.assertEqual(it['unit_price'], '3.00')
+        self.assertEqual(it['total_value'], 1875.0)
+        self.assertEqual(it['doc_hs_code'], '4911.10.10')
+        self.assertEqual(it['confidence'], 0.9)
+
+    def test_pattern_e_broad_fallback(self):
+        items = _extract_line_items('LABORATORY OVEN 3,500.00')
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]['description'], 'LABORATORY OVEN')
+        self.assertEqual(items[0]['total_value'], 3500.0)
+        self.assertEqual(items[0]['confidence'], 0.5)
+
+    def test_hs_code_on_following_line_is_attached(self):
+        items = _extract_line_items(
+            'BOTTLE PLASTIC NASAL SPRAY 30ML  100  PCS  10.00  1000.00\nHS CODE: 3923.30'
+        )
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]['doc_hs_code'], '3923.30')
+
+    def test_skip_words_yield_no_items(self):
+        self.assertEqual(_extract_line_items('Subtotal 999.00'), [])
+        self.assertEqual(_extract_line_items(''), [])
+
+    def test_trailing_subtotal_row_is_dropped(self):
+        items = _extract_line_items(
+            'ALPHA WIDGET 1 PCS 10.00 100.00\n'
+            'BETA WIDGET 1 PCS 10.00 150.00\n'
+            'GAMMA WIDGET 1 PCS 10.00 250.00'  # 250 == 100 + 150 -> dropped
+        )
+        self.assertEqual([i['description'] for i in items], ['ALPHA WIDGET', 'BETA WIDGET'])
 
 
 class ComputeShipmentPostTests(TestCase):
