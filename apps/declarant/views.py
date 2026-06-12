@@ -1076,77 +1076,82 @@ def ocr_status(request, shipment_id):
 
 # ─── Process Shipment ─────────────────────────────────────────────────────────
 
-@login_required
-@declarant_required
-def process_shipment(request, shipment_id):
-    shipment = get_object_or_404(Shipment, id=shipment_id)
+def _ocr_desc_key(value):
+    value = re.sub(r'\b\d{4}(?:[\s.]?\d{2}){1,3}\b', ' ', str(value or '').lower())
+    value = re.sub(r'[^a-z0-9]+', ' ', value)
+    return ' '.join(value.split())
 
-    # Only the assigned declarant may access the process page
-    if shipment.declarant != request.user:
-        messages.error(request, 'You are not assigned to this shipment.')
-        return redirect('declarant:queue')
 
-    documents = shipment.documents.all()
-    # Check if any docs still need OCR (e.g. declarant navigated directly, skipping the queue flow)
-    _pending_ocr = [
-        doc for doc in documents
-        if doc.document_type in ('invoice', 'airway_bill', 'packing_list') and not doc.ocr_ran_at
-    ]
-    has_pending_ocr = bool(_pending_ocr)  # kept for template auto-reload fallback
+def _ocr_num(value):
+    raw = re.sub(r'[^\d.\-]', '', str(value or ''))
+    if not raw:
+        return None
+    try:
+        return Decimal(raw)
+    except InvalidOperation:
+        return None
 
-    status_logs = shipment.status_logs.order_by('-changed_at')[:5]
 
-    # ── Extract OCR line items from scanned documents (for review panel) ────────
+def _ocr_numbers_match(left, right, tolerance=Decimal('0.01')):
+    l_val, r_val = _ocr_num(left), _ocr_num(right)
+    if l_val is None or r_val is None:
+        return False
+    return abs(l_val - r_val) <= tolerance
+
+
+def _ocr_desc_similar(left, right):
+    left_key, right_key = _ocr_desc_key(left), _ocr_desc_key(right)
+    if not left_key or not right_key:
+        return False
+    if left_key == right_key:
+        return True
+    left_words, right_words = set(left_key.split()), set(right_key.split())
+    overlap = len(left_words & right_words) / max(len(left_words | right_words), 1)
+    return overlap >= 0.72
+
+
+def _merge_ocr_item(target, incoming):
+    for key in ('total_value', 'unit_price', 'doc_hs_code'):
+        if incoming.get(key) and (not target.get(key) or incoming.get('source_doc') == 'invoice'):
+            target[key] = incoming.get(key)
+    for key in ('gross_weight', 'net_weight', 'num_packages'):
+        if incoming.get(key) and (not target.get(key) or incoming.get('source_doc') == 'packing_list'):
+            target[key] = incoming.get(key)
+    for key in ('quantity', 'unit', 'raw_extracted_text'):
+        if incoming.get(key) and not target.get(key):
+            target[key] = incoming.get(key)
+    if incoming.get('confidence_pct', 0) > target.get('confidence_pct', 0):
+        target['confidence_pct'] = incoming['confidence_pct']
+    sources = {
+        src.strip()
+        for src in f"{target.get('source_doc', '')},{incoming.get('source_doc', '')}".split(',')
+        if src.strip()
+    }
+    target['source_doc'] = ', '.join(sorted(sources))
+
+
+def _priority_docs_by_type(documents):
+    """Group OCR-completed priority documents by type for line-item extraction."""
+    priority_doc_types = ['invoice', 'packing_list', 'airway_bill']
+    docs_by_type = {}
+    for d in documents:
+        if d.document_type in priority_doc_types and d.ocr_ran_at and (
+            d.ocr_fields_json or getattr(d, 'ocr_text', None)
+        ):
+            docs_by_type.setdefault(d.document_type, []).append(d)
+    return docs_by_type
+
+
+def _collect_ocr_items_from_docs(docs_by_type):
+    """Extract + fuzzy-merge OCR line items across the priority documents.
+
+    Primary pass re-extracts from each document's stored raw OCR text with
+    _extract_line_items (avoids stale cached items). If nothing matches, falls
+    back to the HS-code-anchored extractor for the first doc type that yields
+    results.
+    """
+    priority_doc_types = ['invoice', 'packing_list', 'airway_bill']
     ocr_items_from_docs = []
-
-    def _ocr_desc_key(value):
-        value = re.sub(r'\b\d{4}(?:[\s.]?\d{2}){1,3}\b', ' ', str(value or '').lower())
-        value = re.sub(r'[^a-z0-9]+', ' ', value)
-        return ' '.join(value.split())
-
-    def _ocr_num(value):
-        raw = re.sub(r'[^\d.\-]', '', str(value or ''))
-        if not raw:
-            return None
-        try:
-            return Decimal(raw)
-        except InvalidOperation:
-            return None
-
-    def _ocr_numbers_match(left, right, tolerance=Decimal('0.01')):
-        l_val, r_val = _ocr_num(left), _ocr_num(right)
-        if l_val is None or r_val is None:
-            return False
-        return abs(l_val - r_val) <= tolerance
-
-    def _ocr_desc_similar(left, right):
-        left_key, right_key = _ocr_desc_key(left), _ocr_desc_key(right)
-        if not left_key or not right_key:
-            return False
-        if left_key == right_key:
-            return True
-        left_words, right_words = set(left_key.split()), set(right_key.split())
-        overlap = len(left_words & right_words) / max(len(left_words | right_words), 1)
-        return overlap >= 0.72
-
-    def _merge_ocr_item(target, incoming):
-        for key in ('total_value', 'unit_price', 'doc_hs_code'):
-            if incoming.get(key) and (not target.get(key) or incoming.get('source_doc') == 'invoice'):
-                target[key] = incoming.get(key)
-        for key in ('gross_weight', 'net_weight', 'num_packages'):
-            if incoming.get(key) and (not target.get(key) or incoming.get('source_doc') == 'packing_list'):
-                target[key] = incoming.get(key)
-        for key in ('quantity', 'unit', 'raw_extracted_text'):
-            if incoming.get(key) and not target.get(key):
-                target[key] = incoming.get(key)
-        if incoming.get('confidence_pct', 0) > target.get('confidence_pct', 0):
-            target['confidence_pct'] = incoming['confidence_pct']
-        sources = {
-            src.strip()
-            for src in f"{target.get('source_doc', '')},{incoming.get('source_doc', '')}".split(',')
-            if src.strip()
-        }
-        target['source_doc'] = ', '.join(sorted(sources))
 
     def _add_ocr_item(item, doc_type):
         desc = (item.get('description') or '').strip()
@@ -1174,85 +1179,91 @@ def process_shipment(request, shipment_id):
                 _merge_ocr_item(existing, incoming)
                 return
         ocr_items_from_docs.append(incoming)
-    _priority_doc_types = ['invoice', 'packing_list', 'airway_bill']
-    _docs_by_type = {}
-    for _d in documents:
-        if _d.document_type in _priority_doc_types and _d.ocr_ran_at and (
-            _d.ocr_fields_json or getattr(_d, 'ocr_text', None)
-        ):
-            _docs_by_type.setdefault(_d.document_type, []).append(_d)
-    for _doc_type in _priority_doc_types:
-        for _doc in _docs_by_type.get(_doc_type, []):
-            # Always re-extract from the stored raw OCR text using the latest
-            # _extract_line_items logic (which includes IBAN/banking filters,
-            # improved patterns, etc.). This avoids serving stale cached __items__
-            # that may contain junk like "IBAN: DE26" from old extractions.
-            _items_from_json = []
-            if getattr(_doc, 'ocr_text', None):
-                _items_from_json = _extract_line_items(_doc.ocr_text)
-            for _item in _items_from_json:
-                _add_ocr_item(_item, _doc_type)
 
-    # ── Fallback: if no items extracted by pattern matching, use the
-    # HS-code-anchored extractor which walks backwards from "HS CODE: XXXX"
-    # labels to reconstruct descriptions. This handles multi-line item
-    # formats that _extract_line_items patterns don't match.
+    for doc_type in priority_doc_types:
+        for doc in docs_by_type.get(doc_type, []):
+            items_from_text = []
+            if getattr(doc, 'ocr_text', None):
+                items_from_text = _extract_line_items(doc.ocr_text)
+            for item in items_from_text:
+                _add_ocr_item(item, doc_type)
+
     if not ocr_items_from_docs:
-        for _doc_type in _priority_doc_types:
-            for _doc in _docs_by_type.get(_doc_type, []):
-                if not getattr(_doc, 'ocr_text', None):
+        for doc_type in priority_doc_types:
+            for doc in docs_by_type.get(doc_type, []):
+                if not getattr(doc, 'ocr_text', None):
                     continue
-                _fallback = _extract_hs_anchored_items(_doc.ocr_text)
-                for _item in _fallback:
-                    _add_ocr_item(_item, _doc_type)
+                for item in _extract_hs_anchored_items(doc.ocr_text):
+                    _add_ocr_item(item, doc_type)
             if ocr_items_from_docs:
                 break  # stop at first document type that yields results
 
-    # ── HS suggestions from raw OCR text ────────────────────────────────────────
-    # Two-pass approach:
-    # Pass 1 (highest confidence): extract HS codes EXPLICITLY printed in the
-    #   document — e.g. "HS CODE: 49111010" or "4911.10.00".  These are looked up
-    #   directly in the tariff table and pinned at the top of the recommendations.
-    # Pass 2: keyword-based matching on the full raw text for any remaining slots.
-    ocr_hs_suggestions = []
-    _ocr_raw_parts = []
-    for _doc_type in ['invoice', 'packing_list', 'airway_bill']:
-        for _doc in _docs_by_type.get(_doc_type, []):
-            _rt = getattr(_doc, 'ocr_text', None)
-            if _rt:
-                _ocr_raw_parts.append(_rt[:3000])
+    return ocr_items_from_docs
 
-    if _ocr_raw_parts:
-        try:
-            from apps.computation.views import (
-                extract_document_hs_codes as _extract_document_hs_codes,
-                find_hs_by_document_code as _find_hs_by_document_code,
-                suggest_hs_codes as _suggest_hs_codes,
-            )
-            _combined_ocr = ' '.join(_ocr_raw_parts)[:5000]
-            _seen_hs_ids = set()
-            _pinned = []
 
-            # ── Pass 1: explicit HS code patterns in the document ────────────
-            # Handles common OCR variants:
-            # "HS CODE: 49111010", "H.S. Code 4911 10 10",
-            # "Tariff Code: 4911.10.00", and standalone dotted/spaced codes.
-            for _raw in _extract_document_hs_codes(_combined_ocr):
-                _hs_obj = _find_hs_by_document_code(_raw)
-                if _hs_obj and _hs_obj.id not in _seen_hs_ids:
-                    _pinned.append(_hs_obj)
-                    _seen_hs_ids.add(_hs_obj.id)
-            # ── Pass 2: keyword-based matches to fill remaining slots ─────────
-            _kw = _suggest_hs_codes(_combined_ocr, top_n=8)
-            for _hs in _kw:
-                if _hs.id not in _seen_hs_ids:
-                    _pinned.append(_hs)
-                    _seen_hs_ids.add(_hs.id)
+def _collect_ocr_hs_suggestions(docs_by_type):
+    """Two-pass HS-code suggestions from raw OCR text.
 
-            ocr_hs_suggestions = _pinned[:10]
+    Pass 1 pins HS codes explicitly printed in the documents (looked up in the
+    tariff table); pass 2 fills remaining slots with keyword matches.
+    """
+    raw_parts = []
+    for doc_type in ['invoice', 'packing_list', 'airway_bill']:
+        for doc in docs_by_type.get(doc_type, []):
+            rt = getattr(doc, 'ocr_text', None)
+            if rt:
+                raw_parts.append(rt[:3000])
+    if not raw_parts:
+        return []
 
-        except Exception as _e:
-            print(f'[HS-OCR] suggestion error: {_e}')
+    try:
+        from apps.computation.views import (
+            extract_document_hs_codes as _extract_document_hs_codes,
+            find_hs_by_document_code as _find_hs_by_document_code,
+            suggest_hs_codes as _suggest_hs_codes,
+        )
+        combined = ' '.join(raw_parts)[:5000]
+        seen_ids = set()
+        pinned = []
+        for raw in _extract_document_hs_codes(combined):
+            hs_obj = _find_hs_by_document_code(raw)
+            if hs_obj and hs_obj.id not in seen_ids:
+                pinned.append(hs_obj)
+                seen_ids.add(hs_obj.id)
+        for hs in _suggest_hs_codes(combined, top_n=8):
+            if hs.id not in seen_ids:
+                pinned.append(hs)
+                seen_ids.add(hs.id)
+        return pinned[:10]
+    except Exception as e:
+        print(f'[HS-OCR] suggestion error: {e}')
+        return []
+
+
+@login_required
+@declarant_required
+def process_shipment(request, shipment_id):
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    # Only the assigned declarant may access the process page
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
+    documents = shipment.documents.all()
+    # Check if any docs still need OCR (e.g. declarant navigated directly, skipping the queue flow)
+    _pending_ocr = [
+        doc for doc in documents
+        if doc.document_type in ('invoice', 'airway_bill', 'packing_list') and not doc.ocr_ran_at
+    ]
+    has_pending_ocr = bool(_pending_ocr)  # kept for template auto-reload fallback
+
+    status_logs = shipment.status_logs.order_by('-changed_at')[:5]
+
+    # ── Extract OCR line items + HS suggestions from scanned documents ──────────
+    docs_by_type        = _priority_docs_by_type(documents)
+    ocr_items_from_docs = _collect_ocr_items_from_docs(docs_by_type)
+    ocr_hs_suggestions  = _collect_ocr_hs_suggestions(docs_by_type)
 
     ocr_fields = None
     if request.session.get('ocr_shipment_id') == shipment_id:
