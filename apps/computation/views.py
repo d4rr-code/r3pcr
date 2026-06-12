@@ -889,7 +889,11 @@ def compute_shipment(request, shipment_id):
                 wmcda_volume   = float(request.POST.get('cargo_volume', 0) or 0)
                 wmcda_value    = float(total_exw)
                 wmcda_urgency  = shipment.urgency or 'normal'
-                wmcda_distance = float(request.POST.get('distance_km') or prefill_distance or 2600)
+                # NOTE: prefill_distance is only computed later (GET/tail path),
+                # so it must NOT be referenced here — doing so raised a NameError
+                # that the broad except below swallowed, silently skipping WMCDA
+                # on any POST that didn't include distance_km. Fall back to 2600.
+                wmcda_distance = float(request.POST.get('distance_km') or 2600)
 
                 wmcda_scores, wmcda_recommended, wmcda_breakdown, wmcda_explanation = compute_wmcda(
                     wmcda_weight, wmcda_volume, wmcda_value, wmcda_urgency, wmcda_distance

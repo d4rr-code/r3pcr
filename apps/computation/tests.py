@@ -15,7 +15,7 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.supervisor.models import SystemConfig
-from apps.computation.models import DutyComputation
+from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.computation.views import compute_ecdt
 
 
@@ -147,6 +147,18 @@ class ComputeShipmentPostTests(TestCase):
         self.assertIsNotNone(log)
         self.assertEqual(log.old_status, 'arrived')
         self.assertEqual(log.changed_by_id, self.declarant.id)
+
+    def test_post_without_distance_still_runs_wmcda(self):
+        """Regression: a POST omitting distance_km used to hit a NameError on
+        the undefined prefill_distance, which the broad except swallowed and so
+        WMCDA was silently skipped (no ShippingAdvisory). It must now run with
+        the 2600 km default and persist the advisory."""
+        data = self._post_data()
+        data.pop('distance_km')
+        self.client.post(self.url, data)
+        advisory = ShippingAdvisory.objects.filter(shipment=self.shipment).first()
+        self.assertIsNotNone(advisory)
+        self.assertEqual(advisory.distance_km, 2600)
 
     def test_non_assigned_declarant_is_denied(self):
         other = User.objects.create_user(
