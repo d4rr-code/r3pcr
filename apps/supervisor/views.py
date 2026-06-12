@@ -920,6 +920,133 @@ def _declarant_performance(chart_ids, declarants):
     return declarant_data
 
 
+def _urgency_distribution(chart_qs):
+    """Urgency mix (normalising the legacy 'normal' alias to 'standard')."""
+    raw = chart_qs.values('urgency').annotate(count=Count('id'))
+    umap = {}
+    for r in raw:
+        key = 'standard' if r['urgency'] in ('normal', 'standard', None) else r['urgency']
+        umap[key] = umap.get(key, 0) + r['count']
+    urgency_counts = [
+        {'key': 'standard', 'label': 'Standard', 'color': '#3b82f6', 'count': umap.get('standard', 0)},
+        {'key': 'priority', 'label': 'Priority', 'color': '#f59e0b', 'count': umap.get('priority', 0)},
+        {'key': 'urgent',   'label': 'Urgent',   'color': '#f97316', 'count': umap.get('urgent', 0)},
+        {'key': 'rush',     'label': 'Rush',     'color': '#ef4444', 'count': umap.get('rush', 0)},
+    ]
+    return {
+        'urgency_counts':       urgency_counts,
+        'urgency_total':        sum(u['count'] for u in urgency_counts),
+        'urgency_chart_labels': json.dumps([u['label'] for u in urgency_counts]),
+        'urgency_chart_data':   json.dumps([u['count'] for u in urgency_counts]),
+        'urgency_chart_colors': json.dumps([u['color'] for u in urgency_counts]),
+    }
+
+
+def _monthly_overview(all_shipments, declarant_filter, overview_range):
+    """Monthly submission counts for the overview line chart (full year or 6m)."""
+    def _add_months(value, months):
+        month_index = value.month - 1 + months
+        year = value.year + month_index // 12
+        month = month_index % 12 + 1
+        return value.replace(year=year, month=month, day=1)
+
+    def _period_date(value):
+        return value.date() if hasattr(value, 'date') else value
+
+    today = timezone.localdate()
+    overview_qs = all_shipments
+    if declarant_filter:
+        overview_qs = overview_qs.filter(declarant__username=declarant_filter)
+
+    if overview_range == '6m':
+        start = _add_months(today.replace(day=1), -5)
+        end = _add_months(today.replace(day=1), 1) - timedelta(days=1)
+    else:
+        start = today.replace(month=1, day=1)
+        end = today.replace(month=12, day=31)
+
+    rows = list(
+        overview_qs
+        .filter(submitted_at__date__gte=start, submitted_at__date__lte=end)
+        .annotate(period=TruncMonth('submitted_at'))
+        .values('period')
+        .annotate(count=Count('id'))
+        .order_by('period')
+    )
+    period_map = {
+        _period_date(r['period']).replace(day=1): r['count']
+        for r in rows if r['period']
+    }
+    labels, data = [], []
+    cursor = start.replace(day=1)
+    while cursor <= end:
+        labels.append(cursor.strftime('%b %Y'))
+        data.append(period_map.get(cursor, 0))
+        cursor = _add_months(cursor, 1)
+    return {
+        'monthly_chart_labels': json.dumps(labels),
+        'monthly_chart_data':   json.dumps(data),
+    }
+
+
+def _due_date_buckets(chart_qs):
+    """Pre-clearance SLA countdown buckets for active (pre-assessment) shipments."""
+    done_statuses = ['assessed', 'paid', 'released', 'billed']
+    today = timezone.now().date()
+    d1 = d3 = d5 = d5plus = 0
+    active_qs = chart_qs.exclude(status__in=done_statuses)
+    due_total = active_qs.count()
+    for s in active_qs.values('urgency', 'submitted_at'):
+        alloc     = _urgency_days_for(s['urgency'])
+        deadline  = _add_business_days(s['submitted_at'], alloc)
+        remaining = _business_days_diff(today, deadline)
+        if remaining <= 1:
+            d1 += 1
+        elif remaining <= 3:
+            d3 += 1
+        elif remaining <= 5:
+            d5 += 1
+        else:
+            d5plus += 1
+    return {
+        'due_date_data': {
+            'one_day': d1, 'three_days': d3,
+            'five_days': d5, 'over_five': d5plus,
+            'total': due_total,
+        },
+        'due_date_chart_data':   json.dumps([d1, d3, d5, d5plus]),
+        'due_date_chart_labels': json.dumps(['1 Day Left', '3 Days Left', '5 Days Left', '5+ Days Left']),
+        'due_date_chart_colors': json.dumps(['#dc0000', '#f75b5b', '#f9a1a1', '#ffd6d6']),
+    }
+
+
+def _wmcda_bar_chart(wmcda_scoreboard):
+    """Vertical WMCDA bar chart data in fixed LCL / Air / FCL order."""
+    bar_order = [
+        ('lcl',  'LCL Sea',      '#38bdf8'),
+        ('air',  'Air Freight',  '#f59e0b'),
+        ('fcl',  'FCL Sea',      '#8b5cf6'),
+    ]
+    wmap = {r['key']: r for r in wmcda_scoreboard}
+    return {
+        'wmcda_bar_labels': json.dumps([b[1] for b in bar_order]),
+        'wmcda_bar_data':   json.dumps([wmap.get(b[0], {}).get('count', 0) for b in bar_order]),
+        'wmcda_bar_colors': json.dumps([b[2] for b in bar_order]),
+        'wmcda_bar_keys':   json.dumps([b[0] for b in bar_order]),
+    }
+
+
+def _top_declarant(declarant_data):
+    """Top performer by processing volume, then approval quality (or None)."""
+    eligible = [d for d in declarant_data if d['total_processed'] > 0]
+    if not eligible:
+        return None
+    top = max(eligible, key=lambda d: (d['total_processed'], d['approval_rate'], d['ecdt_approved']))
+    name_parts = [part for part in top['name'].split() if part]
+    top['initials'] = ''.join(part[0] for part in name_parts[:2]).upper()
+    return top
+
+
 def _analytics_context_response(request):
     all_shipments = Shipment.objects.all()
 
@@ -1003,127 +1130,36 @@ def _analytics_context_response(request):
     # Shipment type KPI counts (all-time)
     shipment_type_counts = _shipment_type_counts(all_shipments)
 
-    # Urgency distribution — normalise 'normal' alias → 'standard' (all-time)
-    _urgency_raw = chart_qs.values('urgency').annotate(count=Count('id'))
-    _urgency_map = {}
-    for _r in _urgency_raw:
-        _key = 'standard' if _r['urgency'] in ('normal', 'standard', None) else _r['urgency']
-        _urgency_map[_key] = _urgency_map.get(_key, 0) + _r['count']
-    urgency_counts = [
-        {'key': 'standard', 'label': 'Standard', 'color': '#3b82f6', 'count': _urgency_map.get('standard', 0)},
-        {'key': 'priority', 'label': 'Priority', 'color': '#f59e0b', 'count': _urgency_map.get('priority', 0)},
-        {'key': 'urgent',   'label': 'Urgent',   'color': '#f97316', 'count': _urgency_map.get('urgent', 0)},
-        {'key': 'rush',     'label': 'Rush',     'color': '#ef4444', 'count': _urgency_map.get('rush', 0)},
-    ]
-    urgency_total = sum(u['count'] for u in urgency_counts)
-    urgency_chart_labels = json.dumps([u['label'] for u in urgency_counts])
-    urgency_chart_data   = json.dumps([u['count'] for u in urgency_counts])
-    urgency_chart_colors = json.dumps([u['color'] for u in urgency_counts])
+    # Urgency distribution (respects chart filters)
+    _urg = _urgency_distribution(chart_qs)
+    urgency_counts       = _urg['urgency_counts']
+    urgency_total        = _urg['urgency_total']
+    urgency_chart_labels = _urg['urgency_chart_labels']
+    urgency_chart_data   = _urg['urgency_chart_data']
+    urgency_chart_colors = _urg['urgency_chart_colors']
     selected_month = (date_from[:7] if date_from else timezone.now().strftime('%Y-%m'))
 
-    def _parse_filter_date(value):
-        try:
-            return datetime.strptime(value, '%Y-%m-%d').date()
-        except (TypeError, ValueError):
-            return None
+    # Monthly submission overview line chart
+    _overview = _monthly_overview(all_shipments, declarant_filter, overview_range)
+    monthly_chart_labels = _overview['monthly_chart_labels']
+    monthly_chart_data   = _overview['monthly_chart_data']
 
-    def _add_months(value, months):
-        month_index = value.month - 1 + months
-        year = value.year + month_index // 12
-        month = month_index % 12 + 1
-        return value.replace(year=year, month=month, day=1)
+    # Pre-clearance SLA countdown buckets
+    _due = _due_date_buckets(chart_qs)
+    due_date_data         = _due['due_date_data']
+    due_date_chart_data   = _due['due_date_chart_data']
+    due_date_chart_labels = _due['due_date_chart_labels']
+    due_date_chart_colors = _due['due_date_chart_colors']
 
-    def _period_date(value):
-        if hasattr(value, 'date'):
-            return value.date()
-        return value
+    # WMCDA vertical bar chart (fixed LCL / Air / FCL order)
+    _bar = _wmcda_bar_chart(wmcda_scoreboard)
+    wmcda_bar_labels = _bar['wmcda_bar_labels']
+    wmcda_bar_data   = _bar['wmcda_bar_data']
+    wmcda_bar_colors = _bar['wmcda_bar_colors']
+    wmcda_bar_keys   = _bar['wmcda_bar_keys']
 
-    _today = timezone.localdate()
-    _from_date = _parse_filter_date(date_from)
-    _to_date = _parse_filter_date(date_to)
-
-    overview_qs = all_shipments
-    if declarant_filter:
-        overview_qs = overview_qs.filter(declarant__username=declarant_filter)
-
-    if overview_range == '6m':
-        _overview_start = _add_months(_today.replace(day=1), -5)
-        _overview_end = _add_months(_today.replace(day=1), 1) - timedelta(days=1)
-    else:
-        _overview_start = _today.replace(month=1, day=1)
-        _overview_end = _today.replace(month=12, day=31)
-
-    _overview_rows = list(
-        overview_qs
-        .filter(submitted_at__date__gte=_overview_start, submitted_at__date__lte=_overview_end)
-        .annotate(period=TruncMonth('submitted_at'))
-        .values('period')
-        .annotate(count=Count('id'))
-        .order_by('period')
-    )
-    _overview_map = {
-        _period_date(r['period']).replace(day=1): r['count']
-        for r in _overview_rows
-        if r['period']
-    }
-    _overview_labels = []
-    _overview_data = []
-    _cursor = _overview_start.replace(day=1)
-    while _cursor <= _overview_end:
-        _overview_labels.append(_cursor.strftime('%b %Y'))
-        _overview_data.append(_overview_map.get(_cursor, 0))
-        _cursor = _add_months(_cursor, 1)
-
-    monthly_chart_labels = json.dumps(_overview_labels)
-    monthly_chart_data   = json.dumps(_overview_data)
-
-    # Pre-clearance SLA buckets stop once the shipment reaches BOC assessment.
-    _preclearance_done_statuses = ['assessed', 'paid', 'released', 'billed']
-    _now    = timezone.now()
-    _today  = _now.date()
-    _d1 = _d3 = _d5 = _d5plus = 0
-    _active_qs = chart_qs.exclude(status__in=_preclearance_done_statuses)
-    _due_total = _active_qs.count()
-    for _s in _active_qs.values('urgency', 'submitted_at'):
-        _alloc     = _urgency_days_for(_s['urgency'])
-        _deadline  = _add_business_days(_s['submitted_at'], _alloc)
-        _remaining = _business_days_diff(_today, _deadline)
-        if _remaining <= 1:
-            _d1 += 1
-        elif _remaining <= 3:
-            _d3 += 1
-        elif _remaining <= 5:
-            _d5 += 1
-        else:
-            _d5plus += 1
-    due_date_data = {
-        'one_day': _d1, 'three_days': _d3,
-        'five_days': _d5, 'over_five': _d5plus,
-        'total': _due_total,
-    }
-    due_date_chart_data   = json.dumps([_d1, _d3, _d5, _d5plus])
-    due_date_chart_labels = json.dumps(['1 Day Left', '3 Days Left', '5 Days Left', '5+ Days Left'])
-    due_date_chart_colors = json.dumps(['#dc0000', '#f75b5b', '#f9a1a1', '#ffd6d6'])
-
-    # WMCDA vertical bar chart - fixed order: LCL, Air, FCL
-    _wmcda_bar_order = [
-        ('lcl',  'LCL Sea',      '#38bdf8'),
-        ('air',  'Air Freight',  '#f59e0b'),
-        ('fcl',  'FCL Sea',      '#8b5cf6'),
-    ]
-    _wmap = {r['key']: r for r in wmcda_scoreboard}
-    wmcda_bar_labels = json.dumps([b[1] for b in _wmcda_bar_order])
-    wmcda_bar_data   = json.dumps([_wmap.get(b[0], {}).get('count', 0) for b in _wmcda_bar_order])
-    wmcda_bar_colors = json.dumps([b[2] for b in _wmcda_bar_order])
-    wmcda_bar_keys   = json.dumps([b[0] for b in _wmcda_bar_order])
-
-    # Top performing declarant: prioritize real processing volume, then approval quality.
-    top_declarant = None
-    _eligible = [d for d in declarant_data if d['total_processed'] > 0]
-    if _eligible:
-        top_declarant = max(_eligible, key=lambda d: (d['total_processed'], d['approval_rate'], d['ecdt_approved']))
-        _name_parts = [part for part in top_declarant['name'].split() if part]
-        top_declarant['initials'] = ''.join(part[0] for part in _name_parts[:2]).upper()
+    # Top performing declarant
+    top_declarant = _top_declarant(declarant_data)
 
     # ── Currency usage breakdown ───────────────────────────────────────────────
     _cur = _currency_breakdown(_chart_ids_qs)
