@@ -615,6 +615,107 @@ def analytics(request):
     return redirect('supervisor:dashboard')
 
 
+def _feedback_summary():
+    """All-time consignee feedback aggregates for the analytics dashboard."""
+    fb_qs       = Feedback.objects.all()
+    fb_total    = fb_qs.count()
+    fb_avg      = fb_qs.aggregate(avg=Avg('rating'))['avg']
+    fb_positive = fb_qs.filter(rating__gte=4).count()
+    summary = {
+        'total':        fb_total,
+        'avg_rating':   round(float(fb_avg), 1) if fb_avg else 0,
+        'positive':     fb_positive,
+        'positive_pct': round(fb_positive / fb_total * 100, 1) if fb_total else 0,
+    }
+    summary['filled_stars'] = int(round(summary['avg_rating'])) if fb_total else 0
+    summary['star_rows'] = [
+        {'value': i, 'filled': i <= summary['filled_stars']}
+        for i in range(1, 6)
+    ]
+    return summary
+
+
+def _shipment_type_counts(all_shipments):
+    """All-time shipment counts per transport mode."""
+    return {
+        'air':  all_shipments.filter(shipment_type='air').count(),
+        'lcl':  all_shipments.filter(shipment_type='lcl').count(),
+        'fcl':  all_shipments.filter(shipment_type='fcl').count(),
+    }
+
+
+def _currency_breakdown(chart_ids):
+    """Invoice-currency usage breakdown (respects chart filters via chart_ids)."""
+    cur_colors = {
+        'USD': '#3B82F6', 'EUR': '#8B5CF6', 'JPY': '#F59E0B',
+        'HKD': '#EC4899', 'CNY': '#EF4444', 'GBP': '#14B8A6', 'SGD': '#22C55E',
+    }
+    cur_qs = (
+        Shipment.objects.filter(id__in=chart_ids)
+        .exclude(invoice_currency='')
+        .values('invoice_currency')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+    currency_total = sum(r['count'] for r in cur_qs)
+    currency_breakdown = [
+        {
+            'code':  r['invoice_currency'] or 'USD',
+            'count': r['count'],
+            'pct':   round(r['count'] / currency_total * 100, 1) if currency_total else 0,
+            'color': cur_colors.get(r['invoice_currency'] or 'USD', '#94A3B8'),
+        }
+        for r in cur_qs
+    ]
+    return {
+        'currency_breakdown':    currency_breakdown,
+        'currency_total':        currency_total,
+        'currency_chart_labels': json.dumps([r['code']  for r in currency_breakdown]),
+        'currency_chart_data':   json.dumps([r['count'] for r in currency_breakdown]),
+        'currency_chart_colors': json.dumps([r['color'] for r in currency_breakdown]),
+    }
+
+
+def _cost_by_type(date_from, date_to, declarant_filter):
+    """Average/total landed cost per shipment mode (respects date + declarant filters)."""
+    cost_qs = DutyComputation.objects.filter(total_landed_cost__isnull=False)
+    if date_from:
+        cost_qs = cost_qs.filter(shipment__submitted_at__date__gte=date_from)
+    if date_to:
+        cost_qs = cost_qs.filter(shipment__submitted_at__date__lte=date_to)
+    if declarant_filter:
+        cost_qs = cost_qs.filter(shipment__declarant__username=declarant_filter)
+
+    cost_type_meta = [
+        ('air',  'Air',  '#F59E0B'),
+        ('lcl',  'LCL',  '#38BDF8'),
+        ('fcl',  'FCL',  '#8B5CF6'),
+    ]
+    cost_by_type = []
+    for code, label, color in cost_type_meta:
+        agg = cost_qs.filter(shipment__shipment_type=code).aggregate(
+            avg=Avg('total_landed_cost'),
+            total=Sum('total_landed_cost'),
+            count=Count('id'),
+            min_val=Min('total_landed_cost'),
+            max_val=Max('total_landed_cost'),
+        )
+        cost_by_type.append({
+            'code': code, 'label': label, 'color': color,
+            'avg':   round(float(agg['avg'] or 0), 2),
+            'total': round(float(agg['total'] or 0), 2),
+            'count': agg['count'],
+            'min_val': round(float(agg['min_val'] or 0), 2),
+            'max_val': round(float(agg['max_val'] or 0), 2),
+        })
+    return {
+        'cost_by_type':    cost_by_type,
+        'cost_bar_labels': json.dumps([r['label'] for r in cost_by_type]),
+        'cost_bar_data':   json.dumps([r['avg'] for r in cost_by_type]),
+        'cost_bar_colors': json.dumps([r['color'] for r in cost_by_type]),
+    }
+
+
 def _analytics_context_response(request):
     all_shipments = Shipment.objects.all()
 
@@ -876,11 +977,7 @@ def _analytics_context_response(request):
     # ── Redesigned dashboard: new context variables ──────────────────────
 
     # Shipment type KPI counts (all-time)
-    shipment_type_counts = {
-        'air':  all_shipments.filter(shipment_type='air').count(),
-        'lcl':  all_shipments.filter(shipment_type='lcl').count(),
-        'fcl':  all_shipments.filter(shipment_type='fcl').count(),
-    }
+    shipment_type_counts = _shipment_type_counts(all_shipments)
 
     # Urgency distribution — normalise 'normal' alias → 'standard' (all-time)
     _urgency_raw = chart_qs.values('urgency').annotate(count=Count('id'))
@@ -1005,84 +1102,22 @@ def _analytics_context_response(request):
         top_declarant['initials'] = ''.join(part[0] for part in _name_parts[:2]).upper()
 
     # ── Currency usage breakdown ───────────────────────────────────────────────
-    from django.db.models import Count as _Count
-    _cur_colors = {
-        'USD': '#3B82F6', 'EUR': '#8B5CF6', 'JPY': '#F59E0B',
-        'HKD': '#EC4899', 'CNY': '#EF4444', 'GBP': '#14B8A6', 'SGD': '#22C55E',
-    }
-    _cur_qs = (
-        Shipment.objects.filter(id__in=_chart_ids_qs)
-        .exclude(invoice_currency='')
-        .values('invoice_currency')
-        .annotate(count=_Count('id'))
-        .order_by('-count')
-    )
-    currency_total = sum(r['count'] for r in _cur_qs)
-    currency_breakdown = [
-        {
-            'code':  r['invoice_currency'] or 'USD',
-            'count': r['count'],
-            'pct':   round(r['count'] / currency_total * 100, 1) if currency_total else 0,
-            'color': _cur_colors.get(r['invoice_currency'] or 'USD', '#94A3B8'),
-        }
-        for r in _cur_qs
-    ]
-    currency_chart_labels = json.dumps([r['code']  for r in currency_breakdown])
-    currency_chart_data   = json.dumps([r['count'] for r in currency_breakdown])
-    currency_chart_colors = json.dumps([r['color'] for r in currency_breakdown])
+    _cur = _currency_breakdown(_chart_ids_qs)
+    currency_breakdown    = _cur['currency_breakdown']
+    currency_total        = _cur['currency_total']
+    currency_chart_labels = _cur['currency_chart_labels']
+    currency_chart_data   = _cur['currency_chart_data']
+    currency_chart_colors = _cur['currency_chart_colors']
 
     # Cost comparison by shipment type — avg/total landed cost per mode
-    _cost_qs = DutyComputation.objects.filter(total_landed_cost__isnull=False)
-    if date_from:
-        _cost_qs = _cost_qs.filter(shipment__submitted_at__date__gte=date_from)
-    if date_to:
-        _cost_qs = _cost_qs.filter(shipment__submitted_at__date__lte=date_to)
-    if declarant_filter:
-        _cost_qs = _cost_qs.filter(shipment__declarant__username=declarant_filter)
-
-    _cost_type_meta = [
-        ('air',  'Air',  '#F59E0B'),
-        ('lcl',  'LCL',  '#38BDF8'),
-        ('fcl',  'FCL',  '#8B5CF6'),
-    ]
-    cost_by_type = []
-    for code, label, color in _cost_type_meta:
-        agg = _cost_qs.filter(shipment__shipment_type=code).aggregate(
-            avg=Avg('total_landed_cost'),
-            total=Sum('total_landed_cost'),
-            count=Count('id'),
-            min_val=Min('total_landed_cost'),
-            max_val=Max('total_landed_cost'),
-        )
-        cost_by_type.append({
-            'code': code, 'label': label, 'color': color,
-            'avg':   round(float(agg['avg'] or 0), 2),
-            'total': round(float(agg['total'] or 0), 2),
-            'count': agg['count'],
-            'min_val': round(float(agg['min_val'] or 0), 2),
-            'max_val': round(float(agg['max_val'] or 0), 2),
-        })
-
-    cost_bar_labels = json.dumps([r['label'] for r in cost_by_type])
-    cost_bar_data   = json.dumps([r['avg'] for r in cost_by_type])
-    cost_bar_colors = json.dumps([r['color'] for r in cost_by_type])
+    _cost = _cost_by_type(date_from, date_to, declarant_filter)
+    cost_by_type    = _cost['cost_by_type']
+    cost_bar_labels = _cost['cost_bar_labels']
+    cost_bar_data   = _cost['cost_bar_data']
+    cost_bar_colors = _cost['cost_bar_colors']
 
     # Feedback summary — all-time
-    _fb_qs       = Feedback.objects.all()
-    _fb_total    = _fb_qs.count()
-    _fb_avg      = _fb_qs.aggregate(avg=Avg('rating'))['avg']
-    _fb_positive = _fb_qs.filter(rating__gte=4).count()
-    feedback_summary = {
-        'total':        _fb_total,
-        'avg_rating':   round(float(_fb_avg), 1) if _fb_avg else 0,
-        'positive':     _fb_positive,
-        'positive_pct': round(_fb_positive / _fb_total * 100, 1) if _fb_total else 0,
-    }
-    feedback_summary['filled_stars'] = int(round(feedback_summary['avg_rating'])) if _fb_total else 0
-    feedback_summary['star_rows'] = [
-        {'value': i, 'filled': i <= feedback_summary['filled_stars']}
-        for i in range(1, 6)
-    ]
+    feedback_summary = _feedback_summary()
 
     return render(request, 'supervisor/analytics.html', {
         # KPI strip
