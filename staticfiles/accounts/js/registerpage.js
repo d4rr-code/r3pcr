@@ -1,4 +1,4 @@
-﻿/* â”€â”€ Live username preview (mirrors backend _generate_username) â”€â”€ */
+﻿/* ── Live username preview (mirrors backend _generate_username) ── */
 function generateUsername(first, last) {
     const clean = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const f = clean(first), l = clean(last);
@@ -26,7 +26,7 @@ function updatePreview() {
 firstInput.addEventListener('input', updatePreview);
 lastInput.addEventListener('input',  updatePreview);
 
-/* â”€â”€ Phone: keep digits only, max 11 (09xxxxxxxxx) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Phone: keep digits only, max 11 (09xxxxxxxxx) ─────────── */
 const phoneInput = document.getElementById('phone_number');
 if (phoneInput) {
     phoneInput.addEventListener('input', function () {
@@ -34,7 +34,7 @@ if (phoneInput) {
     });
 }
 
-/* â”€â”€ Password toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Password toggle ───────────────────────────────────────── */
 document.querySelectorAll('.toggle-pw').forEach(btn => {
     btn.addEventListener('click', function () {
         const input = this.previousElementSibling;
@@ -46,7 +46,7 @@ document.querySelectorAll('.toggle-pw').forEach(btn => {
     });
 });
 
-/* â”€â”€ Password strength hints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Password strength hints ───────────────────────────────── */
 const pwInput = document.getElementById('password');
 const hints   = {
     len:   document.getElementById('hint-len'),
@@ -58,7 +58,7 @@ const hints   = {
 
 function setHint(el, ok) {
     el.className = 'hint ' + (ok ? 'ok' : 'fail');
-    el.querySelector('.hint-icon').textContent = ok ? 'âœ“' : 'âœ—';
+    el.querySelector('.hint-icon').textContent = ok ? '✓' : '✗';
 }
 
 pwInput && pwInput.addEventListener('input', function () {
@@ -70,7 +70,7 @@ pwInput && pwInput.addEventListener('input', function () {
     setHint(hints.spec,  /[^A-Za-z0-9]/.test(v));
 });
 
-/* â”€â”€ Language dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Language dropdown ─────────────────────────────────────── */
 const languageDropdown = document.querySelector('.language-dropdown');
 if (languageDropdown) {
     document.getElementById('selectedLanguage').addEventListener('click', () => {
