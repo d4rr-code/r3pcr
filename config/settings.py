@@ -113,6 +113,24 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# Logging — surface app events (esp. email send failures) to the console,
+# which Railway captures in its deployment logs.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {'format': '[{levelname}] {name}: {message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'simple'},
+    },
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+    'loggers': {
+        'r3pcr': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+    },
+}
+
+
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Manila'
 USE_I18N = True

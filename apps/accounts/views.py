@@ -114,20 +114,11 @@ def _validate_password_strength(password):
 
 
 def _send_mail_async(subject, message, from_email, recipient_list, html_message=None, log_tag=''):
-    """Send email in a daemon thread so the HTTP response is never blocked."""
-    def _send():
-        try:
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=from_email,
-                recipient_list=recipient_list,
-                html_message=html_message,
-            )
-        except Exception as e:
-            print(f'[EMAIL ERROR] {log_tag}: {e}')
-    t = threading.Thread(target=_send, daemon=True)
-    t.start()
+    """Send email in the background with retry + logging (delegates to the
+    shared, hardened helper). Signature kept for existing call sites."""
+    from apps.notifications.email import send_email_async
+    send_email_async(subject, message, recipient_list, html_message=html_message,
+                     from_email=from_email, log_tag=log_tag)
 
 
 # ─── Login ────────────────────────────────────────────────────────────────────

@@ -26,20 +26,9 @@ def create_notification(recipient, shipment, notification_type, title, message, 
 def send_transition_email(recipient, shipment, subject, message):
     if not recipient or not recipient.email:
         return
-
-    def _send():
-        try:
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[recipient.email],
-                fail_silently=True,
-            )
-        except Exception as e:
-            print(f'[Notification email error] {e}')
-
-    threading.Thread(target=_send, daemon=True).start()
+    from .email import send_email_async
+    send_email_async(subject, message, [recipient.email],
+                     log_tag=f'status email {getattr(shipment, "hawb_number", "")}')
 
 
 def send_assessed_email(shipment):
