@@ -303,6 +303,22 @@ def _run_and_store_document_ocr(doc):
         os.unlink(tmp_path)
 
 
+def _ocr_scan_in_background(doc_ids):
+    """Run OCR for the given documents in a daemon thread so the HTTP request
+    returns immediately and the gunicorn worker isn't blocked. Progress is
+    observable via each document's ocr_ran_at (clients poll `ocr_status`)."""
+    from django.db import connection
+    from apps.shipments.models import ShipmentDocument
+    try:
+        for doc in ShipmentDocument.objects.filter(id__in=doc_ids):
+            try:
+                _run_and_store_document_ocr(doc)
+            except Exception as e:
+                print(f'[OCR-ASYNC] doc {doc.id} ({doc.document_type}) failed: {e}')
+    finally:
+        connection.close()   # don't leak this thread's DB connection
+
+
 def _ocr_display_documents(documents):
     display = []
     for doc in documents:
@@ -1017,44 +1033,45 @@ def claim_shipment(request, shipment_id):
 @login_required
 @declarant_required
 def run_ocr_sync(request, shipment_id):
-    """Run OCR on all unscanned documents in parallel, then return when done.
-    Called via fetch() from the queue page loading overlay.
-    Returns JSON {done: true, scanned: N} when complete.
+    """Kick off OCR on all unscanned documents in a BACKGROUND thread and return
+    immediately, so the request (and gunicorn worker) is never blocked while
+    Tesseract runs. The client polls `ocr_status` for progress.
+    Returns {started: true, total: N} or {already_done: true}.
     """
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import threading
 
     shipment = get_object_or_404(Shipment, id=shipment_id)
     if shipment.declarant != request.user:
         return JsonResponse({'error': 'Access denied'}, status=403)
 
-    docs_to_scan = [
-        doc for doc in shipment.documents.filter(
-            document_type__in=['invoice', 'airway_bill', 'packing_list']
-        )
-        if not doc.ocr_ran_at
-    ]
+    doc_ids = list(shipment.documents.filter(
+        document_type__in=['invoice', 'airway_bill', 'packing_list'],
+        ocr_ran_at__isnull=True,
+    ).values_list('id', flat=True))
 
-    if not docs_to_scan:
-        return JsonResponse({'done': True, 'scanned': 0, 'already_done': True})
+    if not doc_ids:
+        return JsonResponse({'done': True, 'scanned': 0, 'total': 0, 'already_done': True})
 
-    # Run all documents simultaneously — 3 docs take the time of the slowest one
-    # instead of 3× the slowest one.
-    scanned = 0
-    def _scan(doc):
-        try:
-            _run_and_store_document_ocr(doc)
-            return True
-        except Exception as e:
-            print(f'[OCR-SYNC] Failed for doc {doc.id} ({doc.document_type}): {e}')
-            return False
+    threading.Thread(
+        target=_ocr_scan_in_background, args=(doc_ids,), daemon=True
+    ).start()
+    return JsonResponse({'started': True, 'total': len(doc_ids)})
 
-    with ThreadPoolExecutor(max_workers=len(docs_to_scan)) as executor:
-        futures = [executor.submit(_scan, doc) for doc in docs_to_scan]
-        for future in as_completed(futures):
-            if future.result():
-                scanned += 1
 
-    return JsonResponse({'done': True, 'scanned': scanned})
+@login_required
+@declarant_required
+def ocr_status(request, shipment_id):
+    """Report OCR progress for a shipment's documents (DB-backed, so it works
+    no matter which worker ran the OCR). Polled by the loading overlay."""
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+    if shipment.declarant != request.user:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    qs = shipment.documents.filter(
+        document_type__in=['invoice', 'airway_bill', 'packing_list'])
+    total   = qs.count()
+    scanned = qs.filter(ocr_ran_at__isnull=False).count()
+    return JsonResponse({'done': scanned >= total, 'scanned': scanned, 'total': total})
 
 
 # ─── Process Shipment ─────────────────────────────────────────────────────────

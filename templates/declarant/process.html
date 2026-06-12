@@ -1652,7 +1652,8 @@ function startOCR(url, docLabel) {
 }
 
 {% if has_pending_ocr %}
-setTimeout(function() { window.location.reload(); }, 15000);
+/* OCR runs in a background thread — poll until the results land. */
+setTimeout(function() { window.location.reload(); }, 4000);
 {% endif %}
 
 /* ── Init on load ── */

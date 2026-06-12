@@ -446,7 +446,8 @@
                             style="font-size:11px; padding:6px 14px; display:inline-flex; align-items:center; gap:5px;"
                             onclick="scanThenProcess(
                                 '{% url 'declarant:run_ocr_sync' s.id %}',
-                                '{% url 'declarant:process' s.id %}'
+                                '{% url 'declarant:process' s.id %}',
+                                '{% url 'declarant:ocr_status' s.id %}'
                             )">
                         Process
                         <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd"/></svg>
@@ -833,35 +834,51 @@ function _hideScanOverlay() {
 /**
  * "Process →" in My In-Review: run sync OCR, then navigate to process page.
  */
-function scanThenProcess(ocrSyncUrl, processUrl) {
+function scanThenProcess(ocrSyncUrl, processUrl, statusUrl) {
     _showScanOverlay();
     _setOverlayMessage('Checking documents…', 'Running OCR and identifying HS codes.');
 
+    function goToProcess() {
+        _hideScanOverlay();
+        window.location.href = processUrl;
+    }
+
+    // OCR now runs in a background thread on the server, so this returns
+    // immediately; we poll the status endpoint for progress.
     fetch(ocrSyncUrl, { credentials: 'same-origin' })
         .then(function(res) {
             if (!res.ok) throw new Error('HTTP ' + res.status);
             return res.json();
         })
         .then(function(data) {
-            if (data.already_done) {
+            if (data.already_done || !data.started) {
                 _setOverlayMessage('Documents already analyzed.', 'Loading results…');
-            } else {
-                _setOverlayMessage(
-                    'OCR complete — ' + (data.scanned || 0) + ' document(s) scanned.',
-                    'Loading process page…'
-                );
+                setTimeout(goToProcess, 600);
+                return;
             }
-            // Brief pause so the user can read the status before redirect
-            setTimeout(function() {
-                _hideScanOverlay();
-                window.location.href = processUrl;
-            }, 800);
+            var poll = setInterval(function() {
+                fetch(statusUrl, { credentials: 'same-origin' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(st) {
+                        _setOverlayMessage(
+                            'Scanning documents… (' + st.scanned + '/' + st.total + ')',
+                            'Running OCR and identifying HS codes.'
+                        );
+                        if (st.done) {
+                            clearInterval(poll);
+                            _setOverlayMessage(
+                                'OCR complete — ' + st.scanned + ' document(s) scanned.',
+                                'Loading process page…'
+                            );
+                            setTimeout(goToProcess, 600);
+                        }
+                    })
+                    .catch(function() { /* transient — keep polling */ });
+            }, 1500);
+            // Safety net: never hang the overlay; the process page polls too.
+            setTimeout(function() { clearInterval(poll); goToProcess(); }, 120000);
         })
-        .catch(function() {
-            // On error still navigate — process page will handle it
-            _hideScanOverlay();
-            window.location.href = processUrl;
-        });
+        .catch(function() { goToProcess(); });
 }
 
 function _setOverlayMessage(title, sub) {

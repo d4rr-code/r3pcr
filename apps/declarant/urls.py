@@ -29,4 +29,5 @@ urlpatterns = [
     path('shipment/<int:shipment_id>/upload-receipt/', views.upload_receipt,  name='upload_receipt'),
     path('save-ocr-items/<int:shipment_id>/',     views.save_ocr_items,   name='save_ocr_items'),
     path('process/<int:shipment_id>/ocr-sync/',   views.run_ocr_sync,     name='run_ocr_sync'),
+    path('process/<int:shipment_id>/ocr-status/', views.ocr_status,       name='ocr_status'),
 ]
