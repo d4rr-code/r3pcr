@@ -716,6 +716,210 @@ def _cost_by_type(date_from, date_to, declarant_filter):
     }
 
 
+def _status_breakdown(chart_ids, chart_total):
+    """Per-status counts -> wireframe pipeline rows (respects chart filters)."""
+    status_colors = {
+        'incoming':    '#f59e0b', 'arrived':    '#3b82f6', 'computed':    '#8b5cf6',
+        'approved':    '#22c55e', 'rejected':   '#ef4444', 'for_revision':'#f97316',
+        'lodgement':   '#38bdf8', 'ongoing':    '#64748b', 'assessed':    '#14b8a6',
+        'paid':        '#84cc16', 'released':   '#22d3ee', 'billed':      '#a855f7',
+    }
+    status_counts_raw = {
+        r['status']: r['count']
+        for r in (
+            Shipment.objects.filter(id__in=chart_ids)
+            .values('status')
+            .annotate(count=Count('id'))
+        )
+    }
+    status_rows = []
+    for key, label in Shipment.STATUS_CHOICES:
+        count = status_counts_raw.get(key, 0)
+        status_rows.append({
+            'key': key, 'label': label, 'count': count,
+            'pct': round(count / chart_total * 100, 1) if chart_total else 0,
+            'color': status_colors.get(key, '#475569'),
+        })
+    # Dashboard display order: 4 rows x 3 columns, matching the supervisor wireframe.
+    pipeline_order = [
+        'incoming', 'approved', 'assessed',
+        'arrived', 'for_revision', 'paid',
+        'rejected', 'lodgement', 'released',
+        'computed', 'ongoing', 'billed',
+    ]
+    status_map = {r['key']: r for r in status_rows}
+    pipeline_rows = [status_map[k] for k in pipeline_order if k in status_map]
+    max_status = max((r['count'] for r in pipeline_rows), default=1) or 1
+    for row in pipeline_rows:
+        row['bar_pct'] = round(row['count'] / max_status * 100) if max_status > 0 else 0
+    status_rows_sorted = sorted(pipeline_rows, key=lambda r: r['count'], reverse=True)
+
+    # Add subtitle + display label to each pipeline row for the Status Overview cards.
+    status_meta = {
+        'incoming':     {'subtitle': 'Awaits Declarant Assignment'},
+        'arrived':      {'subtitle': 'Awaits ECDT Processing'},
+        'computed':     {'subtitle': 'Awaits Consignee Approval'},
+        'for_revision': {'subtitle': 'Returned for Revision'},
+        'rejected':     {'subtitle': 'Docs Not Complete Update From Declarant'},
+        'approved':     {'subtitle': 'Proceeding to Lodgement'},
+        'lodgement':    {'subtitle': 'Filed with BOC'},
+        'ongoing':      {'subtitle': 'Lined Up for Final Assessment'},
+        'assessed':     {'subtitle': 'Awaits Payment of D/T'},
+        'paid':         {'subtitle': 'Awaits CNTR Discharge & Delivery'},
+        'released':     {'subtitle': 'Awaits Final Billing'},
+        'billed':       {'subtitle': 'Shipment Fully Processed End-to-End'},
+    }
+    display_labels = {'for_revision': 'Revision', 'rejected': 'Flags'}
+    for row in pipeline_rows:
+        row['subtitle'] = status_meta.get(row['key'], {}).get('subtitle', '')
+        row['display_label'] = display_labels.get(row['key'], row['label'])
+    return {'pipeline_rows': pipeline_rows, 'status_rows_sorted': status_rows_sorted}
+
+
+def _wmcda_scoreboard(advisory_qs):
+    """WMCDA recommendation scoreboard (counts, %, avg score, rank)."""
+    wmcda_meta = [
+        ('air',  'Air Freight',  '#f59e0b', 'AIR'),
+        ('lcl',  'LCL Sea',      '#38bdf8', 'LCL'),
+        ('fcl',  'FCL Sea',      '#8b5cf6', 'FCL'),
+    ]
+    wmcda_total = advisory_qs.filter(recommended_type__isnull=False).count()
+    type_counts = {
+        r['recommended_type']: r['cnt']
+        for r in advisory_qs.values('recommended_type').annotate(cnt=Count('id'))
+        if r['recommended_type']
+    }
+    avg_agg = advisory_qs.aggregate(
+        avg_air=Avg('air_score'), avg_lcl=Avg('lcl_score'),
+        avg_fcl=Avg('fcl_score'),
+    )
+    wmcda_scoreboard = []
+    for key, label, color, icon in wmcda_meta:
+        count     = type_counts.get(key, 0)
+        pct       = round(count / wmcda_total * 100, 1) if wmcda_total else 0
+        avg_score = round(float(avg_agg.get(f'avg_{key}') or 0) * 100, 1)
+        wmcda_scoreboard.append({
+            'key': key, 'label': label, 'color': color, 'icon': icon,
+            'count': count, 'pct': pct, 'avg_score': avg_score,
+        })
+    wmcda_scoreboard.sort(key=lambda x: x['count'], reverse=True)
+    rank_labels = ['1st', '2nd', '3rd']
+    for i, row in enumerate(wmcda_scoreboard):
+        row['rank'] = rank_labels[i] if i < len(rank_labels) else f'{i+1}th'
+    wmcda_max = wmcda_scoreboard[0]['count'] if wmcda_scoreboard else 1
+    return {
+        'wmcda_scoreboard': wmcda_scoreboard,
+        'wmcda_max':        wmcda_max,
+        'wmcda_total':      wmcda_total,
+    }
+
+
+def _wmcda_comparison(advisory_qs):
+    """Declared shipment type vs WMCDA recommendation agreement matrix."""
+    cmp_meta = [('air', 'Air Freight'), ('lcl', 'LCL Sea'), ('fcl', 'FCL Sea')]
+    cmp_keys = [k for k, _ in cmp_meta]
+    cmp_cross = {d: {r: 0 for r in cmp_keys} for d in cmp_keys}
+    for r in (advisory_qs
+              .exclude(recommended_type__isnull=True)
+              .exclude(shipment__shipment_type__isnull=True)
+              .values('shipment__shipment_type', 'recommended_type')
+              .annotate(cnt=Count('id'))):
+        d, rec = r['shipment__shipment_type'], r['recommended_type']
+        if d in cmp_cross and rec in cmp_cross[d]:
+            cmp_cross[d][rec] += r['cnt']
+    comparison_rows = []
+    cmp_total = cmp_match = 0
+    for d, dlabel in cmp_meta:
+        row_total = sum(cmp_cross[d].values())
+        row_match = cmp_cross[d][d]
+        cmp_total += row_total
+        cmp_match += row_match
+        comparison_rows.append({
+            'declared': dlabel, 'declared_key': d,
+            'total': row_total, 'match': row_match,
+            'match_pct': round(row_match / row_total * 100) if row_total else 0,
+            'cells': [
+                {'key': rk, 'count': cmp_cross[d][rk], 'is_match': rk == d}
+                for rk in cmp_keys
+            ],
+        })
+    return {
+        'wmcda_comparison_rows':      comparison_rows,
+        'wmcda_comparison_agreement': round(cmp_match / cmp_total * 100) if cmp_total else 0,
+        'wmcda_comparison_total':     cmp_total,
+    }
+
+
+def _declarant_performance(chart_ids, declarants):
+    """Per-declarant processing volume, avg speed, approval quality.
+
+    Batch-loads StatusLog rows for the filtered shipments to avoid N+1 queries.
+    """
+    perf_logs = (
+        StatusLog.objects
+        .filter(
+            shipment_id__in=chart_ids,
+            new_status__in=['computed', 'arrived', 'approved', 'for_revision', 'rejected'],
+        )
+        .values('shipment_id', 'new_status', 'changed_at')
+        .order_by('shipment_id', 'changed_at')
+    )
+    ship_declarant = dict(
+        Shipment.objects.filter(id__in=chart_ids).values_list('id', 'declarant_id')
+    )
+    dec_logs = defaultdict(lambda: defaultdict(list))  # dec_id -> status -> [log_dicts]
+    for log in perf_logs:
+        dec_id = ship_declarant.get(log['shipment_id'])
+        if dec_id:
+            dec_logs[dec_id][log['new_status']].append(log)
+
+    declarant_data = []
+    for dec in declarants:
+        logs_by_status = dec_logs.get(dec.id, {})
+
+        # First computed log per shipment
+        computed_map = {}
+        for log in logs_by_status.get('computed', []):
+            sid = log['shipment_id']
+            if sid not in computed_map or log['changed_at'] < computed_map[sid]['changed_at']:
+                computed_map[sid] = log
+
+        # Most recent arrived log per shipment (for speed calculation)
+        arrived_map = {}
+        for log in logs_by_status.get('arrived', []):
+            sid = log['shipment_id']
+            if sid not in arrived_map or log['changed_at'] > arrived_map[sid]['changed_at']:
+                arrived_map[sid] = log
+
+        durations = []
+        for sid, c_log in computed_map.items():
+            a_log = arrived_map.get(sid)
+            if a_log and a_log['changed_at'] <= c_log['changed_at']:
+                durations.append(c_log['changed_at'] - a_log['changed_at'])
+
+        total_comp       = len(computed_map)
+        ecdt_approved    = len(logs_by_status.get('approved', []))
+        revised_rejected = (
+            len(logs_by_status.get('for_revision', []))
+            + len(logs_by_status.get('rejected', []))
+        )
+        avg_hours = None
+        if durations:
+            avg_hours = round(
+                sum(d.total_seconds() for d in durations) / len(durations) / 3600, 1
+            )
+        declarant_data.append({
+            'name':             dec.get_full_name() or dec.username,
+            'username':         dec.username,
+            'total_processed':  total_comp,
+            'avg_hours':        avg_hours,
+            'ecdt_approved':    ecdt_approved,
+            'revised_rejected': revised_rejected,
+            'approval_rate':    round(ecdt_approved / total_comp * 100, 1) if total_comp else 0,
+        })
+    return declarant_data
+
+
 def _analytics_context_response(request):
     all_shipments = Shipment.objects.all()
 
@@ -771,208 +975,28 @@ def _analytics_context_response(request):
         if total_computed_presented else 0
     )
 
-    #  Status breakdown bar chart (respects chart filters) — single grouped query
-    _status_colors = {
-        'incoming':    '#f59e0b', 'arrived':    '#3b82f6', 'computed':    '#8b5cf6',
-        'approved':    '#22c55e', 'rejected':   '#ef4444', 'for_revision':'#f97316',
-        'lodgement':   '#38bdf8', 'ongoing':    '#64748b', 'assessed':    '#14b8a6',
-        'paid':        '#84cc16', 'released':   '#22d3ee', 'billed':      '#a855f7',
-    }
     # Materialise chart_qs IDs once — reused for status, WMCDA and declarant sections
     _chart_ids_qs = chart_qs.values_list('id', flat=True)
-    _status_counts_raw = {
-        r['status']: r['count']
-        for r in (
-            Shipment.objects.filter(id__in=_chart_ids_qs)
-            .values('status')
-            .annotate(count=Count('id'))
-        )
-    }
-    status_rows = []
-    for key, label in Shipment.STATUS_CHOICES:
-        count = _status_counts_raw.get(key, 0)
-        status_rows.append({
-            'key': key, 'label': label, 'count': count,
-            'pct': round(count / chart_total * 100, 1) if chart_total else 0,
-            'color': _status_colors.get(key, '#475569'),
-        })
-    # Dashboard display order: 4 rows x 3 columns, matching the supervisor wireframe.
-    _pipeline_order = [
-        'incoming', 'approved', 'assessed',
-        'arrived', 'for_revision', 'paid',
-        'rejected', 'lodgement', 'released',
-        'computed', 'ongoing', 'billed',
-    ]
-    _status_map = {r['key']: r for r in status_rows}
-    pipeline_rows = [_status_map[k] for k in _pipeline_order if k in _status_map]
-    # bar_pct relative to max for stacked bar tooltip (not used for width  CSS does that)
-    max_status = max((r['count'] for r in pipeline_rows), default=1) or 1
-    for row in pipeline_rows:
-        row['bar_pct'] = round(row['count'] / max_status * 100) if max_status > 0 else 0
-    # Keep sorted version for any legacy references
-    status_rows_sorted = sorted(pipeline_rows, key=lambda r: r['count'], reverse=True)
 
-    # Add subtitle to each pipeline row for the Status Overview cards.
-    _status_meta = {
-        'incoming':     {'subtitle': 'Awaits Declarant Assignment'},
-        'arrived':      {'subtitle': 'Awaits ECDT Processing'},
-        'computed':     {'subtitle': 'Awaits Consignee Approval'},
-        'for_revision': {'subtitle': 'Returned for Revision'},
-        'rejected':     {'subtitle': 'Docs Not Complete Update From Declarant'},
-        'approved':     {'subtitle': 'Proceeding to Lodgement'},
-        'lodgement':    {'subtitle': 'Filed with BOC'},
-        'ongoing':      {'subtitle': 'Lined Up for Final Assessment'},
-        'assessed':     {'subtitle': 'Awaits Payment of D/T'},
-        'paid':         {'subtitle': 'Awaits CNTR Discharge & Delivery'},
-        'released':     {'subtitle': 'Awaits Final Billing'},
-        'billed':       {'subtitle': 'Shipment Fully Processed End-to-End'},
-    }
-    for row in pipeline_rows:
-        meta = _status_meta.get(row['key'], {})
-        row['subtitle'] = meta.get('subtitle', '')
-        _display_labels = {
-            'for_revision': 'Revision',
-            'rejected': 'Flags',
-        }
-        row['display_label'] = _display_labels.get(row['key'], row['label'])
+    # Status breakdown bar chart (respects chart filters)
+    _status = _status_breakdown(_chart_ids_qs, chart_total)
+    pipeline_rows      = _status['pipeline_rows']
+    status_rows_sorted = _status['status_rows_sorted']
 
-    # WMCDA Scoreboard (respects chart filters) — use materialised IDs
-    _wmcda_meta = [
-        ('air',  'Air Freight',  '#f59e0b', 'AIR'),
-        ('lcl',  'LCL Sea',      '#38bdf8', 'LCL'),
-        ('fcl',  'FCL Sea',      '#8b5cf6', 'FCL'),
-    ]
+    # WMCDA scoreboard + declared-vs-recommended agreement matrix
     advisory_qs = ShippingAdvisory.objects.filter(shipment_id__in=_chart_ids_qs)
-    wmcda_total = advisory_qs.filter(recommended_type__isnull=False).count()
-    # Batch count by recommended_type in one query
-    _wmcda_type_counts = {
-        r['recommended_type']: r['cnt']
-        for r in advisory_qs.values('recommended_type').annotate(cnt=Count('id'))
-        if r['recommended_type']
-    }
-    # Batch avg scores in one query
-    _wmcda_avg_agg = advisory_qs.aggregate(
-        avg_air=Avg('air_score'), avg_lcl=Avg('lcl_score'),
-        avg_fcl=Avg('fcl_score'),
-    )
-    wmcda_scoreboard = []
-    for key, label, color, icon in _wmcda_meta:
-        count     = _wmcda_type_counts.get(key, 0)
-        pct       = round(count / wmcda_total * 100, 1) if wmcda_total else 0
-        avg_score = round(float(_wmcda_avg_agg.get(f'avg_{key}') or 0) * 100, 1)
-        wmcda_scoreboard.append({
-            'key': key, 'label': label, 'color': color, 'icon': icon,
-            'count': count, 'pct': pct, 'avg_score': avg_score,
-        })
-    wmcda_scoreboard.sort(key=lambda x: x['count'], reverse=True)
-    rank_labels = ['1st', '2nd', '3rd']
-    for i, row in enumerate(wmcda_scoreboard):
-        row['rank'] = rank_labels[i] if i < len(rank_labels) else f'{i+1}th'
-    wmcda_max = wmcda_scoreboard[0]['count'] if wmcda_scoreboard else 1
+    _sb = _wmcda_scoreboard(advisory_qs)
+    wmcda_scoreboard = _sb['wmcda_scoreboard']
+    wmcda_max        = _sb['wmcda_max']
+    wmcda_total      = _sb['wmcda_total']
+    _cmp = _wmcda_comparison(advisory_qs)
+    wmcda_comparison_rows      = _cmp['wmcda_comparison_rows']
+    wmcda_comparison_agreement = _cmp['wmcda_comparison_agreement']
+    wmcda_comparison_total     = _cmp['wmcda_comparison_total']
 
-    # ── Declared shipment type vs WMCDA recommendation (agreement matrix) ──
-    _cmp_meta = [('air', 'Air Freight'), ('lcl', 'LCL Sea'), ('fcl', 'FCL Sea')]
-    _cmp_keys = [k for k, _ in _cmp_meta]
-    _cmp_cross = {d: {r: 0 for r in _cmp_keys} for d in _cmp_keys}
-    for r in (advisory_qs
-              .exclude(recommended_type__isnull=True)
-              .exclude(shipment__shipment_type__isnull=True)
-              .values('shipment__shipment_type', 'recommended_type')
-              .annotate(cnt=Count('id'))):
-        d, rec = r['shipment__shipment_type'], r['recommended_type']
-        if d in _cmp_cross and rec in _cmp_cross[d]:
-            _cmp_cross[d][rec] += r['cnt']
-    wmcda_comparison_rows = []
-    _cmp_total = _cmp_match = 0
-    for d, dlabel in _cmp_meta:
-        row_total = sum(_cmp_cross[d].values())
-        row_match = _cmp_cross[d][d]
-        _cmp_total += row_total
-        _cmp_match += row_match
-        wmcda_comparison_rows.append({
-            'declared': dlabel, 'declared_key': d,
-            'total': row_total, 'match': row_match,
-            'match_pct': round(row_match / row_total * 100) if row_total else 0,
-            'cells': [
-                {'key': rk, 'count': _cmp_cross[d][rk], 'is_match': rk == d}
-                for rk in _cmp_keys
-            ],
-        })
-    wmcda_comparison_agreement = round(_cmp_match / _cmp_total * 100) if _cmp_total else 0
-    wmcda_comparison_total = _cmp_total
-
-    #  Declarant Performance (respects chart filters) — batch queries to avoid N+1
+    # Declarant Performance (respects chart filters)
     declarants = User.objects.filter(role='declarant').order_by('first_name', 'username')
-
-    # Single bulk load of all relevant StatusLog rows for declarant performance
-    # Re-uses _chart_ids_qs (lazy queryset) already defined above
-    _perf_logs = (
-        StatusLog.objects
-        .filter(
-            shipment_id__in=_chart_ids_qs,
-            new_status__in=['computed', 'arrived', 'approved', 'for_revision', 'rejected'],
-        )
-        .values('shipment_id', 'new_status', 'changed_at')
-        .order_by('shipment_id', 'changed_at')
-    )
-
-    # Build lookup tables from the single query
-    # shipment_id -> declarant_id  (from chart_qs)
-    _ship_declarant = dict(
-        Shipment.objects.filter(id__in=_chart_ids_qs)
-                        .values_list('id', 'declarant_id')
-    )
-    # Group logs by declarant
-    _dec_logs = defaultdict(lambda: defaultdict(list))  # dec_id -> status -> [log_dicts]
-    for log in _perf_logs:
-        dec_id = _ship_declarant.get(log['shipment_id'])
-        if dec_id:
-            _dec_logs[dec_id][log['new_status']].append(log)
-
-    declarant_data = []
-    for dec in declarants:
-        logs_by_status = _dec_logs.get(dec.id, {})
-
-        # First computed log per shipment
-        computed_map = {}
-        for log in logs_by_status.get('computed', []):
-            sid = log['shipment_id']
-            if sid not in computed_map or log['changed_at'] < computed_map[sid]['changed_at']:
-                computed_map[sid] = log
-
-        # Most recent arrived log per shipment (for speed calculation)
-        arrived_map = {}
-        for log in logs_by_status.get('arrived', []):
-            sid = log['shipment_id']
-            if sid not in arrived_map or log['changed_at'] > arrived_map[sid]['changed_at']:
-                arrived_map[sid] = log
-
-        durations = []
-        for sid, c_log in computed_map.items():
-            a_log = arrived_map.get(sid)
-            if a_log and a_log['changed_at'] <= c_log['changed_at']:
-                durations.append(c_log['changed_at'] - a_log['changed_at'])
-
-        total_comp       = len(computed_map)
-        ecdt_approved    = len(logs_by_status.get('approved', []))
-        revised_rejected = (
-            len(logs_by_status.get('for_revision', []))
-            + len(logs_by_status.get('rejected', []))
-        )
-        avg_hours = None
-        if durations:
-            avg_hours = round(
-                sum(d.total_seconds() for d in durations) / len(durations) / 3600, 1
-            )
-        declarant_data.append({
-            'name':             dec.get_full_name() or dec.username,
-            'username':         dec.username,
-            'total_processed':  total_comp,
-            'avg_hours':        avg_hours,
-            'ecdt_approved':    ecdt_approved,
-            'revised_rejected': revised_rejected,
-            'approval_rate':    round(ecdt_approved / total_comp * 100, 1) if total_comp else 0,
-        })
+    declarant_data = _declarant_performance(_chart_ids_qs, declarants)
 
     # ── Redesigned dashboard: new context variables ──────────────────────
 

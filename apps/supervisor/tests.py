@@ -9,14 +9,16 @@ deterministic dataset.
 
 Run:  python manage.py test apps.supervisor --settings=config.settings_test
 """
+from datetime import timedelta
 from decimal import Decimal
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.shipments.models import Shipment
-from apps.computation.models import DutyComputation
+from apps.shipments.models import Shipment, StatusLog
+from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
 
 
@@ -127,6 +129,47 @@ class AnalyticsDashboardContextTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         # dec1 owns s1, s2, s5 -> 3
         self.assertEqual(resp.context['chart_total'], 3)
+
+    def test_wmcda_scoreboard_and_agreement(self):
+        def _adv(shipment, recommended):
+            return ShippingAdvisory.objects.create(
+                shipment=shipment, gross_weight=Decimal('1'),
+                cargo_volume=Decimal('1'), declared_value=Decimal('1'),
+                urgency_level='standard', distance_km=Decimal('2600'),
+                lcl_score=Decimal('0.9'), fcl_score=Decimal('0.5'),
+                air_score=Decimal('0.3'), recommended_type=recommended,
+            )
+        _adv(self.s2, 'lcl')   # declared lcl -> rec lcl (match)
+        _adv(self.s5, 'lcl')   # declared lcl -> rec lcl (match)
+        _adv(self.s1, 'air')   # declared air -> rec air (match)
+
+        ctx = self._ctx()
+        self.assertEqual(ctx['wmcda_total'], 3)
+        board = {r['key']: r['count'] for r in ctx['wmcda_scoreboard']}
+        self.assertEqual(board['lcl'], 2)
+        self.assertEqual(board['air'], 1)
+        self.assertEqual(board['fcl'], 0)
+        # all three declared==recommended -> 100% agreement
+        self.assertEqual(ctx['wmcda_comparison_agreement'], 100)
+
+    def test_declarant_performance_speed_and_volume(self):
+        base = timezone.now().replace(microsecond=0)
+        arr = StatusLog.objects.create(
+            shipment=self.s2, new_status='arrived', old_status='incoming',
+            changed_by=self.dec1,
+        )
+        StatusLog.objects.filter(pk=arr.pk).update(changed_at=base)
+        comp = StatusLog.objects.create(
+            shipment=self.s2, new_status='computed', old_status='arrived',
+            changed_by=self.dec1,
+        )
+        StatusLog.objects.filter(pk=comp.pk).update(changed_at=base + timedelta(hours=2))
+
+        ctx = self._ctx()
+        by_user = {d['username']: d for d in ctx['declarant_data']}
+        self.assertEqual(by_user['dec1']['total_processed'], 1)
+        self.assertEqual(by_user['dec1']['avg_hours'], 2.0)
+        self.assertEqual(by_user['dec2']['total_processed'], 0)
 
     def test_non_supervisor_is_redirected(self):
         self.client.force_login(self.dec1)
