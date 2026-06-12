@@ -98,6 +98,7 @@
     justify-content: space-between;
 }
 .metric-types { grid-column: span 5; display: grid; grid-template-columns: repeat(2, minmax(170px, 1fr)); gap: 16px; }
+.metric-types .mini-card:nth-child(3) { grid-column: 1 / -1; }  /* FCL fills the row — no empty cell */
 .metric-users { grid-column: span 2; padding: clamp(16px, 2vw, 18px); display: flex; flex-direction: column; justify-content: space-between; }
 .metric-side { grid-column: span 3; display: grid; grid-template-columns: 1fr; gap: 16px; }
 .mini-card { padding: clamp(14px, 2vw, 16px) clamp(14px, 2vw, 18px); min-height: 76px; }
@@ -357,6 +358,23 @@
 .cost-chart-panel { grid-column: span 8; }
 .cost-table-panel { grid-column: span 4; }
 .currency-panel   { grid-column: span 4; }
+.comparison-panel { grid-column: span 12; }
+.cmp-agreement {
+    background: #eef2ff; color: #3730a3; font-weight: 700; font-size: 12px;
+    padding: 6px 14px; border-radius: 999px; white-space: nowrap;
+}
+.cmp-table-wrap { overflow-x: auto; margin-top: 4px; }
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cmp-table th, .cmp-table td {
+    padding: 11px 14px; text-align: center; border-bottom: 1px solid #eef1f5;
+}
+.cmp-table thead th {
+    background: #f7f9fc; color: #18345a; font-weight: 700; font-size: 12px;
+}
+.cmp-table thead th:first-child, .cmp-table tbody th { text-align: left; }
+.cmp-table tbody th { color: #18345a; font-weight: 700; white-space: nowrap; }
+.cmp-table td.cmp-match { background: #eafaf1; color: #15803d; font-weight: 800; }
+.cmp-table tfoot td { font-weight: 700; color: #18345a; border-top: 2px solid #e4e8ee; }
 .chart-fixed { height: clamp(170px, 24vw, 210px); width: 100%; }
 .compact-chart { height: clamp(140px, 18vw, 170px); }
 .compact-bars { height: clamp(150px, 20vw, 180px); }
@@ -842,6 +860,57 @@ canvas { cursor: pointer; }
             <p class="person-name" style="font-size:18px;">0 submissions</p>
             <p style="color:#111827;font-size:12px;margin-top:18px;">No consignee feedback exists in the system yet.</p>
             {% endif %}
+        </section>
+
+        <section class="dash-card panel comparison-panel">
+            <div class="panel-title">
+                <div>
+                    <h2>Declared Type vs WMCDA Advisory</h2>
+                    <p>How consignee-declared shipment types compare with the system's recommended mode</p>
+                </div>
+                <span class="cmp-agreement">{{ wmcda_comparison_agreement }}% overall agreement &middot; {{ wmcda_comparison_total }} advisories</span>
+            </div>
+            <div class="cmp-table-wrap">
+                <table class="cmp-table">
+                    <thead>
+                        <tr>
+                            <th>Declared &darr; / Recommended &rarr;</th>
+                            <th>Air</th>
+                            <th>LCL</th>
+                            <th>FCL</th>
+                            <th>Declared Total</th>
+                            <th>Match Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in wmcda_comparison_rows %}
+                        <tr>
+                            <th>{{ row.declared }}</th>
+                            {% for cell in row.cells %}
+                            <td class="{% if cell.is_match %}cmp-match{% endif %}">{{ cell.count }}</td>
+                            {% endfor %}
+                            <td>{{ row.total }}</td>
+                            <td><strong>{{ row.match_pct }}%</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" style="text-align:center;color:#6b7280;padding:18px;">No advisory data yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if wmcda_comparison_total %}
+                    <tfoot>
+                        <tr>
+                            <td style="text-align:left;">Overall agreement (declared = recommended)</td>
+                            <td colspan="4"></td>
+                            <td>{{ wmcda_comparison_agreement }}%</td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+                <p style="color:#6b7280;font-size:11px;margin:10px 2px 0;">
+                    Green cells are agreements (consignee's declared mode matched the WMCDA recommendation).
+                    Off-diagonal values show where the advisory suggested a different mode.
+                </p>
+            </div>
         </section>
     </div>
 </div>

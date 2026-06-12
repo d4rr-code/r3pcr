@@ -27,14 +27,19 @@ def fan_assessment_rows(document):
         raw = data.get(key, {})
         value = raw.get('value', '') if isinstance(raw, dict) else raw
         confidence = raw.get('confidence', None) if isinstance(raw, dict) else None
+        verified = bool(raw.get('verified')) if isinstance(raw, dict) else False
         rows.append({
             'key': key,
             'label': label,
             'value': value or '',
             'confidence': confidence,
+            'verified': verified,
         })
     return rows
 
 
 def fan_assessment_has_values(rows):
-    return any(str(row.get('value') or '').strip() for row in rows or [])
+    return any(
+        str(row.get('value') or '').strip() and row.get('verified')
+        for row in rows or []
+    )

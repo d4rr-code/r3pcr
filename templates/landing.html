@@ -99,18 +99,18 @@
 
             </div>
 
-            <a href="{% url 'about' %}">ABOUT</a>
-            <a href="#contact">CONTACT US</a>
+            <a href="{% url 'about' %}" data-en="ABOUT" data-fil="TUNGKOL">ABOUT</a>
+            <a href="#contact" data-en="CONTACT US" data-fil="MAKIPAG-UGNAYAN">CONTACT US</a>
 
             <a href="{% url 'accounts:register' %}"
-            class="register-btn">
+            class="register-btn" data-en="REGISTER" data-fil="MAGREHISTRO">
 
                 REGISTER
 
             </a>
 
             <a href="{% url 'accounts:login' %}"
-            class="login-btn-nav">
+            class="login-btn-nav" data-en="LOG IN" data-fil="MAG-LOG IN">
 
                 LOG IN
 
@@ -129,7 +129,9 @@
         <div class="hero-content">
 
             <!-- TITLE -->
-            <h1 id="heroTitle">
+            <h1 id="heroTitle"
+                data-en="Simplify your pre-clearance process"
+                data-fil="Pasimplehin ang iyong pre-clearance process">
 
                 Simplify your
                 pre-clearance process
@@ -137,7 +139,9 @@
             </h1>
 
             <!-- SUBTITLE -->
-            <p id="heroSubtitle">
+            <p id="heroSubtitle"
+               data-en="Streamline your customs pre-clearance workflow with automated document handling and real-time shipment monitoring."
+               data-fil="Pabilisin ang iyong customs pre-clearance workflow gamit ang automated na paghawak ng dokumento at real-time na pagsubaybay ng shipment.">
 
                 Streamline your customs pre-clearance
                 workflow with automated document handling
@@ -149,15 +153,15 @@
             <div class="hero-buttons">
 
                 <a href="{% url 'accounts:register' %}"
-                class="start-btn">
+                class="start-btn" data-en="START NOW" data-fil="MAGSIMULA NA">
 
                     START NOW
 
                 </a>
 
                 <a
-                href="#trackingSection"
-                class="explore-btn">
+                href="#features"
+                class="explore-btn" data-en="EXPLORE" data-fil="TUKLASIN">
 
                     EXPLORE
 
@@ -529,11 +533,13 @@ id="trackingSection">
          FEATURES SHOWCASE SECTION
     ========================================= -->
 
-    <section class="showcase-section">
+    <section class="showcase-section" id="features" style="scroll-margin-top:90px;">
 
         <div class="showcase-header">
-            <h2>Built for Better Shipment Visibility</h2>
-            <p>
+            <h2 data-en="Built for Better Shipment Visibility"
+                data-fil="Ginawa para sa Mas Mahusay na Visibility ng Shipment">Built for Better Shipment Visibility</h2>
+            <p data-en="Access submission records, monitor processing status, and manage shipment activities through a centralized consignee dashboard."
+               data-fil="I-access ang mga rekord ng submission, subaybayan ang status ng pagproseso, at pamahalaan ang mga aktibidad ng shipment sa isang sentralisadong consignee dashboard.">
                 Access submission records, monitor
                 processing status, and manage shipment
                 activities through a centralized
@@ -593,7 +599,7 @@ id="trackingSection">
          FOOTER
     ========================================== -->
 
-    <div id="contact" style="scroll-margin-top:0;"></div>
+    <div id="contact" style="scroll-margin-top:90px;"></div>
     <footer class="footer">
         <div class="footer-content">
 
@@ -610,7 +616,7 @@ id="trackingSection">
                 <img src="{% static 'accounts/img/Thumbnail for R3-PCR.png' %}">
                 <div class="footer-links">
                     <a href="{% url 'terms' %}">TERMS & PRIVACY</a>
-                    <a href="{% url 'landing' %}#trackingSection">FEATURES</a>
+                    <a href="{% url 'landing' %}#features">FEATURES</a>
                     <a href="{% url 'about' %}">ABOUT</a>
                     <a href="https://rtriplejcb.com" target="_blank">RTRIPLEJ</a>
                 </div>
@@ -624,12 +630,24 @@ id="trackingSection">
                     <img src="{% static 'accounts/img/Location.png' %}">
                     <img src="{% static 'accounts/img/Contact.png' %}">
                 </div>
+                <ul class="contact-details" style="list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; gap:6px;">
+                    <li style="font-size:13px;">
+                        <a href="mailto:support@rtriplejcb.com" style="color:inherit; text-decoration:none; opacity:.85;">support@rtriplejcb.com</a>
+                    </li>
+                    <li style="font-size:13px;">
+                        <a href="tel:+6321234567" style="color:inherit; text-decoration:none; opacity:.85;">+63 2 1234 567</a>
+                    </li>
+                    <li style="font-size:13px;">
+                        <a href="https://rtriplejcb.com" target="_blank" rel="noopener" style="color:inherit; text-decoration:none; opacity:.85;">rtriplejcb.com</a>
+                    </li>
+                </ul>
             </div>
 
         </div>
     </footer>
 
     <!-- JS -->
+    <script src="{% static 'js/i18n.js' %}"></script>
     <script src="{% static 'js/landing.js' %}"></script>
 
 </body>

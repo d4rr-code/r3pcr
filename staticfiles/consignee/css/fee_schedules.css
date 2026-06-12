@@ -1,0 +1,219 @@
+/* ==========================================================================
+   BACK LINK
+   ========================================================================== */
+
+.fee-back-link{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    margin-bottom:16px;
+
+    color:#1B3358;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    text-decoration:none;
+
+}
+
+.fee-back-link:hover{
+
+    opacity:.85;
+
+}
+
+/* ==========================================================================
+   LAYOUT
+   ========================================================================== */
+
+.fee-grid{
+
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:20px;
+
+}
+
+.fee-section{
+
+    margin-bottom:28px;
+
+}
+
+/* ==========================================================================
+   HEADINGS
+   ========================================================================== */
+
+.fee-section h3{
+
+    margin:0 0 12px;
+
+    color:#1B3358;
+
+    font-size:16px;
+
+    font-weight:700;
+
+}
+
+.fee-description{
+
+    margin:0 0 14px;
+
+    color:#6B7280;
+
+    font-size:13px;
+
+}
+
+/* ==========================================================================
+   CARD
+   ========================================================================== */
+
+.fee-card{
+
+    background:#FFFFFF;
+
+    border:1px solid #E5E7EB;
+
+    border-radius:14px;
+
+    padding:20px;
+
+    box-shadow:
+
+        0 1px 3px rgba(0,0,0,.06),
+
+        0 4px 16px rgba(0,0,0,.04);
+
+}
+
+/* ==========================================================================
+   TABLE
+   ========================================================================== */
+
+.fee-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+.fee-table thead tr{
+
+    background:#F3F4F6;
+
+    border-bottom:2px solid #E5E7EB;
+
+}
+
+.fee-table th{
+
+    padding:12px 16px;
+
+    text-align:left;
+
+    color:#1B3358;
+
+    font-size:13px;
+
+    font-weight:700;
+
+}
+
+.fee-table td{
+
+    padding:12px 16px;
+
+    border-bottom:1px solid #E5E7EB;
+
+    color:#111827;
+
+    font-size:13px;
+
+}
+
+.text-right{
+
+    text-align:right !important;
+
+}
+
+.fee-value{
+
+    font-weight:600;
+
+}
+
+.fee-muted{
+
+    color:#6B7280 !important;
+
+}
+
+/* ==========================================================================
+   NOTE
+   ========================================================================== */
+
+.fee-note{
+
+    margin-top:20px;
+
+    padding:14px 16px;
+
+    background:#EFF6FF;
+
+    border:1px solid #93C5FD;
+
+    border-radius:8px;
+
+    color:#1D4ED8;
+
+    font-size:13px;
+
+    line-height:1.6;
+
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width:900px){
+
+    .fee-grid{
+
+        grid-template-columns:1fr;
+
+    }
+
+}
+
+@media (max-width:640px){
+
+    .fee-card{
+
+        padding:16px;
+
+    }
+
+    .fee-table th,
+
+    .fee-table td{
+
+        padding:10px 12px;
+
+        font-size:12px;
+
+    }
+
+}

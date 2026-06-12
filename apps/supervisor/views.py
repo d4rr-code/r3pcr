@@ -776,6 +776,38 @@ def _analytics_context_response(request):
     for i, row in enumerate(wmcda_scoreboard):
         row['rank'] = rank_labels[i] if i < len(rank_labels) else f'{i+1}th'
     wmcda_max = wmcda_scoreboard[0]['count'] if wmcda_scoreboard else 1
+
+    # ── Declared shipment type vs WMCDA recommendation (agreement matrix) ──
+    _cmp_meta = [('air', 'Air Freight'), ('lcl', 'LCL Sea'), ('fcl', 'FCL Sea')]
+    _cmp_keys = [k for k, _ in _cmp_meta]
+    _cmp_cross = {d: {r: 0 for r in _cmp_keys} for d in _cmp_keys}
+    for r in (advisory_qs
+              .exclude(recommended_type__isnull=True)
+              .exclude(shipment__shipment_type__isnull=True)
+              .values('shipment__shipment_type', 'recommended_type')
+              .annotate(cnt=Count('id'))):
+        d, rec = r['shipment__shipment_type'], r['recommended_type']
+        if d in _cmp_cross and rec in _cmp_cross[d]:
+            _cmp_cross[d][rec] += r['cnt']
+    wmcda_comparison_rows = []
+    _cmp_total = _cmp_match = 0
+    for d, dlabel in _cmp_meta:
+        row_total = sum(_cmp_cross[d].values())
+        row_match = _cmp_cross[d][d]
+        _cmp_total += row_total
+        _cmp_match += row_match
+        wmcda_comparison_rows.append({
+            'declared': dlabel, 'declared_key': d,
+            'total': row_total, 'match': row_match,
+            'match_pct': round(row_match / row_total * 100) if row_total else 0,
+            'cells': [
+                {'key': rk, 'count': _cmp_cross[d][rk], 'is_match': rk == d}
+                for rk in _cmp_keys
+            ],
+        })
+    wmcda_comparison_agreement = round(_cmp_match / _cmp_total * 100) if _cmp_total else 0
+    wmcda_comparison_total = _cmp_total
+
     #  Declarant Performance (respects chart filters) — batch queries to avoid N+1
     declarants = User.objects.filter(role='declarant').order_by('first_name', 'username')
 
@@ -1080,6 +1112,9 @@ def _analytics_context_response(request):
         'wmcda_scoreboard':   wmcda_scoreboard,
         'wmcda_max':          wmcda_max,
         'wmcda_total':        wmcda_total,
+        'wmcda_comparison_rows':      wmcda_comparison_rows,
+        'wmcda_comparison_agreement': wmcda_comparison_agreement,
+        'wmcda_comparison_total':     wmcda_comparison_total,
         'declarant_data':     declarant_data,
         # filters
         'date_from':          date_from,

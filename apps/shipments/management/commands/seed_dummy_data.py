@@ -1,17 +1,33 @@
 """
-Seed command: python manage.py seed_dummy_data
-Creates 10 consignees, 3 declarants, 1 supervisor, and 50 shipments
-with computations, advisories, notifications, and status logs.
+Seed command: python manage.py seed_dummy_data [--count 100] [--months 12] [--clear]
+
+Generates realistic, historically-spread demo shipments so the analytics
+dashboards show genuine trends and patterns (not a single flat bucket).
+
+Key behaviours:
+  * Shipments are spread across the last N months (default 12) with a mild
+    upward trend toward the present, so monthly charts have a real shape.
+  * Every status in Shipment.STATUS_CHOICES is represented and randomised.
+  * Each shipment gets a backdated status-log timeline (incoming -> ... -> final)
+    so processing-time analytics have data to measure.
+  * Computed+ shipments get a DutyComputation and a real WMCDA ShippingAdvisory.
+  * Billed shipments get consignee Feedback (mostly positive, some approved).
+  * --clear removes only previously-seeded DEMO shipments. It never deletes
+    user accounts or real shipments.
 """
 import json
 import random
+from datetime import timedelta
 from decimal import Decimal
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db import transaction
+
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
+from apps.consignee.models import Feedback
 from apps.notifications.models import Notification
 
 
@@ -29,8 +45,8 @@ CONSIGNEES = [
 ]
 
 DECLARANTS = [
-    ('declarant01', 'Elena',  'Bautista',   'elena.bautista@rtriplelj.ph',  '+63-917-200-0001'),
-    ('declarant02', 'Marco',  'Dela Cruz',  'marco.delacruz@rtriplelj.ph',  '+63-917-200-0002'),
+    ('declarant01', 'Elena',  'Bautista',   'elena.bautista@rtriplelj.ph',   '+63-917-200-0001'),
+    ('declarant02', 'Marco',  'Dela Cruz',  'marco.delacruz@rtriplelj.ph',   '+63-917-200-0002'),
     ('declarant03', 'Sarah',  'Villanueva', 'sarah.villanueva@rtriplelj.ph', '+63-917-200-0003'),
 ]
 
@@ -61,13 +77,67 @@ DESCRIPTIONS = [
     'Chemical reagents and laboratory supplies',
 ]
 
-IMPORT_TYPES = ['commercial', 'personal', 'balik_bayan', 'courier', 'sample', 'diplomatic']
+IMPORT_TYPES = ['commercial', 'personal', 'balikbayan', 'samples',
+                'machinery', 'raw_materials', 'ecommerce']
 SHIP_TYPES   = ['lcl', 'fcl', 'air']
+SHIP_WEIGHTS = [40, 35, 25]
 URGENCIES    = ['standard', 'priority', 'urgent', 'rush']
+URG_WEIGHTS  = [40, 30, 20, 10]
+
+# Invoice currency mix — ~85% USD, the rest spread across other supported
+# currencies so the analytics currency breakdown isn't single-valued.
+CURRENCIES   = ['USD', 'EUR', 'JPY', 'HKD', 'CNY', 'GBP', 'SGD']
+CUR_WEIGHTS  = [85, 4, 3, 2, 2, 2, 2]
+
+FEEDBACK_COMMENTS = [
+    'Smooth clearance and clear cost breakdown. Will use again.',
+    'Fast processing, kept us updated the whole way through.',
+    'The landed-cost estimate matched the final bill almost exactly.',
+    'Very professional handling. Documentation was thorough.',
+    'Good service overall, a minor delay at assessment but well communicated.',
+    'Transparent fees and responsive declarant. Highly recommended.',
+    'Reliable as always. The advisory helped us pick the right mode.',
+    'Clear updates at every status change. Appreciated the heads-up emails.',
+    'Quick turnaround from arrival to release. Great job.',
+    'Helpful team, accurate computation, no surprises on the final cost.',
+]
+
+# Linear happy-path pipeline. Branch statuses (rejected / for_revision) are
+# handled separately in _build_path().
+PIPELINE = ['incoming', 'arrived', 'computed', 'approved',
+            'lodgement', 'ongoing', 'assessed', 'paid', 'released', 'billed']
+
+# Relative likelihood of each *final* status. Billed is weighted up so history,
+# feedback and completion analytics have plenty to show.
+FINAL_WEIGHTS = {
+    'incoming':     8,
+    'arrived':      8,
+    'computed':    10,
+    'for_revision': 6,
+    'rejected':     6,
+    'approved':     8,
+    'lodgement':    8,
+    'ongoing':      8,
+    'assessed':     8,
+    'paid':         8,
+    'released':     8,
+    'billed':      14,
+}
 
 
-def rand_hawb(prefix, n):
-    return f'{prefix}-{str(n).zfill(5)}'
+# Demo shipments use the real R3PCR-{year}-{seq} numbering, continuing
+# seamlessly from genuine shipments so the references look authentic. Because
+# the HAWB no longer distinguishes them, each seed shipment is tagged with a
+# sentinel note on its status logs — a string real shipments never produce —
+# so --clear can target them safely without a schema change.
+SEED_NOTE = '[seed:r3pcr-demo]'
+
+
+def _seed_ids():
+    return list(
+        Shipment.objects.filter(status_logs__notes=SEED_NOTE)
+        .distinct().values_list('id', flat=True)
+    )
 
 
 def make_brokerage_fee(tv):
@@ -93,232 +163,297 @@ def make_ipf(tv):
     return Decimal('2000')
 
 
+def _build_path(final):
+    """Return the ordered list of statuses a shipment passed through."""
+    if final == 'incoming':
+        return ['incoming']
+    if final == 'rejected':
+        # Rejected either at arrival or after computation.
+        return random.choice([
+            ['incoming', 'arrived', 'rejected'],
+            ['incoming', 'arrived', 'computed', 'rejected'],
+        ])
+    if final == 'for_revision':
+        return ['incoming', 'arrived', 'computed', 'for_revision']
+    return PIPELINE[:PIPELINE.index(final) + 1]
+
+
 class Command(BaseCommand):
-    help = 'Seed demo users, shipments, computations, and notifications'
+    help = 'Seed historically-spread demo shipments for analytics dashboards'
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            '--clear', action='store_true',
-            help='Delete all existing seed data before seeding'
-        )
+        parser.add_argument('--count',  type=int, default=100,
+                            help='Number of shipments to create (default 100)')
+        parser.add_argument('--months', type=int, default=12,
+                            help='Spread submissions across the last N months (default 12)')
+        parser.add_argument('--clear',  action='store_true',
+                            help='Delete previously-seeded DEMO shipments first (keeps users)')
 
     @transaction.atomic
     def handle(self, *args, **options):
+        count  = max(1, options['count'])
+        months = max(1, options['months'])
+        now    = timezone.now()
+
+        # ── Optional clear (sentinel-tagged demo shipments only — never users) ─
         if options['clear']:
-            self.stdout.write('Clearing existing seed data...')
-            User.objects.filter(username__startswith='consignee').delete()
-            User.objects.filter(username__startswith='declarant').delete()
-            User.objects.filter(username__startswith='supervisor').delete()
-            self.stdout.write(self.style.WARNING('Seed users deleted.'))
+            demo_ids = _seed_ids()
+            n = len(demo_ids)
+            Feedback.objects.filter(shipment_id__in=demo_ids).delete()
+            Notification.objects.filter(shipment_id__in=demo_ids).delete()
+            StatusLog.objects.filter(shipment_id__in=demo_ids).delete()
+            DutyComputation.objects.filter(shipment_id__in=demo_ids).delete()
+            ShippingAdvisory.objects.filter(shipment_id__in=demo_ids).delete()
+            Shipment.objects.filter(id__in=demo_ids).delete()
+            self.stdout.write(self.style.WARNING(f'Cleared {n} existing demo shipments.'))
 
-        # ── Create Users ──────────────────────────────────────────────────────
-        consignees  = []
-        declarants  = []
-        supervisors = []
-
-        for uname, fn, ln, email, phone in CONSIGNEES:
-            u, created = User.objects.get_or_create(
-                username=uname,
-                defaults=dict(
-                    first_name=fn, last_name=ln, email=email,
-                    role='consignee', phone_number=phone, is_active=True,
-                ),
-            )
-            if created:
-                u.set_password('Demo@1234')
-                u.save()
-            consignees.append(u)
-
-        for uname, fn, ln, email, phone in DECLARANTS:
-            u, created = User.objects.get_or_create(
-                username=uname,
-                defaults=dict(
-                    first_name=fn, last_name=ln, email=email,
-                    role='declarant', phone_number=phone, is_active=True,
-                ),
-            )
-            if created:
-                u.set_password('Demo@1234')
-                u.save()
-            declarants.append(u)
-
-        for uname, fn, ln, email, phone in SUPERVISORS:
-            u, created = User.objects.get_or_create(
-                username=uname,
-                defaults=dict(
-                    first_name=fn, last_name=ln, email=email,
-                    role='supervisor', phone_number=phone, is_active=True,
-                ),
-            )
-            if created:
-                u.set_password('Demo@1234')
-                u.save()
-            supervisors.append(u)
+        # ── Users ─────────────────────────────────────────────────────────────
+        consignees, declarants, supervisors = [], [], []
+        for bucket, rows, role in (
+            (consignees, CONSIGNEES, 'consignee'),
+            (declarants, DECLARANTS, 'declarant'),
+            (supervisors, SUPERVISORS, 'supervisor'),
+        ):
+            for uname, fn, ln, email, phone in rows:
+                u, created = User.objects.get_or_create(
+                    username=uname,
+                    defaults=dict(first_name=fn, last_name=ln, email=email,
+                                  role=role, phone_number=phone, is_active=True),
+                )
+                if created:
+                    u.set_password('Demo@1234')
+                    u.save()
+                bucket.append(u)
 
         self.stdout.write(self.style.SUCCESS(
             f'Users ready — {len(consignees)} consignees, '
             f'{len(declarants)} declarants, {len(supervisors)} supervisor'
         ))
 
-        # ── HS Codes ──────────────────────────────────────────────────────────
         hs_list = list(HSCode.objects.filter(is_active=True))
         if not hs_list:
             self.stdout.write(self.style.WARNING(
-                'No HS codes found. Run your HS code seed first. Skipping computations.'
+                'No active HS codes found — run seed_hscodes first. '
+                'Computations/advisories will be skipped.'
             ))
 
-        # ── Shipment distribution ─────────────────────────────────────────────
-        # 50 total: 15 incoming, 10 arrived, 8 computed, 7 lodgement, 6 approved, 4 rejected
-        status_plan = (
-            ['incoming']    * 15 +
-            ['arrived']     * 10 +
-            ['computed']    * 8  +
-            ['lodgement']   * 7  +
-            ['approved']    * 6  +
-            ['rejected']    * 4
-        )
-        random.shuffle(status_plan)
+        # Real WMCDA scorer (lazy import; fall back to random if unavailable).
+        try:
+            from apps.computation.views import compute_wmcda
+        except Exception:
+            compute_wmcda = None
 
-        shipments_created = 0
-        for i, status in enumerate(status_plan, start=1):
-            hawb = rand_hawb('DEMO', i)
-            if Shipment.objects.filter(hawb_number=hawb).exists():
-                continue
+        # ── Final-status plan: almost all 'billed', with a small spread of
+        # other statuses for variety (each non-billed status appears >= once).
+        statuses = list(FINAL_WEIGHTS.keys())
+        other_statuses = [s for s in statuses if s != 'billed']
+        plan = ['billed'] * count
+        n_other = min(count, max(len(other_statuses), int(round(count * 0.15))))
+        for i in range(n_other):
+            plan[i] = other_statuses[i % len(other_statuses)]
+        random.shuffle(plan)
 
+        # Per-year HAWB counters continuing seamlessly from the highest existing
+        # genuine sequence, so demo references look just like real ones.
+        year_counters = {}
+        for h in (Shipment.objects.filter(hawb_number__startswith='R3PCR-')
+                  .values_list('hawb_number', flat=True)):
+            try:
+                y, s = int(h.split('-')[1]), int(h.split('-')[2])
+                year_counters[y] = max(year_counters.get(y, 0), s)
+            except (IndexError, ValueError):
+                pass
+
+        exchange_rate = Decimal('58.50')
+        created = 0
+        status_tally = {s: 0 for s in statuses}
+
+        for i, final in enumerate(plan):
             consignee = random.choice(consignees)
             desc      = random.choice(DESCRIPTIONS)
             itype     = random.choice(IMPORT_TYPES)
-            stype     = random.choice(SHIP_TYPES)
-            urgency   = random.choices(URGENCIES, weights=[40, 30, 20, 10])[0]
+            stype     = random.choices(SHIP_TYPES, weights=SHIP_WEIGHTS)[0]
+            urgency   = random.choices(URGENCIES, weights=URG_WEIGHTS)[0]
+            currency  = random.choices(CURRENCIES, weights=CUR_WEIGHTS)[0]
             qty       = Decimal(str(random.randint(1, 500)))
             weight    = Decimal(str(round(random.uniform(0.5, 2000), 2)))
+            volume    = Decimal(str(round(random.uniform(0.3, 28), 2)))
             exw_usd   = Decimal(str(round(random.uniform(200, 50000), 2)))
             freight   = Decimal(str(round(random.uniform(50, 3000), 2)))
             insurance = Decimal(str(round(exw_usd * Decimal('0.005'), 2)))
+            distance  = random.randint(500, 12000)
 
-            declarant = None
-            if status not in ('incoming',):
-                declarant = random.choice(declarants)
+            path = _build_path(final)
+            reached_computed = 'computed' in path
+            declarant = random.choice(declarants) if final != 'incoming' else None
+
+            # ── Backdated submission date: month bucket with recency trend ────
+            month_offset = random.choices(
+                range(months), weights=[months - m for m in range(months)]
+            )[0]
+            days_ago = month_offset * 30 + random.randint(0, 29)
+            submitted_at = now - timedelta(
+                days=days_ago, hours=random.randint(0, 9), minutes=random.randint(0, 59)
+            )
+            if submitted_at > now:
+                submitted_at = now - timedelta(hours=1)
+
+            # 'incoming' shipments are freshly submitted and not yet processed.
+            # Keep them recent so they are never flagged overdue (the declarant
+            # queue emails an alert for any incoming shipment past its deadline).
+            if final == 'incoming':
+                submitted_at = now - timedelta(
+                    days=random.randint(0, 2),
+                    hours=random.randint(0, 9), minutes=random.randint(0, 59),
+                )
+
+            # HAWB in the real format, continuing the genuine per-year sequence.
+            year = submitted_at.year
+            seq = year_counters.get(year, 0) + 1
+            hawb = f'R3PCR-{year}-{seq:06d}'
+            while Shipment.objects.filter(hawb_number=hawb).exists():
+                seq += 1
+                hawb = f'R3PCR-{year}-{seq:06d}'
+            year_counters[year] = seq
 
             shipment = Shipment.objects.create(
-                hawb_number=hawb,
-                consignee=consignee,
-                declarant=declarant,
-                import_type=itype,
-                shipment_type=stype,
-                urgency=urgency,
-                status=status,
-                description=desc,
-                quantity=qty,
-                gross_weight=weight,
-                declared_value=exw_usd,
-                freight_cost=freight,
-                insurance_cost=insurance,
+                hawb_number=hawb, consignee=consignee, declarant=declarant,
+                import_type=itype, shipment_type=stype, urgency=urgency,
+                status=final, description=desc, quantity=qty, gross_weight=weight,
+                invoice_currency=currency, declared_value=exw_usd,
+                freight_cost=freight, insurance_cost=insurance,
             )
 
-            # Status log
-            StatusLog.objects.create(
-                shipment=shipment,
-                changed_by=declarant or consignee,
-                old_status='incoming',
-                new_status=status,
-                notes='Seeded record',
-            )
+            # ── Backdated status-log timeline ─────────────────────────────────
+            ts = submitted_at
+            computed_ts = None
+            prev = 'incoming'
+            for step_i, st in enumerate(path):
+                if step_i > 0:
+                    ts = ts + timedelta(
+                        days=random.randint(0, 3),
+                        hours=random.randint(1, 20),
+                        minutes=random.randint(0, 59),
+                    )
+                    if ts > now:
+                        ts = now - timedelta(minutes=random.randint(1, 120))
+                log = StatusLog.objects.create(
+                    shipment=shipment, changed_by=declarant or consignee,
+                    old_status=prev, new_status=st, notes=SEED_NOTE,
+                )
+                StatusLog.objects.filter(pk=log.pk).update(changed_at=ts)
+                if st == 'computed':
+                    computed_ts = ts
+                prev = st
 
-            # Computation for arrived and beyond
-            if status not in ('incoming',) and hs_list and declarant:
-                hs = random.choice(hs_list)
-                exchange_rate = Decimal('59.1480')
-                duty_rate = hs.duty_rate
+            last_ts = ts
+
+            # ── Computation + advisory for computed-and-beyond ────────────────
+            if reached_computed and hs_list and declarant:
+                hs            = random.choice(hs_list)
+                duty_rate     = hs.duty_rate
                 other_charges = exw_usd * Decimal('0.03')
-                dv_usd = exw_usd + freight + insurance + other_charges
-                dv_php = dv_usd * exchange_rate
-                cud = dv_php * (duty_rate / Decimal('100'))
+                dv_usd        = exw_usd + freight + insurance + other_charges
+                dv_php        = dv_usd * exchange_rate
+                cud           = dv_php * (duty_rate / Decimal('100'))
                 taxable_value = round(dv_php, 2)
-                customs_duties = round(cud, 2)
-                vat_base = taxable_value + customs_duties
-                vat = round(vat_base * Decimal('0.12'), 2)
-                bf = make_brokerage_fee(taxable_value)
-                ipf = make_ipf(taxable_value)
-                tlc = round(taxable_value + customs_duties + vat + bf + Decimal('130') + ipf, 2)
+                customs       = round(cud, 2)
+                vat_base      = taxable_value + customs
+                vat           = round(vat_base * Decimal('0.12'), 2)
+                bf            = make_brokerage_fee(taxable_value)
+                ipf           = make_ipf(taxable_value)
+                tlc           = round(taxable_value + customs + vat + bf + Decimal('130') + ipf, 2)
 
                 items = [{
-                    'no': 1,
-                    'description': desc,
-                    'quantity': str(qty),
-                    'exw': float(exw_usd),
-                    'item_freight': float(freight),
-                    'item_insurance': float(insurance),
-                    'other_charges': float(other_charges),
-                    'dv_usd': float(dv_usd),
-                    'dv_php': float(dv_php),
-                    'cud': float(cud),
+                    'no': 1, 'description': desc, 'quantity': str(qty),
+                    'exw': float(exw_usd), 'item_freight': float(freight),
+                    'item_insurance': float(insurance), 'other_charges': float(other_charges),
+                    'dv_usd': float(dv_usd), 'dv_php': float(dv_php), 'cud': float(cud),
                 }]
 
-                DutyComputation.objects.create(
-                    shipment=shipment,
-                    hs_code=hs,
-                    total_freight=freight,
-                    total_insurance=insurance,
-                    exchange_rate=exchange_rate,
-                    duty_rate=duty_rate,
-                    declared_value=exw_usd,
-                    items_json=json.dumps(items),
-                    dutiable_value=taxable_value,
-                    customs_duty=customs_duties,
-                    vat_base=vat_base,
-                    vat_amount=vat,
-                    brokerage_fee=bf,
-                    ipf=ipf,
-                    total_landed_cost=tlc,
-                    computed_by=declarant,
+                comp = DutyComputation.objects.create(
+                    shipment=shipment, hs_code=hs, total_freight=freight,
+                    total_insurance=insurance, exchange_rate=exchange_rate,
+                    duty_rate=duty_rate, declared_value=exw_usd,
+                    items_json=json.dumps(items), dutiable_value=taxable_value,
+                    customs_duty=customs, vat_base=vat_base, vat_amount=vat,
+                    brokerage_fee=bf, ipf=ipf, total_landed_cost=tlc,
+                    container_type=stype, computed_by=declarant,
                 )
+                if computed_ts:
+                    DutyComputation.objects.filter(pk=comp.pk).update(
+                        computed_at=computed_ts, updated_at=computed_ts)
 
-                # Shipping advisory
+                # Real WMCDA scoring so recommended_type is authentic and may
+                # differ from the consignee's chosen mode.
+                if compute_wmcda:
+                    try:
+                        scores, recommended, _bd, _ex = compute_wmcda(
+                            float(weight), float(volume), float(exw_usd), urgency, distance)
+                        lcl_s = Decimal(str(scores['lcl']))
+                        fcl_s = Decimal(str(scores['fcl']))
+                        air_s = Decimal(str(scores['air']))
+                    except Exception:
+                        recommended = stype
+                        lcl_s = fcl_s = air_s = Decimal(str(round(random.uniform(0.4, 0.8), 4)))
+                else:
+                    recommended = random.choices(SHIP_TYPES, weights=SHIP_WEIGHTS)[0]
+                    lcl_s = Decimal(str(round(random.uniform(0.4, 0.8), 4)))
+                    fcl_s = Decimal(str(round(random.uniform(0.4, 0.8), 4)))
+                    air_s = Decimal(str(round(random.uniform(0.4, 0.8), 4)))
+
                 ShippingAdvisory.objects.create(
-                    shipment=shipment,
-                    gross_weight=weight,
-                    cargo_volume=round(weight / Decimal('300'), 2),
-                    declared_value=exw_usd,
-                    urgency_level=urgency,
-                    distance_km=Decimal(str(random.randint(500, 8000))),
-                    lcl_score=Decimal(str(round(random.uniform(0.4, 0.8), 4))),
-                    fcl_score=Decimal(str(round(random.uniform(0.4, 0.8), 4))),
-                    air_score=Decimal(str(round(random.uniform(0.4, 0.8), 4))),
-                    recommended_type=stype,
-                    computed_by=declarant,
+                    shipment=shipment, gross_weight=weight, cargo_volume=volume,
+                    declared_value=exw_usd, urgency_level=urgency,
+                    distance_km=Decimal(str(distance)),
+                    lcl_score=lcl_s, fcl_score=fcl_s, air_score=air_s,
+                    recommended_type=recommended, computed_by=declarant,
                 )
 
-                # Notify consignee computation is ready
                 Notification.objects.create(
-                    recipient=consignee,
-                    shipment=shipment,
+                    recipient=consignee, shipment=shipment,
                     notification_type='computation',
                     title=f'Computation Ready — {hawb}',
                     message=f'Estimated Total Landed Cost: ₱{tlc:,.2f}',
                 )
 
-            # Notify consignee of status
-            if status in ('approved', 'rejected'):
+            # ── Status notification for terminal outcomes ─────────────────────
+            if final in ('approved', 'rejected', 'billed'):
                 Notification.objects.create(
-                    recipient=consignee,
-                    shipment=shipment,
-                    notification_type=status,
-                    title=f'Shipment {status.title()} — {hawb}',
-                    message=(
-                        f'Your shipment {hawb} has been {status} by the Bureau of Customs.'
-                    ),
+                    recipient=consignee, shipment=shipment, notification_type=final,
+                    title=f'Shipment {final.title()} — {hawb}',
+                    message=f'Your shipment {hawb} is now marked {final}.',
                 )
 
-            shipments_created += 1
+            # ── Feedback for billed shipments ─────────────────────────────────
+            if final == 'billed':
+                rating = random.choices([5, 4, 3, 2, 1], weights=[45, 30, 15, 6, 4])[0]
+                fb = Feedback.objects.create(
+                    consignee=consignee, shipment=shipment, rating=rating,
+                    comment=random.choice(FEEDBACK_COMMENTS),
+                    is_approved=random.random() < 0.65,
+                )
+                Feedback.objects.filter(pk=fb.pk).update(
+                    created_at=last_ts + timedelta(days=random.randint(0, 3)))
 
-        self.stdout.write(self.style.SUCCESS(
-            f'Seeded {shipments_created} shipments.'
-        ))
-        self.stdout.write('')
-        self.stdout.write('─' * 50)
+            # ── Backdate shipment timestamps ──────────────────────────────────
+            Shipment.objects.filter(pk=shipment.pk).update(
+                submitted_at=submitted_at,
+                updated_at=last_ts,
+                processed_at=computed_ts,
+            )
+
+            status_tally[final] += 1
+            created += 1
+
+        # ── Summary ───────────────────────────────────────────────────────────
+        self.stdout.write(self.style.SUCCESS(f'Seeded {created} shipments across ~{months} months.'))
+        self.stdout.write('Status distribution:')
+        for s in statuses:
+            self.stdout.write(f'  {s:<13} {status_tally[s]}')
+        self.stdout.write('-' * 50)
         self.stdout.write('Demo credentials (all passwords: Demo@1234)')
-        self.stdout.write('  Consignees : consignee01 … consignee10')
+        self.stdout.write('  Consignees : consignee01 ... consignee10')
         self.stdout.write('  Declarants : declarant01, declarant02, declarant03')
         self.stdout.write('  Supervisor : supervisor01')
-        self.stdout.write('─' * 50)
+        self.stdout.write('-' * 50)

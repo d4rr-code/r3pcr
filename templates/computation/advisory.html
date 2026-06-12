@@ -1,6 +1,6 @@
 ﻿{% extends 'declarant/base_declarant.html' %}
 
-{% block title %}Shipping Advisory â€” {{ shipment.hawb_number }}{% endblock %}
+{% block title %}Shipping Advisory — {{ shipment.hawb_number }}{% endblock %}
 {% block page_title %}Shipping Advisory{% endblock %}
 {% block nav_queue %}active{% endblock %}
 
@@ -57,7 +57,7 @@
 
 <div style="display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start;">
 
-    <!-- â”€â”€ Input Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!-- ── Input Form ─────────────────────────────────────────────────── -->
     <div class="card">
         <p class="card-title">Shipment Parameters</p>
 
@@ -168,7 +168,7 @@
         </form>
     </div>
 
-    <!-- â”€â”€ Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!-- ── Results ────────────────────────────────────────────────────── -->
     <div>
 
         {% if result and scores %}
@@ -187,8 +187,8 @@
                 <p style="color:#6B7280; font-size:12px; margin:0 0 4px;
                            text-transform:uppercase; letter-spacing:.08em; font-weight:600;">Recommended Mode</p>
                 <p style="color:#111827; font-size:24px; font-weight:700; margin:0;">
-                    {% if result == 'lcl' %}LCL â€” Less Container Load
-                    {% elif result == 'fcl' %}FCL â€” Full Container Load
+                    {% if result == 'lcl' %}LCL — Less Container Load
+                    {% elif result == 'fcl' %}FCL — Full Container Load
                     {% else %}Air Freight{% endif %}
                 </p>
                 {% if explanation %}
@@ -245,10 +245,10 @@
         <div class="card">
             <p class="card-title">Criterion Breakdown</p>
             <p style="color:#64748b; font-size:12px; margin-bottom:16px;">
-                Raw score per criterion (0 = poor Â· 1 = best) &nbsp;Â·&nbsp;
-                <span style="color:#22c55e;">â—</span> â‰¥ 0.80 &nbsp;
-                <span style="color:#f59e0b;">â—</span> â‰¥ 0.60 &nbsp;
-                <span style="color:#ef4444;">â—</span> &lt; 0.60
+                Raw score per criterion (0 = poor · 1 = best) &nbsp;·&nbsp;
+                <span style="color:#22c55e;">●</span> ≥ 0.80 &nbsp;
+                <span style="color:#f59e0b;">●</span> ≥ 0.60 &nbsp;
+                <span style="color:#ef4444;">●</span> &lt; 0.60
             </p>
             <div style="overflow-x:auto;">
                 <table style="width:100%; border-collapse:collapse; font-size:13px;">
@@ -310,7 +310,7 @@
         {% endif %}
 
         {% elif existing %}
-        <!-- Saved advisory â€” score cards -->
+        <!-- Saved advisory — score cards -->
         <div class="card">
             <p class="card-title">Saved Advisory</p>
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px;">
@@ -352,10 +352,10 @@
         <div class="card" style="margin-top:16px;">
             <p class="card-title">Criterion Breakdown</p>
             <p style="color:#64748b; font-size:12px; margin-bottom:16px;">
-                Raw score per criterion (0 = poor Â· 1 = best) &nbsp;Â·&nbsp;
-                <span style="color:#22c55e;">â—</span> â‰¥ 0.80 &nbsp;
-                <span style="color:#f59e0b;">â—</span> â‰¥ 0.60 &nbsp;
-                <span style="color:#ef4444;">â—</span> &lt; 0.60
+                Raw score per criterion (0 = poor · 1 = best) &nbsp;·&nbsp;
+                <span style="color:#22c55e;">●</span> ≥ 0.80 &nbsp;
+                <span style="color:#f59e0b;">●</span> ≥ 0.60 &nbsp;
+                <span style="color:#ef4444;">●</span> &lt; 0.60
             </p>
             <div style="overflow-x:auto;">
                 <table style="width:100%; border-collapse:collapse; font-size:13px;">
@@ -433,7 +433,7 @@
         {% endif %}
 
         {% if wmcda_history %}
-        <!-- â”€â”€ Historical Advisory Pattern â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+        <!-- ── Historical Advisory Pattern ─────────────────────────────────── -->
         <div class="card" style="margin-top:16px;">
             <p class="card-title">Historical Pattern - {{ wmcda_history.ship_type }}</p>
             <p style="color:#374151; font-size:13px; margin:0 0 16px;">
@@ -482,7 +482,7 @@
         {% endif %}
 
         {% if existing %}
-        <!-- â”€â”€ Declarant Advisory Picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+        <!-- ── Declarant Advisory Picker ───────────────────────────────────── -->
         <div class="card" style="margin-top:20px;">
             <p class="card-title" style="margin-bottom:4px;">Your Advisory to Consignee</p>
             <p style="color:#64748b; font-size:12px; margin-bottom:18px;">
@@ -502,8 +502,8 @@
                     <p style="color:#1D4ED8; font-size:10px; font-weight:700; margin:0; text-transform:uppercase; letter-spacing:.05em;">Current Advisory</p>
                     <p style="color:#111827; font-size:14px; font-weight:700; margin:2px 0 0;">
                         {% if existing.declarant_recommendation == 'air' %}Air Freight
-                        {% elif existing.declarant_recommendation == 'lcl' %}LCL â€” Less Container Load
-                        {% elif existing.declarant_recommendation == 'fcl' %}FCL â€” Full Container Load
+                        {% elif existing.declarant_recommendation == 'lcl' %}LCL — Less Container Load
+                        {% elif existing.declarant_recommendation == 'fcl' %}FCL — Full Container Load
                         {% endif %}
                     </p>
                     {% if existing.declarant_note %}

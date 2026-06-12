@@ -203,9 +203,8 @@
     <!-- Reminder Panel -->
     <div class="c-card">
         <p class="c-card-title" style="color:#1B3358; text-align:center; margin-bottom:16px;">Reminder</p>
-        <div id="reminder-list">
-            {% for shipment in recent_shipments %}
-            {% if shipment.has_deficiency or shipment.status == 'arrived' or shipment.status == 'computed' %}
+        <div id="reminder-list" style="max-height:210px; overflow-y:auto; padding-right:6px;">
+            {% for shipment in reminders %}
             <div class="reminder-item">
                 <p class="reminder-ref">{{ shipment.hawb_number }}</p>
                 {% if shipment.has_deficiency %}
@@ -219,12 +218,9 @@
                     <p class="reminder-desc">Your shipment has arrived and is awaiting processing.</p>
                 {% endif %}
             </div>
-            {% endif %}
             {% empty %}
-            {% endfor %}
-            {% if not recent_shipments %}
             <p style="color:#9CA3AF; font-size:12px; text-align:center; padding:20px 0;">No pending reminders.</p>
-            {% endif %}
+            {% endfor %}
         </div>
     </div>
 </div>
