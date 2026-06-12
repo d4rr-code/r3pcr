@@ -5,6 +5,16 @@ import tempfile
 import threading
 from decimal import Decimal
 
+_RATE_KEYS = {
+    'USD': 'rate_USD', 'EUR': 'rate_EUR', 'JPY': 'rate_JPY',
+    'HKD': 'rate_HKD', 'CNY': 'rate_CNY', 'GBP': 'rate_GBP',
+    'SGD': 'rate_SGD',
+}
+_RATE_DEFAULTS = {
+    'USD': '59.1480', 'EUR': '65.0000', 'JPY': '0.3900',
+    'HKD': '7.5700',  'CNY': '8.1500',  'GBP': '74.5000', 'SGD': '43.8000',
+}
+
 # ── Country → approximate distance to Manila (km) ─────────────────────────────
 # Based on typical sea/air routing from main port/airport to Manila.
 # Used to auto-populate the ECDT distance field from OCR-extracted country_of_origin.
@@ -125,7 +135,6 @@ from django.http import HttpResponse, JsonResponse
 from django.db import transaction
 from django.db.models import Q, Count
 from django.utils import timezone
-from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, HSCode, ShipmentHSCode, StatusLog
 from apps.supervisor.models import SystemConfig
 from apps.notifications.utils import notify_shipment_status_change
@@ -184,6 +193,20 @@ def get_ipf(taxable_value):
         if tv <= float(tier['max']):
             return Decimal(str(tier['fee']))
     return Decimal(str(tiers[-1]['fee']))
+
+
+def _load_currency_rates():
+    """Load PHP conversion rates for all supported invoice currencies."""
+    from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
+
+    ensure_daily_exchange_rates()
+    rates = {}
+    for code, key in _RATE_KEYS.items():
+        try:
+            rates[code] = str(SystemConfig.objects.get(key=key).value)
+        except SystemConfig.DoesNotExist:
+            rates[code] = _RATE_DEFAULTS[code]
+    return rates
 
 
 def normalize_charge_mode(value, shipment_type=''):
@@ -955,6 +978,115 @@ def _load_items_for_get(request, shipment, existing, shipment_id):
     return items
 
 
+def _resolve_prefill_distance_volume(shipment, advisory_ex, ocr_fields):
+    """Resolve WMCDA distance and volume defaults for the compute form."""
+    def _ocr_field_value(fields, key):
+        raw = (fields or {}).get(key, '')
+        if isinstance(raw, dict):
+            return str(raw.get('value', '') or '').strip()
+        return str(raw or '').strip()
+
+    # Priority:
+    #   1. Existing saved advisory from a previous computation
+    #   2. Session OCR fields from the process shipment page
+    #   3. Database-stored OCR fields on uploaded documents
+    #   4. Manual/default values
+    ocr_country = (
+        _ocr_field_value(ocr_fields, 'country_of_origin') or
+        _ocr_field_value(ocr_fields, 'origin')
+    ).strip()
+    ocr_volume = _ocr_field_value(ocr_fields, 'volume_cbm')
+    ocr_dimensions = _ocr_field_value(ocr_fields, 'dimensions')
+
+    if not ocr_country or not ocr_volume:
+        for doc in shipment.documents.all():
+            if not getattr(doc, 'ocr_fields_json', None):
+                continue
+            try:
+                stored = json.loads(doc.ocr_fields_json)
+            except Exception:
+                continue
+
+            if not ocr_country:
+                ocr_country = (
+                    _ocr_field_value(stored, 'country_of_origin') or
+                    _ocr_field_value(stored, 'origin')
+                ).strip()
+            if not ocr_volume:
+                ocr_volume = _ocr_field_value(stored, 'volume_cbm')
+            if not ocr_dimensions:
+                ocr_dimensions = _ocr_field_value(stored, 'dimensions')
+            if ocr_country and ocr_volume:
+                break
+
+    ocr_distance = _lookup_distance_from_country(ocr_country)
+
+    if advisory_ex and advisory_ex.distance_km:
+        prefill_distance = int(advisory_ex.distance_km)
+        prefill_distance_src = 'saved'
+    elif ocr_distance:
+        prefill_distance = ocr_distance
+        prefill_distance_src = f'auto — {ocr_country.title()}'
+    else:
+        prefill_distance = 2600
+        prefill_distance_src = 'default'
+
+    if advisory_ex and advisory_ex.cargo_volume:
+        prefill_volume = advisory_ex.cargo_volume
+        prefill_volume_src = 'saved'
+    elif ocr_volume:
+        prefill_volume = ocr_volume
+        prefill_volume_src = f'auto from OCR: {ocr_dimensions}' if ocr_dimensions else 'auto from OCR'
+    else:
+        prefill_volume = '0'
+        prefill_volume_src = 'manual'
+
+    country_distance_options = _country_distance_options()
+    country_distance_map = {
+        opt['name']: opt['distance']
+        for opt in country_distance_options
+    }
+
+    return {
+        'prefill_distance': prefill_distance,
+        'prefill_distance_src': prefill_distance_src,
+        'prefill_origin_country': ocr_country.title() if ocr_country else '',
+        'country_distance_options': country_distance_options,
+        'country_distance_map': country_distance_map,
+        'prefill_volume': prefill_volume,
+        'prefill_volume_src': prefill_volume_src,
+    }
+
+
+def _collect_hs_suggestions(shipment, ocr_items, existing):
+    """Collect and persist HS code suggestions for the compute workspace."""
+    suggestion_parts = []
+    if shipment.description:
+        suggestion_parts.append(shipment.description)
+
+    for item in (ocr_items or [])[:3]:
+        if item.get('description'):
+            suggestion_parts.append(item['description'])
+
+    if not suggestion_parts and existing:
+        for item in (existing.get_items() or [])[:3]:
+            if item.get('description'):
+                suggestion_parts.append(item['description'])
+
+    combined_text = ' '.join(suggestion_parts).strip()
+    if not combined_text:
+        return []
+
+    suggestions = suggest_hs_codes(combined_text, top_n=10)
+    for hs in suggestions:
+        ShipmentHSCode.objects.get_or_create(
+            shipment=shipment,
+            hs_code=hs,
+            defaults={'is_suggested': True, 'is_confirmed': False},
+        )
+    return suggestions
+
+
 @login_required
 def compute_shipment(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id)
@@ -978,35 +1110,18 @@ def compute_shipment(request, shipment_id):
     wmcda_history     = None
 
     # ── All currency rates from SystemConfig (for JS auto-fill) ──────────────
-    from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
-    ensure_daily_exchange_rates()
-
-    _rate_keys = {
-        'USD': 'rate_USD', 'EUR': 'rate_EUR', 'JPY': 'rate_JPY',
-        'HKD': 'rate_HKD', 'CNY': 'rate_CNY', 'GBP': 'rate_GBP',
-        'SGD': 'rate_SGD',
-    }
-    _rate_defaults = {
-        'USD': '59.1480', 'EUR': '65.0000', 'JPY': '0.3900',
-        'HKD': '7.5700',  'CNY': '8.1500',  'GBP': '74.5000', 'SGD': '43.8000',
-    }
-    all_currency_rates = {}
-    for code, key in _rate_keys.items():
-        try:
-            all_currency_rates[code] = str(SystemConfig.objects.get(key=key).value)
-        except SystemConfig.DoesNotExist:
-            all_currency_rates[code] = _rate_defaults[code]
+    all_currency_rates = _load_currency_rates()
 
     # Current invoice currency (consignee-set); declarant can override on POST
     invoice_currency = (shipment.invoice_currency or 'USD').upper()
-    if invoice_currency not in _rate_keys:
+    if invoice_currency not in _RATE_KEYS:
         invoice_currency = 'USD'
     default_rate = all_currency_rates.get(invoice_currency, '59.1480')
-    usd_exchange_rate = Decimal(str(all_currency_rates.get('USD', _rate_defaults['USD'])))
+    usd_exchange_rate = Decimal(str(all_currency_rates.get('USD', _RATE_DEFAULTS['USD'])))
 
     if request.method == 'POST':
         posted_currency = (request.POST.get('invoice_currency', '') or '').strip().upper()
-        if posted_currency in _rate_keys:
+        if posted_currency in _RATE_KEYS:
             invoice_currency = posted_currency
             shipment.invoice_currency = invoice_currency
             shipment.save(update_fields=['invoice_currency'])
@@ -1155,94 +1270,16 @@ def compute_shipment(request, shipment_id):
     ocr_fields = request.session.get('ocr_fields', {}) if request.session.get('ocr_shipment_id') == shipment_id else {}
     ocr_items  = request.session.get('ocr_items',  []) if request.session.get('ocr_shipment_id') == shipment_id else []
 
-    def _ocr_field_value(fields, key):
-        raw = (fields or {}).get(key, '')
-        if isinstance(raw, dict):
-            return str(raw.get('value', '') or '').strip()
-        return str(raw or '').strip()
+    prefill_context = _resolve_prefill_distance_volume(shipment, advisory_ex, ocr_fields)
+    prefill_distance = prefill_context['prefill_distance']
+    prefill_distance_src = prefill_context['prefill_distance_src']
+    prefill_origin_country = prefill_context['prefill_origin_country']
+    country_distance_options = prefill_context['country_distance_options']
+    country_distance_map = prefill_context['country_distance_map']
+    prefill_volume = prefill_context['prefill_volume']
+    prefill_volume_src = prefill_context['prefill_volume_src']
 
-    # ── Auto-derive distance from OCR-extracted country of origin ─────────────
-    # Priority:
-    #   1) Existing saved advisory (already computed once)
-    #   2) Session OCR fields (set when declarant went through process page first)
-    #   3) Database-stored OCR fields on shipment documents (fallback for direct ECDT access)
-    #   4) Default 2600 km
-    _ocr_country = (_ocr_field_value(ocr_fields, 'country_of_origin') or _ocr_field_value(ocr_fields, 'origin')).strip()
-    _ocr_volume = _ocr_field_value(ocr_fields, 'volume_cbm')
-    _ocr_dimensions = _ocr_field_value(ocr_fields, 'dimensions')
-
-    # Fallback: read from database-stored OCR fields if session is empty/incomplete
-    if not _ocr_country or not _ocr_volume:
-        for _doc in shipment.documents.all():
-            if getattr(_doc, 'ocr_fields_json', None):
-                try:
-                    _stored = json.loads(_doc.ocr_fields_json)
-                    if not _ocr_country:
-                        _ocr_country = (
-                            _ocr_field_value(_stored, 'country_of_origin') or
-                            _ocr_field_value(_stored, 'origin')
-                        ).strip()
-                    if not _ocr_volume:
-                        _ocr_volume = _ocr_field_value(_stored, 'volume_cbm')
-                    if not _ocr_dimensions:
-                        _ocr_dimensions = _ocr_field_value(_stored, 'dimensions')
-                    if _ocr_country and _ocr_volume:
-                        break
-                except Exception:
-                    pass
-
-    _ocr_distance = _lookup_distance_from_country(_ocr_country)
-
-    if advisory_ex and advisory_ex.distance_km:
-        prefill_distance      = int(advisory_ex.distance_km)
-        prefill_distance_src  = 'saved'
-    elif _ocr_distance:
-        prefill_distance      = _ocr_distance
-        prefill_distance_src  = f'auto — {_ocr_country.title()}'
-    else:
-        prefill_distance      = 2600
-        prefill_distance_src  = 'default'
-
-    prefill_origin_country = _ocr_country.title() if _ocr_country else ''
-    country_distance_options = _country_distance_options()
-    country_distance_map = {
-        opt['name']: opt['distance']
-        for opt in country_distance_options
-    }
-
-    if advisory_ex and advisory_ex.cargo_volume:
-        prefill_volume = advisory_ex.cargo_volume
-        prefill_volume_src = 'saved'
-    elif _ocr_volume:
-        prefill_volume = _ocr_volume
-        prefill_volume_src = f'auto from OCR: {_ocr_dimensions}' if _ocr_dimensions else 'auto from OCR'
-    else:
-        prefill_volume = '0'
-        prefill_volume_src = 'manual'
-
-    # ── HS Code Suggestions (rule-based + historical) ──────────────────────────
-    # Collect the richest available description text in priority order:
-    # 1. shipment.description, 2. OCR item descriptions, 3. saved item descriptions
-    hs_suggestions = []
-    _suggest_parts = []
-    if shipment.description:
-        _suggest_parts.append(shipment.description)
-    for _it in (ocr_items or [])[:3]:
-        if _it.get('description'):
-            _suggest_parts.append(_it['description'])
-    if not _suggest_parts and existing:
-        for _it in (existing.get_items() or [])[:3]:
-            if _it.get('description'):
-                _suggest_parts.append(_it['description'])
-    _combined = ' '.join(_suggest_parts).strip()
-    if _combined:
-        hs_suggestions = suggest_hs_codes(_combined, top_n=10)
-        # Persist as is_suggested records for tracking & historical learning
-        for _hs in hs_suggestions:
-            ShipmentHSCode.objects.get_or_create(
-                shipment=shipment, hs_code=_hs,
-                defaults={'is_suggested': True, 'is_confirmed': False}
-            )
+    hs_suggestions = _collect_hs_suggestions(shipment, ocr_items, existing)
 
     # ── Declared mode focused breakdown ──────────────────────────────────────────
     declared_score     = None
@@ -1297,7 +1334,6 @@ def compute_shipment(request, shipment_id):
         'documents':          documents,
         'ocr_fields':         ocr_fields,
         'ocr_items':          ocr_items,
-        'default_rate':       default_rate,
         'wmcda_scores':       wmcda_scores,
         'wmcda_recommended':  wmcda_recommended,
         'wmcda_breakdown':    wmcda_breakdown,
@@ -2413,4 +2449,3 @@ def save_declarant_advisory(request, shipment_id):
         messages.success(request, 'Declarant advisory cleared.')
 
     return redirect('computation:advisory', shipment_id=shipment_id)
-

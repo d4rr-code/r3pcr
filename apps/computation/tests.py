@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.shipments.models import Shipment, HSCode, StatusLog
+from apps.shipments.models import Shipment, HSCode, ShipmentDocument, ShipmentHSCode, StatusLog
 from apps.supervisor.models import SystemConfig
 from apps.computation.models import DutyComputation, ShipmentLineItem, ShippingAdvisory
 from apps.computation.views import compute_ecdt
@@ -276,3 +276,124 @@ class ComputeShipmentGetTests(TestCase):
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0]['description'], 'Draft widget')
         self.assertEqual(items[0]['exw'], 250.0)
+
+    def test_get_context_loads_configured_and_default_currency_rates(self):
+        SystemConfig.objects.update_or_create(
+            key='rate_EUR',
+            defaults={'value': '70.1234'},
+        )
+
+        resp = self.client.get(self.url)
+
+        rates = json.loads(resp.context['all_currency_rates'])
+        self.assertEqual(rates['USD'], '50.0000')
+        self.assertEqual(rates['EUR'], '70.1234')
+        self.assertEqual(rates['JPY'], '0.3900')
+        self.assertEqual(resp.context['invoice_currency'], 'USD')
+        self.assertEqual(resp.context['default_rate'], '50.0000')
+        self.assertEqual(resp.context['usd_exchange_rate'], Decimal('50.0000'))
+
+    def test_get_invalid_invoice_currency_falls_back_to_usd(self):
+        self.shipment.invoice_currency = 'AUD'
+        self.shipment.save(update_fields=['invoice_currency'])
+
+        resp = self.client.get(self.url)
+
+        self.assertEqual(resp.context['invoice_currency'], 'USD')
+        self.assertEqual(resp.context['default_rate'], '50.0000')
+
+    def test_get_prefill_distance_and_volume_prefers_saved_advisory(self):
+        ShippingAdvisory.objects.create(
+            shipment=self.shipment,
+            gross_weight=Decimal('80.00'),
+            cargo_volume=Decimal('3.25'),
+            declared_value=Decimal('1000.00'),
+            urgency_level='standard',
+            distance_km=Decimal('1150.00'),
+            lcl_score=Decimal('0.7000'),
+            fcl_score=Decimal('0.5000'),
+            air_score=Decimal('0.4000'),
+            recommended_type='lcl',
+            computed_by=self.declarant,
+        )
+        session = self.client.session
+        session['ocr_shipment_id'] = self.shipment.id
+        session['ocr_fields'] = {
+            'country_of_origin': {'value': 'China'},
+            'volume_cbm': {'value': '9.99'},
+            'dimensions': {'value': '65x66x6 cm'},
+        }
+        session.save()
+
+        resp = self.client.get(self.url)
+
+        self.assertEqual(resp.context['prefill_distance'], 1150)
+        self.assertEqual(resp.context['prefill_distance_src'], 'saved')
+        self.assertEqual(resp.context['prefill_volume'], Decimal('3.25'))
+        self.assertEqual(resp.context['prefill_volume_src'], 'saved')
+        self.assertEqual(resp.context['prefill_origin_country'], 'China')
+
+    def test_get_prefill_distance_and_volume_from_session_ocr(self):
+        session = self.client.session
+        session['ocr_shipment_id'] = self.shipment.id
+        session['ocr_fields'] = {
+            'country_of_origin': {'value': 'China'},
+            'volume_cbm': {'value': '1.75'},
+            'dimensions': {'value': '65x66x6 cm'},
+        }
+        session.save()
+
+        resp = self.client.get(self.url)
+
+        self.assertEqual(resp.context['prefill_distance'], 2100)
+        self.assertEqual(resp.context['prefill_distance_src'], 'auto — China')
+        self.assertEqual(resp.context['prefill_origin_country'], 'China')
+        self.assertEqual(resp.context['prefill_volume'], '1.75')
+        self.assertEqual(resp.context['prefill_volume_src'], 'auto from OCR: 65x66x6 cm')
+
+    def test_get_prefill_distance_and_volume_from_stored_document_ocr(self):
+        ShipmentDocument.objects.create(
+            shipment=self.shipment,
+            document_type='packing_list',
+            file='shipment_documents/test.pdf',
+            ocr_fields_json=json.dumps({
+                'origin': {'value': 'Vietnam'},
+                'volume_cbm': {'value': '2.50'},
+            }),
+        )
+
+        resp = self.client.get(self.url)
+
+        self.assertEqual(resp.context['prefill_distance'], 1600)
+        self.assertEqual(resp.context['prefill_distance_src'], 'auto — Vietnam')
+        self.assertEqual(resp.context['prefill_origin_country'], 'Vietnam')
+        self.assertEqual(resp.context['prefill_volume'], '2.50')
+        self.assertEqual(resp.context['prefill_volume_src'], 'auto from OCR')
+
+    def test_get_collects_and_persists_hs_suggestions(self):
+        circuit_hs = HSCode.objects.create(
+            code='8534.00.00',
+            description='Printed circuits',
+            duty_rate=Decimal('0.00'),
+            is_active=True,
+        )
+        cable_hs = HSCode.objects.create(
+            code='8544.42.00',
+            description='Electric conductors fitted with connectors',
+            duty_rate=Decimal('0.00'),
+            is_active=True,
+        )
+        self.shipment.description = 'LED printed circuit board and USB-C cable assembly'
+        self.shipment.save(update_fields=['description'])
+
+        resp = self.client.get(self.url)
+
+        suggestion_ids = {hs.id for hs in resp.context['hs_suggestions']}
+        self.assertIn(circuit_hs.id, suggestion_ids)
+        self.assertIn(cable_hs.id, suggestion_ids)
+        self.assertTrue(ShipmentHSCode.objects.filter(
+            shipment=self.shipment,
+            hs_code=circuit_hs,
+            is_suggested=True,
+            is_confirmed=False,
+        ).exists())
