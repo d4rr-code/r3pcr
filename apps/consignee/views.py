@@ -827,6 +827,41 @@ def _info_block(shipment, computation, request):
     ]
 
 
+def _ecdt_fee_rows(computation):
+    """Ordered (label, amount, kind) duties/fees rows shared by the PDF + Excel
+    ECDT generators. ``kind`` ∈ {'normal', 'cds', 'boc', 'total'} lets each
+    format apply its own styling while the sequence/labels live in one place.
+    """
+    rows = [
+        ('Customs Duty (CUD)',                   computation.customs_duty,   'normal'),
+        ('Value Added Tax — 12% (VAT)',          computation.vat_amount,     'normal'),
+        ('Import Processing Fee (IPF)',          computation.ipf,            'normal'),
+        ('Documentary Stamp (CDS)',              130,                        'cds'),
+        ('BOC Payable  (CUD + VAT + IPF + CDS)', computation.boc_payable,    'boc'),
+        ('Brokerage Fee',                        computation.brokerage_fee,  'normal'),
+    ]
+    if computation.arrastre:
+        rows.append(('Arrastre',              computation.arrastre,     'normal'))
+    if computation.wharfage:
+        rows.append(('Wharfage',              computation.wharfage,     'normal'))
+    if computation.bank_charges:
+        rows.append(('Bank Charges',          computation.bank_charges, 'normal'))
+    if computation.csf_php:
+        rows.append(('Container Service Fee', computation.csf_php,      'normal'))
+    rows.append(('TOTAL LANDED COST', computation.total_landed_cost, 'total'))
+    return rows
+
+
+def _ecdt_mode_scores(advisory):
+    """WMCDA mode rows (label, key, score) in fixed Air/LCL/FCL order, shared by
+    both generators (each sorts by score and applies its own styling)."""
+    return [
+        ('Air Freight',               'air',  advisory.air_score),
+        ('LCL (Less Container Load)', 'lcl',  advisory.lcl_score),
+        ('FCL (Full Container Load)', 'fcl',  advisory.fcl_score),
+    ]
+
+
 # ── Excel generator (light / navy theme) ─────────────────────────────────────
 
 def _ecdt_xlsx(request, shipment, computation, advisory):
@@ -971,38 +1006,29 @@ def _ecdt_xlsx(request, shipment, computation, advisory):
                   align=al_r, brd=thin, size=10, num_fmt='#,##0.00')
             r += 1
 
-        xfee('Customs Duty (CUD)',          computation.customs_duty)
-        xfee('Value Added Tax — 12% (VAT)', computation.vat_amount)
-        xfee('Import Processing Fee (IPF)', computation.ipf)
-        xfee('Documentary Stamp (CDS)',     130, bg=LGRAY)
-
-        # BOC Payable
-        ws.merge_cells(f'A{r}:F{r}')
-        xcell(ws, r, 1, 'BOC Payable  (CUD + VAT + IPF + CDS)',
-              bold=True, color=DBLUE, bg=LBLUE, align=al_l, brd=thin, size=10)
-        ws.merge_cells(f'G{r}:H{r}')
-        xcell(ws, r, 7, float(computation.boc_payable or 0),
-              bold=True, color=DBLUE, bg=LBLUE, align=al_r, brd=thin,
-              size=10, num_fmt='#,##0.00')
-        ws.row_dimensions[r].height = 18
-        r += 1
-
-        xfee('Brokerage Fee', computation.brokerage_fee)
-        if computation.arrastre:      xfee('Arrastre',              computation.arrastre)
-        if computation.wharfage:      xfee('Wharfage',              computation.wharfage)
-        if computation.bank_charges:  xfee('Bank Charges',          computation.bank_charges)
-        if computation.csf_php:       xfee('Container Service Fee', computation.csf_php)
-
-        # Total Landed Cost
-        ws.merge_cells(f'A{r}:F{r}')
-        xcell(ws, r, 1, 'TOTAL LANDED COST',
-              bold=True, color=GREEN_D, bg=LGREEN, align=al_l, brd=med, size=11)
-        ws.merge_cells(f'G{r}:H{r}')
-        xcell(ws, r, 7, float(computation.total_landed_cost or 0),
-              bold=True, color=GREEN_D, bg=LGREEN, align=al_r, brd=med,
-              size=11, num_fmt='#,##0.00')
-        ws.row_dimensions[r].height = 22
-        r += 1
+        for label, amount, kind in _ecdt_fee_rows(computation):
+            if kind == 'boc':
+                ws.merge_cells(f'A{r}:F{r}')
+                xcell(ws, r, 1, label,
+                      bold=True, color=DBLUE, bg=LBLUE, align=al_l, brd=thin, size=10)
+                ws.merge_cells(f'G{r}:H{r}')
+                xcell(ws, r, 7, float(amount or 0),
+                      bold=True, color=DBLUE, bg=LBLUE, align=al_r, brd=thin,
+                      size=10, num_fmt='#,##0.00')
+                ws.row_dimensions[r].height = 18
+                r += 1
+            elif kind == 'total':
+                ws.merge_cells(f'A{r}:F{r}')
+                xcell(ws, r, 1, label,
+                      bold=True, color=GREEN_D, bg=LGREEN, align=al_l, brd=med, size=11)
+                ws.merge_cells(f'G{r}:H{r}')
+                xcell(ws, r, 7, float(amount or 0),
+                      bold=True, color=GREEN_D, bg=LGREEN, align=al_r, brd=med,
+                      size=11, num_fmt='#,##0.00')
+                ws.row_dimensions[r].height = 22
+                r += 1
+            else:
+                xfee(label, amount, bg=(LGRAY if kind == 'cds' else WHITE))
 
     else:
         ws.merge_cells(f'A{r}:H{r}')
@@ -1041,13 +1067,8 @@ def _ecdt_xlsx(request, shipment, computation, advisory):
         ws2.row_dimensions[r2].height = 20
         r2 += 1
 
-        mode_scores = [
-            ('Air Freight',               'air',  advisory.air_score),
-            ('LCL (Less Container Load)', 'lcl',  advisory.lcl_score),
-            ('FCL (Full Container Load)', 'fcl',  advisory.fcl_score),
-        ]
         for mode_label, key, score in sorted(
-            mode_scores, key=lambda x: (x[2] or 0), reverse=True
+            _ecdt_mode_scores(advisory), key=lambda x: (x[2] or 0), reverse=True
         ):
             is_rec = (key == advisory.recommended_type)
             bg     = LGREEN if is_rec else (WHITE if r2 % 2 == 0 else LGRAY)
@@ -1279,26 +1300,22 @@ def _ecdt_pdf(request, shipment, computation, advisory):
                           textColor=ac or DGRAY, alignment=TA_RIGHT)),
             ])
 
-        pfee('Customs Duty (CUD)',             computation.customs_duty)
-        pfee('Value Added Tax — 12% (VAT)',    computation.vat_amount)
-        pfee('Import Processing Fee (IPF)',    computation.ipf)
-        pfee('Documentary Stamp (CDS)',        130)
-        boc_idx = len(fee_rows)
-        pfee('BOC Payable  (CUD + VAT + IPF + CDS)',
-             computation.boc_payable, bold=True, lc=DBLUE, ac=DBLUE)
-        pfee('Brokerage Fee', computation.brokerage_fee)
-        if computation.arrastre:      pfee('Arrastre',              computation.arrastre)
-        if computation.wharfage:      pfee('Wharfage',              computation.wharfage)
-        if computation.bank_charges:  pfee('Bank Charges',          computation.bank_charges)
-        if computation.csf_php:       pfee('Container Service Fee', computation.csf_php)
-        tlc_idx = len(fee_rows)
-        fee_rows.append([
-            Paragraph('<b>TOTAL LANDED COST</b>',
-                      ps('tll', fontSize=10, fontName='Helvetica-Bold', textColor=GREEN)),
-            Paragraph(php(computation.total_landed_cost),
-                      ps('tlr', fontSize=10, fontName='Helvetica-Bold',
-                         textColor=GREEN, alignment=TA_RIGHT)),
-        ])
+        boc_idx = tlc_idx = None
+        for label, amount, kind in _ecdt_fee_rows(computation):
+            if kind == 'boc':
+                boc_idx = len(fee_rows)
+                pfee(label, amount, bold=True, lc=DBLUE, ac=DBLUE)
+            elif kind == 'total':
+                tlc_idx = len(fee_rows)
+                fee_rows.append([
+                    Paragraph('<b>TOTAL LANDED COST</b>',
+                              ps('tll', fontSize=10, fontName='Helvetica-Bold', textColor=GREEN)),
+                    Paragraph(php(amount),
+                              ps('tlr', fontSize=10, fontName='Helvetica-Bold',
+                                 textColor=GREEN, alignment=TA_RIGHT)),
+                ])
+            else:
+                pfee(label, amount)
 
         fee_tbl = Table(fee_rows, colWidths=[W * 0.65, W * 0.35])
         fee_style = [
@@ -1331,11 +1348,7 @@ def _ecdt_pdf(request, shipment, computation, advisory):
         story.append(Paragraph('WMCDA — SHIPPING MODE ADVISORY', p_section))
         story.append(Spacer(1, 1))
 
-        mode_scores = [
-            ('Air Freight',               'air',  advisory.air_score),
-            ('LCL (Less Container Load)', 'lcl',  advisory.lcl_score),
-            ('FCL (Full Container Load)', 'fcl',  advisory.fcl_score),
-        ]
+        mode_scores = _ecdt_mode_scores(advisory)
         adv_rows = [[
             Paragraph('<b>MODE</b>',   hdr8(TA_LEFT)),
             Paragraph('<b>SCORE</b>',  hdr8(TA_CENTER)),
