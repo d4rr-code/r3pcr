@@ -89,8 +89,8 @@
 }
 .metric-total {
     grid-column: span 2;
-    min-height: 142px;
-    padding: clamp(16px, 2vw, 22px);
+    min-height: 130px;
+    padding: clamp(16px, 2vw, 20px);
     background: var(--ink);
     color: #fff;
     display: flex;
@@ -131,7 +131,7 @@
     overflow-wrap: anywhere;
 }
 .metric-total .metric-label { color: #DCE6F3; display: block; }
-.metric-total .metric-value { color: #fff; font-size: clamp(52px, 5vw, 78px); margin-top: 18px; }
+.metric-total .metric-value { color: #fff; font-size: clamp(42px, 3.4vw, 56px); margin-top: 8px; }
 .metric-delta { color: #5EE2A2; font-size: clamp(14px, 1.4vw, 20px); font-weight: 800; margin-left: 10px; }
 .panel { padding: clamp(14px, 1.6vw, 18px) clamp(14px, 1.8vw, 20px); }
 .panel-title {
@@ -510,7 +510,7 @@ a.dash-card {
     transition: box-shadow .18s ease, transform .15s ease;
 }
 a.dash-card.metric-total { display: flex; flex-direction: column; justify-content: space-between; }
-a.dash-card.mini-card    { display: flex; flex-direction: column; justify-content: space-between; }
+a.dash-card.mini-card    { display: flex; flex-direction: column; justify-content: center; }
 a.dash-card:hover {
     box-shadow: 0 14px 36px rgba(31,43,62,.20);
     transform: translateY(-2px);
