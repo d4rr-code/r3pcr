@@ -195,8 +195,6 @@ def extract_fields_from_invoice(text):
 
 
 def extract_fields_from_hawb(text):
-    text_upper = text.upper()
-
     # ── HAWB / BOL / Consignment Number ───────────────────────────────────────
     hawb_number = ''
     patterns_hawb = [
@@ -401,8 +399,6 @@ def extract_fields_from_hawb(text):
 
 def extract_fields_from_packing_list(text):
     """Extract shipping / cargo fields from a packing list document."""
-    text_upper = text.upper()
-
     # ── Gross Weight ───────────────────────────────────────────────────────────
     gross_weight = ''
     patterns_gw = [

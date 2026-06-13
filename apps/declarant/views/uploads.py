@@ -347,7 +347,7 @@ def flag_deficiency(request, shipment_id):
         message=f'A deficiency has been flagged on your shipment: {note_text}. Please resubmit the corrected documents.',
     )
 
-    messages.success(request, f'Deficiency flagged — consignee has been notified.')
+    messages.success(request, 'Deficiency flagged — consignee has been notified.')
     return redirect('declarant:process', shipment_id=shipment_id)
 
 

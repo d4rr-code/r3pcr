@@ -225,8 +225,6 @@ def _send_overdue_emails(overdue_shipments, today):
     - Email the assigned declarant
     Runs in a background thread; marks overdue_notified_at = today.
     """
-    from apps.accounts.models import User
-
     def _do_send():
         supervisors = list(
             User.objects.filter(role='supervisor', is_active=True)
@@ -311,7 +309,6 @@ def _ocr_scan_in_background(doc_ids):
     returns immediately and the gunicorn worker isn't blocked. Progress is
     observable via each document's ocr_ran_at (clients poll `ocr_status`)."""
     from django.db import connection
-    from apps.shipments.models import ShipmentDocument
     try:
         for doc in ShipmentDocument.objects.filter(id__in=doc_ids):
             try:
