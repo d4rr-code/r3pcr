@@ -11,6 +11,9 @@
     --muted: #111827;
     --line: #E7ECF2;
     --soft: #F7F9FC;
+    --card-radius: 8px;
+    --card-shadow: 0 8px 24px rgba(31, 43, 62, 0.08);
+    --card-shadow-hover: 0 14px 32px rgba(31, 43, 62, 0.16);
     --air: #25466F;
     --lcl: #2C527D;
     --fcl: #24466E;
@@ -25,7 +28,7 @@
     align-items: flex-end;
     justify-content: space-between;
     gap: 16px;
-    margin: 2px 0 18px;
+    margin: 2px 0 20px;
     flex-wrap: wrap;
 }
 .dash-head > div { min-width: min(100%, 260px); }
@@ -77,13 +80,13 @@
 .dash-grid {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 16px;
+    gap: 18px;
 }
 .dash-card {
     background: #fff;
     border: 1px solid var(--line);
-    border-radius: 6px;
-    box-shadow: 0 10px 28px rgba(31, 43, 62, 0.09);
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
     min-width: 0;
     overflow: hidden;
 }
@@ -97,8 +100,8 @@
     flex-direction: column;
     justify-content: space-between;
 }
-.metric-types { grid-column: span 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; }
-.metric-side  { grid-column: span 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; }
+.metric-types { grid-column: span 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 18px; }
+.metric-side  { grid-column: span 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 18px; }
 .mini-card { padding: clamp(14px, 2vw, 16px) clamp(14px, 2vw, 18px); min-height: 76px; }
 .metric-icon {
     width: 28px;
@@ -133,7 +136,7 @@
 .metric-total .metric-label { color: #DCE6F3; display: block; }
 .metric-total .metric-value { color: #fff; font-size: clamp(42px, 3.4vw, 56px); margin-top: 8px; }
 .metric-delta { color: #5EE2A2; font-size: clamp(14px, 1.4vw, 20px); font-weight: 800; margin-left: 10px; }
-.panel { padding: clamp(14px, 1.6vw, 18px) clamp(14px, 1.8vw, 20px); }
+.panel { padding: clamp(16px, 1.7vw, 20px) clamp(16px, 1.9vw, 22px); }
 .panel-title {
     display: flex;
     align-items: center;
@@ -187,7 +190,7 @@
     gap: 3px;
     padding: 3px;
     border: 1px solid #DCE5EF;
-    border-radius: 6px;
+    border-radius: var(--card-radius);
     background: #F6F8FB;
 }
 .period-tab {
@@ -223,7 +226,7 @@
     content: "";
     position: absolute;
     inset: 16px 10px 18px 10px;
-    border-radius: 6px;
+    border-radius: var(--card-radius);
     background: linear-gradient(180deg, rgba(37, 70, 111, .06), rgba(34, 197, 94, .03));
     pointer-events: none;
 }
@@ -236,7 +239,7 @@
     gap: 0;
     margin: 16px 0 12px;
     border: 1px solid #EEF2F6;
-    border-radius: 6px;
+    border-radius: var(--card-radius);
     overflow: hidden;
 }
 .status-item {
@@ -512,7 +515,7 @@ a.dash-card {
 a.dash-card.metric-total { display: flex; flex-direction: column; justify-content: space-between; }
 a.dash-card.mini-card    { display: flex; flex-direction: column; justify-content: center; }
 a.dash-card:hover {
-    box-shadow: 0 14px 36px rgba(31,43,62,.20);
+    box-shadow: var(--card-shadow-hover);
     transform: translateY(-2px);
 }
 a.status-item {
@@ -540,12 +543,20 @@ canvas { cursor: pointer; }
 @media (max-width: 420px) {
     .s-content { padding-left: 10px; padding-right: 10px; }
     .dash-grid { gap: 12px; }
+    .metric-types, .metric-side { gap: 12px; }
+    .mini-card { min-height: 88px; }
     .metric-label { font-size: 14px; }
     .metric-value { font-size: 34px; }
-    .metric-total .metric-value { font-size: 56px; }
+    .metric-total .metric-value { font-size: 48px; }
+    .metric-delta { display: block; margin: 6px 0 0; }
     .panel-title h2 { font-size: 16px; }
+    .panel-title p { font-size: 12px; }
+    .chip, .calendar-chip, .overview-controls, .period-tabs { width: 100%; }
+    .overview-date-control, .overview-year-filter { width: 100%; }
+    .period-tab { flex: 1; min-width: 0; }
     .status-item { grid-template-columns: 24px minmax(0, 1fr); }
     .status-count { grid-column: 2; justify-self: start; }
+    .cmp-agreement { width: 100%; white-space: normal; text-align: center; }
 }
 {% endblock %}
 
