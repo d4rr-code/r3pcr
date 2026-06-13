@@ -57,7 +57,7 @@
                         callbacks: {
                             title: function (items) { return items[0].label; },
                             label: function (item) {
-                                return item.raw + ' shipment' + (item.raw !== 1 ? 's' : '');
+                                return item.raw + ' total shipment' + (item.raw !== 1 ? 's' : '');
                             }
                         }
                     }

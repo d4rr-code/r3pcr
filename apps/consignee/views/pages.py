@@ -1,8 +1,13 @@
 import logging
+import calendar
+import json
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
+from django.db.models import Count
+from django.db.models.functions import ExtractMonth, ExtractYear
+from django.http import JsonResponse
 from apps.accounts.models import User
 from apps.shipments.models import Shipment
 from apps.notifications.utils import create_notification
@@ -105,12 +110,44 @@ def _system_wmcda_items():
 # ─── Auto-generate HAWB ───────────────────────────────────────────────────────
 
 
+def _month_points(today, months=12):
+    points = []
+    for offset in range(months - 1, -1, -1):
+        year, month = today.year, today.month - offset
+        while month <= 0:
+            month += 12
+            year -= 1
+        points.append((year, month))
+    return points
+
+
+def _monthly_shipment_series(shipments, months=12):
+    today = timezone.localdate()
+    month_points = _month_points(today, months=months)
+    start_year, start_month = month_points[0]
+    start_date = today.replace(year=start_year, month=start_month, day=1)
+    running_total = shipments.filter(submitted_at__date__lt=start_date).count()
+    monthly_qs = (
+        shipments
+        .filter(submitted_at__date__gte=start_date)
+        .annotate(year=ExtractYear('submitted_at'), month=ExtractMonth('submitted_at'))
+        .values('year', 'month')
+        .annotate(count=Count('id'))
+    )
+    monthly_lookup = {(row['year'], row['month']): row['count'] for row in monthly_qs}
+    labels = [
+        f'{calendar.month_abbr[month]} {str(year)[-2:]}'
+        for year, month in month_points
+    ]
+    data = []
+    for point in month_points:
+        running_total += monthly_lookup.get(point, 0)
+        data.append(running_total)
+    return labels, data
+
+
 @login_required
 def dashboard(request):
-    import json
-    import calendar
-    from django.db.models import Count
-    from django.db.models.functions import ExtractMonth, ExtractYear
     shipments = Shipment.objects.filter(consignee=request.user)
     total = shipments.count()
 
@@ -156,31 +193,9 @@ def dashboard(request):
     for item in urgency_breakdown:
         item['label'] = urgency_labels.get(item['urgency'], item['urgency'] or 'Unknown')
 
-    # ── Monthly chart data (current year) ────────────────────────────────────
+    # ── Cumulative chart data (rolling 12 months) ────────────────────────────
+    monthly_labels, monthly_data = _monthly_shipment_series(shipments)
     today = timezone.localdate()
-    month_points = []
-    for offset in range(3, -1, -1):
-        year, month = today.year, today.month - offset
-        while month <= 0:
-            month += 12
-            year -= 1
-        month_points.append((year, month))
-
-    start_year, start_month = month_points[0]
-    start_date = today.replace(year=start_year, month=start_month, day=1)
-    monthly_qs = (
-        shipments
-        .filter(submitted_at__date__gte=start_date)
-        .annotate(year=ExtractYear('submitted_at'), month=ExtractMonth('submitted_at'))
-        .values('year', 'month')
-        .annotate(count=Count('id'))
-    )
-    monthly_lookup = {(row['year'], row['month']): row['count'] for row in monthly_qs}
-    if month_points[0][0] == month_points[-1][0]:
-        monthly_labels = [calendar.month_abbr[month] for _, month in month_points]
-    else:
-        monthly_labels = [f'{calendar.month_abbr[month]} {str(year)[-2:]}' for year, month in month_points]
-    monthly_data = [monthly_lookup.get(point, 0) for point in month_points]
 
     # Reminder panel — only actionable shipments, capped so the panel stays
     # compact and doesn't stretch the dashboard with empty space.
@@ -325,37 +340,9 @@ def system_wmcda(request):
 
 @login_required
 def chart_data(request):
-    import calendar
-    from django.db.models import Count
-    from django.db.models.functions import ExtractMonth, ExtractYear
-    from django.http import JsonResponse
-
-    today = timezone.localdate()
-    month_points = []
-    for offset in range(3, -1, -1):
-        year, month = today.year, today.month - offset
-        while month <= 0:
-            month += 12
-            year -= 1
-        month_points.append((year, month))
-
-    start_year, start_month = month_points[0]
-    start_date = today.replace(year=start_year, month=start_month, day=1)
-    qs = Shipment.objects.filter(consignee=request.user, submitted_at__date__gte=start_date)
-    rows = (
-        qs.annotate(year=ExtractYear('submitted_at'), month=ExtractMonth('submitted_at'))
-          .values('year', 'month')
-          .annotate(count=Count('id'))
-    )
-    lookup = {(row['year'], row['month']): row['count'] for row in rows}
-    if month_points[0][0] == month_points[-1][0]:
-        labels = [calendar.month_abbr[month] for _, month in month_points]
-    else:
-        labels = [f'{calendar.month_abbr[month]} {str(year)[-2:]}' for year, month in month_points]
-    data = [lookup.get(point, 0) for point in month_points]
-
+    shipments = Shipment.objects.filter(consignee=request.user)
+    labels, data = _monthly_shipment_series(shipments)
     return JsonResponse({'labels': labels, 'data': data})
 
 
 # ─── Cancel Submission ────────────────────────────────────────────────────────
-

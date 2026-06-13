@@ -7,10 +7,12 @@ non-empty document of the right content-type, and access is consignee-scoped.
 Run:  python manage.py test apps.consignee --settings=config.settings_test
 """
 import json
+from datetime import datetime, time
 from decimal import Decimal
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.shipments.models import Shipment
@@ -140,3 +142,54 @@ class ConsigneeReportIssueTests(TestCase):
         shared = list(self.client.get(self.url).context['shared_issues'])
         self.assertIn(dec_issue, shared)        # sees the declarant's issue
         self.assertNotIn(own, shared)           # own is in "My Reports", not the shared list
+
+
+class ConsigneeDashboardChartTests(TestCase):
+    def setUp(self):
+        self.consignee = User.objects.create_user(
+            username='con_dash', password='x', role='consignee',
+            email='con_dash@test.local',
+        )
+        self.client.force_login(self.consignee)
+
+    def _month_start(self, offset):
+        today = timezone.localdate()
+        year, month = today.year, today.month + offset
+        while month <= 0:
+            month += 12
+            year -= 1
+        while month > 12:
+            month -= 12
+            year += 1
+        return today.replace(year=year, month=month, day=1)
+
+    def _shipment_on(self, hawb_number, date):
+        shipment = Shipment.objects.create(
+            hawb_number=hawb_number,
+            consignee=self.consignee,
+            status='incoming',
+            shipment_type='lcl',
+        )
+        submitted_at = timezone.make_aware(datetime.combine(date, time(hour=9)))
+        Shipment.objects.filter(pk=shipment.pk).update(submitted_at=submitted_at)
+        return shipment
+
+    def test_dashboard_and_chart_endpoint_use_cumulative_twelve_months(self):
+        self._shipment_on('R3PCR-DASH-CURRENT', self._month_start(0))
+        self._shipment_on('R3PCR-DASH-IN-RANGE', self._month_start(-11))
+        self._shipment_on('R3PCR-DASH-OLD', self._month_start(-12))
+
+        response = self.client.get(reverse('consignee:dashboard'))
+        self.assertContains(response, 'Last 12 Months')
+        self.assertContains(response, 'Cumulative')
+        labels = json.loads(response.context['monthly_labels'])
+        data = json.loads(response.context['monthly_data'])
+
+        self.assertEqual(len(labels), 12)
+        self.assertEqual(data[-1], 3)
+        self.assertEqual(data, sorted(data))
+
+        chart_response = self.client.get(reverse('consignee:chart_data'))
+        payload = chart_response.json()
+        self.assertEqual(payload['labels'], labels)
+        self.assertEqual(payload['data'], data)
