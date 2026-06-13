@@ -3,6 +3,13 @@
 You are doing **frontend visual polish only** on the R3-PCR Django app. Read
 `AGENTS.md` first for project conventions. This brief defines your scope.
 
+## Start here
+- Confirm you are on the **`feature/auth`** branch (`git branch --show-current`).
+  It is already synced to `main`. If not on it: `git checkout feature/auth`.
+- An open pull request **#26 (`feature/auth → main`)** already exists. Your
+  commits/pushes to `feature/auth` flow into that PR automatically — **do NOT
+  open another PR and do NOT merge.**
+
 ## Hard boundary — do not cross
 **You MAY edit only:**
 - `static/**/*.css`
@@ -60,8 +67,9 @@ unify the two architectures (that's out of scope).
   **Do NOT commit to `main`.**
 - You MAY `git push origin feature/auth` — pushing a *branch* does NOT redeploy;
   only pushing/merging to `main` triggers a Railway redeploy.
-- **Do NOT open a PR or merge to `main`.** The project owner reviews and merges
-  `feature/auth → main`. Just commit/push your branch and report what you did.
+- **Do NOT open a PR or merge to `main`.** PR #26 already exists; the project
+  owner reviews and merges it. Just commit/push `feature/auth` and report what
+  you did.
 
 ## Commit style
 - Small, focused commits, one page/concern each. Imperative subject.
