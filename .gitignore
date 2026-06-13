@@ -28,3 +28,16 @@ staticfiles/
 
 # Windows line ending artifacts
 *.orig
+
+# Node.js dependencies (regenerated from package.json — never source)
+node_modules/
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+
+# Local analysis / research scripts (not part of the app — keep a backup elsewhere)
+analyze_shipment_monitoring.py
+inspect_capstone_respondents.py
+inspect_survey_questionnaire.py
+shipment_deep_analysis.py
+shipment_monitoring_analysis.json
