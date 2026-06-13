@@ -12,6 +12,46 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, ShipmentDocument
+from apps.supervisor.models import IssueReport
+
+
+class DeclarantReportIssueTests(TestCase):
+    """Role-scoped report options + cross-role issue visibility (declarant side)."""
+
+    def setUp(self):
+        self.declarant = User.objects.create_user(
+            username='dec_ri2', password='x', role='declarant',
+            email='dec_ri2@test.local',
+        )
+        self.consignee = User.objects.create_user(
+            username='con_ri2', password='x', role='consignee',
+            email='con_ri2@test.local',
+        )
+        self.client.force_login(self.declarant)
+        self.url = reverse('declarant:report_issue')
+
+    def test_location_options_are_declarant_scoped(self):
+        keys = {c[0] for c in self.client.get(self.url).context['location_choices']}
+        self.assertIn('process_shipment', keys)
+        self.assertIn('ecdt_workspace', keys)
+        self.assertNotIn('my_submissions', keys)    # consignee-only page
+        self.assertNotIn('new_submission', keys)
+
+    def test_cannot_report_against_consignee_location(self):
+        self.client.post(self.url, {
+            'title': 'x', 'description': 'y', 'category': 'duty_computation',
+            'location': 'my_submissions', 'priority': 'normal',
+        })
+        self.assertEqual(IssueReport.objects.filter(reporter=self.declarant).count(), 0)
+
+    def test_sees_consignee_issues_in_shared(self):
+        con_issue = IssueReport.objects.create(
+            reporter=self.consignee, reporter_role='consignee',
+            category='duty_computation', location='my_submissions',
+            title='Con issue', description='...',
+        )
+        shared = list(self.client.get(self.url).context['shared_issues'])
+        self.assertIn(con_issue, shared)
 
 
 class ProcessShipmentTests(TestCase):

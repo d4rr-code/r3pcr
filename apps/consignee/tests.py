@@ -15,6 +15,7 @@ from django.urls import reverse
 from apps.accounts.models import User
 from apps.shipments.models import Shipment
 from apps.computation.models import DutyComputation, ShippingAdvisory
+from apps.supervisor.models import IssueReport
 
 
 class EcdtDownloadTests(TestCase):
@@ -85,3 +86,57 @@ class EcdtDownloadTests(TestCase):
         self.client.force_login(other)
         resp = self.client.get(self.url)
         self.assertEqual(resp.status_code, 404)
+
+
+class ConsigneeReportIssueTests(TestCase):
+    """Role-scoped report options + cross-role issue visibility (consignee side)."""
+
+    def setUp(self):
+        self.consignee = User.objects.create_user(
+            username='con_ri', password='x', role='consignee',
+            email='con_ri@test.local', is_pending_approval=False,
+        )
+        self.declarant = User.objects.create_user(
+            username='dec_ri', password='x', role='declarant',
+            email='dec_ri@test.local', is_pending_approval=False,
+        )
+        self.client.force_login(self.consignee)
+        self.url = reverse('consignee:report_issue')
+
+    def test_location_options_are_consignee_scoped(self):
+        keys = {c[0] for c in self.client.get(self.url).context['location_choices']}
+        self.assertIn('my_submissions', keys)
+        self.assertIn('new_submission', keys)
+        self.assertNotIn('process_shipment', keys)   # declarant-only page
+        self.assertNotIn('ecdt_workspace', keys)
+
+    def test_cannot_report_against_declarant_location(self):
+        self.client.post(self.url, {
+            'title': 'x', 'description': 'y', 'category': 'ocr_extraction',
+            'location': 'process_shipment', 'priority': 'normal',
+        })
+        self.assertEqual(IssueReport.objects.filter(reporter=self.consignee).count(), 0)
+
+    def test_can_report_ocr_and_duty_categories(self):
+        self.client.post(self.url, {
+            'title': 'Wrong duty', 'description': 'CUD looks off',
+            'category': 'duty_computation', 'location': 'my_submissions',
+            'priority': 'normal',
+        })
+        self.assertEqual(IssueReport.objects.filter(
+            reporter=self.consignee, category='duty_computation').count(), 1)
+
+    def test_sees_declarant_issues_but_not_own_in_shared(self):
+        dec_issue = IssueReport.objects.create(
+            reporter=self.declarant, reporter_role='declarant',
+            category='ocr_extraction', location='process_shipment',
+            title='Dec issue', description='...',
+        )
+        own = IssueReport.objects.create(
+            reporter=self.consignee, reporter_role='consignee',
+            category='duty_computation', location='my_submissions',
+            title='My issue', description='...',
+        )
+        shared = list(self.client.get(self.url).context['shared_issues'])
+        self.assertIn(dec_issue, shared)        # sees the declarant's issue
+        self.assertNotIn(own, shared)           # own is in "My Reports", not the shared list

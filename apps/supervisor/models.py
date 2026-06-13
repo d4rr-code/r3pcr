@@ -155,3 +155,30 @@ class IssueReport(models.Model):
 
     def __str__(self):
         return f'{self.get_category_display()} - {self.title}'
+
+    # Locations a reporter may file against, scoped to their role's own pages.
+    # Categories (OCR, Duty Computation, WMCDA, etc.) stay shared across roles.
+    ROLE_LOCATIONS = {
+        'consignee': ['dashboard', 'new_submission', 'my_submissions',
+                      'notifications', 'system_reference', 'other'],
+        'declarant': ['dashboard', 'process_shipment', 'ecdt_workspace',
+                      'notifications', 'system_reference', 'other'],
+    }
+
+    @classmethod
+    def locations_for_role(cls, role):
+        """LOCATION_CHOICES filtered to the pages a given role actually uses.
+        Unknown roles get the full list (e.g. supervisor)."""
+        allowed = cls.ROLE_LOCATIONS.get(role)
+        if not allowed:
+            return list(cls.LOCATION_CHOICES)
+        return [c for c in cls.LOCATION_CHOICES if c[0] in allowed]
+
+    @classmethod
+    def cross_role_summary(cls, exclude_user=None, limit=50):
+        """Read-only summary of issues reported by consignees + declarants,
+        for cross-role visibility (location + type + status only)."""
+        qs = cls.objects.filter(reporter_role__in=['consignee', 'declarant'])
+        if exclude_user is not None:
+            qs = qs.exclude(reporter=exclude_user)
+        return qs.order_by('-created_at')[:limit]

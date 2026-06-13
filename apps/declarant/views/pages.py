@@ -256,6 +256,7 @@ def _notify_supervisors_of_issue(issue):
 @declarant_required
 def report_issue(request):
     shipments = Shipment.objects.filter(declarant=request.user).order_by('-submitted_at')
+    location_choices = IssueReport.locations_for_role('declarant')
 
     if request.method == 'POST':
         title = request.POST.get('title', '').strip()
@@ -266,7 +267,7 @@ def report_issue(request):
         shipment_id = request.POST.get('related_shipment', '').strip()
 
         valid_categories = {choice[0] for choice in IssueReport.CATEGORY_CHOICES}
-        valid_locations = {choice[0] for choice in IssueReport.LOCATION_CHOICES}
+        valid_locations = {choice[0] for choice in location_choices}
         valid_priorities = {choice[0] for choice in IssueReport.PRIORITY_CHOICES}
 
         if not title or not description:
@@ -300,8 +301,9 @@ def report_issue(request):
     return render(request, 'declarant/report_issue.html', {
         'shipments': shipments,
         'reports': reports,
+        'shared_issues': IssueReport.cross_role_summary(exclude_user=request.user),
         'category_choices': IssueReport.CATEGORY_CHOICES,
-        'location_choices': IssueReport.LOCATION_CHOICES,
+        'location_choices': location_choices,
         'priority_choices': IssueReport.PRIORITY_CHOICES,
     })
 
