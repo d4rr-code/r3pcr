@@ -175,6 +175,24 @@ def _analytics_report_data(request):
     }
 
 
+def _pdf_col_widths(table_data, avail_width):
+    """Distribute the available page width across columns in proportion to each
+    column's widest cell, so report tables fill the page (left-aligned) instead
+    of shrinking to content and floating in the centre. Every column keeps a
+    sensible minimum share so narrow columns stay readable."""
+    ncols = len(table_data[0])
+    natural = [1] * ncols
+    for row in table_data:
+        for i in range(ncols):
+            cell = row[i] if i < len(row) else ''
+            natural[i] = max(natural[i], len(str(cell if cell is not None else '')))
+    # Apply a floor so a very short column (e.g. a count) still reads cleanly.
+    floor = max(natural) * 0.18
+    natural = [max(n, floor) for n in natural]
+    total = sum(natural)
+    return [avail_width * (n / total) for n in natural]
+
+
 @login_required
 @supervisor_required
 def analytics_export(request):
@@ -186,12 +204,13 @@ def analytics_export(request):
         from io import BytesIO
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=24)
         styles = getSampleStyleSheet()
+        cell_style = ParagraphStyle('cell', fontName='Helvetica', fontSize=8, leading=10)
         story = [
             Paragraph('R3-PCR Analytics Report', styles['Title']),
             Paragraph(f"Generated: {data['generated_at']}", styles['Normal']),
@@ -203,16 +222,28 @@ def analytics_export(request):
         ]
         for title, headers, rows in [('Executive Summary', ['Metric', 'Value'], data['summary'])] + data['tables']:
             story.append(Paragraph(title, styles['Heading2']))
-            table_data = [headers] + (rows or [['No data', ''] + [''] * (len(headers) - 2)])
-            tbl = Table(table_data, repeatRows=1)
+            body = rows or [['No data', ''] + [''] * (len(headers) - 2)]
+            col_widths = _pdf_col_widths([headers] + body, doc.width)
+            # Header cells stay plain strings (styled by TableStyle); body cells
+            # are wrapped Paragraphs so long text wraps within its column.
+            table_data = [list(headers)] + [
+                [Paragraph(str(c if c is not None else ''), cell_style)
+                 for c in (list(row) + [''] * (len(headers) - len(row)))]
+                for row in body
+            ]
+            tbl = Table(table_data, colWidths=col_widths, repeatRows=1, hAlign='LEFT')
             tbl.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1B3358')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
                 ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#DCE5EF')),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
             ]))
             story.extend([tbl, Spacer(1, 12)])
         doc.build(story)

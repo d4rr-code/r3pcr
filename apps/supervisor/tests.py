@@ -175,3 +175,42 @@ class AnalyticsDashboardContextTests(TestCase):
         self.client.force_login(self.dec1)
         resp = self.client.get(self.url)
         self.assertEqual(resp.status_code, 302)
+
+
+class AnalyticsExportTests(TestCase):
+    """Smoke-tests for the analytics report download (PDF + XLSX) so the export
+    can't silently break while we adjust the PDF layout."""
+    def setUp(self):
+        self.supervisor = User.objects.create_user(
+            username='sup_ex', password='x', role='supervisor',
+            email='supex@test.local', is_pending_approval=False)
+        self.consignee = User.objects.create_user(
+            username='con_ex', password='x', role='consignee',
+            email='conex@test.local', is_pending_approval=False)
+        Shipment.objects.create(
+            hawb_number='EX-1', consignee=self.consignee, status='billed',
+            shipment_type='lcl', invoice_currency='USD')
+        self.client.force_login(self.supervisor)
+        self.url = reverse('supervisor:analytics_export')
+
+    def test_pdf_export(self):
+        resp = self.client.get(self.url, {'format': 'pdf'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/pdf')
+        self.assertTrue(resp.content.startswith(b'%PDF'))
+        self.assertIn('.pdf', resp['Content-Disposition'])
+
+    def test_xlsx_export(self):
+        resp = self.client.get(self.url, {'format': 'xlsx'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('spreadsheet', resp['Content-Type'])
+        self.assertGreater(len(resp.content), 0)
+
+    def test_export_requires_supervisor(self):
+        self.client.logout()
+        other = User.objects.create_user(
+            username='con_ey', password='x', role='consignee',
+            email='coney@test.local', is_pending_approval=False)
+        self.client.force_login(other)
+        resp = self.client.get(self.url, {'format': 'pdf'})
+        self.assertEqual(resp.status_code, 302)
