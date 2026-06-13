@@ -129,14 +129,20 @@
 }
 .metric-side .mini-card::before { background: #9DAFBC; }
 .metric-side .mini-card:first-child {
-    background: linear-gradient(180deg, #F8FBFD 0%, #EFF4F8 100%);
+    background: var(--ink);
     border-style: solid;
+    border-color: var(--ink);
 }
-.metric-side .mini-card:first-child::before { background: #60788E; }
+.metric-side .mini-card:first-child::before { background: #5EE2A2; }
 .metric-side .metric-icon { background: #9DAFBC !important; }
-.metric-side .mini-card:first-child .metric-icon { background: #60788E !important; }
+.metric-side .mini-card:first-child .metric-icon {
+    background: #E5EDF7 !important;
+    color: var(--ink);
+}
 .metric-side .metric-label { color: #415166; }
 .metric-side .metric-value { color: #26384D; }
+.metric-side .mini-card:first-child .metric-label { color: #DCE6F3; }
+.metric-side .mini-card:first-child .metric-value { color: #fff; }
 .metric-icon {
     width: 28px;
     height: 28px;
