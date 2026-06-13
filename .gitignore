@@ -35,6 +35,9 @@ node_modules/
 npm-debug.log*
 pnpm-debug.log*
 
+# OCR debug output (images extracted from SAD PDFs during development — not source)
+sad_page_images/
+
 # Local analysis / research scripts (not part of the app — keep a backup elsewhere)
 analyze_shipment_monitoring.py
 inspect_capstone_respondents.py
