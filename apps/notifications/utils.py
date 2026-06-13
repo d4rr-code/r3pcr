@@ -1,8 +1,5 @@
 import logging
-import threading
 
-from django.conf import settings
-from django.core.mail import send_mail
 
 from apps.accounts.models import User
 from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows

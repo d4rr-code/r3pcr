@@ -3,7 +3,6 @@ from django.urls import path, include, re_path
 from django.conf import settings
 from django.views.static import serve
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView
 
 

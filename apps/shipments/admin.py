@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
-    Shipment, ShipmentDocument, HSCode, ShipmentHSCode, StatusLog,
-    TariffSchedule, HSCodeRate,
+    Shipment, ShipmentDocument, HSCode, StatusLog, TariffSchedule,
+    HSCodeRate,
 )
 
 @admin.register(HSCode)

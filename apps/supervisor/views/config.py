@@ -1,34 +1,19 @@
 import json
 import logging
 import os
-import re
-import threading
 import uuid
-from collections import defaultdict
-from datetime import datetime, timedelta, date as date_type
 from decimal import Decimal, InvalidOperation
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Count, Avg, Sum, Min, Max, F, ExpressionWrapper, DurationField, Q
-from django.db.models.functions import TruncDay, TruncMonth, TruncYear
+from django.db.models import Q
 from django.core.files.storage import default_storage
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
-from django.core.mail import send_mail
-from django.conf import settings
-from django.core.paginator import Paginator
-from django.http import HttpResponse
-from apps.accounts.models import User
-from apps.accounts.views import _validate_phone_number
-from apps.shipments.models import Shipment, HSCode, StatusLog, TariffSchedule, HSCodeRate
-from apps.computation.models import DutyComputation, ShippingAdvisory
-from apps.consignee.models import Feedback
-from apps.notifications.utils import create_notification, notify_shipment_status_change
+from apps.shipments.models import HSCode, TariffSchedule, HSCodeRate
 from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
-from ..models import SystemConfig, Announcement, IssueReport
+from ..models import SystemConfig
 
 logger = logging.getLogger(__name__)
 

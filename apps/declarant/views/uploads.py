@@ -1,30 +1,18 @@
-import datetime
 import json
 import logging
 import os
 import re
 import tempfile
-import threading
-from collections import defaultdict
 from decimal import Decimal, InvalidOperation
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.core.paginator import Paginator
-from django.db.models import Count, Q
-from django.http import JsonResponse
 from django.utils import timezone
-from django.core.mail import send_mail
-from django.conf import settings
-from apps.accounts.models import User
 from apps.shipments.models import HSCode, Shipment, ShipmentDocument, StatusLog
-from apps.shipments.fan import FAN_ASSESSMENT_FIELDS, fan_assessment_has_values, fan_assessment_rows
-from apps.shipments.status_progress import build_status_progress
-from apps.notifications.utils import create_notification, notify_shipment_status_change, send_assessed_email, send_billed_email
-from apps.computation.ocr import process_document, _extract_line_items, _extract_hs_anchored_items
+from apps.shipments.fan import FAN_ASSESSMENT_FIELDS
+from apps.notifications.utils import create_notification, send_assessed_email, send_billed_email
+from apps.computation.ocr import process_document
 from apps.computation.models import ShipmentLineItem
-from apps.supervisor.models import IssueReport
-from apps.supervisor.views import _HS_SECTIONS, _chapter_num
 
 logger = logging.getLogger('r3pcr.declarant')
 

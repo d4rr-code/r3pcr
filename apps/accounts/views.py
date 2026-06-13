@@ -1,6 +1,5 @@
 import logging
 import re
-import threading
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib import messages

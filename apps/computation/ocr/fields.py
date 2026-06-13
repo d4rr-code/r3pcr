@@ -3,8 +3,7 @@ import re
 from decimal import Decimal, InvalidOperation
 
 from .text_utils import (
-    _w, _clean_text, _clean_number, _volume_cbm_from_dimensions,
-    _first_match, _block_after_label,
+    _w, _volume_cbm_from_dimensions, _first_match, _block_after_label,
 )
 from .line_items import _extract_line_items
 

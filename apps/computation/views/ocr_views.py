@@ -1,24 +1,13 @@
-import json
 import logging
 import os
-import re
 import tempfile
 import threading
-from decimal import Decimal, InvalidOperation
 
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import HttpResponse, JsonResponse
-from django.db import transaction
-from django.db.models import Q, Count
-from django.utils import timezone
-from apps.shipments.models import Shipment, ShipmentDocument, HSCode, ShipmentHSCode, StatusLog
-from apps.supervisor.models import SystemConfig
-from apps.notifications.utils import notify_shipment_status_change
-from ..models import DutyComputation, ShipmentLineItem, ShippingAdvisory
+from apps.shipments.models import Shipment, ShipmentDocument
 from ..ocr import process_document
-from apps.declarant.views import declarant_required
 
 logger = logging.getLogger('r3pcr.computation')
 

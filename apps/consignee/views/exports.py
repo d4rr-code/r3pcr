@@ -1,15 +1,7 @@
 import logging
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.utils import timezone
-from apps.accounts.models import User
-from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
-from apps.shipments.status_progress import build_status_progress
-from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
-from apps.notifications.utils import create_notification, notify_incoming_shipment, notify_shipment_status_change
-from apps.supervisor.models import IssueReport
-from ..models import Feedback
+from apps.shipments.models import Shipment
 
 logger = logging.getLogger('r3pcr.consignee')
 
