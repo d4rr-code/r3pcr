@@ -126,6 +126,7 @@ def _monthly_shipment_series(shipments, months=12):
     month_points = _month_points(today, months=months)
     start_year, start_month = month_points[0]
     start_date = today.replace(year=start_year, month=start_month, day=1)
+    running_total = shipments.filter(submitted_at__date__lt=start_date).count()
     monthly_qs = (
         shipments
         .filter(submitted_at__date__gte=start_date)
@@ -138,7 +139,10 @@ def _monthly_shipment_series(shipments, months=12):
         f'{calendar.month_abbr[month]} {str(year)[-2:]}'
         for year, month in month_points
     ]
-    data = [monthly_lookup.get(point, 0) for point in month_points]
+    data = []
+    for point in month_points:
+        running_total += monthly_lookup.get(point, 0)
+        data.append(running_total)
     return labels, data
 
 
@@ -189,7 +193,7 @@ def dashboard(request):
     for item in urgency_breakdown:
         item['label'] = urgency_labels.get(item['urgency'], item['urgency'] or 'Unknown')
 
-    # ── Monthly chart data (rolling 12 months) ───────────────────────────────
+    # ── Cumulative chart data (rolling 12 months) ────────────────────────────
     monthly_labels, monthly_data = _monthly_shipment_series(shipments)
     today = timezone.localdate()
 

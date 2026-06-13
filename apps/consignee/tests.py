@@ -174,18 +174,20 @@ class ConsigneeDashboardChartTests(TestCase):
         Shipment.objects.filter(pk=shipment.pk).update(submitted_at=submitted_at)
         return shipment
 
-    def test_dashboard_and_chart_endpoint_use_rolling_twelve_months(self):
+    def test_dashboard_and_chart_endpoint_use_cumulative_twelve_months(self):
         self._shipment_on('R3PCR-DASH-CURRENT', self._month_start(0))
         self._shipment_on('R3PCR-DASH-IN-RANGE', self._month_start(-11))
         self._shipment_on('R3PCR-DASH-OLD', self._month_start(-12))
 
         response = self.client.get(reverse('consignee:dashboard'))
         self.assertContains(response, 'Last 12 Months')
+        self.assertContains(response, 'Cumulative')
         labels = json.loads(response.context['monthly_labels'])
         data = json.loads(response.context['monthly_data'])
 
         self.assertEqual(len(labels), 12)
-        self.assertEqual(sum(data), 2)
+        self.assertEqual(data[-1], 3)
+        self.assertEqual(data, sorted(data))
 
         chart_response = self.client.get(reverse('consignee:chart_data'))
         payload = chart_response.json()
