@@ -55,6 +55,14 @@ unify the two architectures (that's out of scope).
   you didn't break a template).
 - Clean up any scratch/preview files before committing.
 
+## Branch & push policy
+- Work on the **`feature/auth`** branch (it has been synced up to `main` for you).
+  **Do NOT commit to `main`.**
+- You MAY `git push origin feature/auth` — pushing a *branch* does NOT redeploy;
+  only pushing/merging to `main` triggers a Railway redeploy.
+- **Do NOT open a PR or merge to `main`.** The project owner reviews and merges
+  `feature/auth → main`. Just commit/push your branch and report what you did.
+
 ## Commit style
 - Small, focused commits, one page/concern each. Imperative subject.
   e.g. `Tighten supervisor dashboard card spacing`, `Add mobile breakpoints to declarant dashboard`.
