@@ -110,6 +110,80 @@ def notify_incoming_shipment(shipment):
         )
 
 
+# Statuses that trigger a consignee notification (named by their own type).
+CONSIGNEE_STATUSES = {'arrived', 'computed', 'approved', 'rejected', 'for_revision'}
+
+# Supervisor fan-out: status -> (notification_type, title-suffix, message) builders.
+def _supervisor_alert(shipment, new_status):
+    if new_status == 'approved':
+        return ('approved', f'ECDT Approved - {shipment.hawb_number}',
+                f'Shipment {shipment.hawb_number} ECDT has been approved by the consignee '
+                f'and is proceeding to lodgement.')
+    if new_status == 'billed':
+        return ('billed', f'Shipment Fully Processed - {shipment.hawb_number}',
+                f'Shipment {shipment.hawb_number} has been fully processed end-to-end.')
+    return None
+
+
+def _notify_consignee(shipment, status_label, base_message, new_status):
+    if new_status not in CONSIGNEE_STATUSES:
+        return
+    create_notification(
+        recipient=shipment.consignee,
+        shipment=shipment,
+        notification_type=new_status,
+        title=f'Shipment {status_label} - {shipment.hawb_number}',
+        message=base_message,
+    )
+
+
+def _notify_declarant_revision(shipment, status_label, new_status, changed_by, notes):
+    """Notify the declarant only when the consignee revises or rejects."""
+    if not (new_status in {'rejected', 'for_revision'}
+            and shipment.declarant
+            and getattr(changed_by, 'role', None) == 'consignee'):
+        return
+    create_notification(
+        recipient=shipment.declarant,
+        shipment=shipment,
+        notification_type=new_status,
+        title=f'Shipment {status_label} - {shipment.hawb_number}',
+        message=(
+            f'Shipment {shipment.hawb_number} was marked {status_label}. '
+            f'{notes or ""}'
+        ).strip(),
+    )
+
+
+def _notify_supervisors(shipment, new_status):
+    alert = _supervisor_alert(shipment, new_status)
+    if not alert:
+        return
+    notification_type, title, message = alert
+    for supervisor in User.objects.filter(role='supervisor', is_active=True):
+        create_notification(
+            recipient=supervisor,
+            shipment=shipment,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+        )
+
+
+def _maybe_send_status_email(shipment, status_label, base_message, new_status):
+    if new_status not in {'approved', 'rejected', 'computed'}:
+        return
+    subject = f'R3-PCR: Shipment {status_label} - {shipment.hawb_number}'
+    if new_status == 'computed':
+        subject = f'R3-PCR: Computation Ready - {shipment.hawb_number}'
+    send_transition_email(
+        recipient=shipment.consignee,
+        shipment=shipment,
+        subject=subject,
+        message=base_message,
+    )
+
+
 def notify_shipment_status_change(shipment, old_status, new_status, changed_by=None, notes=''):
     if old_status == new_status:
         return
@@ -120,71 +194,7 @@ def notify_shipment_status_change(shipment, old_status, new_status, changed_by=N
         f'{notes or ""}'
     ).strip()
 
-    consignee_statuses = {'arrived', 'computed', 'approved', 'rejected', 'for_revision'}
-    if new_status in consignee_statuses:
-        notification_type = new_status if new_status in {'arrived', 'computed', 'approved', 'rejected', 'for_revision'} else 'status_update'
-        create_notification(
-            recipient=shipment.consignee,
-            shipment=shipment,
-            notification_type=notification_type,
-            title=f'Shipment {status_label} - {shipment.hawb_number}',
-            message=base_message,
-        )
-
-    # Notify declarant when consignee revises or rejects
-    if (
-        new_status in {'rejected', 'for_revision'}
-        and shipment.declarant
-        and getattr(changed_by, 'role', None) == 'consignee'
-    ):
-        create_notification(
-            recipient=shipment.declarant,
-            shipment=shipment,
-            notification_type=new_status,
-            title=f'Shipment {status_label} - {shipment.hawb_number}',
-            message=(
-                f'Shipment {shipment.hawb_number} was marked {status_label}. '
-                f'{notes or ""}'
-            ).strip(),
-        )
-
-    # Notify supervisors when consignee approves the ECDT
-    if new_status == 'approved':
-        supervisors = User.objects.filter(role='supervisor', is_active=True)
-        for supervisor in supervisors:
-            create_notification(
-                recipient=supervisor,
-                shipment=shipment,
-                notification_type='approved',
-                title=f'ECDT Approved - {shipment.hawb_number}',
-                message=(
-                    f'Shipment {shipment.hawb_number} ECDT has been approved by the consignee '
-                    f'and is proceeding to lodgement.'
-                ),
-            )
-
-    # Notify supervisors when shipment is fully processed (billed)
-    if new_status == 'billed':
-        supervisors = User.objects.filter(role='supervisor', is_active=True)
-        for supervisor in supervisors:
-            create_notification(
-                recipient=supervisor,
-                shipment=shipment,
-                notification_type='billed',
-                title=f'Shipment Fully Processed - {shipment.hawb_number}',
-                message=(
-                    f'Shipment {shipment.hawb_number} has been fully processed end-to-end.'
-                ),
-            )
-
-    if new_status in {'approved', 'rejected', 'computed'}:
-        email_recipient = shipment.consignee
-        subject = f'R3-PCR: Shipment {status_label} - {shipment.hawb_number}'
-        if new_status == 'computed':
-            subject = f'R3-PCR: Computation Ready - {shipment.hawb_number}'
-        send_transition_email(
-            recipient=email_recipient,
-            shipment=shipment,
-            subject=subject,
-            message=base_message,
-        )
+    _notify_consignee(shipment, status_label, base_message, new_status)
+    _notify_declarant_revision(shipment, status_label, new_status, changed_by, notes)
+    _notify_supervisors(shipment, new_status)
+    _maybe_send_status_email(shipment, status_label, base_message, new_status)
