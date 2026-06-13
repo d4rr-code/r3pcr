@@ -730,6 +730,10 @@ body.c-menu-open {
 
         opacity: 1 !important;
 
+        max-width: none !important;
+
+        overflow: visible !important;
+
     }
 
     .c-sidebar.mobile-open .c-sidebar-logo img {
