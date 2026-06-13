@@ -97,10 +97,8 @@
     flex-direction: column;
     justify-content: space-between;
 }
-.metric-types { grid-column: span 5; display: grid; grid-template-columns: repeat(2, minmax(170px, 1fr)); gap: 16px; }
-.metric-types .mini-card:nth-child(3) { grid-column: 1 / -1; }  /* FCL fills the row — no empty cell */
-.metric-users { grid-column: span 2; padding: clamp(16px, 2vw, 18px); display: flex; flex-direction: column; justify-content: space-between; }
-.metric-side { grid-column: span 3; display: grid; grid-template-columns: 1fr; gap: 16px; }
+.metric-types { grid-column: span 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; }
+.metric-side  { grid-column: span 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; }
 .mini-card { padding: clamp(14px, 2vw, 16px) clamp(14px, 2vw, 18px); min-height: 76px; }
 .metric-icon {
     width: 28px;
@@ -134,7 +132,6 @@
 }
 .metric-total .metric-label { color: #DCE6F3; display: block; }
 .metric-total .metric-value { color: #fff; font-size: clamp(52px, 5vw, 78px); margin-top: 18px; }
-.metric-users .metric-value { font-size: clamp(52px, 5vw, 78px); }
 .metric-delta { color: #5EE2A2; font-size: clamp(14px, 1.4vw, 20px); font-weight: 800; margin-left: 10px; }
 .panel { padding: clamp(14px, 1.6vw, 18px) clamp(14px, 1.8vw, 20px); }
 .panel-title {
@@ -478,17 +475,15 @@
     margin-top: 12px;
 }
 @media (max-width: 1180px) {
-    .metric-total, .metric-types, .metric-users, .metric-side,
+    .metric-total, .metric-types, .metric-side,
     .status-panel, .urgency-panel, .due-panel, .monthly-panel,
     .wmcda-panel, .top-panel, .feedback-panel,
     .cost-chart-panel, .cost-table-panel,
     .currency-panel { grid-column: span 12; }
-    .metric-side { grid-template-columns: repeat(2, 1fr); }
     .top-panel, .feedback-panel { min-height: 240px; }
 }
 @media (max-width: 980px) {
     .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .metric-types { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
     .wmcda-content { grid-template-columns: 1fr; align-items: stretch; }
 }
 @media (max-width: 720px) {
@@ -497,7 +492,7 @@
     .metric-types, .metric-side, .status-grid, .wmcda-content { grid-template-columns: 1fr; }
     .status-item { border-right: 0; }
     .panel { padding: 18px; }
-    .metric-users, .metric-total { min-height: 120px; }
+    .metric-total { min-height: 120px; }
     .chart-fixed { height: 220px; }
     .compact-chart { height: 170px; }
     .compact-bars { height: 180px; }
@@ -515,8 +510,7 @@ a.dash-card {
     transition: box-shadow .18s ease, transform .15s ease;
 }
 a.dash-card.metric-total { display: flex; flex-direction: column; justify-content: space-between; }
-a.dash-card.metric-users { display: flex; flex-direction: column; justify-content: space-between; }
-a.dash-card.mini-card    { display: block; }
+a.dash-card.mini-card    { display: flex; flex-direction: column; justify-content: space-between; }
 a.dash-card:hover {
     box-shadow: 0 14px 36px rgba(31,43,62,.20);
     transform: translateY(-2px);
@@ -549,7 +543,6 @@ canvas { cursor: pointer; }
     .metric-label { font-size: 14px; }
     .metric-value { font-size: 34px; }
     .metric-total .metric-value { font-size: 56px; }
-    .metric-users .metric-value { font-size: 56px; }
     .panel-title h2 { font-size: 16px; }
     .status-item { grid-template-columns: 24px minmax(0, 1fr); }
     .status-count { grid-column: 2; justify-self: start; }
@@ -607,12 +600,11 @@ canvas { cursor: pointer; }
             </a>
         </div>
 
-        <a class="dash-card metric-users" href="{% url 'supervisor:users' %}">
-            <p class="metric-label"><span class="metric-icon" style="width:28px;height:28px;margin:0;background:#9DAFBC;"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zm6 10a5 5 0 00-10 0h10zm.5-9a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/></svg></span>Total Users</p>
-            <p class="metric-value">{{ total_users }}</p>
-        </a>
-
         <div class="metric-side">
+            <a class="dash-card mini-card" href="{% url 'supervisor:users' %}">
+                <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:#9DAFBC;"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zm6 10a5 5 0 00-10 0h10zm.5-9a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/></svg></span>Total Users</p>
+                <p class="metric-value">{{ total_users }}</p>
+            </a>
             <a class="dash-card mini-card" href="{% url 'supervisor:consignee_list' %}">
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:#9DAFBC;"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zm6 9a6 6 0 00-12 0h12z"/></svg></span>Consignee</p>
                 <p class="metric-value">{{ total_consignees }}</p>
