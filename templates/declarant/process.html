@@ -90,6 +90,45 @@
     box-shadow: 0 1px 4px rgba(0,0,0,.05);
 }
 .dark-card-title { color: #111827; font-size: 14px; font-weight: 700; margin: 0 0 12px; }
+.support-doc-row {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.support-doc-body {
+    flex: 1;
+    min-width: 0;
+}
+.support-doc-name {
+    color: #15803d;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+    margin: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.support-doc-meta {
+    color: #6b7280;
+    font-size: 11px;
+    margin: 2px 0 0;
+}
+.support-doc-view {
+    padding: 5px 12px;
+    border: 1px solid #16a34a;
+    border-radius: 6px;
+    background: #fff;
+    color: #16a34a;
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+    flex-shrink: 0;
+}
 
 /* ── Doc Viewer ── */
 .doc-viewer-wrap { background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
@@ -317,6 +356,7 @@
 
 /* ── Post-lodge grid ── */
 .post-lodge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
+.post-lodge-grid > .dark-card { min-width: 0; }
 
 /* ── OCR overlay ── */
 @keyframes ocr-spin { to { transform: rotate(360deg); } }
@@ -1034,12 +1074,12 @@
         <p class="dark-card-title">BOC / eTrade Payment Receipt</p>
         {% for doc in shipment.documents.all %}
         {% if doc.document_type == 'payment_proof' %}
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
-            <div style="flex:1;">
-                <p style="color:#15803d;font-size:12px;font-weight:600;margin:0;">{{ doc.file.name|slice:"20:" }}</p>
-                <p style="color:#6b7280;font-size:11px;margin:2px 0 0;">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
+        <div class="support-doc-row">
+            <div class="support-doc-body">
+                <p class="support-doc-name">{{ doc.file.name|slice:"20:" }}</p>
+                <p class="support-doc-meta">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
             </div>
-            <a href="{{ doc.file.url }}" target="_blank" style="padding:5px 12px;border:1px solid #16a34a;border-radius:6px;background:#fff;color:#16a34a;font-size:11px;font-weight:600;text-decoration:none;flex-shrink:0;">View</a>
+            <a href="{{ doc.file.url }}" target="_blank" class="support-doc-view">View</a>
         </div>
         {% endif %}
         {% endfor %}
@@ -1078,12 +1118,12 @@
         <p class="dark-card-title">Release / Delivery Documents</p>
         {% for doc in shipment.documents.all %}
         {% if doc.document_type == 'release_doc' %}
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
-            <div style="flex:1;">
-                <p style="color:#15803d;font-size:12px;font-weight:600;margin:0;">{{ doc.file.name|slice:"20:" }}</p>
-                <p style="color:#6b7280;font-size:11px;margin:2px 0 0;">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
+        <div class="support-doc-row">
+            <div class="support-doc-body">
+                <p class="support-doc-name">{{ doc.file.name|slice:"20:" }}</p>
+                <p class="support-doc-meta">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
             </div>
-            <a href="{{ doc.file.url }}" target="_blank" style="padding:5px 12px;border:1px solid #16a34a;border-radius:6px;background:#fff;color:#16a34a;font-size:11px;font-weight:600;text-decoration:none;flex-shrink:0;">View</a>
+            <a href="{{ doc.file.url }}" target="_blank" class="support-doc-view">View</a>
         </div>
         {% endif %}
         {% endfor %}
@@ -1103,12 +1143,12 @@
         <p class="dark-card-title">Final Billing / Completion Documents</p>
         {% for doc in shipment.documents.all %}
         {% if doc.document_type == 'billing_doc' or doc.document_type == 'receipt' %}
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
-            <div style="flex:1;">
-                <p style="color:#15803d;font-size:12px;font-weight:600;margin:0;">{{ doc.file.name|slice:"20:" }}</p>
-                <p style="color:#6b7280;font-size:11px;margin:2px 0 0;">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
+        <div class="support-doc-row">
+            <div class="support-doc-body">
+                <p class="support-doc-name">{{ doc.file.name|slice:"20:" }}</p>
+                <p class="support-doc-meta">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
             </div>
-            <a href="{{ doc.file.url }}" target="_blank" style="padding:5px 12px;border:1px solid #16a34a;border-radius:6px;background:#fff;color:#16a34a;font-size:11px;font-weight:600;text-decoration:none;flex-shrink:0;">View</a>
+            <a href="{{ doc.file.url }}" target="_blank" class="support-doc-view">View</a>
         </div>
         {% endif %}
         {% endfor %}
@@ -1129,13 +1169,13 @@
 
         {% for doc in shipment.documents.all %}
         {% if doc.document_type == 'receipt' %}
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
-            <div style="flex:1;">
-                <p style="color:#15803d;font-size:12px;font-weight:600;margin:0;">{{ doc.file.name|slice:"20:" }}</p>
-                <p style="color:#6b7280;font-size:11px;margin:2px 0 0;">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
+        <div class="support-doc-row">
+            <div class="support-doc-body">
+                <p class="support-doc-name">{{ doc.file.name|slice:"20:" }}</p>
+                <p class="support-doc-meta">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
             </div>
             <a href="{{ doc.file.url }}" target="_blank"
-               style="padding:5px 12px;border:1px solid #16a34a;border-radius:6px;background:#fff;color:#16a34a;font-size:11px;font-weight:600;text-decoration:none;flex-shrink:0;">
+               class="support-doc-view">
                 View →
             </a>
         </div>
