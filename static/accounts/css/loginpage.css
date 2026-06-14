@@ -18,6 +18,7 @@ body{
     background-position:center;
     background-repeat:no-repeat;
     background-attachment:fixed;
+    overflow-x:hidden;
 }
 
 /* =========================
@@ -502,11 +503,30 @@ hr{
 @media(max-width:768px){
 
     .navbar{
-        padding:0 20px;
+        min-height:75px;
+        height:auto;
+        padding:12px 18px;
+        gap:10px;
+        align-items:center;
+    }
+
+    .nav-left{
+        min-width:0;
+        flex:1 1 auto;
+    }
+
+    .nav-left img{
+        width:132px;
+        max-width:100%;
+        height:auto;
     }
 
     .nav-right{
+        flex:0 1 auto;
         gap:12px;
+        justify-content:flex-end;
+        min-width:0;
+        flex-wrap:wrap;
     }
 
     .nav-right a{
@@ -540,4 +560,95 @@ hr{
         flex-wrap:wrap;
     }
 
+}
+
+@media(max-width:480px){
+    .navbar{
+        padding:10px 12px;
+        border-radius:0 0 14px 14px;
+    }
+
+    .nav-left img{
+        width:118px;
+    }
+
+    .nav-right{
+        gap:8px;
+    }
+
+    .selected-language{
+        gap:5px;
+        font-size:12px;
+    }
+
+    .nav-right a{
+        font-size:10px;
+        line-height:1.1;
+    }
+
+    .nav-right a:not(.register-btn):not(.login-btn-nav){
+        display:none;
+    }
+
+    .register-btn,
+    .login-btn-nav{
+        padding:8px 10px;
+        border-radius:6px;
+    }
+
+    .login-section{
+        min-height:calc(100vh - 75px);
+        padding:56px 18px 42px;
+        align-items:flex-start;
+    }
+
+    .login-container{
+        max-width:100%;
+        padding:0;
+    }
+
+    .login-container h1{
+        font-size:34px;
+        line-height:1.18;
+    }
+
+    .subtitle{
+        font-size:14px;
+        margin-bottom:34px;
+        line-height:1.65;
+    }
+
+    .form-group{
+        margin-bottom:18px;
+    }
+
+    .form-group input,
+    .login-button{
+        height:52px;
+    }
+
+    .help-text{
+        margin-top:24px;
+        line-height:1.45;
+    }
+
+    hr{
+        margin:28px 0;
+    }
+}
+
+@media(max-width:360px){
+    .nav-left img{
+        width:104px;
+    }
+
+    .register-btn,
+    .login-btn-nav{
+        padding:7px 8px;
+        font-size:9px !important;
+    }
+
+    .login-container h1{
+        font-size:30px;
+    }
 }
