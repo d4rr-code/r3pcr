@@ -36,6 +36,7 @@ body{
     display:flex;
     flex-direction:column;
     position:relative;
+    overflow-x:hidden;
 }
 
 /* ================= NAVBAR ================= */
@@ -376,4 +377,160 @@ body{
 .social-icons img:hover,
 .contact-icons img:hover{
     transform:translateY(-3px);
+}
+
+@media(max-width:768px){
+    .navbar{
+        min-height:75px;
+        height:auto;
+        padding:12px 18px;
+        gap:10px;
+        align-items:center;
+    }
+
+    .nav-left{
+        min-width:0;
+        flex:1 1 auto;
+    }
+
+    .nav-left img{
+        width:132px;
+        max-width:100%;
+        height:auto;
+    }
+
+    .nav-right{
+        flex:0 1 auto;
+        min-width:0;
+        justify-content:flex-end;
+        flex-wrap:wrap;
+        gap:12px;
+    }
+
+    .nav-right a{
+        font-size:11px;
+    }
+
+    .register-btn,
+    .login-btn-nav{
+        padding:8px 12px;
+    }
+
+    .register-section{
+        width:100%;
+        max-width:680px;
+        margin:56px auto;
+        padding:0 20px;
+    }
+
+    .form-row{
+        grid-template-columns:1fr;
+        gap:0;
+        margin-bottom:0;
+    }
+
+    .submit-btn{
+        width:100%;
+    }
+
+    .footer{
+        padding:40px 20px;
+    }
+
+    .footer-content{
+        flex-direction:column;
+        gap:30px;
+        text-align:center;
+    }
+
+    .footer-links{
+        flex-wrap:wrap;
+    }
+}
+
+@media(max-width:480px){
+    .navbar{
+        padding:10px 12px;
+        border-radius:0 0 14px 14px;
+    }
+
+    .nav-left img{
+        width:118px;
+    }
+
+    .nav-right{
+        gap:8px;
+    }
+
+    .selected-language{
+        gap:5px;
+        font-size:12px;
+    }
+
+    .nav-right a{
+        font-size:10px;
+        line-height:1.1;
+    }
+
+    .nav-right a:not(.register-btn):not(.login-btn-nav){
+        display:none;
+    }
+
+    .register-btn,
+    .login-btn-nav{
+        padding:8px 10px;
+        border-radius:6px;
+    }
+
+    .register-section{
+        margin:42px auto;
+        padding:0 18px;
+    }
+
+    .register-section h1{
+        font-size:30px;
+        line-height:1.2;
+    }
+
+    .card-note{
+        font-size:12px;
+        margin-bottom:24px;
+    }
+
+    .username-preview{
+        line-height:1.45;
+    }
+
+    .form-group{
+        margin-bottom:18px;
+    }
+
+    .form-input{
+        height:48px;
+        font-size:13px;
+    }
+
+    .pw-hints{
+        font-size:10.5px;
+    }
+
+    .login-link{
+        line-height:1.45;
+    }
+}
+
+@media(max-width:360px){
+    .nav-left img{
+        width:104px;
+    }
+
+    .register-btn,
+    .login-btn-nav{
+        padding:7px 8px;
+        font-size:9px !important;
+    }
+
+    .register-section h1{
+        font-size:27px;
+    }
 }
