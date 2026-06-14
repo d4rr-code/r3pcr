@@ -199,14 +199,38 @@ class RegistrationTests(TestCase):
             'first_name': 'Juan', 'last_name': 'Dela Cruz',
             'email': 'newuser@example.com', 'password': 'Str0ng!Pass',
             'password2': 'Str0ng!Pass', 'company_name': 'Acme',
-            'phone_number': '09171234567',
         })
-        self.assertRedirects(resp, reverse('accounts:login'), fetch_redirect_response=False)
+        self.assertRedirects(resp, reverse('accounts:verify_registration_email'), fetch_redirect_response=False)
         u = User.objects.get(email='newuser@example.com')
         self.assertFalse(u.is_active)
         self.assertTrue(u.is_pending_approval)
+        self.assertFalse(u.email_verified)
         self.assertEqual(u.role, 'consignee')
-        self.assertEqual(u.phone_number, '09171234567')
+        self.assertIsNone(u.phone_number)
+        self.assertTrue(OTP.objects.filter(user=u, is_used=False).exists())
+        self.assertEqual(self.client.session['pending_registration_user_id'], u.id)
+
+    def test_registration_email_otp_marks_user_verified(self):
+        self.client.post(reverse('accounts:register'), {
+            'first_name': 'Juan', 'last_name': 'Dela Cruz',
+            'email': 'verifyme@example.com', 'password': 'Str0ng!Pass',
+            'password2': 'Str0ng!Pass', 'company_name': 'Acme',
+        })
+        u = User.objects.get(email='verifyme@example.com')
+        otp = OTP.objects.filter(user=u, is_used=False).latest('created_at')
+
+        resp = self.client.post(reverse('accounts:verify_registration_email'), {
+            'otp_code': otp.code,
+        })
+
+        self.assertRedirects(resp, reverse('accounts:login'), fetch_redirect_response=False)
+        u.refresh_from_db()
+        otp.refresh_from_db()
+        self.assertTrue(u.email_verified)
+        self.assertTrue(u.is_pending_approval)
+        self.assertFalse(u.is_active)
+        self.assertTrue(otp.is_used)
+        self.assertNotIn('pending_registration_user_id', self.client.session)
 
     def test_register_password_mismatch(self):
         resp = self.client.post(reverse('accounts:register'), {

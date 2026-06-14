@@ -214,3 +214,49 @@ class AnalyticsExportTests(TestCase):
         self.client.force_login(other)
         resp = self.client.get(self.url, {'format': 'pdf'})
         self.assertEqual(resp.status_code, 302)
+
+
+class UserManagementTests(TestCase):
+    def setUp(self):
+        self.supervisor = User.objects.create_user(
+            username='sup_users', password='x', role='supervisor',
+            email='supusers@test.local', is_pending_approval=False)
+        self.pending = User.objects.create_user(
+            username='pending_con', password='x', role='consignee',
+            email='pending@test.local', is_active=False,
+            is_pending_approval=True, email_verified=False)
+        self.client.force_login(self.supervisor)
+
+    def test_cannot_approve_unverified_email_registration(self):
+        resp = self.client.post(reverse('supervisor:approve_registration', args=[self.pending.id]))
+
+        self.assertRedirects(resp, reverse('supervisor:users'), fetch_redirect_response=False)
+        self.pending.refresh_from_db()
+        self.assertFalse(self.pending.is_active)
+        self.assertTrue(self.pending.is_pending_approval)
+
+    def test_unverified_registration_is_not_listed_for_supervisor(self):
+        resp = self.client.get(reverse('supervisor:users'))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotIn(self.pending, list(resp.context['pending']))
+
+    def test_verified_registration_is_listed_for_supervisor(self):
+        self.pending.email_verified = True
+        self.pending.save(update_fields=['email_verified'])
+
+        resp = self.client.get(reverse('supervisor:users'))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(self.pending, list(resp.context['pending']))
+
+    def test_can_approve_verified_email_registration(self):
+        self.pending.email_verified = True
+        self.pending.save(update_fields=['email_verified'])
+
+        resp = self.client.post(reverse('supervisor:approve_registration', args=[self.pending.id]))
+
+        self.assertRedirects(resp, reverse('supervisor:users'), fetch_redirect_response=False)
+        self.pending.refresh_from_db()
+        self.assertTrue(self.pending.is_active)
+        self.assertFalse(self.pending.is_pending_approval)

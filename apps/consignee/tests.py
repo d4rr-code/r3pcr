@@ -234,3 +234,19 @@ class ConsigneeMySubmissionsTests(TestCase):
 
         content = response.content.decode()
         self.assertLess(content.index('section-kicker-flagged'), content.index('submissions-kicker'))
+
+    def test_submit_success_message_does_not_render_literal_html(self):
+        response = self.client.post(reverse('consignee:submit'), {
+            'import_type': 'commercial',
+            'urgency': 'standard',
+            'shipment_type': 'lcl',
+            'description': 'Computer accessories',
+            'invoice_currency': 'USD',
+        }, follow=True)
+
+        shipment = Shipment.objects.get(consignee=self.consignee)
+        self.assertContains(
+            response,
+            f'Shipment submitted! Your Shipment Reference No. is {shipment.hawb_number}.',
+        )
+        self.assertNotContains(response, '&lt;strong&gt;')

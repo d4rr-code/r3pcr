@@ -15,7 +15,7 @@ from .common import *  # noqa: F401,F403
 @supervisor_required
 def user_management(request):
     users   = User.objects.filter(is_pending_approval=False).order_by('role', 'username')
-    pending = User.objects.filter(is_pending_approval=True).order_by('date_joined')
+    pending = User.objects.filter(is_pending_approval=True, email_verified=True).order_by('date_joined')
     user_stats = {
         'total': users.count(),
         'consignees': users.filter(role='consignee').count(),
@@ -35,6 +35,10 @@ def user_management(request):
 def approve_registration(request, user_id):
     user = get_object_or_404(User, id=user_id, is_pending_approval=True)
     if request.method == 'POST':
+        if not user.email_verified:
+            messages.error(request, f'Cannot approve {user.username} until the email address is verified.')
+            return redirect('supervisor:users')
+
         user.is_active           = True
         user.is_pending_approval = False
         user.save()
@@ -216,4 +220,3 @@ def toggle_user(request, user_id):
 
 
 #  Analytics (merged command centre) 
-

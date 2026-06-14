@@ -130,6 +130,18 @@
 .um-status.active { color:#00B837; }
 .um-status.inactive { color:#F00000; }
 .um-status.pending { color:#FF9F00; }
+.um-verify {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    padding:4px 10px;
+    font-size:10px;
+    font-weight:900;
+    text-transform:uppercase;
+}
+.um-verify.yes { background:#DCFCE7; color:#15803D; }
+.um-verify.no { background:#FEE2E2; color:#B91C1C; }
 .um-actions {
     display:flex;
     align-items:center;
@@ -363,6 +375,7 @@
                         <th>Full Name</th>
                         <th>Username</th>
                         <th>Email</th>
+                        <th>Email Verified</th>
                         <th>Role</th>
                         <th>Status</th>
                         <th>Joined</th>
@@ -373,12 +386,12 @@
                     {% for u in users %}
                     <tr data-name="{{ u.get_full_name|lower }} {{ u.username|lower }}"
                         data-email="{{ u.email|lower }}"
+                        data-emailverified="{% if u.email_verified %}Verified{% else %}Not verified{% endif %}"
                         data-role="{{ u.role|lower }}"
                         data-status="{% if u.is_active %}active{% else %}inactive{% endif %}"
                         data-fullname="{{ u.get_full_name|default:u.username }}"
                         data-username="{{ u.username }}"
                         data-company="{{ u.company_name|default:'RtripleJ' }}"
-                        data-phone="{{ u.phone_number|default:'+639151824576' }}"
                         data-roledisplay="{{ u.get_role_display }}"
                         data-joined="{{ u.date_joined|date:'M d,Y g:i A' }}"
                         data-editurl="{% url 'supervisor:edit_user' u.id %}"
@@ -387,6 +400,11 @@
                         <td>{{ u.get_full_name|default:u.username }}</td>
                         <td>{{ u.username }}</td>
                         <td>{{ u.email }}</td>
+                        <td>
+                            <span class="um-verify {% if u.email_verified %}yes{% else %}no{% endif %}">
+                                {% if u.email_verified %}Verified{% else %}Not Verified{% endif %}
+                            </span>
+                        </td>
                         <td>{{ u.get_role_display }}</td>
                         <td><span class="um-status {% if u.is_active %}active{% else %}inactive{% endif %}">{% if u.is_active %}Active{% else %}Inactive{% endif %}</span></td>
                         <td>{{ u.date_joined|date:"M d,Y g:i A" }}</td>
@@ -425,6 +443,7 @@
                         <th>Full Name</th>
                         <th>Username</th>
                         <th>Email</th>
+                        <th>Email Verified</th>
                         <th>Role</th>
                         <th>Status</th>
                         <th>Joined</th>
@@ -436,10 +455,10 @@
                     <tr data-fullname="{{ u.get_full_name|default:u.username }}"
                         data-username="{{ u.username }}"
                         data-email="{{ u.email }}"
+                        data-emailverified="{% if u.email_verified %}Verified{% else %}Not verified{% endif %}"
                         data-role="{{ u.role|lower }}"
                         data-status="pending"
                         data-company="{{ u.company_name|default:'YG Company' }}"
-                        data-phone="{{ u.phone_number|default:'+639151824576' }}"
                         data-roledisplay="{{ u.get_role_display }}"
                         data-joined="{{ u.date_joined|date:'M d,Y g:i A' }}"
                         data-approveurl="{% url 'supervisor:approve_registration' u.id %}"
@@ -447,6 +466,11 @@
                         <td>{{ u.get_full_name|default:u.username }}</td>
                         <td>{{ u.username }}</td>
                         <td>{{ u.email }}</td>
+                        <td>
+                            <span class="um-verify {% if u.email_verified %}yes{% else %}no{% endif %}">
+                                {% if u.email_verified %}Verified{% else %}Not Verified{% endif %}
+                            </span>
+                        </td>
                         <td>{{ u.get_role_display }}</td>
                         <td><span class="um-status pending">Pending</span></td>
                         <td>{{ u.date_joined|date:"M d,Y g:i A" }}</td>
@@ -457,7 +481,7 @@
                                 </button>
                                 <form method="POST" action="{% url 'supervisor:approve_registration' u.id %}" onsubmit="return confirm('Approve {{ u.username }}?')">
                                     {% csrf_token %}
-                                    <button class="um-round success" type="submit" title="Approve" aria-label="Approve">
+                                    <button class="um-round success" type="submit" title="{% if u.email_verified %}Approve{% else %}Email must be verified first{% endif %}" aria-label="Approve" {% if not u.email_verified %}disabled style="opacity:.45;cursor:not-allowed;"{% endif %}>
                                         <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 111.42-1.42l2.54 2.543 6.54-6.543a1 1 0 011.42 0z" clip-rule="evenodd"/></svg>
                                     </button>
                                 </form>
@@ -494,7 +518,7 @@
             <div><p class="um-info-label">Role:</p><p class="um-info-value" id="modal-role"></p></div>
             <div><p class="um-info-label">Company:</p><p class="um-info-value" id="modal-company"></p></div>
             <div><p class="um-info-label">Email:</p><p class="um-info-value" id="modal-email"></p></div>
-            <div><p class="um-info-label">Phone:</p><p class="um-info-value" id="modal-phone"></p></div>
+            <div><p class="um-info-label">Email Verified:</p><p class="um-info-value" id="modal-email-verified"></p></div>
             <div><p class="um-info-label">Status:</p><p class="um-info-value" id="modal-status"></p></div>
             <div><p class="um-info-label">Date Joined:</p><p class="um-info-value" id="modal-joined"></p></div>
         </div>
@@ -552,7 +576,7 @@ function openUserModal(row, kind) {
     document.getElementById('modal-role').textContent = d.roledisplay || '-';
     document.getElementById('modal-company').textContent = d.company || '-';
     document.getElementById('modal-email').textContent = d.email || '-';
-    document.getElementById('modal-phone').textContent = d.phone || '-';
+    document.getElementById('modal-email-verified').textContent = d.emailverified || '-';
     document.getElementById('modal-joined').textContent = d.joined || '-';
     document.getElementById('modal-status').innerHTML =
         '<span class="um-status-pill ' + status + '">' + status.charAt(0).toUpperCase() + status.slice(1) + '</span>';
@@ -561,7 +585,18 @@ function openUserModal(row, kind) {
     actions.innerHTML = '';
 
     if (kind === 'pending') {
-        actions.appendChild(postActionButton('APPROVED ACCOUNT', d.approveurl, 'green', 'Approve ' + d.username + '?'));
+        if ((d.emailverified || '').toLowerCase() === 'verified') {
+            actions.appendChild(postActionButton('APPROVED ACCOUNT', d.approveurl, 'green', 'Approve ' + d.username + '?'));
+        } else {
+            const blocked = document.createElement('button');
+            blocked.type = 'button';
+            blocked.className = 'um-modal-action green';
+            blocked.textContent = 'EMAIL NOT VERIFIED';
+            blocked.disabled = true;
+            blocked.style.opacity = '.55';
+            blocked.style.cursor = 'not-allowed';
+            actions.appendChild(blocked);
+        }
         actions.appendChild(postActionButton('DELETE ACCOUNT', d.rejecturl, 'red', 'Reject and DELETE ' + d.username + '?'));
     } else if (status === 'inactive') {
         actions.appendChild(Object.assign(document.createElement('a'), {

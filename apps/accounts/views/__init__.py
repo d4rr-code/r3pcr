@@ -16,6 +16,6 @@ from .validators import (
     _validate_password_strength, _generate_username,
 )
 from .auth import login_view, verify_otp_view, resend_otp, logout_view
-from .registration import register_view
+from .registration import register_view, resend_registration_otp, verify_registration_email
 from .password import forgot_password, forgot_username, reset_password
 from .profile import account_settings

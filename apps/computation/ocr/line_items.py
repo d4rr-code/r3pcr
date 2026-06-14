@@ -152,6 +152,101 @@ def _match_item_row(line):
     return None
 
 
+def _extract_cell_table_items(lines):
+    """Recover simple PDF tables extracted as one cell per line by pypdf."""
+    cells = [line.strip() for line in lines if line and line.strip()]
+    if not any(cell.lower() == 'line items' for cell in cells):
+        return []
+
+    def _is_row_number(value):
+        return bool(re.fullmatch(r'\d{1,3}', value or ''))
+
+    def _has_description(value):
+        value = value or ''
+        low = value.lower()
+        return (
+            len(value) >= 4
+            and bool(re.search(r'[A-Za-z]{3,}', value))
+            and not any(w in low for w in SKIP_WORDS)
+        )
+
+    def _clean_qty_unit(value):
+        raw = str(value or '').strip()
+        m = re.fullmatch(r'(\d[\d,]*(?:\.\d+)?)\s*([A-Za-z]+)?', raw)
+        if not m:
+            return raw, ''
+        return m.group(1), (m.group(2) or '').upper()
+
+    items = []
+    i = 0
+    while i < len(cells) - 2:
+        if not _is_row_number(cells[i]):
+            i += 1
+            continue
+
+        desc = re.sub(r'^\d+[\s.)]+', '', cells[i + 1]).strip()
+        if not _has_description(desc):
+            i += 1
+            continue
+
+        # Commercial invoice table:
+        # no, description, HS, qty, unit, unit price, total
+        if i + 6 < len(cells) and re.fullmatch(_HS, cells[i + 2], re.IGNORECASE):
+            qty = cells[i + 3].strip()
+            unit = cells[i + 4].strip().upper()
+            unit_price = _clean_number(cells[i + 5])
+            amount = _clean_number(cells[i + 6])
+            if qty and unit and amount:
+                try:
+                    total_value = float(amount)
+                except (TypeError, ValueError):
+                    total_value = ''
+                if total_value != '':
+                    items.append({
+                        'description':  desc[:200],
+                        'quantity':     qty,
+                        'unit':         unit,
+                        'unit_price':   unit_price,
+                        'total_value':  total_value,
+                        'gross_weight': '',
+                        'net_weight':   '',
+                        'num_packages': '',
+                        'source':       'ocr',
+                        'confidence':   0.82,
+                        'doc_hs_code':  _normalize_hs_code(cells[i + 2]),
+                    })
+                    i += 7
+                    continue
+
+        # Packing-list table:
+        # no, description, qty+unit, packages, gross, net, volume
+        if i + 5 < len(cells):
+            qty, unit = _clean_qty_unit(cells[i + 2])
+            packages = _clean_number(cells[i + 3])
+            gross = _clean_number(cells[i + 4])
+            net = _clean_number(cells[i + 5])
+            if qty and gross and net:
+                items.append({
+                    'description':  desc[:200],
+                    'quantity':     qty,
+                    'unit':         unit,
+                    'unit_price':   '',
+                    'total_value':  '',
+                    'gross_weight': gross,
+                    'net_weight':   net,
+                    'num_packages': packages,
+                    'source':       'ocr',
+                    'confidence':   0.76,
+                    'doc_hs_code':  None,
+                })
+                i += 6
+                continue
+
+        i += 1
+
+    return items
+
+
 def _extract_line_items(text):
     """
     Extract individual line-item rows from commercial invoice / packing list text.
@@ -326,7 +421,7 @@ def _extract_line_items(text):
         })
 
     if not items:
-        return []
+        return _extract_cell_table_items(lines)
 
     # Drop trailing item if its total ≈ sum of all preceding items (subtotal slipped through)
     if len(items) >= 2:
@@ -444,5 +539,4 @@ def _extract_hs_anchored_items(text):
         })
 
     return items
-
 
