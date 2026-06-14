@@ -136,8 +136,9 @@ def my_submissions(request):
         s.can_cancel     = s.status == 'incoming' and age_seconds <= 3600
         s.cancel_expired = s.status == 'incoming' and age_seconds > 3600
 
-    flagged_shipments = [s for s in shipments_list if s.has_deficiency]
-    active_shipments = [s for s in shipments_list if not s.has_deficiency]
+    flagged_shipments = [s for s in shipments_list if s.has_deficiency or s.status == 'for_revision']
+    flagged_ids = {s.id for s in flagged_shipments}
+    active_shipments = [s for s in shipments_list if s.id not in flagged_ids]
     paginator = Paginator(active_shipments, 6)
     page_obj = paginator.get_page(request.GET.get('page'))
     query_params = request.GET.copy()

@@ -222,11 +222,12 @@ class ConsigneeMySubmissionsTests(TestCase):
                 has_deficiency=True,
                 deficiency_notes='Missing airway bill',
             )
+        self._shipment(200, status='for_revision')
 
         response = self.client.get(reverse('consignee:my_submissions'))
 
         self.assertEqual(len(response.context['shipments']), 6)
-        self.assertEqual(len(response.context['flagged_shipments']), 2)
+        self.assertEqual(len(response.context['flagged_shipments']), 3)
         self.assertTrue(response.context['page_obj'].has_next())
         self.assertContains(response, 'Flag Shipments')
         self.assertContains(response, 'Page 1 of 2')
