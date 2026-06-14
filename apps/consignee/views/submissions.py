@@ -2,6 +2,7 @@ import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
@@ -137,10 +138,17 @@ def my_submissions(request):
 
     flagged_shipments = [s for s in shipments_list if s.has_deficiency]
     active_shipments = [s for s in shipments_list if not s.has_deficiency]
+    paginator = Paginator(active_shipments, 6)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
 
     return render(request, 'consignee/my_submissions.html', {
-        'shipments':     active_shipments,
+        'shipments':     page_obj.object_list,
         'flagged_shipments': flagged_shipments,
+        'active_count':  len(active_shipments),
+        'page_obj':      page_obj,
+        'pagination_query': query_params.urlencode(),
         'total_shipments': len(shipments_list),
         'status_filter': status_filter,
         'q':             q,

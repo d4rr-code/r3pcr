@@ -92,6 +92,87 @@
 </div>
 
 <!-- ── Submissions Table ─────────────────────────────────────────────────────── -->
+{% if flagged_shipments %}
+<div class="section-kicker section-kicker-flagged">
+    <div>
+        <h2>Flag Shipments <span class="section-count">: {{ flagged_shipments|length|stringformat:"02d" }}</span></h2>
+        <p>Kindly comply with the revisions and requirements to process your shipment.</p>
+    </div>
+</div>
+
+<div class="c-card card-no-padding flagged-card">
+    <div class="table-responsive">
+        <table class="c-table">
+            <thead>
+                <tr>
+                    <th>Shipment Ref No.</th>
+                    <th>Import Type</th>
+                    <th>Urgency</th>
+                    <th>Status</th>
+                    <th>Shipment Type</th>
+                    <th>Submitted</th>
+                    <th>Last Updated</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for shipment in flagged_shipments %}
+                <tr>
+                    <td data-label="Shipment Ref No.">
+                        <span class="ref-number">{{ shipment.hawb_number }}</span>
+                    </td>
+                    <td data-label="Import Type" class="muted">{{ shipment.get_import_type_display|default:"-" }}</td>
+                    <td data-label="Urgency">
+                        {% if shipment.urgency == 'standard' %}
+                            <span class="c-badge badge-standard">Standard</span>
+                        {% elif shipment.urgency == 'priority' %}
+                            <span class="c-badge badge-priority">Priority</span>
+                        {% elif shipment.urgency == 'urgent' %}
+                            <span class="c-badge badge-urgent">Urgent</span>
+                        {% elif shipment.urgency == 'rush' %}
+                            <span class="c-badge badge-rush">Rush</span>
+                        {% else %}
+                            <span class="muted-dash">-</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Status">
+                        <span class="sbadge s-flagged">On Hold</span>
+                        <span class="inline-status-note">{{ shipment.deficiency_notes|default:"Documents need revision" }}</span>
+                    </td>
+                    <td data-label="Shipment Type" class="muted">{{ shipment.get_shipment_type_display|default:"-" }}</td>
+                    <td data-label="Submitted" class="meta-time">
+                        <span class="meta-primary">{{ shipment.submitted_at|date:"M d, Y" }}</span>
+                        <br>
+                        <span class="meta-secondary">{{ shipment.submitted_at|date:"H:i" }}</span>
+                    </td>
+                    <td data-label="Last Updated" class="meta-time">
+                        <span class="meta-primary">{{ shipment.updated_at|date:"M d, Y" }}</span>
+                        <br>
+                        <span class="meta-secondary">{{ shipment.updated_at|date:"H:i" }}</span>
+                    </td>
+                    <td data-label="Actions" class="text-center">
+                        <a href="{% url 'consignee:shipment_detail' shipment.id %}" class="c-btn c-btn-primary btn-compact">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if active_count or not flagged_shipments %}
+<div class="section-kicker submissions-kicker">
+    <div>
+        <h2>Submissions</h2>
+        {% if flagged_shipments %}
+        <p>Showing active shipments that do not need document revision.</p>
+        {% else %}
+        <p>Track submitted shipments and open each record for full details.</p>
+        {% endif %}
+    </div>
+</div>
+
 <div class="c-card card-no-padding">
     {% if shipments %}
     <div class="table-responsive">
@@ -226,74 +307,22 @@
     </div>
     {% endif %}
 </div>
+{% endif %}
 
-{% if flagged_shipments %}
-<div class="section-kicker">
-    <div>
-        <h2>Flag Shipments <span class="section-count">: {{ flagged_shipments|length|stringformat:"02d" }}</span></h2>
-        <p>Kindly comply with the revisions and requirements to process your shipment.</p>
-    </div>
-</div>
-
-<div class="c-card card-no-padding">
-    <div class="table-responsive">
-        <table class="c-table">
-            <thead>
-                <tr>
-                    <th>Shipment Ref No.</th>
-                    <th>Import Type</th>
-                    <th>Urgency</th>
-                    <th>Status</th>
-                    <th>Shipment Type</th>
-                    <th>Submitted</th>
-                    <th>Last Updated</th>
-                    <th class="text-center">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for shipment in flagged_shipments %}
-                <tr>
-                    <td data-label="Shipment Ref No.">
-                        <span class="ref-number">{{ shipment.hawb_number }}</span>
-                    </td>
-                    <td data-label="Import Type" class="muted">{{ shipment.get_import_type_display|default:"-" }}</td>
-                    <td data-label="Urgency">
-                        {% if shipment.urgency == 'standard' %}
-                            <span class="c-badge badge-standard">Standard</span>
-                        {% elif shipment.urgency == 'priority' %}
-                            <span class="c-badge badge-priority">Priority</span>
-                        {% elif shipment.urgency == 'urgent' %}
-                            <span class="c-badge badge-urgent">Urgent</span>
-                        {% elif shipment.urgency == 'rush' %}
-                            <span class="c-badge badge-rush">Rush</span>
-                        {% else %}
-                            <span class="muted-dash">-</span>
-                        {% endif %}
-                    </td>
-                    <td data-label="Status">
-                        <span class="sbadge s-flagged">On Hold</span>
-                        <span class="inline-status-note">{{ shipment.deficiency_notes|default:"Documents need revision" }}</span>
-                    </td>
-                    <td data-label="Shipment Type" class="muted">{{ shipment.get_shipment_type_display|default:"-" }}</td>
-                    <td data-label="Submitted" class="meta-time">
-                        <span class="meta-primary">{{ shipment.submitted_at|date:"M d, Y" }}</span>
-                        <br>
-                        <span class="meta-secondary">{{ shipment.submitted_at|date:"H:i" }}</span>
-                    </td>
-                    <td data-label="Last Updated" class="meta-time">
-                        <span class="meta-primary">{{ shipment.updated_at|date:"M d, Y" }}</span>
-                        <br>
-                        <span class="meta-secondary">{{ shipment.updated_at|date:"H:i" }}</span>
-                    </td>
-                    <td data-label="Actions" class="text-center">
-                        <a href="{% url 'consignee:shipment_detail' shipment.id %}" class="c-btn c-btn-primary btn-compact">View</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+{% if page_obj.has_other_pages %}
+<nav class="pagination-bar" aria-label="Submissions pagination">
+    {% if page_obj.has_previous %}
+        <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+    {% else %}
+        <span class="page-link disabled">Previous</span>
+    {% endif %}
+    <span class="page-status">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+        <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+    {% else %}
+        <span class="page-link disabled">Next</span>
+    {% endif %}
+</nav>
 {% endif %}
 
 {% endblock %}
