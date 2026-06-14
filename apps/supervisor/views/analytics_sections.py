@@ -23,7 +23,7 @@ from django.core.paginator import Paginator
 from django.http import HttpResponse
 from apps.accounts.models import User
 from apps.accounts.views import _validate_phone_number
-from apps.shipments.models import Shipment, HSCode, StatusLog, TariffSchedule, HSCodeRate
+from apps.shipments.models import Shipment, ShipmentDocument, HSCode, StatusLog, TariffSchedule, HSCodeRate
 from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
 from apps.notifications.utils import create_notification, notify_shipment_status_change
@@ -132,6 +132,136 @@ def _cost_by_type(date_from, date_to, declarant_filter):
         'cost_bar_labels': json.dumps([r['label'] for r in cost_by_type]),
         'cost_bar_data':   json.dumps([r['avg'] for r in cost_by_type]),
         'cost_bar_colors': json.dumps([r['color'] for r in cost_by_type]),
+    }
+
+
+def _estimate_vs_fan(date_from, date_to, declarant_filter):
+    """Compare computed ECDT estimates with verified FAN/SAD assessment values."""
+    comp_qs = DutyComputation.objects.select_related('shipment').filter(
+        shipment__documents__document_type='sad',
+    ).distinct()
+    if date_from:
+        comp_qs = comp_qs.filter(shipment__submitted_at__date__gte=date_from)
+    if date_to:
+        comp_qs = comp_qs.filter(shipment__submitted_at__date__lte=date_to)
+    if declarant_filter:
+        comp_qs = comp_qs.filter(shipment__declarant__username=declarant_filter)
+
+    fan_docs = {}
+    for doc in (
+        ShipmentDocument.objects
+        .filter(shipment_id__in=comp_qs.values_list('shipment_id', flat=True), document_type='sad')
+        .order_by('shipment_id', '-uploaded_at')
+    ):
+        fan_docs.setdefault(doc.shipment_id, doc)
+
+    def _amount(value):
+        raw = re.sub(r'[^0-9.\-]', '', str(value or ''))
+        if not raw:
+            return None
+        try:
+            return Decimal(raw)
+        except InvalidOperation:
+            return None
+
+    def _verified_amount(data, key):
+        raw = data.get(key, {}) if isinstance(data, dict) else {}
+        if not isinstance(raw, dict) or not raw.get('verified'):
+            return None
+        return _amount(raw.get('value'))
+
+    totals = {
+        'customs_duty': {'estimate': Decimal('0'), 'actual': Decimal('0'), 'count': 0},
+        'vat': {'estimate': Decimal('0'), 'actual': Decimal('0'), 'count': 0},
+        'total_payable': {'estimate': Decimal('0'), 'actual': Decimal('0'), 'count': 0},
+    }
+    shipment_rows = []
+
+    for comp in comp_qs:
+        doc = fan_docs.get(comp.shipment_id)
+        if not doc or not doc.ocr_fields_json:
+            continue
+        try:
+            data = json.loads(doc.ocr_fields_json)
+        except (TypeError, ValueError):
+            continue
+
+        actual_cud = _verified_amount(data, 'customs_duty')
+        actual_vat = _verified_amount(data, 'vat')
+        actual_total = _verified_amount(data, 'total_payable')
+        if actual_total is None:
+            taxes = _verified_amount(data, 'total_taxes')
+            fees = _verified_amount(data, 'total_fees')
+            if taxes is not None and fees is not None:
+                actual_total = taxes + fees
+
+        estimates = {
+            'customs_duty': comp.customs_duty,
+            'vat': comp.vat_amount,
+            'total_payable': comp.boc_payable,
+        }
+        actuals = {
+            'customs_duty': actual_cud,
+            'vat': actual_vat,
+            'total_payable': actual_total,
+        }
+
+        has_actual = False
+        for key, actual in actuals.items():
+            estimate = estimates.get(key)
+            if estimate is None or actual is None:
+                continue
+            totals[key]['estimate'] += Decimal(estimate)
+            totals[key]['actual'] += actual
+            totals[key]['count'] += 1
+            has_actual = True
+
+        if has_actual and estimates['total_payable'] is not None and actual_total is not None:
+            variance = actual_total - Decimal(estimates['total_payable'])
+            shipment_rows.append({
+                'hawb': comp.shipment.hawb_number,
+                'estimate': round(float(estimates['total_payable']), 2),
+                'actual': round(float(actual_total), 2),
+                'variance': round(float(variance), 2),
+                'variance_pct': round(float(variance / actual_total * Decimal('100')), 1) if actual_total else 0,
+            })
+
+    metric_meta = [
+        ('customs_duty', 'Customs Duty'),
+        ('vat', 'VAT'),
+        ('total_payable', 'Total Payable'),
+    ]
+    comparison_rows = []
+    for key, label in metric_meta:
+        count = totals[key]['count']
+        estimate_avg = totals[key]['estimate'] / count if count else Decimal('0')
+        actual_avg = totals[key]['actual'] / count if count else Decimal('0')
+        diff = actual_avg - estimate_avg
+        comparison_rows.append({
+            'key': key,
+            'label': label,
+            'count': count,
+            'estimate_avg': round(float(estimate_avg), 2),
+            'actual_avg': round(float(actual_avg), 2),
+            'diff': round(float(diff), 2),
+            'diff_pct': round(float(diff / actual_avg * Decimal('100')), 1) if actual_avg else 0,
+        })
+
+    compared_shipments = len(shipment_rows)
+    avg_abs_variance_pct = (
+        round(sum(abs(r['variance_pct']) for r in shipment_rows) / compared_shipments, 1)
+        if compared_shipments else 0
+    )
+    shipment_rows.sort(key=lambda r: abs(r['variance']), reverse=True)
+
+    return {
+        'fan_comparison_rows': comparison_rows,
+        'fan_compared_shipments': compared_shipments,
+        'fan_avg_abs_variance_pct': avg_abs_variance_pct,
+        'fan_largest_variances': shipment_rows[:5],
+        'fan_chart_labels': json.dumps([r['label'] for r in comparison_rows]),
+        'fan_chart_estimated': json.dumps([r['estimate_avg'] for r in comparison_rows]),
+        'fan_chart_actual': json.dumps([r['actual_avg'] for r in comparison_rows]),
     }
 
 
@@ -470,7 +600,7 @@ def _top_declarant(declarant_data):
 
 __all__ = [
     '_feedback_summary', '_shipment_type_counts', '_currency_breakdown',
-    '_cost_by_type', '_status_breakdown', '_wmcda_scoreboard', '_wmcda_comparison',
-    '_declarant_performance', '_urgency_distribution', '_monthly_overview',
-    '_due_date_buckets', '_wmcda_bar_chart', '_top_declarant',
+    '_cost_by_type', '_estimate_vs_fan', '_status_breakdown', '_wmcda_scoreboard',
+    '_wmcda_comparison', '_declarant_performance', '_urgency_distribution',
+    '_monthly_overview', '_due_date_buckets', '_wmcda_bar_chart', '_top_declarant',
 ]

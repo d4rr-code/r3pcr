@@ -761,55 +761,64 @@ canvas { cursor: pointer; }
             </div>
         </section>
 
-        <!-- Cost Comparison by Shipment Type -->
+        <!-- ECDT estimate vs verified FAN/SAD assessment -->
         <section class="dash-card panel cost-chart-panel">
             <div class="panel-title">
                 <div>
-                    <h2>Total Landed Cost by Shipment Type</h2>
-                    <p>Average computed total landed cost per mode (PHP)</p>
+                    <h2>ECDT Estimate vs FAN/SAD Actual</h2>
+                    <p>Average computed amount compared with verified BOC assessment</p>
                 </div>
             </div>
             <div class="chart-fixed compact-bars">
-                <canvas id="costTypeChart"></canvas>
+                <canvas id="fanComparisonChart"></canvas>
             </div>
         </section>
 
         <section class="dash-card panel cost-table-panel">
             <div class="panel-title">
                 <div>
-                    <h2>Cost Summary</h2>
-                    <p>Breakdown per shipment mode</p>
+                    <h2>Assessment Variance</h2>
+                    <p>{{ fan_compared_shipments }} shipment{{ fan_compared_shipments|pluralize }} with verified FAN values</p>
                 </div>
+            </div>
+            <div class="currency-total" style="margin-bottom:10px;">
+                <span>Avg absolute variance</span>
+                <strong>{{ fan_avg_abs_variance_pct }}%</strong>
             </div>
             <table style="width:100%; border-collapse:collapse; font-size:12px;">
                 <thead>
                     <tr style="border-bottom:2px solid #EEF2F6;">
-                        <th style="padding:7px 10px; text-align:left; color:#324056; font-size:11px; font-weight:800;">Mode</th>
-                        <th style="padding:7px 10px; text-align:right; color:#324056; font-size:11px; font-weight:800;">Count</th>
-                        <th style="padding:7px 10px; text-align:right; color:#324056; font-size:11px; font-weight:800;">Avg (₱)</th>
-                        <th style="padding:7px 10px; text-align:right; color:#324056; font-size:11px; font-weight:800;">Max (₱)</th>
+                        <th style="padding:7px 10px; text-align:left; color:#324056; font-size:11px; font-weight:800;">Metric</th>
+                        <th style="padding:7px 10px; text-align:right; color:#324056; font-size:11px; font-weight:800;">Est.</th>
+                        <th style="padding:7px 10px; text-align:right; color:#324056; font-size:11px; font-weight:800;">Actual</th>
+                        <th style="padding:7px 10px; text-align:right; color:#324056; font-size:11px; font-weight:800;">Diff</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for row in cost_by_type %}
+                    {% for row in fan_comparison_rows %}
                     <tr style="border-bottom:1px solid #EEF2F6;">
                         <td style="padding:8px 10px;">
                             <span style="display:inline-flex; align-items:center; gap:6px;">
-                                <span style="width:8px; height:8px; border-radius:50%; background:{{ row.color }}; flex-shrink:0;"></span>
+                                <span style="width:8px; height:8px; border-radius:50%; background:{% if row.key == 'customs_duty' %}#2563eb{% elif row.key == 'vat' %}#14b8a6{% else %}#f59e0b{% endif %}; flex-shrink:0;"></span>
                                 <span style="color:#111827; font-weight:700;">{{ row.label }}</span>
                             </span>
                         </td>
-                        <td style="padding:8px 10px; text-align:right; color:#324056; font-weight:700;">{{ row.count }}</td>
-                        <td style="padding:8px 10px; text-align:right; color:#111827; font-weight:700;">
-                            {% if row.avg %}{{ row.avg|floatformat:0 }}{% else %}—{% endif %}
-                        </td>
-                        <td style="padding:8px 10px; text-align:right; color:#111827;">
-                            {% if row.max_val %}{{ row.max_val|floatformat:0 }}{% else %}—{% endif %}
-                        </td>
+                        <td style="padding:8px 10px; text-align:right; color:#111827; font-weight:700;">{% if row.count %}{{ row.estimate_avg|floatformat:0 }}{% else %}&mdash;{% endif %}</td>
+                        <td style="padding:8px 10px; text-align:right; color:#111827;">{% if row.count %}{{ row.actual_avg|floatformat:0 }}{% else %}&mdash;{% endif %}</td>
+                        <td style="padding:8px 10px; text-align:right; color:{% if row.diff > 0 %}#b45309{% elif row.diff < 0 %}#15803d{% else %}#111827{% endif %}; font-weight:800;">{% if row.count %}{{ row.diff|floatformat:0 }}{% else %}&mdash;{% endif %}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            {% if fan_largest_variances %}
+            <p style="color:#6b7280;font-size:11px;margin:10px 2px 0;">
+                Largest variance: {{ fan_largest_variances.0.hawb }} ({{ fan_largest_variances.0.variance_pct }}%).
+            </p>
+            {% else %}
+            <p style="color:#6b7280;font-size:11px;margin:10px 2px 0;">
+                Save verified FAN breakdowns to populate this comparison.
+            </p>
+            {% endif %}
         </section>
 
         <!-- Invoice Currency Usage -->
@@ -1116,32 +1125,39 @@ canvas { cursor: pointer; }
         });
     }
 
-    var costTypeEl = document.getElementById('costTypeChart');
-    if (window.Chart && costTypeEl) {
-        new Chart(costTypeEl, {
+    var fanComparisonEl = document.getElementById('fanComparisonChart');
+    if (window.Chart && fanComparisonEl) {
+        new Chart(fanComparisonEl, {
             type: 'bar',
             data: {
-                labels: {{ cost_bar_labels|safe }},
-                datasets: [{
-                    label: 'Avg Total Landed Cost (₱)',
-                    data: {{ cost_bar_data|safe }},
-                    backgroundColor: {{ cost_bar_colors|safe }},
-                    borderRadius: 6,
-                    borderSkipped: false,
-                }]
+                labels: {{ fan_chart_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Estimated ECDT',
+                        data: {{ fan_chart_estimated|safe }},
+                        backgroundColor: '#2563eb',
+                        borderRadius: 5,
+                        borderSkipped: false
+                    },
+                    {
+                        label: 'Actual FAN/SAD',
+                        data: {{ fan_chart_actual|safe }},
+                        backgroundColor: '#14b8a6',
+                        borderRadius: 5,
+                        borderSkipped: false
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                onClick: function(event, elements) {
-                    if (!elements.length) return;
-                    var label = this.data.labels[elements[0].index];
-                    window.location.href = '{% url "supervisor:shipment_records" %}?stype=' + label.toLowerCase();
-                },
                 plugins: {
-                    legend: { display: false },
+                    legend: {
+                        display: true,
+                        labels: { color: '#334155', font: { size: 11, weight: '700' }, boxWidth: 10 }
+                    },
                     tooltip: {
-                        displayColors: false,
+                        displayColors: true,
                         backgroundColor: '#172033',
                         titleColor: '#fff',
                         bodyColor: '#fff',
@@ -1149,7 +1165,7 @@ canvas { cursor: pointer; }
                         cornerRadius: 6,
                         callbacks: {
                             label: function(ctx) {
-                                return '₱ ' + Number(ctx.parsed.y).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                return ctx.dataset.label + ': PHP ' + Number(ctx.parsed.y).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                             }
                         }
                     }
@@ -1163,9 +1179,9 @@ canvas { cursor: pointer; }
                             color: '#334155',
                             font: { size: 11, weight: '700' },
                             callback: function(val) {
-                                return val >= 1000000 ? '₱' + (val/1000000).toFixed(1) + 'M'
-                                     : val >= 1000    ? '₱' + (val/1000).toFixed(0) + 'K'
-                                     : '₱' + val;
+                                return val >= 1000000 ? 'PHP ' + (val/1000000).toFixed(1) + 'M'
+                                     : val >= 1000    ? 'PHP ' + (val/1000).toFixed(0) + 'K'
+                                     : 'PHP ' + val;
                             }
                         }
                     },

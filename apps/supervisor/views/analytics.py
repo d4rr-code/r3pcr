@@ -464,12 +464,8 @@ def _analytics_context_response(request):
     currency_chart_data   = _cur['currency_chart_data']
     currency_chart_colors = _cur['currency_chart_colors']
 
-    # Cost comparison by shipment type — avg/total landed cost per mode
-    _cost = _cost_by_type(date_from, date_to, declarant_filter)
-    cost_by_type    = _cost['cost_by_type']
-    cost_bar_labels = _cost['cost_bar_labels']
-    cost_bar_data   = _cost['cost_bar_data']
-    cost_bar_colors = _cost['cost_bar_colors']
+    # Estimated ECDT vs verified FAN/SAD assessment
+    _fan_cmp = _estimate_vs_fan(date_from, date_to, declarant_filter)
 
     # Feedback summary — all-time
     feedback_summary = _feedback_summary()
@@ -530,11 +526,14 @@ def _analytics_context_response(request):
         'wmcda_bar_data':        wmcda_bar_data,
         'wmcda_bar_colors':      wmcda_bar_colors,
         'wmcda_bar_keys':        wmcda_bar_keys,
-        # cost comparison
-        'cost_by_type':          cost_by_type,
-        'cost_bar_labels':       cost_bar_labels,
-        'cost_bar_data':         cost_bar_data,
-        'cost_bar_colors':       cost_bar_colors,
+        # estimate vs actual FAN/SAD comparison
+        'fan_comparison_rows':       _fan_cmp['fan_comparison_rows'],
+        'fan_compared_shipments':    _fan_cmp['fan_compared_shipments'],
+        'fan_avg_abs_variance_pct':  _fan_cmp['fan_avg_abs_variance_pct'],
+        'fan_largest_variances':     _fan_cmp['fan_largest_variances'],
+        'fan_chart_labels':          _fan_cmp['fan_chart_labels'],
+        'fan_chart_estimated':       _fan_cmp['fan_chart_estimated'],
+        'fan_chart_actual':          _fan_cmp['fan_chart_actual'],
         # currency analytics
         'currency_breakdown':      currency_breakdown,
         'currency_total':          currency_total,
@@ -563,4 +562,3 @@ def analytics_status_counts(request):
 
 
 #  Supervisor Shipment Detail (read-only) 
-
