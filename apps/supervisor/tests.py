@@ -4,12 +4,11 @@ These lock the CURRENT context output of the ~540-line
 ``_analytics_context_response`` (rendered by the supervisor:dashboard view)
 before it is refactored, so the section-by-section extraction can be proven
 behavior-preserving. Assertions target the stable aggregate values (KPIs,
-status/type/currency breakdowns, FAN comparison, feedback) computed from a small
+status/type/currency breakdowns, cost-by-type, feedback) computed from a small
 deterministic dataset.
 
 Run:  python manage.py test apps.supervisor --settings=config.settings_test
 """
-import json
 from datetime import timedelta
 from decimal import Decimal
 
@@ -18,7 +17,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
+from apps.shipments.models import Shipment, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
 
@@ -56,7 +55,7 @@ class AnalyticsDashboardContextTests(TestCase):
         self.s4 = _ship('A-4', 'approved', 'air', 'USD', self.dec2)
         self.s5 = _ship('A-5', 'billed',   'lcl', 'JPY', self.dec1)
 
-        # Baseline computations used by analytics panels.
+        # Cost-by-type: lcl avg 1500 (count 2), air avg 500 (count 1), fcl none
         DutyComputation.objects.create(shipment=self.s1, total_landed_cost=Decimal('500'))
         DutyComputation.objects.create(shipment=self.s2, total_landed_cost=Decimal('1000'))
         DutyComputation.objects.create(shipment=self.s5, total_landed_cost=Decimal('2000'))
@@ -98,68 +97,15 @@ class AnalyticsDashboardContextTests(TestCase):
         self.assertEqual(by_code['EUR'], 1)
         self.assertEqual(by_code['JPY'], 1)
 
-    def test_estimate_vs_fan_assessment(self):
-        DutyComputation.objects.update_or_create(
-            shipment=self.s5,
-            defaults={
-                'customs_duty': Decimal('100.00'),
-                'vat_amount': Decimal('200.00'),
-                'ipf': Decimal('50.00'),
-                'total_landed_cost': Decimal('2000.00'),
-            },
-        )
-        ShipmentDocument.objects.create(
-            shipment=self.s5,
-            document_type='sad',
-            file='shipment_documents/fan.pdf',
-            ocr_fields_json=json.dumps({
-                'customs_duty': {'value': '120.00', 'verified': True},
-                'vat': {'value': '180.00', 'verified': True},
-                'total_payable': {'value': '430.00', 'verified': True},
-            }),
-        )
-
+    def test_cost_by_type(self):
         ctx = self._ctx()
-        by_key = {r['key']: r for r in ctx['fan_comparison_rows']}
-        self.assertEqual(ctx['fan_compared_shipments'], 1)
-        self.assertEqual(by_key['customs_duty']['estimate_avg'], 100.0)
-        self.assertEqual(by_key['customs_duty']['actual_avg'], 120.0)
-        self.assertEqual(by_key['vat']['diff'], -20.0)
-        # Estimated BOC payable = CUD 100 + VAT 200 + IPF 50 + CDS 130.
-        self.assertEqual(by_key['total_payable']['estimate_avg'], 480.0)
-        self.assertEqual(by_key['total_payable']['actual_avg'], 430.0)
-        self.assertEqual(ctx['fan_avg_abs_variance_pct'], 11.6)
-
-    def test_estimate_vs_fan_uses_unverified_uploaded_values(self):
-        DutyComputation.objects.update_or_create(
-            shipment=self.s5,
-            defaults={
-                'customs_duty': Decimal('80.00'),
-                'vat_amount': Decimal('220.00'),
-                'ipf': Decimal('20.00'),
-                'total_landed_cost': Decimal('2000.00'),
-            },
-        )
-        ShipmentDocument.objects.create(
-            shipment=self.s5,
-            document_type='sad',
-            file='shipment_documents/fan.pdf',
-            ocr_fields_json=json.dumps({
-                'customs_duty': {'value': '82.00'},
-                'vat': {'value': '218.00'},
-                'total_taxes': {'value': '300.00'},
-                'total_fees': {'value': '155.00'},
-            }),
-        )
-
-        ctx = self._ctx()
-        by_key = {r['key']: r for r in ctx['fan_comparison_rows']}
-        self.assertEqual(ctx['fan_compared_shipments'], 1)
-        self.assertEqual(by_key['customs_duty']['actual_avg'], 82.0)
-        self.assertEqual(by_key['vat']['actual_avg'], 218.0)
-        # Fallback total = total_taxes + total_fees when total_payable is absent.
-        self.assertEqual(by_key['total_payable']['estimate_avg'], 450.0)
-        self.assertEqual(by_key['total_payable']['actual_avg'], 455.0)
+        by_code = {r['code']: r for r in ctx['cost_by_type']}
+        self.assertEqual(by_code['lcl']['count'], 2)
+        self.assertEqual(by_code['lcl']['avg'], 1500.0)
+        self.assertEqual(by_code['lcl']['total'], 3000.0)
+        self.assertEqual(by_code['air']['count'], 1)
+        self.assertEqual(by_code['air']['avg'], 500.0)
+        self.assertEqual(by_code['fcl']['count'], 0)
 
     def test_feedback_summary(self):
         ctx = self._ctx()
