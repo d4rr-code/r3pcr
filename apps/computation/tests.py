@@ -76,6 +76,41 @@ class ExtractLineItemsTests(SimpleTestCase):
         )
         self.assertEqual([i['description'] for i in items], ['ALPHA WIDGET', 'BETA WIDGET'])
 
+    def test_cell_per_line_invoice_table_from_pdf_text_layer(self):
+        items = _extract_line_items(
+            'LINE ITEMS\n'
+            ' No.\n Description of Goods\n HS Code\n Qty\n Unit\n'
+            ' Unit Price (USD)\n Total Amount\n (USD)\n'
+            ' 1\nWireless computer mouse\n 8471.60\n 120\n PCS\n 6.50\n 780.00\n'
+            ' 2\nUSB keyboard\n 8471.60\n 80\n PCS\n 9.75\n 780.00\n'
+            ' 3\nExternal solid-state drive\n 8471.70\n 40\n PCS\n 35.00\n 1,400.00\n'
+        )
+        self.assertEqual(len(items), 3)
+        self.assertEqual(items[0]['description'], 'Wireless computer mouse')
+        self.assertEqual(items[0]['quantity'], '120')
+        self.assertEqual(items[0]['unit'], 'PCS')
+        self.assertEqual(items[0]['unit_price'], '6.50')
+        self.assertEqual(items[0]['total_value'], 780.0)
+        self.assertEqual(items[0]['doc_hs_code'], '8471.60')
+        self.assertEqual(items[2]['total_value'], 1400.0)
+
+    def test_cell_per_line_packing_list_table_from_pdf_text_layer(self):
+        items = _extract_line_items(
+            'LINE ITEMS\n'
+            ' No.\n Description of Goods\n Qty\n No. of Packages\n Gross Wt\n'
+            ' (kg)\n Net Wt (kg)\nVolume (CBM)\n'
+            ' 1\nWireless computer mouse\n 120 pcs\n 4 cartons\n 28.00\n 23.00\n 0.20\n'
+            ' 2\nUSB keyboard\n 80 pcs\n 5 cartons\n 45.00\n 36.00\n 0.30\n'
+            ' 3\nExternal solid-state drive\n 40 pcs\n 3 cartons\n 22.00\n 19.00\n 0.14\n'
+        )
+        self.assertEqual(len(items), 3)
+        self.assertEqual(items[0]['description'], 'Wireless computer mouse')
+        self.assertEqual(items[0]['quantity'], '120')
+        self.assertEqual(items[0]['unit'], 'PCS')
+        self.assertEqual(items[0]['gross_weight'], '28.00')
+        self.assertEqual(items[0]['net_weight'], '23.00')
+        self.assertEqual(items[0]['num_packages'], '4')
+
 
 class ComputeShipmentPostTests(TestCase):
     """The declarant POSTs item data; the view computes + persists the ECDT."""
