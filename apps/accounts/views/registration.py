@@ -1,6 +1,7 @@
 """Self-registration for consignees with email OTP verification."""
 from django.conf import settings
 from django.contrib import messages
+from django.core.mail import send_mail
 from django.shortcuts import redirect, render
 
 from ..models import OTP, User
@@ -13,10 +14,33 @@ from .validators import (
 
 
 def _is_local_email_backend():
+    backend = getattr(settings, 'EMAIL_BACKEND', '')
+    smtp_without_credentials = (
+        'smtp' in backend
+        and not getattr(settings, 'EMAIL_HOST_USER', '')
+        and not getattr(settings, 'EMAIL_HOST_PASSWORD', '')
+    )
     return (
-        'console' in getattr(settings, 'EMAIL_BACKEND', '')
+        'console' in backend
+        or 'locmem' in backend
+        or smtp_without_credentials
         or getattr(settings, 'REGISTRATION_EMAIL_DEV_LINKS', False)
     )
+
+
+def _registration_otp_html(user, otp_code):
+    return f'''
+        <div style="font-family:Arial,sans-serif;max-width:420px;margin:0 auto;">
+            <h2 style="color:#3b82f6;">R3-PCR Email Verification</h2>
+            <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
+            <p>Use this OTP to verify your email address:</p>
+            <h1 style="color:#3b82f6;letter-spacing:8px;">{otp_code}</h1>
+            <p>Expires in <strong>10 minutes</strong>.</p>
+            <p style="color:#64748b;font-size:12px;">
+                Your account will be sent to the supervisor after email verification.
+            </p>
+        </div>
+    '''
 
 
 def _send_registration_otp(request, user):
@@ -26,29 +50,26 @@ def _send_registration_otp(request, user):
 
     if _is_local_email_backend():
         logger.info('[DEV REGISTRATION OTP] User: %s | Code: %s', user.username, otp_code)
-        messages.info(request, f'[DEV] Registration OTP: {otp_code} - check your terminal.')
+        messages.info(request, 'Registration OTP generated. Use the testing code shown below.')
         return
 
-    _send_mail_async(
-        subject='R3-PCR Email Verification OTP',
-        message=f'Your R3-PCR registration OTP is: {otp_code}\nExpires in 10 minutes.',
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        html_message=f'''
-            <div style="font-family:Arial,sans-serif;max-width:420px;margin:0 auto;">
-                <h2 style="color:#3b82f6;">R3-PCR Email Verification</h2>
-                <p>Hello <strong>{user.first_name or user.username}</strong>,</p>
-                <p>Use this OTP to verify your email address:</p>
-                <h1 style="color:#3b82f6;letter-spacing:8px;">{otp_code}</h1>
-                <p>Expires in <strong>10 minutes</strong>.</p>
-                <p style="color:#64748b;font-size:12px;">
-                    Your account will still need supervisor approval after email verification.
-                </p>
-            </div>
-        ''',
-        log_tag=f'registration OTP for {user.username}',
-    )
-    messages.success(request, 'Registration OTP sent to your email.')
+    try:
+        send_mail(
+            subject='R3-PCR Email Verification OTP',
+            message=f'Your R3-PCR registration OTP is: {otp_code}\nExpires in 10 minutes.',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=_registration_otp_html(user, otp_code),
+            fail_silently=False,
+        )
+        logger.info('Registration OTP sent for %s -> %s', user.username, user.email)
+        messages.success(request, 'Registration OTP sent to your email.')
+    except Exception as exc:
+        logger.error('Registration OTP email failed for %s -> %s: %s', user.username, user.email, exc)
+        if getattr(settings, 'DEBUG', False):
+            messages.warning(request, 'Email sending failed in local development. Use the testing code shown below.')
+        else:
+            messages.error(request, 'We could not send the OTP email. Please try resending the OTP.')
 
 
 def _notify_supervisors(user):
@@ -60,7 +81,7 @@ def _notify_supervisors(user):
                 f'{user.get_full_name() or user.username} ({user.username}) has registered '
                 f'and is awaiting approval.\n\n'
                 f'Email: {user.email}\n'
-                f'Email verified: {"Yes" if user.email_verified else "No"}\n'
+                f'Email verified: Yes\n'
                 f'Company: {user.company_name or "-"}'
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
@@ -77,7 +98,7 @@ def _notify_supervisors(user):
                         <tr><td style="color:#94a3b8;padding:4px 0;">Email</td>
                             <td>{user.email}</td></tr>
                         <tr><td style="color:#94a3b8;padding:4px 0;">Email Verified</td>
-                            <td>{"Yes" if user.email_verified else "No"}</td></tr>
+                            <td>Yes</td></tr>
                         <tr><td style="color:#94a3b8;padding:4px 0;">Company</td>
                             <td>{user.company_name or "-"}</td></tr>
                     </table>
@@ -130,10 +151,9 @@ def register_view(request):
 
         request.session['pending_registration_user_id'] = user.id
         _send_registration_otp(request, user)
-        _notify_supervisors(user)
         messages.success(
             request,
-            f'Registration submitted! Your username is "{username}". Verify your email to continue.'
+            f'Your account was created with username "{username}". Verify your email to submit it for supervisor approval.'
         )
         return redirect('accounts:verify_registration_email')
 
@@ -160,17 +180,18 @@ def verify_registration_email(request):
             otp.save(update_fields=['is_used'])
             user.email_verified = True
             user.save(update_fields=['email_verified', 'updated_at'])
+            _notify_supervisors(user)
             request.session.pop('pending_registration_user_id', None)
             messages.success(
                 request,
-                'Email verified. Your account is now waiting for supervisor approval.'
+                'Email verified. Your registration has been submitted for supervisor approval.'
             )
             return redirect('accounts:login')
 
         messages.error(request, 'Invalid or expired OTP. Please try again.')
 
     dev_otp = None
-    if _is_local_email_backend():
+    if _is_local_email_backend() or getattr(settings, 'DEBUG', False):
         try:
             otp = OTP.objects.filter(user_id=user_id, is_used=False).latest('created_at')
             if otp.is_valid():

@@ -15,7 +15,7 @@ from .common import *  # noqa: F401,F403
 @supervisor_required
 def user_management(request):
     users   = User.objects.filter(is_pending_approval=False).order_by('role', 'username')
-    pending = User.objects.filter(is_pending_approval=True).order_by('date_joined')
+    pending = User.objects.filter(is_pending_approval=True, email_verified=True).order_by('date_joined')
     user_stats = {
         'total': users.count(),
         'consignees': users.filter(role='consignee').count(),

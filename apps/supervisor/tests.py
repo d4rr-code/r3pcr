@@ -235,6 +235,21 @@ class UserManagementTests(TestCase):
         self.assertFalse(self.pending.is_active)
         self.assertTrue(self.pending.is_pending_approval)
 
+    def test_unverified_registration_is_not_listed_for_supervisor(self):
+        resp = self.client.get(reverse('supervisor:users'))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotIn(self.pending, list(resp.context['pending']))
+
+    def test_verified_registration_is_listed_for_supervisor(self):
+        self.pending.email_verified = True
+        self.pending.save(update_fields=['email_verified'])
+
+        resp = self.client.get(reverse('supervisor:users'))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(self.pending, list(resp.context['pending']))
+
     def test_can_approve_verified_email_registration(self):
         self.pending.email_verified = True
         self.pending.save(update_fields=['email_verified'])
