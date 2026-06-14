@@ -100,14 +100,13 @@
         <div class="otp-container">
 
             <h1 id="otpTitle">
-                Check your Email
+                {{ otp_title|default:"Check your Email" }}
             </h1>
 
             <p class="subtitle"
             id="otpSubtitle">
 
-                We sent a 6-digit OTP to your email address.
-                It expires in 10 minutes.
+                {{ otp_subtitle|default:"We sent a 6-digit OTP to your email address. It expires in 10 minutes." }}
 
             </p>
 
@@ -176,18 +175,18 @@
             <!-- RESEND -->
             <div style="text-align:center; margin-top:14px; font-size:13px; color:rgba(255,255,255,0.6);">
                 Didn't receive it?
-                <a href="{% url 'accounts:resend_otp' %}"
+                <a href="{% if resend_url_name %}{% url resend_url_name %}{% else %}{% url 'accounts:resend_otp' %}{% endif %}"
                    style="color:#3b82f6; font-weight:600; text-decoration:none; margin-left:4px;">
                     Resend OTP
                 </a>
             </div>
 
             <!-- BACK -->
-            <a href="{% url 'accounts:login' %}"
+            <a href="{% if back_url_name %}{% url back_url_name %}{% else %}{% url 'accounts:login' %}{% endif %}"
             class="back-login"
             id="backText">
 
-                Back to Login
+                {{ back_label|default:"Back to Login" }}
 
             </a>
 

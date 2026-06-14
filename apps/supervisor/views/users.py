@@ -35,6 +35,10 @@ def user_management(request):
 def approve_registration(request, user_id):
     user = get_object_or_404(User, id=user_id, is_pending_approval=True)
     if request.method == 'POST':
+        if not user.email_verified:
+            messages.error(request, f'Cannot approve {user.username} until the email address is verified.')
+            return redirect('supervisor:users')
+
         user.is_active           = True
         user.is_pending_approval = False
         user.save()
@@ -216,4 +220,3 @@ def toggle_user(request, user_id):
 
 
 #  Analytics (merged command centre) 
-

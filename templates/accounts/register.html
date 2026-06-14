@@ -104,24 +104,13 @@
 
             <div class="section-divider"></div>
 
-            <!-- Company row -->
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Company Name</label>
-                    <input type="text" name="company_name" class="form-input"
-                           value="{{ form_data.company_name|default:'' }}"
-                           placeholder="Dela Cruz Trading"
-                           maxlength="100">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Phone Number</label>
-                    <input type="tel" id="phone_number" name="phone_number" class="form-input"
-                           value="{{ form_data.phone_number|default:'' }}"
-                           placeholder="09xxxxxxxxx"
-                           inputmode="numeric" autocomplete="tel" maxlength="11"
-                           pattern="09\d{9}"
-                           title="PH mobile number: 11 digits starting with 09 (e.g. 09171234567).">
-                </div>
+            <!-- Company -->
+            <div class="form-group">
+                <label class="form-label">Company Name</label>
+                <input type="text" name="company_name" class="form-input"
+                       value="{{ form_data.company_name|default:'' }}"
+                       placeholder="Dela Cruz Trading"
+                       maxlength="100">
             </div>
 
             <div class="section-divider"></div>

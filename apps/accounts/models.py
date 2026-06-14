@@ -22,6 +22,7 @@ class User(AbstractUser):
     )
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     company_name = models.CharField(max_length=100, blank=True)
+    email_verified      = models.BooleanField(default=True)
     otp_enabled         = models.BooleanField(default=True)
     is_pending_approval = models.BooleanField(default=False)
     is_active           = models.BooleanField(default=True)

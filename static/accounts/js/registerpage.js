@@ -26,14 +26,6 @@ function updatePreview() {
 firstInput.addEventListener('input', updatePreview);
 lastInput.addEventListener('input',  updatePreview);
 
-/* ── Phone: keep digits only, max 11 (09xxxxxxxxx) ─────────── */
-const phoneInput = document.getElementById('phone_number');
-if (phoneInput) {
-    phoneInput.addEventListener('input', function () {
-        this.value = this.value.replace(/\D/g, '').slice(0, 11);
-    });
-}
-
 /* ── Password toggle ───────────────────────────────────────── */
 document.querySelectorAll('.toggle-pw').forEach(btn => {
     btn.addEventListener('click', function () {
@@ -81,4 +73,3 @@ if (languageDropdown) {
             languageDropdown.classList.remove('active');
     });
 }
-
