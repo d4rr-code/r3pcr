@@ -136,7 +136,8 @@ def verify_otp_view(request):
     dev_otp = None
     _is_local = ('console' in getattr(settings, 'EMAIL_BACKEND', '')
                  or getattr(settings, 'REGISTRATION_EMAIL_DEV_LINKS', False))
-    if _is_local:
+    _show_otp_hint = _is_local or getattr(settings, 'LOGIN_OTP_SCREEN_HINT', False)
+    if _show_otp_hint:
         try:
             _hint_otp = OTP.objects.filter(user_id=user_id, is_used=False).latest('created_at')
             if _hint_otp.is_valid():

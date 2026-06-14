@@ -8,7 +8,7 @@ too.
 
 Run:  python manage.py test apps.accounts --settings=config.settings_test
 """
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.core.cache import cache
 
@@ -154,6 +154,38 @@ class VerifyOtpTests(TestCase):
         self.assertIn('_auth_user_id', self.client.session)
         otp.refresh_from_db()
         self.assertTrue(otp.is_used)
+
+    @override_settings(
+        EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend',
+        REGISTRATION_EMAIL_DEV_LINKS=False,
+        LOGIN_OTP_SCREEN_HINT=False,
+    )
+    def test_verify_otp_hides_code_by_default(self):
+        OTP.objects.create(user=self.user, code='123456')
+        session = self.client.session
+        session['pre_auth_user_id'] = self.user.id
+        session.save()
+
+        resp = self.client.get(reverse('accounts:verify_otp'))
+
+        self.assertNotContains(resp, '123456')
+        self.assertNotContains(resp, 'Testing Mode - OTP Code')
+
+    @override_settings(
+        EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend',
+        REGISTRATION_EMAIL_DEV_LINKS=False,
+        LOGIN_OTP_SCREEN_HINT=True,
+    )
+    def test_verify_otp_can_show_code_for_survey_testing(self):
+        OTP.objects.create(user=self.user, code='123456')
+        session = self.client.session
+        session['pre_auth_user_id'] = self.user.id
+        session.save()
+
+        resp = self.client.get(reverse('accounts:verify_otp'))
+
+        self.assertContains(resp, '123456')
+        self.assertContains(resp, 'Testing Mode - OTP Code')
 
 
 # ─── Registration ─────────────────────────────────────────────────────────────
