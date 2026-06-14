@@ -89,7 +89,7 @@ def submit_shipment(request):
         messages.success(
             request,
             f'Shipment submitted! Your Shipment Reference No. is '
-            f'<strong>{hawb_number}</strong>.'
+            f'{hawb_number}.'
         )
         return redirect('consignee:my_submissions')
 
