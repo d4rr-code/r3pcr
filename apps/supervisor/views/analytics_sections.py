@@ -136,7 +136,7 @@ def _cost_by_type(date_from, date_to, declarant_filter):
 
 
 def _estimate_vs_fan(date_from, date_to, declarant_filter):
-    """Compare computed ECDT estimates with verified FAN/SAD assessment values."""
+    """Compare computed ECDT estimates with available FAN/SAD assessment values."""
     comp_qs = DutyComputation.objects.select_related('shipment').filter(
         shipment__documents__document_type='sad',
     ).distinct()
@@ -164,11 +164,11 @@ def _estimate_vs_fan(date_from, date_to, declarant_filter):
         except InvalidOperation:
             return None
 
-    def _verified_amount(data, key):
+    def _fan_amount(data, key):
         raw = data.get(key, {}) if isinstance(data, dict) else {}
-        if not isinstance(raw, dict) or not raw.get('verified'):
-            return None
-        return _amount(raw.get('value'))
+        if isinstance(raw, dict):
+            return _amount(raw.get('value'))
+        return _amount(raw)
 
     totals = {
         'customs_duty': {'estimate': Decimal('0'), 'actual': Decimal('0'), 'count': 0},
@@ -186,12 +186,12 @@ def _estimate_vs_fan(date_from, date_to, declarant_filter):
         except (TypeError, ValueError):
             continue
 
-        actual_cud = _verified_amount(data, 'customs_duty')
-        actual_vat = _verified_amount(data, 'vat')
-        actual_total = _verified_amount(data, 'total_payable')
+        actual_cud = _fan_amount(data, 'customs_duty')
+        actual_vat = _fan_amount(data, 'vat')
+        actual_total = _fan_amount(data, 'total_payable')
         if actual_total is None:
-            taxes = _verified_amount(data, 'total_taxes')
-            fees = _verified_amount(data, 'total_fees')
+            taxes = _fan_amount(data, 'total_taxes')
+            fees = _fan_amount(data, 'total_fees')
             if taxes is not None and fees is not None:
                 actual_total = taxes + fees
 

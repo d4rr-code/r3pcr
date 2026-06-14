@@ -761,12 +761,12 @@ canvas { cursor: pointer; }
             </div>
         </section>
 
-        <!-- ECDT estimate vs verified FAN/SAD assessment -->
+        <!-- ECDT estimate vs FAN/SAD assessment -->
         <section class="dash-card panel cost-chart-panel">
             <div class="panel-title">
                 <div>
                     <h2>ECDT Estimate vs FAN/SAD Actual</h2>
-                    <p>Average computed amount compared with verified BOC assessment</p>
+                    <p>Average computed amount compared with BOC assessment values</p>
                 </div>
             </div>
             <div class="chart-fixed compact-bars">
@@ -778,7 +778,7 @@ canvas { cursor: pointer; }
             <div class="panel-title">
                 <div>
                     <h2>Assessment Variance</h2>
-                    <p>{{ fan_compared_shipments }} shipment{{ fan_compared_shipments|pluralize }} with verified FAN values</p>
+                    <p>{{ fan_compared_shipments }} shipment{{ fan_compared_shipments|pluralize }} with FAN/SAD values</p>
                 </div>
             </div>
             <div class="currency-total" style="margin-bottom:10px;">
@@ -816,7 +816,7 @@ canvas { cursor: pointer; }
             </p>
             {% else %}
             <p style="color:#6b7280;font-size:11px;margin:10px 2px 0;">
-                Save verified FAN breakdowns to populate this comparison.
+                Upload or save FAN/SAD breakdowns to populate this comparison.
             </p>
             {% endif %}
         </section>

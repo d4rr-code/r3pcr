@@ -25,7 +25,7 @@ from django.utils import timezone
 from django.db import transaction
 
 from apps.accounts.models import User
-from apps.shipments.models import Shipment, HSCode, StatusLog
+from apps.shipments.models import Shipment, HSCode, ShipmentDocument, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
 from apps.notifications.models import Notification
@@ -383,6 +383,55 @@ class Command(BaseCommand):
                 if computed_ts:
                     DutyComputation.objects.filter(pk=comp.pk).update(
                         computed_at=computed_ts, updated_at=computed_ts)
+
+                if final in ('assessed', 'paid', 'released', 'billed'):
+                    duty_factor = Decimal(str(round(random.uniform(0.94, 1.08), 4)))
+                    vat_factor = Decimal(str(round(random.uniform(0.95, 1.06), 4)))
+                    fee_factor = Decimal(str(round(random.uniform(0.98, 1.04), 4)))
+                    actual_customs = round(customs * duty_factor, 2)
+                    actual_vat = round(vat * vat_factor, 2)
+                    actual_fees = round((ipf + Decimal('130')) * fee_factor, 2)
+                    actual_taxes = actual_customs + actual_vat
+                    actual_payable = actual_taxes + actual_fees
+                    fan_fields = {
+                        'customs_duty': {
+                            'value': f'{actual_customs:.2f}',
+                            'confidence': 1.0,
+                            'verified': True,
+                        },
+                        'vat': {
+                            'value': f'{actual_vat:.2f}',
+                            'confidence': 1.0,
+                            'verified': True,
+                        },
+                        'total_taxes': {
+                            'value': f'{actual_taxes:.2f}',
+                            'confidence': 1.0,
+                            'verified': True,
+                        },
+                        'total_fees': {
+                            'value': f'{actual_fees:.2f}',
+                            'confidence': 1.0,
+                            'verified': True,
+                        },
+                        'total_payable': {
+                            'value': f'{actual_payable:.2f}',
+                            'confidence': 1.0,
+                            'verified': True,
+                        },
+                        '_verified_by': 'Demo Seed',
+                        '_verified_at': (last_ts or now).isoformat(),
+                    }
+                    fan_doc = ShipmentDocument.objects.create(
+                        shipment=shipment,
+                        document_type='sad',
+                        file='shipment_documents/demo_fan_assessment.pdf',
+                        ocr_fields_json=json.dumps(fan_fields),
+                        ocr_quality='good',
+                        ocr_ran_at=last_ts or now,
+                    )
+                    ShipmentDocument.objects.filter(pk=fan_doc.pk).update(
+                        uploaded_at=last_ts or now)
 
                 # Real WMCDA scoring so recommended_type is authentic and may
                 # differ from the consignee's chosen mode.

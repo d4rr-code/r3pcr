@@ -130,6 +130,37 @@ class AnalyticsDashboardContextTests(TestCase):
         self.assertEqual(by_key['total_payable']['actual_avg'], 430.0)
         self.assertEqual(ctx['fan_avg_abs_variance_pct'], 11.6)
 
+    def test_estimate_vs_fan_uses_unverified_uploaded_values(self):
+        DutyComputation.objects.update_or_create(
+            shipment=self.s5,
+            defaults={
+                'customs_duty': Decimal('80.00'),
+                'vat_amount': Decimal('220.00'),
+                'ipf': Decimal('20.00'),
+                'total_landed_cost': Decimal('2000.00'),
+            },
+        )
+        ShipmentDocument.objects.create(
+            shipment=self.s5,
+            document_type='sad',
+            file='shipment_documents/fan.pdf',
+            ocr_fields_json=json.dumps({
+                'customs_duty': {'value': '82.00'},
+                'vat': {'value': '218.00'},
+                'total_taxes': {'value': '300.00'},
+                'total_fees': {'value': '155.00'},
+            }),
+        )
+
+        ctx = self._ctx()
+        by_key = {r['key']: r for r in ctx['fan_comparison_rows']}
+        self.assertEqual(ctx['fan_compared_shipments'], 1)
+        self.assertEqual(by_key['customs_duty']['actual_avg'], 82.0)
+        self.assertEqual(by_key['vat']['actual_avg'], 218.0)
+        # Fallback total = total_taxes + total_fees when total_payable is absent.
+        self.assertEqual(by_key['total_payable']['estimate_avg'], 450.0)
+        self.assertEqual(by_key['total_payable']['actual_avg'], 455.0)
+
     def test_feedback_summary(self):
         ctx = self._ctx()
         fb = ctx['feedback_summary']
