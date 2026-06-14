@@ -193,3 +193,44 @@ class ConsigneeDashboardChartTests(TestCase):
         payload = chart_response.json()
         self.assertEqual(payload['labels'], labels)
         self.assertEqual(payload['data'], data)
+
+
+class ConsigneeMySubmissionsTests(TestCase):
+    def setUp(self):
+        self.consignee = User.objects.create_user(
+            username='con_subs', password='x', role='consignee',
+            email='con_subs@test.local',
+        )
+        self.client.force_login(self.consignee)
+
+    def _shipment(self, index, **extra):
+        defaults = {
+            'hawb_number': f'R3PCR-SUBS-{index:03d}',
+            'consignee': self.consignee,
+            'status': 'incoming',
+            'shipment_type': 'lcl',
+        }
+        defaults.update(extra)
+        return Shipment.objects.create(**defaults)
+
+    def test_flagged_shipments_render_before_paginated_active_list(self):
+        for index in range(8):
+            self._shipment(index)
+        for index in range(2):
+            self._shipment(
+                100 + index,
+                has_deficiency=True,
+                deficiency_notes='Missing airway bill',
+            )
+        self._shipment(200, status='for_revision')
+
+        response = self.client.get(reverse('consignee:my_submissions'))
+
+        self.assertEqual(len(response.context['shipments']), 6)
+        self.assertEqual(len(response.context['flagged_shipments']), 3)
+        self.assertTrue(response.context['page_obj'].has_next())
+        self.assertContains(response, 'Flag Shipments')
+        self.assertContains(response, 'Page 1 of 2')
+
+        content = response.content.decode()
+        self.assertLess(content.index('section-kicker-flagged'), content.index('submissions-kicker'))
