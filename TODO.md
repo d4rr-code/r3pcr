@@ -1,4 +1,0 @@
-- [x] Apply Poppins font to consignee dashboard UI (template/CSS/JS picker styles)
-- [x] Make dashboard month filter functional globally (not only visual/card-aligned)
-- [x] Update backend dashboard + chart_data to accept month/year filters and return filtered metrics
-- [x] Verify consistency of month label updates and query param persistence

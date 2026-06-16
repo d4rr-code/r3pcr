@@ -9,7 +9,7 @@
 
 {% block content %}
 
-<!-- -- Welcome + Month Picker ----------------------------------------------- -->
+<!-- -- Welcome ----------------------------------------------- -->
 <div style="margin-bottom:16px;">
     <h1 style="font-size:22px; font-weight:700; color:#1B3358; margin-bottom:10px;">
         Welcome Back {{ user.first_name|default:user.username }}!
@@ -183,9 +183,12 @@
     <div class="c-card shipment-overview-card">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
             <p class="c-card-title" style="margin:0;">Shipment Overview</p>
-            <div style="display:flex; align-items:center; gap:6px;">
-                <span class="chart-filter-btn">By Month</span>
-                <span class="chart-filter-btn">Last 4 Months</span>
+            <div class="chart-range-group">
+                <button type="button" id="chart-start-trigger" class="chart-filter-btn">From: <span id="chart-start-label">May 2026</span></button>
+                <button type="button" id="chart-end-trigger" class="chart-filter-btn">To: <span id="chart-end-label">May 2026</span></button>
+                <button type="button" class="chart-filter-btn chart-group-btn active" data-group="day">by day</button>
+                <button type="button" class="chart-filter-btn chart-group-btn" data-group="week">by week</button>
+                <button type="button" class="chart-filter-btn chart-group-btn" data-group="month">by month</button>
             </div>
         </div>
         <div class="shipment-chart-wrap">
@@ -194,28 +197,49 @@
     </div>
 
     <!-- Reminder Panel -->
-    <div class="c-card">
+    <div class="c-card reminder-card">
         <p class="c-card-title" style="color:#1B3358; text-align:center; margin-bottom:16px;">Reminder</p>
         <div id="reminder-list">
-            {% for shipment in recent_shipments %}
-            {% if shipment.has_deficiency or shipment.status == 'arrived' or shipment.status == 'computed' %}
+            {% for shipment in reminder_shipments %}
             <div class="reminder-item">
                 <p class="reminder-ref">{{ shipment.hawb_number }}</p>
                 {% if shipment.has_deficiency %}
-                    <p class="reminder-red">{{ shipment.deficiency_type|default:'Missing Document' }}</p>
-                    <p class="reminder-desc">{{ shipment.deficiency_notes|default:'Please upload the file to process your shipment.' }}</p>
-                {% elif shipment.status == 'computed' %}
-                    <p class="reminder-amber">Awaits Manifest Validation</p>
-                    <p class="reminder-desc">Kindly review the clearance and approved to proceed.</p>
-                {% elif shipment.status == 'arrived' %}
-                    <p class="reminder-amber">Shipment Arrived</p>
-                    <p class="reminder-desc">Your shipment has arrived and is awaiting processing.</p>
+                    <p class="reminder-status reminder-status-flags">{{ shipment.deficiency_type|default:'Missing Document' }}</p>
+                    <p class="reminder-desc">{{ shipment.deficiency_notes|default:'Action needed: Please upload the required file(s) so we can continue processing your shipment.' }}</p>
+                {% else %}
+                    <p class="reminder-status reminder-status-{{ shipment.status|default:'incoming' }}">{{ shipment.get_status_display }}</p>
+                    {% if shipment.status == 'incoming' %}
+                        <p class="reminder-desc">Your shipment has been submitted and is queued for initial review.</p>
+                    {% elif shipment.status == 'arrived' %}
+                        <p class="reminder-desc">Your shipment has arrived and is awaiting document review and processing.</p>
+                    {% elif shipment.status == 'computed' %}
+                        <p class="reminder-desc">Computation is ready. Please review and confirm to proceed to the next step.</p>
+                    {% elif shipment.status == 'approved' %}
+                        <p class="reminder-desc">Shipment has been approved and is pending manifest validation/lodgement processing.</p>
+                    {% elif shipment.status == 'rejected' %}
+                        <p class="reminder-desc">Shipment was rejected. Please review notes and coordinate for required corrections.</p>
+                    {% elif shipment.status == 'for_revision' %}
+                        <p class="reminder-desc">Shipment is marked for revision. Please update required details/documents for reprocessing.</p>
+                    {% elif shipment.status == 'lodgement' %}
+                        <p class="reminder-desc">Shipment is currently in lodgement and lined up for final customs assessment.</p>
+                    {% elif shipment.status == 'ongoing' %}
+                        <p class="reminder-desc">Shipment processing is ongoing. We will notify you once the next milestone is reached.</p>
+                    {% elif shipment.status == 'assessed' %}
+                        <p class="reminder-desc">Shipment has been assessed and is awaiting payment of duties and taxes.</p>
+                    {% elif shipment.status == 'paid' %}
+                        <p class="reminder-desc">Payment is confirmed. Shipment now awaits discharge and delivery scheduling.</p>
+                    {% elif shipment.status == 'released' %}
+                        <p class="reminder-desc">Shipment has been released by customs and is ready for delivery coordination.</p>
+                    {% elif shipment.status == 'billed' %}
+                        <p class="reminder-desc">Shipment is billed. Please settle remaining brokerage charges if applicable.</p>
+                    {% else %}
+                        <p class="reminder-desc">Please monitor this shipment for the latest status updates and required actions.</p>
+                    {% endif %}
                 {% endif %}
             </div>
-            {% endif %}
             {% empty %}
             {% endfor %}
-            {% if not recent_shipments %}
+            {% if not reminder_shipments %}
             <p style="color:#9CA3AF; font-size:12px; text-align:center; padding:20px 0;">No pending reminders.</p>
             {% endif %}
         </div>
@@ -226,10 +250,10 @@
 <div class="dash-bottom-row">
 
     <!-- Shipping Type Overview -->
-    <div class="c-card" style="padding:16px 18px;">
+    <div class="c-card" style="padding:35px 48px;">
         <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
             <div>
-                <p style="font-size:13px; font-weight:700; color:#1B3358; margin:0 0 2px;">Shipping Type Overview</p>
+                <p style="font-size:16px; font-weight:700; color:#1B3358; margin:0 0 2px;">Shipping Type Overview</p>
                 <p style="font-size:10px; color:#9CA3AF;">Breakdown of shipments based on cargo structure and handling type</p>
             </div>
             <button id="mpbtn-shipping" class="chart-filter-btn" data-month-picker-trigger style="flex-shrink:0; margin-left:8px;">
@@ -242,10 +266,10 @@
 
         <div style="display:flex; align-items:center; justify-content:space-between; margin:0 0 4px;">
             <p style="font-size:11px; font-weight:600; color:#374151;">Total Shipping</p>
-            <p style="font-size:13px; font-weight:700; color:#1B3358;">{{ total }}</p>
+            <p id="shipping-total-value" style="font-size:13px; font-weight:700; color:#1B3358;">{{ shipping_total }}</p>
         </div>
 
-        <div class="ship-type-bar">
+        <div id="shipping-type-bar" class="ship-type-bar">
             {% for item in mode_breakdown %}
                 <div class="ship-type-segment ship-type-{{ item.shipment_type|default:'other' }}"
                      data-count="{{ item.count }}"></div>
@@ -254,12 +278,12 @@
             {% endfor %}
         </div>
 
-        <div class="ship-type-grid">
+        <div id="shipping-type-grid" class="ship-type-grid">
             {% for item in mode_breakdown %}
-            <div class="ship-type-item">
+            <div class="ship-type-item" data-shipment-type="{{ item.shipment_type|default:'other' }}" data-label="{{ item.label }}">
                 <div class="ship-type-label">
                     <span class="ship-type-dot ship-type-{{ item.shipment_type|default:'other' }}"></span>
-                    {{ item.label }} ({% widthratio item.count total 100 %}%)
+                    <span class="ship-type-text">{{ item.label }} ({% widthratio item.count shipping_total|default:1 100 %}%)</span>
                 </div>
                 <p class="ship-type-count">{{ item.count }}</p>
             </div>
@@ -270,53 +294,52 @@
     </div>
 
     <!-- Urgency Level Donut -->
-    <div class="c-card" style="display:flex; flex-direction:column; padding:16px 18px;">
-        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+    <div class="c-card urgency-card">
+        <div class="urgency-header">
             <div>
-                <p style="font-size:13px; font-weight:700; color:#1B3358; margin:0 0 2px;">Urgency Level Overview</p>
-                <p style="font-size:10px; color:#9CA3AF; margin:0;">Distribution of shipment urgency levels</p>
+                <p class="urgency-title">Urgency Level Overview</p>
+                <p class="urgency-subtitle">Distribution of shipment urgency levels</p>
             </div>
-            <button id="mpbtn-urgency" class="chart-filter-btn" data-month-picker-trigger style="flex-shrink:0; margin-left:8px;">
+            <button id="mpbtn-urgency" class="chart-filter-btn urgency-filter-btn" data-month-picker-trigger>
                 <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
                     <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/>
                 </svg>
                 <span class="mp-label">{{ selected_label|default:"May 2026" }}</span>
             </button>
         </div>
-        <div style="position:relative; display:flex; align-items:center; justify-content:center; padding:6px 0;">
-            <canvas id="urgencyChart" width="130" height="130"></canvas>
-            <div style="position:absolute; text-align:center; pointer-events:none;">
-                <p style="font-size:8px; color:#6B7280; font-weight:500; margin:0;">Total</p>
-                <p style="font-size:16px; font-weight:800; color:#1B3358; margin:0; line-height:1.2;">{{ total }}</p>
+
+        <div class="urgency-donut-wrap">
+            <canvas id="urgencyChart" width="190" height="190"></canvas>
+            <div class="urgency-center-label">
+                <p class="urgency-center-top">Total Shipping</p>
+                <p class="urgency-center-value">{{ urgency_total|default:0 }}</p>
             </div>
         </div>
-        <div style="margin-top:10px; display:flex; flex-direction:column; gap:5px;">
+
+        <div class="urgency-list">
             {% for item in urgency_breakdown %}
-            <div style="display:flex; align-items:center; justify-content:space-between; font-size:10.5px;">
-                <div style="display:flex; align-items:center; gap:6px;">
+            <div class="urgency-list-item">
+                <div class="urgency-list-left">
                     <span class="urgency-dot urgency-{{ item.urgency|default:'other' }}"></span>
-                    <span style="color:#374151;">{{ item.label }}</span>
+                    <span class="urgency-label">{{ item.label }}</span>
                 </div>
-                <span style="font-weight:700; color:#1B3358;">{{ item.count }}</span>
+                <span class="urgency-count">{{ item.count }}</span>
             </div>
             {% empty %}
-            <p style="color:#9CA3AF; font-size:11px; text-align:center;">No data.</p>
+            <p class="urgency-empty">No data.</p>
             {% endfor %}
         </div>
     </div>
 </div>
 
 <!-- -- Month Picker Popover ------------------------------------------------- -->
-<div id="month-picker" style="display:none; position:fixed; z-index:999; background:#fff; border-radius:14px;
-     box-shadow:0 8px 32px rgba(0,0,0,0.15); padding:18px; min-width:260px;">
+<div id="month-picker" style="display:none; position:fixed; z-index:999; background:#fff; border-radius:18px;
+     box-shadow:0 10px 32px rgba(0,0,0,0.20); padding:20px; min-width:340px;">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-        <span id="picker-year-label" style="font-size:15px; font-weight:700; color:#1B3358;">{{ current_year }}</span>
-        <div style="display:flex; gap:6px;">
-            <button data-picker-year="-1" style="background:none;border:none;cursor:pointer;font-size:14px;color:#6B7280;">&#8963;</button>
-            <button data-picker-year="1" style="background:none;border:none;cursor:pointer;font-size:14px;color:#6B7280; transform:rotate(180deg);">&#8963;</button>
-        </div>
+        <span id="picker-header-label" style="font-size:34px; font-weight:700; color:#1B3358;">{{ current_year }}</span>
     </div>
-    <div id="month-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px;"></div>
+    <div id="month-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;"></div>
+    <div id="year-grid" style="display:none; grid-template-columns:repeat(4,1fr); gap:10px;"></div>
 </div>
 
 {% endblock %}

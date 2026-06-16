@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
+from django.db.models import Q
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
@@ -226,30 +227,24 @@ def dashboard(request):
     for item in urgency_breakdown:
         item['label'] = urgency_labels.get(item['urgency'], item['urgency'] or 'Unknown')
 
-    # ── Monthly chart data (4-month window ending at selected month) ─────────
-    month_points = []
-    for offset in range(3, -1, -1):
-        year, month = selected_year, selected_month - offset
-        while month <= 0:
-            month += 12
-            year -= 1
-        month_points.append((year, month))
+    # ── Monthly chart data (full selected year: Jan-Dec) ─────────────────────
+    month_points = [(selected_year, month) for month in range(1, 13)]
 
-    start_year, start_month = month_points[0]
-    start_date = today.replace(year=start_year, month=start_month, day=1)
     monthly_qs = (
         shipments_all
-        .filter(submitted_at__date__gte=start_date)
+        .filter(submitted_at__year=selected_year)
         .annotate(year=ExtractYear('submitted_at'), month=ExtractMonth('submitted_at'))
         .values('year', 'month')
         .annotate(count=Count('id'))
     )
     monthly_lookup = {(row['year'], row['month']): row['count'] for row in monthly_qs}
-    if month_points[0][0] == month_points[-1][0]:
-        monthly_labels = [calendar.month_abbr[month] for _, month in month_points]
-    else:
-        monthly_labels = [f'{calendar.month_abbr[month]} {str(year)[-2:]}' for year, month in month_points]
+    monthly_labels = [calendar.month_abbr[month] for _, month in month_points]
     monthly_data = [monthly_lookup.get(point, 0) for point in month_points]
+
+    reminder_shipments = shipments_all.order_by('-submitted_at')[:4]
+
+    urgency_total = shipments_filtered.count()
+    shipping_total = shipments_filtered.count()
 
     context = {
         'total': total,
@@ -257,7 +252,10 @@ def dashboard(request):
         'import_breakdown':   import_breakdown,
         'mode_breakdown':     mode_breakdown,
         'urgency_breakdown':  urgency_breakdown,
+        'urgency_total':      urgency_total,
+        'shipping_total':     shipping_total,
         'recent_shipments':   shipments_all.order_by('-submitted_at'),
+        'reminder_shipments': reminder_shipments,
         'monthly_labels':     json.dumps(monthly_labels),
         'monthly_data':       json.dumps(monthly_data),
         'monthly_total':      sum(monthly_data),
@@ -1428,51 +1426,163 @@ def _ecdt_pdf(request, shipment, computation, advisory):
 @login_required
 def chart_data(request):
     import calendar
+    from datetime import timedelta
     from django.db.models import Count
-    from django.db.models.functions import ExtractMonth, ExtractYear
+    from django.db.models.functions import TruncDate, TruncWeek, TruncMonth
     from django.http import JsonResponse
+    from datetime import date
 
     today = timezone.localdate()
-    year = request.GET.get('year')
-    month = request.GET.get('month')
+    qs = Shipment.objects.filter(consignee=request.user)
+
+    group_by = (request.GET.get('group_by') or 'day').strip().lower()
+    if group_by not in {'day', 'week', 'month'}:
+        group_by = 'day'
 
     try:
-        year = int(year) if year else today.year
+        start_year = int((request.GET.get('start_year') or '').strip() or today.year)
     except (TypeError, ValueError):
-        year = today.year
+        start_year = today.year
+    try:
+        start_month = int((request.GET.get('start_month') or '').strip() or today.month)
+    except (TypeError, ValueError):
+        start_month = today.month
+    try:
+        end_year = int((request.GET.get('end_year') or '').strip() or today.year)
+    except (TypeError, ValueError):
+        end_year = today.year
+    try:
+        end_month = int((request.GET.get('end_month') or '').strip() or today.month)
+    except (TypeError, ValueError):
+        end_month = today.month
+
+    start_month = 1 if start_month < 1 else (12 if start_month > 12 else start_month)
+    end_month = 1 if end_month < 1 else (12 if end_month > 12 else end_month)
 
     try:
-        month = int(month) if month else today.month
-    except (TypeError, ValueError):
-        month = today.month
+        start_date = date(start_year, start_month, 1)
+    except ValueError:
+        start_date = date(today.year, today.month, 1)
 
-    if month < 1 or month > 12:
-        month = today.month
+    last_day = calendar.monthrange(end_year, end_month)[1]
+    try:
+        end_date = date(end_year, end_month, last_day)
+    except ValueError:
+        end_date = today
 
-    month_points = []
-    for offset in range(3, -1, -1):
-        point_year, point_month = year, month - offset
-        while point_month <= 0:
-            point_month += 12
-            point_year -= 1
-        month_points.append((point_year, point_month))
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
 
-    start_year, start_month = month_points[0]
-    start_date = today.replace(year=start_year, month=start_month, day=1)
-    qs = Shipment.objects.filter(consignee=request.user, submitted_at__date__gte=start_date)
-    rows = (
-        qs.annotate(year=ExtractYear('submitted_at'), month=ExtractMonth('submitted_at'))
-          .values('year', 'month')
-          .annotate(count=Count('id'))
+    filtered = qs.filter(submitted_at__date__gte=start_date, submitted_at__date__lte=end_date)
+
+    urgency_rows = list(
+        filtered.values('urgency')
+        .annotate(count=Count('id'))
+        .order_by('-count')
     )
-    lookup = {(row['year'], row['month']): row['count'] for row in rows}
-    if month_points[0][0] == month_points[-1][0]:
-        labels = [calendar.month_abbr[point_month] for _, point_month in month_points]
-    else:
-        labels = [f'{calendar.month_abbr[point_month]} {str(point_year)[-2:]}' for point_year, point_month in month_points]
-    data = [lookup.get(point, 0) for point in month_points]
+    urgency_labels = dict(Shipment.URGENCY_CHOICES)
+    urgency_breakdown = [
+        {
+            'urgency': row['urgency'],
+            'label': urgency_labels.get(row['urgency'], row['urgency'] or 'Unknown'),
+            'count': row['count'],
+        }
+        for row in urgency_rows
+    ]
 
-    return JsonResponse({'labels': labels, 'data': data})
+    shipping_rows = list(
+        filtered.values('shipment_type')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+    shipment_type_labels = dict(Shipment.SHIPMENT_TYPE_CHOICES)
+    shipping_breakdown = [
+        {
+            'shipment_type': row['shipment_type'] or 'other',
+            'label': shipment_type_labels.get(row['shipment_type'], row['shipment_type'] or 'Not specified'),
+            'count': row['count'],
+        }
+        for row in shipping_rows
+    ]
+
+    if group_by == 'day':
+        grouped = (
+            filtered.annotate(bucket=TruncDate('submitted_at'))
+            .values('bucket')
+            .annotate(count=Count('id'))
+            .order_by('bucket')
+        )
+        lookup = {row['bucket']: row['count'] for row in grouped}
+        labels, data = [], []
+        cursor = start_date
+        while cursor <= end_date:
+            labels.append(f"{cursor.strftime('%b')} {cursor.day}")
+            data.append(lookup.get(cursor, 0))
+            cursor += timedelta(days=1)
+        return JsonResponse({
+            'labels': labels,
+            'data': data,
+            'group_by': group_by,
+            'total': filtered.count(),
+            'urgency_breakdown': urgency_breakdown,
+            'shipping_breakdown': shipping_breakdown,
+            'shipping_total': filtered.count(),
+        })
+
+    if group_by == 'week':
+        grouped = (
+            filtered.annotate(bucket=TruncWeek('submitted_at'))
+            .values('bucket')
+            .annotate(count=Count('id'))
+            .order_by('bucket')
+        )
+        lookup = {row['bucket'].date(): row['count'] for row in grouped}
+        labels, data = [], []
+        start_week = start_date - timedelta(days=start_date.weekday())
+        end_week = end_date - timedelta(days=end_date.weekday())
+        cursor = start_week
+        while cursor <= end_week:
+            labels.append(f"Week of {cursor.strftime('%b')} {cursor.day}")
+            data.append(lookup.get(cursor, 0))
+            cursor += timedelta(days=7)
+        return JsonResponse({
+            'labels': labels,
+            'data': data,
+            'group_by': group_by,
+            'total': filtered.count(),
+            'urgency_breakdown': urgency_breakdown,
+            'shipping_breakdown': shipping_breakdown,
+            'shipping_total': filtered.count(),
+        })
+
+    grouped = (
+        filtered.annotate(bucket=TruncMonth('submitted_at'))
+        .values('bucket')
+        .annotate(count=Count('id'))
+        .order_by('bucket')
+    )
+    lookup = {(row['bucket'].year, row['bucket'].month): row['count'] for row in grouped}
+    labels, data = [], []
+
+    cursor_year = start_date.year
+    cursor_month = start_date.month
+    while (cursor_year < end_date.year) or (cursor_year == end_date.year and cursor_month <= end_date.month):
+        labels.append(f"{calendar.month_abbr[cursor_month]} {cursor_year}")
+        data.append(lookup.get((cursor_year, cursor_month), 0))
+        cursor_month += 1
+        if cursor_month > 12:
+            cursor_month = 1
+            cursor_year += 1
+
+    return JsonResponse({
+        'labels': labels,
+        'data': data,
+        'group_by': group_by,
+        'total': filtered.count(),
+        'urgency_breakdown': urgency_breakdown,
+        'shipping_breakdown': shipping_breakdown,
+        'shipping_total': filtered.count(),
+    })
 
 
 # ─── Cancel Submission ────────────────────────────────────────────────────────
