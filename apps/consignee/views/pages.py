@@ -1,12 +1,13 @@
 import logging
 import calendar
 import json
+from datetime import date, timedelta
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Count
-from django.db.models.functions import ExtractMonth, ExtractYear
+from django.db.models.functions import ExtractMonth, ExtractYear, TruncDate, TruncMonth, TruncWeek
 from django.http import JsonResponse
 from apps.accounts.models import User
 from apps.shipments.models import Shipment
@@ -150,6 +151,13 @@ def _monthly_shipment_series(shipments, months=12):
 def dashboard(request):
     shipments = Shipment.objects.filter(consignee=request.user)
     total = shipments.count()
+    today = timezone.localdate()
+    selected_year = today.year
+    selected_month = today.month
+    shipments_filtered = shipments.filter(
+        submitted_at__year=selected_year,
+        submitted_at__month=selected_month,
+    )
 
     status_counts = {
         'incoming':     shipments.filter(status='incoming').count(),
@@ -217,6 +225,11 @@ def dashboard(request):
         'monthly_data':       json.dumps(monthly_data),
         'monthly_total':      sum(monthly_data),
         'current_year':       today.year,
+        'selected_year':      selected_year,
+        'selected_month':     selected_month,
+        'selected_label':     f'{calendar.month_abbr[selected_month]} {selected_year}',
+        'urgency_total':      shipments_filtered.count(),
+        'shipping_total':     shipments_filtered.count(),
     }
 
     from apps.supervisor.models import Announcement
@@ -344,9 +357,130 @@ def system_wmcda(request):
 
 @login_required
 def chart_data(request):
+    today = timezone.localdate()
     shipments = Shipment.objects.filter(consignee=request.user)
-    labels, data = _monthly_shipment_series(shipments)
-    return JsonResponse({'labels': labels, 'data': data})
+
+    group_by = (request.GET.get('group_by') or 'day').strip().lower()
+    if group_by not in {'day', 'week', 'month'}:
+        group_by = 'day'
+
+    try:
+        start_year = int((request.GET.get('start_year') or '').strip() or today.year)
+    except (TypeError, ValueError):
+        start_year = today.year
+    try:
+        start_month = int((request.GET.get('start_month') or '').strip() or today.month)
+    except (TypeError, ValueError):
+        start_month = today.month
+    try:
+        end_year = int((request.GET.get('end_year') or '').strip() or today.year)
+    except (TypeError, ValueError):
+        end_year = today.year
+    try:
+        end_month = int((request.GET.get('end_month') or '').strip() or today.month)
+    except (TypeError, ValueError):
+        end_month = today.month
+
+    start_month = max(1, min(12, start_month))
+    end_month = max(1, min(12, end_month))
+
+    try:
+        start_date = date(start_year, start_month, 1)
+    except ValueError:
+        start_date = date(today.year, today.month, 1)
+
+    try:
+        end_date = date(end_year, end_month, calendar.monthrange(end_year, end_month)[1])
+    except ValueError:
+        end_date = today
+
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+
+    filtered = shipments.filter(
+        submitted_at__date__gte=start_date,
+        submitted_at__date__lte=end_date,
+    )
+
+    urgency_labels = dict(Shipment.URGENCY_CHOICES)
+    urgency_breakdown = [
+        {
+            'urgency': row['urgency'],
+            'label': urgency_labels.get(row['urgency'], row['urgency'] or 'Unknown'),
+            'count': row['count'],
+        }
+        for row in filtered.values('urgency').annotate(count=Count('id')).order_by('-count')
+    ]
+
+    shipment_type_labels = dict(Shipment.SHIPMENT_TYPE_CHOICES)
+    shipping_breakdown = [
+        {
+            'shipment_type': row['shipment_type'] or 'other',
+            'label': shipment_type_labels.get(row['shipment_type'], row['shipment_type'] or 'Not specified'),
+            'count': row['count'],
+        }
+        for row in filtered.values('shipment_type').annotate(count=Count('id')).order_by('-count')
+    ]
+
+    if group_by == 'day':
+        grouped = (
+            filtered.annotate(bucket=TruncDate('submitted_at'))
+            .values('bucket')
+            .annotate(count=Count('id'))
+            .order_by('bucket')
+        )
+        lookup = {row['bucket']: row['count'] for row in grouped}
+        labels, data = [], []
+        cursor = start_date
+        while cursor <= end_date:
+            labels.append(f"{cursor.strftime('%b')} {cursor.day}")
+            data.append(lookup.get(cursor, 0))
+            cursor += timedelta(days=1)
+    elif group_by == 'week':
+        grouped = (
+            filtered.annotate(bucket=TruncWeek('submitted_at'))
+            .values('bucket')
+            .annotate(count=Count('id'))
+            .order_by('bucket')
+        )
+        lookup = {row['bucket'].date(): row['count'] for row in grouped}
+        labels, data = [], []
+        cursor = start_date - timedelta(days=start_date.weekday())
+        end_week = end_date - timedelta(days=end_date.weekday())
+        while cursor <= end_week:
+            labels.append(f"Week of {cursor.strftime('%b')} {cursor.day}")
+            data.append(lookup.get(cursor, 0))
+            cursor += timedelta(days=7)
+    else:
+        grouped = (
+            filtered.annotate(bucket=TruncMonth('submitted_at'))
+            .values('bucket')
+            .annotate(count=Count('id'))
+            .order_by('bucket')
+        )
+        lookup = {(row['bucket'].year, row['bucket'].month): row['count'] for row in grouped}
+        labels, data = [], []
+        cursor_year = start_date.year
+        cursor_month = start_date.month
+        while (cursor_year < end_date.year) or (
+            cursor_year == end_date.year and cursor_month <= end_date.month
+        ):
+            labels.append(f"{calendar.month_abbr[cursor_month]} {cursor_year}")
+            data.append(lookup.get((cursor_year, cursor_month), 0))
+            cursor_month += 1
+            if cursor_month > 12:
+                cursor_month = 1
+                cursor_year += 1
+
+    return JsonResponse({
+        'labels': labels,
+        'data': data,
+        'group_by': group_by,
+        'total': filtered.count(),
+        'urgency_breakdown': urgency_breakdown,
+        'shipping_breakdown': shipping_breakdown,
+        'shipping_total': filtered.count(),
+    })
 
 
 # ─── Cancel Submission ────────────────────────────────────────────────────────
