@@ -65,7 +65,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         // Find edit button
-        editBtn = viewMode ? viewMode.querySelector('button[onclick*="showEdit"]') : null;
+        editBtn = viewMode ? viewMode.querySelector('.settings-edit-btn, button[onclick*="showEdit"]') : null;
 
         // Find all cancel buttons
         var allBtns = document.querySelectorAll('button');
@@ -93,7 +93,8 @@
         }
 
         // Check if we should show edit mode (if there were validation errors)
-        var hasErrors = document.body.getAttribute('data-form-errors') === 'true';
+        var errorState = document.querySelector('[data-form-errors]');
+        var hasErrors = errorState && errorState.getAttribute('data-form-errors') === 'true';
         if (hasErrors) {
             showEdit();
         }
