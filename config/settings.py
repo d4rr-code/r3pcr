@@ -20,6 +20,22 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',')
 
 
+# ── Production security hardening ──────────────────────────────────────────────
+# Only active when DEBUG is off (i.e. on Railway/production); local dev is
+# unaffected so HTTP localhost still works.
+if not DEBUG:
+    # Railway terminates TLS at a proxy and forwards the scheme in this header —
+    # required so Django knows the request is HTTPS (otherwise SSL redirect loops).
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000          # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+
 INSTALLED_APPS = [
     'anymail',
     'django.contrib.admin',
@@ -95,6 +111,24 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
+
+
+# Logging — surface app events (esp. email send failures) to the console,
+# which Railway captures in its deployment logs.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {'format': '[{levelname}] {name}: {message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'simple'},
+    },
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+    'loggers': {
+        'r3pcr': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+    },
+}
 
 
 LANGUAGE_CODE = 'en-us'
@@ -186,6 +220,7 @@ EMAIL_PORT          = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS       = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER     = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+REGISTRATION_EMAIL_DEV_LINKS = os.getenv('REGISTRATION_EMAIL_DEV_LINKS', 'False') == 'True'
 
 # Resend API key (used when EMAIL_BACKEND is anymail.backends.resend.EmailBackend)
 ANYMAIL = {

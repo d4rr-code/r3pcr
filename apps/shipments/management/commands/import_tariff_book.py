@@ -347,7 +347,6 @@ class Command(BaseCommand):
 
         total_created  = 0
         total_updated  = 0
-        total_skipped  = 0
         total_records  = 0
         current_chapter = None
 

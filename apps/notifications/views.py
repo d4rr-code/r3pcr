@@ -55,6 +55,16 @@ _STATUS_SUBLABEL = {
 }
 
 
+_ROLE_PREFIXES = ('consignee', 'supervisor', 'declarant')
+
+
+def _role_template(role, role_filename, fallback):
+    """Route to a role-specific light-theme template, with a neutral fallback."""
+    if role in _ROLE_PREFIXES:
+        return f'{role}/{role_filename}'
+    return fallback
+
+
 @login_required
 def notifications_list(request):
     filter_type   = request.GET.get('filter', 'all')
@@ -76,15 +86,7 @@ def notifications_list(request):
     unread_total = Notification.objects.filter(recipient=request.user, is_read=False).count()
 
     # Route each role to its own light-theme template
-    role = request.user.role
-    if role == 'consignee':
-        template = 'consignee/notifications.html'
-    elif role == 'supervisor':
-        template = 'supervisor/notifications.html'
-    elif role == 'declarant':
-        template = 'declarant/notifications.html'
-    else:
-        template = 'notifications/list.html'
+    template = _role_template(request.user.role, 'notifications.html', 'notifications/list.html')
     return render(request, template, {
         'notifications': notifications,
         'filter_type':   filter_type,
@@ -100,16 +102,51 @@ def notification_detail(request, notification_id):
     if not notif.is_read:
         notif.is_read = True
         notif.save()
-    role = request.user.role
-    if role == 'supervisor':
-        template = 'supervisor/notifications_detail.html'
-    elif role == 'declarant':
-        template = 'declarant/notifications_detail.html'
-    elif role == 'consignee':
-        template = 'consignee/notifications_detail.html'
-    else:
-        template = 'notifications/detail.html'
+    template = _role_template(request.user.role, 'notifications_detail.html',
+                              'notifications/detail.html')
     return render(request, template, {'notif': notif})
+
+
+def _is_announcement(notif, announcement):
+    return bool(announcement) or (
+        notif.notification_type == 'announcement'
+        or (not notif.shipment and notif.title.lower().startswith('announcement:'))
+    )
+
+
+def _announcement_fields(notif, announcement, is_announcement):
+    """(title, category, content) for an announcement notification, else blanks."""
+    if not is_announcement:
+        return '', '', ''
+    if announcement:
+        return announcement.title, announcement.get_category_display(), announcement.content
+    return (notif.title.replace('Announcement:', '', 1).strip(), 'General', notif.message)
+
+
+def _shipment_fields(shipment):
+    """Shipment-derived display fields for the modal; blanks when no shipment."""
+    if not shipment:
+        return {
+            'hawb_number': '', 'status_code': '', 'status_display': '',
+            'status_sublabel': '', 'next_step': '', 'submitted_at': '',
+            'updated_at': '', 'shipment_id': None, 'declarant': '',
+        }
+    status_code = shipment.status
+    status_lbl  = shipment.get_status_display()
+    declarant   = ''
+    if shipment.declarant:
+        declarant = shipment.declarant.get_full_name() or shipment.declarant.username
+    return {
+        'hawb_number':     shipment.hawb_number,
+        'status_code':     status_code,
+        'status_display':  status_lbl,
+        'status_sublabel': _STATUS_SUBLABEL.get(status_code, status_lbl),
+        'next_step':       _NEXT_STEP.get(status_code, ''),
+        'submitted_at':    _fmt_short(shipment.submitted_at),
+        'updated_at':      _fmt_long(shipment.updated_at),
+        'shipment_id':     shipment.id,
+        'declarant':       declarant,
+    }
 
 
 @login_required
@@ -120,59 +157,31 @@ def notification_json(request, notification_id):
         notif.is_read = True
         notif.save()
 
-    shipment    = notif.shipment
-    declarant   = ''
-    status_code = ''
-    status_lbl  = ''
-    sub_lbl     = ''
-    next_step   = ''
-    submitted   = ''
-    updated     = ''
-    ship_id     = None
     announcement = getattr(notif, 'announcement', None)
-    is_announcement = bool(announcement) or (
-        notif.notification_type == 'announcement'
-        or (not shipment and notif.title.lower().startswith('announcement:'))
-    )
-    announcement_title = ''
-    announcement_category = ''
-    announcement_content = ''
-
-    if is_announcement:
-        announcement_title = announcement.title if announcement else notif.title.replace('Announcement:', '', 1).strip()
-        announcement_category = announcement.get_category_display() if announcement else 'General'
-        announcement_content = announcement.content if announcement else notif.message
-
-    if shipment:
-        status_code = shipment.status
-        status_lbl  = shipment.get_status_display()
-        sub_lbl     = _STATUS_SUBLABEL.get(status_code, status_lbl)
-        next_step   = _NEXT_STEP.get(status_code, '')
-        submitted   = _fmt_short(shipment.submitted_at)
-        updated     = _fmt_long(shipment.updated_at)
-        ship_id     = shipment.id
-        if shipment.declarant:
-            declarant = shipment.declarant.get_full_name() or shipment.declarant.username
+    is_announcement = _is_announcement(notif, announcement)
+    ann_title, ann_category, ann_content = _announcement_fields(
+        notif, announcement, is_announcement)
+    ship = _shipment_fields(notif.shipment)
 
     return JsonResponse({
         'id':               notif.id,
         'title':            notif.title,
         'message':          notif.message,
         'is_announcement':  is_announcement,
-        'announcement_title': announcement_title,
-        'announcement_category': announcement_category,
-        'announcement_content': announcement_content,
-        'hawb_number':      shipment.hawb_number if shipment else '',
+        'announcement_title': ann_title,
+        'announcement_category': ann_category,
+        'announcement_content': ann_content,
+        'hawb_number':      ship['hawb_number'],
         'created_at':       _fmt_long(notif.created_at),
         'notification_type': notif.notification_type,
-        'status_code':      status_code,
-        'status_display':   status_lbl,
-        'status_sublabel':  sub_lbl,
-        'declarant':        declarant,
-        'next_step':        next_step,
-        'submitted_at':     submitted,
-        'updated_at':       updated,
-        'shipment_id':      ship_id,
+        'status_code':      ship['status_code'],
+        'status_display':   ship['status_display'],
+        'status_sublabel':  ship['status_sublabel'],
+        'declarant':        ship['declarant'],
+        'next_step':        ship['next_step'],
+        'submitted_at':     ship['submitted_at'],
+        'updated_at':       ship['updated_at'],
+        'shipment_id':      ship['shipment_id'],
     })
 
 

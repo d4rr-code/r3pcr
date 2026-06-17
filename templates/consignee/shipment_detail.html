@@ -308,7 +308,7 @@
     {% if shipment.status in 'assessed,paid,released,billed' %}
     <section class="detail-card sad-card">
         <div class="card-head">
-            <h3 class="section-title">Final Assessment Notice (FAN)</h3>
+            <h3 class="section-title">FAN Document</h3>
             <p class="section-subtitle">Official BOC assessment document</p>
         </div>
         <div class="sad-body">
@@ -319,7 +319,7 @@
                 {% if fan_assessment_has_values %}
                 <div style="margin-top:14px; border-top:1px solid #E5E7EB; padding-top:12px;">
                     <p style="font-size:12px; font-weight:800; color:#18345a; margin:0 0 8px;">Assessment Breakdown</p>
-                    <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;">
+                    <div class="fan-breakdown-grid" style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;">
                         {% for row in fan_assessment_rows %}
                         {% if row.value %}
                         <div style="background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px; padding:9px 10px;">
@@ -332,22 +332,68 @@
                 </div>
                 {% endif %}
             {% else %}
-                <p style="margin:0;">The FAN document has not been uploaded yet. Your declarant will upload it once available from BOC.</p>
+                <p style="margin:0;">The FAN Document has not been uploaded yet. Your declarant will upload it once available from BOC.</p>
             {% endif %}
         </div>
     </section>
     {% endif %}
 
+    {% if shipment.status in 'assessed,paid,released,billed' %}
+    <section class="detail-card" style="margin-bottom:30px;">
+        <div class="card-head">
+            <h3 class="section-title">Your Payment Receipt</h3>
+            <p class="section-subtitle">Upload your bank transfer or payment proof for declarant verification</p>
+        </div>
+        <div class="payment-upload-body" style="padding:6px 32px 18px;">
+            {% if shipment.payment_receipt %}
+            <div class="receipt-current" style="display:flex;align-items:center;gap:12px;padding:10px 0 14px;border-bottom:1px solid #F3F4F6;margin-bottom:14px;">
+                <div style="width:36px;height:36px;border-radius:8px;background:#ECFDF5;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #BBF7D0;">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="color:#16A34A;">
+                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <p style="font-size:13px;font-weight:700;color:#1A1A2E;margin:0;">Receipt uploaded</p>
+                    <p style="font-size:11px;color:#9CA3AF;margin:2px 0 0;">
+                        Uploaded {{ shipment.payment_receipt_uploaded_at|date:"M d, Y g:i A" }}
+                    </p>
+                </div>
+                <a href="{{ shipment.payment_receipt.url }}" target="_blank" class="sad-link">View</a>
+            </div>
+            <p style="font-size:12px;color:#6B7280;margin:0 0 10px;">Replace receipt:</p>
+            {% else %}
+            <p style="font-size:13px;color:#6B7280;margin:0 0 12px;">
+                Upload your payment receipt after reviewing the FAN Document. Your declarant will verify it against BOC/eTrade before marking the shipment paid.
+            </p>
+            {% endif %}
+            <form method="POST" enctype="multipart/form-data" action="{% url 'consignee:upload_receipt' shipment.id %}">
+                {% csrf_token %}
+                <div class="receipt-form-row" style="display:flex;gap:10px;align-items:flex-end;">
+                    <div style="flex:1;">
+                        <label style="display:block;font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;margin-bottom:5px;">Receipt File</label>
+                        <input type="file" name="payment_receipt" accept=".pdf,.jpg,.jpeg,.png" required
+                               style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;">
+                    </div>
+                    <button type="submit"
+                            style="padding:10px 16px;border:none;border-radius:8px;background:#1B3358;color:#fff;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">
+                        Upload
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+    {% endif %}
+
     {% if shipment.status in 'paid,released,billed' %}
-    <section class="detail-card">
+    <section class="detail-card" style="margin-bottom:30px;">
         <div class="card-head">
             <h3 class="section-title">Supporting Documents</h3>
             <p class="section-subtitle">Payment, release, delivery, and billing documents from your declarant</p>
         </div>
-        <div>
+        <div class="supporting-docs-body" style="padding:6px 32px 14px;">
             {% for doc in shipment.documents.all %}
             {% if doc.document_type == 'payment_proof' or doc.document_type == 'release_doc' or doc.document_type == 'billing_doc' or doc.document_type == 'receipt' %}
-            <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #F3F4F6;">
+            <div class="supporting-doc-row" style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #F3F4F6;">
                 <div style="width:36px; height:36px; border-radius:8px; background:#F8FAFC; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid #E5E7EB;">
                     <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
                         <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
@@ -355,7 +401,7 @@
                 </div>
                 <div style="flex:1; min-width:0;">
                     <p style="font-size:13px; font-weight:600; color:#1A1A2E; margin:0;">
-                        {% if doc.document_type == 'payment_proof' %}Payment Proof / BOC Receipt
+                        {% if doc.document_type == 'payment_proof' %}BOC / eTrade Payment Receipt
                         {% elif doc.document_type == 'release_doc' %}Release / Delivery Document
                         {% elif doc.document_type == 'billing_doc' %}Final Billing Document
                         {% else %}Billing Receipt{% endif %}
@@ -479,7 +525,6 @@
                     {% if advisory.declarant_recommendation == 'air' %}Air Freight
                     {% elif advisory.declarant_recommendation == 'lcl' %}LCL - Less Container Load
                     {% elif advisory.declarant_recommendation == 'fcl' %}FCL - Full Container Load
-                    {% elif advisory.declarant_recommendation == 'land' %}Land Freight
                     {% endif %}
                     {% if advisory.declarant_note %}<br>{{ advisory.declarant_note }}{% endif %}
                 </p>

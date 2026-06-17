@@ -1,4 +1,4 @@
-{% extends 'declarant/base_declarant.html' %}
+﻿{% extends 'declarant/base_declarant.html' %}
 
 {% block title %}ECDT Computation &mdash; {{ shipment.hawb_number }}{% endblock %}
 {% block page_title %}Duty Computation & Shipping Analysis{% endblock %}
@@ -357,7 +357,7 @@ body.light-mode .shipping-analysis-card [style*="height:5px"][style*="background
     background: #EEF2F7 !important;
 }
 
-/* â”€â”€ Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Layout ──────────────────────────────────────────────────────────────── */
 /* Left column & divider hidden by default — workspace is full width.
    Declarant opens documents via the floating panel button instead.      */
 .compute-advisory-panel {
@@ -529,7 +529,7 @@ body.split-mode #col-divider     { display: flex !important; }
 body.split-mode #col-right       { width: auto; max-width: none; flex: 1; min-width: 0; }
 body.split-mode #doc-float-panel { display: none !important; }
 
-/* â”€â”€ Floating Document Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Floating Document Panel ──────────────────────────────────────────────── */
 #doc-float-panel {
     position: fixed;
     top: 70px;
@@ -591,7 +591,7 @@ body.split-mode #doc-float-panel { display: none !important; }
     background: #fff;
     position: relative;
 }
-/* â”€â”€ Drag Divider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Drag Divider ────────────────────────────────────────────────────────── */
 #col-divider {
     flex: 0 0 10px;
     width: 10px;
@@ -643,7 +643,7 @@ body.split-mode #doc-float-panel { display: none !important; }
 }
 #col-divider:hover .drag-handle span,
 #col-divider.dragging .drag-handle span { background: #fff; }
-/* â”€â”€ Doc Viewer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Doc Viewer ──────────────────────────────────────────────────────────── */
 .doc-viewer {
     background: #0f172a;
     border: 1px solid #1e293b;
@@ -674,7 +674,7 @@ body.split-mode #doc-float-panel { display: none !important; }
     flex-direction: column;
     gap: 10px;
 }
-/* â”€â”€ ECDT Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── ECDT Table ──────────────────────────────────────────────────────────── */
 .ecdt-table {
     width: 100%;
     border-collapse: collapse;
@@ -759,7 +759,7 @@ body.split-mode #doc-float-panel { display: none !important; }
     text-transform: uppercase;
     text-align: center;
 }
-/* â”€â”€ WMCDA Score Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── WMCDA Score Cards ───────────────────────────────────────────────────── */
 .mode-score-card {
     border: 2px solid #334155;
     border-radius: 10px;
@@ -769,7 +769,7 @@ body.split-mode #doc-float-panel { display: none !important; }
 }
 .mode-score-card.recommended { border-color: #22c55e; background: #052e16; }
 .mode-score-card.consignee-pick { border-color: #3b82f6; }
-/* â”€â”€ OCR overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── OCR overlay ─────────────────────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
 #ocr-overlay {
     display: none;
@@ -790,7 +790,7 @@ body.split-mode #doc-float-panel { display: none !important; }
     animation: spin 0.75s linear infinite;
     margin-bottom: 8px;
 }
-/* â”€â”€ HS Code Picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── HS Code Picker ──────────────────────────────────────────────────────── */
 .hs-picker { position: relative; }
 .hs-search-input {
     width: 100%;
@@ -871,7 +871,7 @@ body.split-mode #doc-float-panel { display: none !important; }
     position: sticky;
     top: 0;
 }
-/* â”€â”€ HS Suggestion Chips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── HS Suggestion Chips ─────────────────────────────────────────────────── */
 .hs-suggestion-chip {
     display: inline-flex;
     align-items: center;
@@ -898,7 +898,7 @@ body.split-mode #doc-float-panel { display: none !important; }
     padding: 6px 8px;
     margin-top: 2px;
 }
-/* â”€â”€ Summary two-col layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Summary two-col layout ──────────────────────────────────────────────── */
 .ecdt-summary-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1053,7 +1053,7 @@ document.body.classList.add('light-mode');
     <p style="color:#475569; font-size:11px; margin-top:4px;">10&ndash;30 seconds depending on document size.</p>
 </div>
 
-<!-- â”€â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<!-- ─── Header ────────────────────────────────────────────────────────────── -->
 <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
     <div>
         <h2 style="color:#f1f5f9; font-size:18px; margin:0;">{{ shipment.hawb_number }}</h2>
@@ -1118,7 +1118,7 @@ document.body.classList.add('light-mode');
     <span style="color:#1e293b;">·</span>
     <span style="color:#60a5fa; font-family:monospace; font-weight:700;">{{ shipment.hawb_number }}</span>
     <span style="color:#1e293b;">·</span>
-    <span style="font-weight:600; color:{% if shipment.shipment_type == 'air' %}#3b82f6{% elif shipment.shipment_type == 'fcl' %}#a78bfa{% elif shipment.shipment_type == 'lcl' or shipment.shipment_type == 'sea' %}#22d3ee{% elif shipment.shipment_type == 'land' %}#f59e0b{% else %}#94a3b8{% endif %};">
+    <span style="font-weight:600; color:{% if shipment.shipment_type == 'air' %}#3b82f6{% elif shipment.shipment_type == 'fcl' %}#a78bfa{% elif shipment.shipment_type == 'lcl' or shipment.shipment_type == 'sea' %}#22d3ee{% else %}#94a3b8{% endif %};">
         {{ shipment.get_shipment_type_display|default:"TBD" }}
     </span>
     <span style="color:#1e293b;">·</span>
@@ -1187,9 +1187,9 @@ document.body.classList.add('light-mode');
 
 <div class="compute-layout">
 
-<!--â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+<!--══════════════════════════════════════════════════════════════════════════
      LEFT &mdash; Document Viewer
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+════════════════════════════════════════════════════════════════════════════ -->
 <div id="col-left">
     <!-- Exit split-mode bar -->
     <div style="display:flex;align-items:center;justify-content:space-between;
@@ -1306,23 +1306,23 @@ document.body.classList.add('light-mode');
     {% endif %}
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+<!-- ══════════════════════════════════════════════════════════════════════════
      DIVIDER
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+════════════════════════════════════════════════════════════════════════════ -->
 <div id="col-divider">
     <div class="drag-handle">
         <span></span><span></span><span></span>
     </div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+<!-- ══════════════════════════════════════════════════════════════════════════
      RIGHT &mdash; Computation Panel
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+════════════════════════════════════════════════════════════════════════════ -->
 <div id="col-right">
 <form method="POST" id="compute-form" action="#ecdt-summary-card">
 {% csrf_token %}
 
-<!-- â”€â”€ Parameters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<!-- ── Parameters ─────────────────────────────────────────────────── -->
 <div class="card" style="margin-bottom:12px;">
     <p class="card-title" style="margin-bottom:8px;">Parameters</p>
     <div style="display:grid; grid-template-columns:1fr 2fr; gap:10px; margin-bottom:10px;">
@@ -1337,8 +1337,6 @@ document.body.classList.add('light-mode');
                     {% if existing.container_type == 'fcl' or existing.container_type == '20ft' or existing.container_type == '40ft' or shipment.shipment_type == 'fcl' %}selected{% endif %}>FCL</option>
                 <option value="air"
                     {% if existing.container_type == 'air' or shipment.shipment_type == 'air' %}selected{% endif %}>Air</option>
-                <option value="land"
-                    {% if existing.container_type == 'land' or shipment.shipment_type == 'land' %}selected{% endif %}>Land</option>
             </select>
         </div>
         <!-- Invoice Currency -->
@@ -1588,9 +1586,9 @@ document.body.classList.add('light-mode');
 </div>
 {% endif %}
 
-<!-- â”€â”€ HS Code Suggestions (auto-generated from description) â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<!-- ── HS Code Suggestions (auto-generated from description) ──────── -->
 
-<!-- â”€â”€ ECDT Line Items Table (Excel CDT column order) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<!-- ── ECDT Line Items Table (Excel CDT column order) ─────────────── -->
 <div class="card ecdt-table-shell" id="ecdt-table-shell" style="margin-bottom:14px; padding:0; overflow:hidden;">
     <div style="padding:10px 14px; background:#0f172a; border-bottom:1px solid #1e293b;
                 display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -1765,7 +1763,7 @@ document.body.classList.add('light-mode');
         </table>
     </div>
 
-    <!-- â”€â”€ Live Totals Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!-- ── Live Totals Footer ────────────────────────────────────────── -->
     <div style="padding:10px 14px; background:#0f172a; border-top:2px solid #334155; font-size:12px;">
 
         <!-- Row 1: EXW / DV totals -->
@@ -1815,7 +1813,6 @@ document.body.classList.add('light-mode');
             <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
                 <p style="color:#64748b; font-size:9px; margin:0 0 2px;">
                     {% if shipment.shipment_type == 'air' %}Air Terminal
-                    {% elif shipment.shipment_type == 'land' %}Trucking
                     {% else %}Arrastre{% endif %}
                 </p>
                 <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-arrastre">&#8369;0.00</p>
@@ -1823,7 +1820,6 @@ document.body.classList.add('light-mode');
             <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
                 <p style="color:#64748b; font-size:9px; margin:0 0 2px;">
                     {% if shipment.shipment_type == 'air' %}Handling
-                    {% elif shipment.shipment_type == 'land' %}Handling
                     {% else %}Wharfage{% endif %}
                 </p>
                 <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-wharfage">&#8369;0.00</p>
@@ -1854,7 +1850,7 @@ document.body.classList.add('light-mode');
     </div>
 </div>
 
-<!-- â”€â”€ Submit Button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<!-- ── Submit Button ─────────────────────────────────────────────── -->
 <div style="display:flex; gap:10px; margin-bottom:14px;">
     <button type="submit" class="btn btn-primary" style="flex:1;">
         Compute &amp; Analyze
@@ -1863,7 +1859,7 @@ document.body.classList.add('light-mode');
 
 </form>
 
-<!-- â”€â”€ ECDT Summary (post-compute, Excel layout) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<!-- ── ECDT Summary (post-compute, Excel layout) ─────────────────── -->
 {% if result or existing %}
 <div class="card" id="ecdt-summary-card" style="margin-bottom:14px; scroll-margin-top:20px;">
     <p class="card-title" style="margin-bottom:14px;">ECDT Summary</p>
@@ -1921,23 +1917,6 @@ document.body.classList.add('light-mode');
             </div>
             <div class="summary-row">
                 <span class="summary-label">Airfreight Handling</span>
-                <span class="summary-value">
-                    {% if result %}&#8369;{{ result.wharfage|floatformat:2 }}
-                    {% elif existing %}&#8369;{{ existing.wharfage|floatformat:2 }}
-                    {% else %}&#8369;0.00{% endif %}
-                </span>
-            </div>
-            {% elif shipment.shipment_type == 'land' %}
-            <div class="summary-row">
-                <span class="summary-label">Trucking Fee</span>
-                <span class="summary-value">
-                    {% if result %}&#8369;{{ result.arrastre|floatformat:2 }}
-                    {% elif existing %}&#8369;{{ existing.arrastre|floatformat:2 }}
-                    {% else %}&#8369;0.00{% endif %}
-                </span>
-            </div>
-            <div class="summary-row">
-                <span class="summary-label">Handling Fee</span>
                 <span class="summary-value">
                     {% if result %}&#8369;{{ result.wharfage|floatformat:2 }}
                     {% elif existing %}&#8369;{{ existing.wharfage|floatformat:2 }}
@@ -2091,7 +2070,7 @@ document.body.classList.add('light-mode');
 </div>
 {% endif %}
 
-<!-- â”€â”€ Total Estimated Amount to Pay Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<!-- ── Total Estimated Amount to Pay Banner ────────────────────────── -->
 {% if result or existing %}
 {% with comp=existing %}
 {% with tlc=result.total_landed_cost|default:comp.total_landed_cost vat=result.vat|default:comp.vat_amount boc=result.boc_total|default:'' %}
@@ -2150,12 +2129,12 @@ document.body.classList.add('light-mode');
 {% endwith %}
 {% endif %}
 
-<!-- â”€â”€ WMCDA Shipping Analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<!-- ── WMCDA Shipping Analysis ────────────────────────────────────── -->
 {% if wmcda_scores %}
 <div class="card shipping-analysis-card" style="margin-bottom:14px;">
     <p class="card-title">Shipping Mode Analysis</p>
 
-    <!-- â”€â”€ PRIMARY: Declared Mode Score & Breakdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!-- ── PRIMARY: Declared Mode Score & Breakdown ────────────────── -->
     {% if shipment.shipment_type and declared_score is not None %}
     <div class="compute-advisory-panel" style="background:#0f172a; border-radius:10px; padding:14px; margin-bottom:12px;
                 border:2px solid
@@ -2248,7 +2227,7 @@ document.body.classList.add('light-mode');
             <span style="color:#fcd34d; font-size:16px;">!</span>
             <p style="color:#fde68a; font-size:12px; font-weight:600; margin:0;">
                 Not the optimal mode for this shipment. Consider
-                <strong>{% if wmcda_recommended == 'air' %}Air Freight{% elif wmcda_recommended == 'lcl' %}LCL{% elif wmcda_recommended == 'land' %}Land Freight{% else %}FCL{% endif %}</strong>
+                <strong>{% if wmcda_recommended == 'air' %}Air Freight{% elif wmcda_recommended == 'lcl' %}LCL{% else %}FCL{% endif %}</strong>
                 for future shipments.
             </p>
         </div>
@@ -2256,8 +2235,8 @@ document.body.classList.add('light-mode');
     </div>
     {% endif %}
 
-    <!-- All 4 mode scores -->
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; margin-bottom:10px;">
+    <!-- All mode scores -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px;">
         {% with sa=wmcda_scores.air %}
         <div style="background:#0f172a; border-radius:8px; padding:8px 10px; text-align:center;
                     border:1px solid {% if wmcda_recommended == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#1e293b{% endif %};">
@@ -2294,18 +2273,6 @@ document.body.classList.add('light-mode');
             {% elif shipment.shipment_type == 'fcl' %}<p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>{% endif %}
         </div>
         {% endwith %}
-        {% with sland=wmcda_scores.land %}
-        <div style="background:#0f172a; border-radius:8px; padding:8px 10px; text-align:center;
-                    border:1px solid {% if wmcda_recommended == 'land' %}#22c55e{% elif shipment.shipment_type == 'land' %}#3b82f6{% else %}#1e293b{% endif %};">
-            <p style="margin:0; font-size:14px;"></p>
-            <p style="color:#94a3b8; font-size:10px; margin:2px 0;">Land</p>
-            <p style="margin:0; font-size:13px; font-weight:700;
-                color:{% if wmcda_recommended == 'land' %}#22c55e{% elif shipment.shipment_type == 'land' %}#3b82f6{% else %}#94a3b8{% endif %};">
-                {{ sland|floatformat:3 }}</p>
-            {% if wmcda_recommended == 'land' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">* BEST</p>
-            {% elif shipment.shipment_type == 'land' %}<p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>{% endif %}
-        </div>
-        {% endwith %}
     </div>
 
     {% if wmcda_recommended and wmcda_recommended != shipment.shipment_type %}
@@ -2319,14 +2286,12 @@ document.body.classList.add('light-mode');
             <span style="font-size:22px;">
                 {% if wmcda_recommended == 'air' %}
                 {% elif wmcda_recommended == 'lcl' %}
-                {% elif wmcda_recommended == 'land' %}
                 {% else %}{% endif %}
             </span>
             <div style="flex:1;">
                 <p style="color:#f1f5f9; font-size:14px; font-weight:700; margin:0;">
                     {% if wmcda_recommended == 'air' %}Air Freight
                     {% elif wmcda_recommended == 'lcl' %}LCL (Less than Container Load)
-                    {% elif wmcda_recommended == 'land' %}Land Freight
                     {% else %}FCL (Full Container Load){% endif %}
                 </p>
                 {% if wmcda_explanation %}
@@ -2336,7 +2301,6 @@ document.body.classList.add('light-mode');
             <span style="font-size:16px; font-weight:800; color:#22c55e;">
                 {% if wmcda_recommended == 'air' %}{{ wmcda_scores.air|floatformat:3 }}
                 {% elif wmcda_recommended == 'lcl' %}{{ wmcda_scores.lcl|floatformat:3 }}
-                {% elif wmcda_recommended == 'land' %}{{ wmcda_scores.land|floatformat:3 }}
                 {% else %}{{ wmcda_scores.fcl|floatformat:3 }}{% endif %}
             </span>
         </div>
@@ -2373,7 +2337,6 @@ document.body.classList.add('light-mode');
                     {% if advisory_existing.declarant_recommendation == 'air' %}Air Freight
                     {% elif advisory_existing.declarant_recommendation == 'lcl' %}LCL
                     {% elif advisory_existing.declarant_recommendation == 'fcl' %}FCL
-                    {% elif advisory_existing.declarant_recommendation == 'land' %}Land Freight
                     {% endif %}
                 </p>
                 {% if advisory_existing.declarant_note %}
@@ -2403,7 +2366,7 @@ document.body.classList.add('light-mode');
 
 {% block extra_js %}
 <script>
-// â”€â”€ OCR data from Django context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── OCR data from Django context ──────────────────────────────────────────────
 var ocrData = {
     {% if ocr_fields %}
     declared_value: '{{ ocr_fields.declared_value.value|default:"" }}',
@@ -2494,7 +2457,7 @@ var ocrItems = [
     {% endif %}
 ];
 
-// â”€â”€ HS Code Searchable Picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── HS Code Searchable Picker ─────────────────────────────────────────────────
 
 function _filterHsCodes(query) {
     if (!query || query.trim() === '') return hsCodesData.slice(0, 60);
@@ -2579,7 +2542,7 @@ function _selectHsItem(picker, id, code, rate) {
         var rateInput = tr.querySelector('.rate-input');
         if (rateInput) { rateInput.value = rate; }
 
-        // â”€â”€ AJAX persist HS to ShipmentLineItem if row has a DB id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── AJAX persist HS to ShipmentLineItem if row has a DB id ──────────
         var lineItemId = tr.getAttribute('data-line-item-id');
         if (lineItemId && id) {
             var csrfEl = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -2666,7 +2629,7 @@ function _createHsPicker() {
     return div;
 }
 
-// â”€â”€ Build a new table row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Build a new table row ─────────────────────────────────────────────────────
 // Col order: #, Desc, EXW, Freight USD, Ins USD, D/V USD equiv., D/V&#8369;, HS, Rate%, CUD&#8369;, GW, NW, QTY, Unit, PKGS, del
 function _makeRow(n, desc, exw, qty) {
     var tr = document.createElement('tr');
@@ -2702,7 +2665,7 @@ function _makeRow(n, desc, exw, qty) {
     return tr;
 }
 
-// â”€â”€ Fill table from OCR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Fill table from OCR ───────────────────────────────────────────────────────
 function fillFromOCR() {
     var tbody = document.getElementById('ecdt-body');
     if (ocrItems && ocrItems.length >= 2) {
@@ -2723,7 +2686,7 @@ function fillFromOCR() {
     recalcAll();
 }
 
-// â”€â”€ BF / IPF lookup tables (mirrors views.py) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── BF / IPF lookup tables (mirrors views.py) ─────────────────────────────────
 function getBF(dvPhp) {
     if (dvPhp <= 0)      return 0;
     if (dvPhp <= 10000)  return 1300;
@@ -2901,7 +2864,7 @@ function recalcAll() {
     }
 }
 
-// â”€â”€ Distribute global freight/insurance proportionally to per-row inputs â”€â”€â”€â”€â”€â”€
+// ── Distribute global freight/insurance proportionally to per-row inputs ──────
 function distributeFreight() {
     var totalFreight   = parseFloat(document.getElementById('total_freight').value)   || 0;
     var totalInsurance = parseFloat(document.getElementById('total_insurance').value) || 0;
@@ -2928,7 +2891,7 @@ function distributeFreight() {
     recalcAll();
 }
 
-// â”€â”€ Add / Remove rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Add / Remove rows ─────────────────────────────────────────────────────────
 function addRow() {
     var tbody = document.getElementById('ecdt-body');
     var n = tbody.rows.length + 1;
@@ -2955,7 +2918,7 @@ function renumber() {
     });
 }
 
-// â”€â”€ Document viewer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Document viewer ───────────────────────────────────────────────────────────
 // ── Floating Document Panel ───────────────────────────────────────────────────
 function openDocPanel() {
     var panel = document.getElementById('doc-float-panel');
@@ -3084,14 +3047,14 @@ function loadDoc(url, label) {
         ' <a href="' + url + '" target="_blank" ' +
         'style="color:#3b82f6;font-size:11px;text-decoration:none;margin-left:8px;' +
         'padding:2px 8px;border:1px solid #334155;border-radius:4px;white-space:nowrap;">' +
-        'Open in new tab â†—</a>';
+        'Open in new tab ↗</a>';
 
     if (isPdf) {
         area.innerHTML =
             '<div style="height:100%;display:flex;flex-direction:column;">' +
             '<iframe src="' + url + '" style="flex:1;width:100%;min-height:500px;border:none;display:block;" allow="fullscreen"></iframe>' +
             '<div style="padding:10px;text-align:center;background:#0f172a;border-top:1px solid #1e293b;">' +
-            '<a href="' + url + '" target="_blank" style="color:#3b82f6;font-size:12px;text-decoration:none;">Can\'t see the PDF? Open in new tab â†—</a>' +
+            '<a href="' + url + '" target="_blank" style="color:#3b82f6;font-size:12px;text-decoration:none;">Can\'t see the PDF? Open in new tab ↗</a>' +
             '</div></div>';
     } else if (isImg) {
         area.innerHTML =
@@ -3102,11 +3065,11 @@ function loadDoc(url, label) {
             '<div style="padding:40px;text-align:center;background:#0f172a;height:100%;' +
             'display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">' +
             '<p style="color:#94a3b8;font-size:13px;">Preview not available for this file type.</p>' +
-            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:13px;">Open / Download â†—</a></div>';
+            '<a href="' + url + '" target="_blank" class="btn btn-primary" style="font-size:13px;">Open / Download ↗</a></div>';
     }
 }
 
-// â”€â”€ OCR timer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── OCR timer ─────────────────────────────────────────────────────────────────
 var _ocrTimer = null;
 function startOCR(url, docLabel) {
     var overlay = document.getElementById('ocr-overlay');
@@ -3154,13 +3117,6 @@ var PORT_MODE_CONFIG = {
         wh:       'Airfreight Handling (PHP)',
         arrHint:  'e.g. NAIA/MNL terminal handling — optional',
         whHint:   'other terminal charges — optional',
-    },
-    land: {
-        title:    'Transport / Handling Charges',
-        arr:      'Trucking Fee (PHP)',
-        wh:       'Handling Fee (PHP)',
-        arrHint:  'optional',
-        whHint:   'optional',
     },
 };
 
@@ -3254,16 +3210,16 @@ function onChargeModeChange(mode) {
             var savedCt = '{{ existing.container_type|default:"" }}';
             onContainerTypeChange(savedCt === '40ft' ? '40ft' : '20ft');
         }
-        // Air / Land: leave blank — charges vary per terminal / route
+        // Air: leave blank - charges vary per terminal / route
     }
 
     recalcAll();
 })();
 
-// â”€â”€ Recalc when exchange rate changes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Recalc when exchange rate changes ─────────────────────────────────────────
 document.getElementById('exchange_rate').addEventListener('input', recalcAll);
 
-// â”€â”€ HS Suggestion helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── HS Suggestion helpers ─────────────────────────────────────────────────────
 
 /**
  * Apply a shipment-level suggestion chip to the first empty HS picker in the table.
@@ -3371,7 +3327,7 @@ document.addEventListener('DOMContentLoaded', function() {
 recalcAll();
 initAllHsPickers();
 
-// â”€â”€ Drag-to-resize divider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Drag-to-resize divider ────────────────────────────────────────────────────
 (function () {
     var divider   = document.getElementById('col-divider');
     var colLeft   = document.getElementById('col-left');
@@ -3579,3 +3535,4 @@ initAllHsPickers();
 })();
 </script>
 {% endblock %}
+

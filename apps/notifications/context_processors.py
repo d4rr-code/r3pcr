@@ -1,4 +1,8 @@
+import logging
+
 from .models import Notification
+
+logger = logging.getLogger('r3pcr.notifications')
 
 
 def unread_notification_count(request):
@@ -19,6 +23,6 @@ def unread_notification_count(request):
                     target_audience__in=['all', request.user.role],
                 ).order_by('-created_at')[:5]
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug('Announcement load failed: %s', e)
     return ctx

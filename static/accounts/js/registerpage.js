@@ -1,6 +1,11 @@
-/* ── Live username preview ─────────────────────────────────── */
+﻿/* ── Live username preview (mirrors backend _generate_username) ── */
 function generateUsername(first, last) {
-    return (first + last).toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+    const clean = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const f = clean(first), l = clean(last);
+    let base = (f && l) ? (f.charAt(0) + l) : (f || l);
+    base = base.slice(0, 15);                       // not too long
+    if (base.length < 5) base = (f + l).slice(0, 15) || base;  // not too short
+    return base;
 }
 
 const firstInput   = document.getElementById('first_name');
@@ -20,6 +25,14 @@ function updatePreview() {
 
 firstInput.addEventListener('input', updatePreview);
 lastInput.addEventListener('input',  updatePreview);
+
+/* ── Phone: keep digits only, max 11 (09xxxxxxxxx) ─────────── */
+const phoneInput = document.getElementById('phone_number');
+if (phoneInput) {
+    phoneInput.addEventListener('input', function () {
+        this.value = this.value.replace(/\D/g, '').slice(0, 11);
+    });
+}
 
 /* ── Password toggle ───────────────────────────────────────── */
 document.querySelectorAll('.toggle-pw').forEach(btn => {
@@ -68,3 +81,4 @@ if (languageDropdown) {
             languageDropdown.classList.remove('active');
     });
 }
+

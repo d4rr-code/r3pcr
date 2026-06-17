@@ -252,7 +252,9 @@
             class="c-hamburger"
             id="c-hamburger"
             onclick="toggleMobileSidebar()"
-            aria-label="Open menu">
+            aria-label="Open menu"
+            aria-controls="c-sidebar"
+            aria-expanded="false">
 
             <svg width="20"
                  height="20"
@@ -284,9 +286,9 @@
 
             </svg>
 
-            {% if unread_count %}
+            {% if unread_notification_count %}
             <span class="c-notif-badge">
-                {{ unread_count }}
+                {{ unread_notification_count }}
             </span>
             {% endif %}
 

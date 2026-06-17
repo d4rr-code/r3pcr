@@ -180,6 +180,38 @@
             {% endfor %}
         </div>
     </section>
+
+    <section class="issue-card">
+        <h2 class="issue-title">
+            All Reported Issues
+        </h2>
+        <p class="issue-empty" style="margin:0 0 12px;">
+            Issues raised across the consignee &amp; declarant teams — location and type only.
+        </p>
+        <div class="issue-list">
+            {% for issue in shared_issues %}
+            <article class="issue-row">
+                <div class="issue-row-header">
+                    <strong class="issue-row-title">
+                        {{ issue.get_location_display }}
+                    </strong>
+                    <span class="issue-pill">
+                        {{ issue.get_status_display }}
+                    </span>
+                </div>
+                <div class="issue-meta">
+                    <span>{{ issue.reporter_role|title }}</span>
+                    <span>{{ issue.get_category_display }}</span>
+                    <span>{{ issue.created_at|date:"M d, Y" }}</span>
+                </div>
+            </article>
+            {% empty %}
+            <p class="issue-empty">
+                No issues reported yet.
+            </p>
+            {% endfor %}
+        </div>
+    </section>
 </div>
 
 {% endblock %}

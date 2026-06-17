@@ -899,3 +899,261 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+@media (max-width: 768px) {
+    .content,
+    .c-content {
+        padding: 12px 10px 24px;
+    }
+
+    .shipment-page {
+        max-width: none;
+    }
+
+    .shipment-header {
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .shipment-title h2 {
+        font-size: 20px;
+        overflow-wrap: anywhere;
+    }
+
+    .shipment-title p {
+        font-size: 11px;
+    }
+
+    .header-actions,
+    .header-actions .back-btn {
+        width: 100%;
+    }
+
+    .header-actions .back-btn {
+        justify-content: center;
+    }
+
+    .detail-card {
+        border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+    }
+
+    .card-head,
+    .computation-head {
+        padding: 18px 16px 16px;
+    }
+
+    .card-pad,
+    .sad-body,
+    .advisory-body,
+    .history-list,
+    .payment-upload-body,
+    .supporting-docs-body {
+        padding: 16px !important;
+    }
+
+    .status-card {
+        padding: 18px 14px;
+        margin-bottom: 18px;
+    }
+
+    .status-progress {
+        grid-template-columns: repeat(10, minmax(68px, 1fr));
+        padding-bottom: 10px;
+    }
+
+    .status-step {
+        min-width: 68px;
+        gap: 10px;
+        font-size: 8px;
+    }
+
+    .progress-dot {
+        width: 15px;
+        height: 15px;
+    }
+
+    .status-step.current .progress-dot {
+        width: 17px;
+        height: 17px;
+        box-shadow: 0 0 0 5px rgba(0, 108, 182, .14);
+    }
+
+    .info-grid {
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .info-value,
+    .doc-row span,
+    .history-status {
+        font-size: 14px;
+    }
+
+    .doc-row {
+        min-height: 0;
+        padding: 14px 16px;
+        align-items: flex-start;
+    }
+
+    .download-links,
+    .download-links a {
+        width: 100%;
+    }
+
+    .download-links a {
+        justify-content: center;
+        min-height: 36px;
+        border: 1px solid #e5e7eb;
+        border-radius: 7px;
+    }
+
+    .warning-strip {
+        display: flex;
+        align-items: flex-start;
+        width: 100%;
+        min-height: 0;
+        padding: 12px 14px;
+        line-height: 1.35;
+    }
+
+    .metric-grid {
+        gap: 10px;
+    }
+
+    .metric {
+        padding: 16px 10px;
+    }
+
+    .metric-value {
+        font-size: 21px;
+        overflow-wrap: anywhere;
+    }
+
+    .ecdt-collapse-body {
+        padding: 12px;
+    }
+
+    .calc-table {
+        min-width: 640px;
+    }
+
+    .split-panel {
+        padding: 20px 16px;
+    }
+
+    .split-title {
+        font-size: 13px;
+        margin-bottom: 18px;
+    }
+
+    .fee-row {
+        gap: 12px;
+        line-height: 1.35;
+    }
+
+    .review-box {
+        margin: 0 -18px -24px;
+        padding: 18px;
+    }
+
+    .action-row,
+    .action-row form,
+    .outline-action {
+        width: 100%;
+    }
+
+    .outline-action {
+        justify-content: center;
+    }
+
+    .fan-breakdown-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .receipt-current,
+    .supporting-doc-row {
+        align-items: flex-start !important;
+    }
+
+    .receipt-current .sad-link,
+    .supporting-doc-row .sad-link {
+        flex-shrink: 0;
+    }
+
+    .receipt-form-row {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    .receipt-form-row button {
+        width: 100%;
+    }
+
+    .advisory-main {
+        flex-direction: column;
+    }
+
+    .score-box {
+        text-align: left;
+    }
+
+    .advisory-mode,
+    .score-box strong,
+    .future-advisory .mode {
+        font-size: 20px;
+        overflow-wrap: anywhere;
+    }
+}
+
+@media (max-width: 480px) {
+    .content,
+    .c-content {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .section-title {
+        font-size: 15px;
+    }
+
+    .section-subtitle,
+    .empty-state {
+        font-size: 12px;
+    }
+
+    .status-progress {
+        grid-template-columns: repeat(10, minmax(62px, 1fr));
+    }
+
+    .status-step {
+        min-width: 62px;
+    }
+
+    .doc-row,
+    .receipt-current,
+    .supporting-doc-row {
+        flex-direction: column;
+        gap: 8px !important;
+    }
+
+    .doc-row a,
+    .sad-link {
+        display: inline-flex;
+        min-height: 34px;
+        align-items: center;
+    }
+
+    .calc-table {
+        min-width: 560px;
+    }
+
+    .compare-tile,
+    .future-advisory {
+        padding: 12px;
+    }
+
+    .bar-label {
+        font-size: 12px;
+    }
+}

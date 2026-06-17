@@ -23,6 +23,7 @@ urlpatterns = [
     path('config/fees/',                         views.config_fees,              name='config_fees'),
     path('config/wmcda/',                        views.config_wmcda,             name='config_wmcda'),
     path('config/hscodes/',                      views.config_hscodes_sections,  name='config_hscodes_sections'),
+    path('config/hscodes/upload/',               views.upload_tariff_schedule,   name='upload_tariff_schedule'),
     path('config/hscodes/<int:section_num>/',    views.config_hscodes_section,   name='config_hscodes_section'),
     path('config/hscodes/chapter/<int:chapter_num>/', views.config_hscodes_chapter, name='config_hscodes_chapter'),
 

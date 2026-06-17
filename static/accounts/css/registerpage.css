@@ -6,6 +6,29 @@
     box-sizing:border-box;
 }
 
+/* ── Validation messages (visible red/green alerts) ───────────── */
+.messages{
+    margin-bottom:18px;
+}
+.message{
+    padding:11px 14px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:500;
+    margin-bottom:10px;
+    border:1px solid transparent;
+}
+.message.error{
+    background:#FEE2E2;
+    color:#B91C1C;
+    border-color:#FCA5A5;
+}
+.message.success{
+    background:#DCFCE7;
+    color:#15803D;
+    border-color:#86EFAC;
+}
+
 body{
     font-family:'Poppins',sans-serif;
     background:url('../img/BG MAIN.png') center/cover no-repeat fixed;

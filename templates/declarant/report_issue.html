@@ -104,5 +104,27 @@
             {% endfor %}
         </div>
     </section>
+
+    <section class="issue-card">
+        <h2 class="issue-title">All Reported Issues</h2>
+        <p style="color:#6B7280; font-size:14px; margin:0 0 12px;">Issues raised across the consignee &amp; declarant teams — location and type only.</p>
+        <div class="issue-list">
+            {% for issue in shared_issues %}
+            <article class="issue-row">
+                <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+                    <strong style="color:#0B2A55;">{{ issue.get_location_display }}</strong>
+                    <span class="issue-pill">{{ issue.get_status_display }}</span>
+                </div>
+                <div class="issue-meta">
+                    <span>{{ issue.reporter_role|title }}</span>
+                    <span>{{ issue.get_category_display }}</span>
+                    <span>{{ issue.created_at|date:"M d, Y" }}</span>
+                </div>
+            </article>
+            {% empty %}
+            <p style="color:#6B7280; font-size:14px;">No issues reported yet.</p>
+            {% endfor %}
+        </div>
+    </section>
 </div>
 {% endblock %}

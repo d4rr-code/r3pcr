@@ -99,6 +99,26 @@
 
 .notification-type-badge{
 
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    min-height:24px;
+
+    padding:4px 10px;
+
+    border-radius:999px;
+
+    background:#EFF6FF;
+
+    color:#1D4ED8;
+
+    font-size:11px;
+
+    font-weight:800;
+
     white-space:nowrap;
 
     flex-shrink:0;
@@ -222,6 +242,22 @@
 
     min-width:180px;
 
+    min-height:40px;
+
+    padding:0 18px;
+
+    border-radius:8px;
+
+    background:#1B3358;
+
+    color:#FFFFFF;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    text-decoration:none;
+
     transition:
 
         transform .15s ease,
@@ -231,6 +267,10 @@
 }
 
 .notification-action-btn:hover{
+
+    color:#FFFFFF;
+
+    background:#152847;
 
     transform:translateY(-1px);
 
@@ -309,6 +349,12 @@
     .notification-action-btn{
 
         width:100%;
+
+    }
+
+    .notification-shipment-meta{
+
+        display:block;
 
     }
 

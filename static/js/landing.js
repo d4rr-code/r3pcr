@@ -24,51 +24,7 @@ selectedLanguage.addEventListener("click", (e) => {
 
 });
 
-/* OPTION CLICK */
-
-languageOptions.forEach(option => {
-
-    option.addEventListener("click", () => {
-
-        const lang =
-        option.getAttribute("data-lang");
-
-        currentLanguage.innerText =
-        lang === "en" ? "EN" : "FIL";
-
-        languageDropdown.classList.remove("active");
-
-        /* FILIPINO */
-
-        if(lang === "fil"){
-
-            document.getElementById("heroTitle")
-            .innerText =
-            "Pasimplehin ang iyong pre-clearance process";
-
-            document.getElementById("heroSubtitle")
-            .innerText =
-            "Pabilisin ang iyong customs pre-clearance workflow gamit ang automated document handling at real-time shipment monitoring.";
-
-        }
-
-        /* ENGLISH */
-
-        else{
-
-            document.getElementById("heroTitle")
-            .innerText =
-            "Simplify your pre-clearance process";
-
-            document.getElementById("heroSubtitle")
-            .innerText =
-            "Streamline your customs pre-clearance workflow with automated document handling and real-time shipment monitoring.";
-
-        }
-
-    });
-
-});
+/* OPTION CLICK — translation + persistence handled by i18n.js */
 
 /* CLOSE OUTSIDE */
 

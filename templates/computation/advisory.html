@@ -1,4 +1,4 @@
-{% extends 'declarant/base_declarant.html' %}
+﻿{% extends 'declarant/base_declarant.html' %}
 
 {% block title %}Shipping Advisory — {{ shipment.hawb_number }}{% endblock %}
 {% block page_title %}Shipping Advisory{% endblock %}
@@ -178,11 +178,10 @@
                     display:flex; align-items:center; gap:16px;
                     {% if result == 'air' %}background:#EFF6FF; border:2px solid #1D4ED8;
                     {% elif result == 'fcl' %}background:#F0FDF4; border:2px solid #15803D;
-                    {% elif result == 'land' %}background:#FFFBEB; border:2px solid #B45309;
                     {% else %}background:#F0FDF4; border:2px solid #15803D;{% endif %}">
             <span style="font-size:36px; font-weight:900;
-                         color:{% if result == 'air' %}#1D4ED8{% elif result == 'fcl' %}#15803D{% elif result == 'land' %}#B45309{% else %}#15803D{% endif %};">
-                {% if result == 'air' %}Air{% elif result == 'fcl' %}FCL{% elif result == 'land' %}Land{% else %}LCL{% endif %}
+                         color:{% if result == 'air' %}#1D4ED8{% elif result == 'fcl' %}#15803D{% else %}#15803D{% endif %};">
+                {% if result == 'air' %}Air{% elif result == 'fcl' %}FCL{% else %}LCL{% endif %}
             </span>
             <div>
                 <p style="color:#6B7280; font-size:12px; margin:0 0 4px;
@@ -190,7 +189,6 @@
                 <p style="color:#111827; font-size:24px; font-weight:700; margin:0;">
                     {% if result == 'lcl' %}LCL — Less Container Load
                     {% elif result == 'fcl' %}FCL — Full Container Load
-                    {% elif result == 'land' %}Land Freight
                     {% else %}Air Freight{% endif %}
                 </p>
                 {% if explanation %}
@@ -202,7 +200,7 @@
         </div>
 
         <!-- Score Cards -->
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:12px; margin-bottom:20px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:20px;">
 
             <div style="border-radius:8px; padding:16px; text-align:center;
                         {% if result == 'lcl' %}background:#EFF6FF; border:2px solid #1D4ED8;
@@ -240,18 +238,6 @@
                 {% if result == 'air' %}<span style="color:#1D4ED8; font-size:11px; font-weight:700;">BEST</span>{% endif %}
             </div>
 
-            <div style="border-radius:8px; padding:16px; text-align:center;
-                        {% if result == 'land' %}background:#EFF6FF; border:2px solid #1D4ED8;
-                        {% else %}background:#F8FAFC; border:1px solid #E5E7EB;{% endif %}">
-                <p style="color:#6B7280; font-size:12px; margin:0 0 6px;">Land</p>
-                <p style="font-size:28px; font-weight:700; margin:0;
-                          color:{% if result == 'land' %}#1D4ED8{% else %}#374151{% endif %};">
-                    {{ scores.land|floatformat:3 }}
-                </p>
-                <p style="color:#9CA3AF; font-size:11px; margin:4px 0;">weighted score</p>
-                {% if result == 'land' %}<span style="color:#1D4ED8; font-size:11px; font-weight:700;">BEST</span>{% endif %}
-            </div>
-
         </div>
 
         <!-- Per-Criterion Breakdown -->
@@ -273,7 +259,6 @@
                             <th style="padding:10px 14px; text-align:center; font-size:11px;">LCL</th>
                             <th style="padding:10px 14px; text-align:center; font-size:11px;">FCL</th>
                             <th style="padding:10px 14px; text-align:center; font-size:11px;">Air</th>
-                            <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px;">Land</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -283,7 +268,6 @@
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.cost >= 0.8 %}#22c55e{% elif breakdown.lcl.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.cost|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.cost >= 0.8 %}#22c55e{% elif breakdown.fcl.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.cost|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.cost >= 0.8 %}#22c55e{% elif breakdown.air.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.cost|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.cost >= 0.8 %}#22c55e{% elif breakdown.land.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.cost|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Time</td>
@@ -291,7 +275,6 @@
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.time >= 0.8 %}#22c55e{% elif breakdown.lcl.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.time|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.time >= 0.8 %}#22c55e{% elif breakdown.fcl.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.time|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.time >= 0.8 %}#22c55e{% elif breakdown.air.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.time|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.time >= 0.8 %}#22c55e{% elif breakdown.land.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.time|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Weight/Volume</td>
@@ -299,7 +282,6 @@
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.weight >= 0.8 %}#22c55e{% elif breakdown.lcl.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.weight|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.weight >= 0.8 %}#22c55e{% elif breakdown.fcl.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.weight|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.weight >= 0.8 %}#22c55e{% elif breakdown.air.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.weight|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.weight >= 0.8 %}#22c55e{% elif breakdown.land.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.weight|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Distance</td>
@@ -307,7 +289,6 @@
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.distance >= 0.8 %}#22c55e{% elif breakdown.lcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.distance|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.distance >= 0.8 %}#22c55e{% elif breakdown.fcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.distance|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.distance >= 0.8 %}#22c55e{% elif breakdown.air.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.distance|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.distance >= 0.8 %}#22c55e{% elif breakdown.land.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.distance|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:2px solid #E5E7EB; background:#F8FAFC;">
                             <td style="padding:12px 14px; color:#111827; font-weight:700;">Weighted Total</td>
@@ -321,9 +302,6 @@
                             <td style="padding:12px 14px; text-align:center; font-size:18px; font-weight:700; color:{% if result == 'air' %}#1D4ED8{% else %}#9CA3AF{% endif %};">
                                 {{ scores.air|floatformat:3 }}{% if result == 'air' %}<br><span style="font-size:10px;">BEST</span>{% endif %}
                             </td>
-                            <td style="padding:12px 14px; text-align:center; font-size:18px; font-weight:700; color:{% if result == 'land' %}#1D4ED8{% else %}#9CA3AF{% endif %};">
-                                {{ scores.land|floatformat:3 }}{% if result == 'land' %}<br><span style="font-size:10px;">BEST</span>{% endif %}
-                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -335,7 +313,7 @@
         <!-- Saved advisory — score cards -->
         <div class="card">
             <p class="card-title">Saved Advisory</p>
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:12px; margin-bottom:16px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px;">
                 <div style="border-radius:8px; padding:16px; text-align:center;
                             {% if existing.recommended_type == 'lcl' %}background:#EFF6FF; border:2px solid #1D4ED8;
                             {% else %}background:#F8FAFC; border:1px solid #E5E7EB;{% endif %}">
@@ -356,13 +334,6 @@
                     <p style="color:#6B7280; font-size:12px; margin:0 0 6px;">Air Freight</p>
                     <p style="font-size:24px; font-weight:700; margin:0; color:{% if existing.recommended_type == 'air' %}#1D4ED8{% else %}#374151{% endif %};">{{ existing.air_score|floatformat:3 }}</p>
                     {% if existing.recommended_type == 'air' %}<span style="color:#1D4ED8; font-size:11px; font-weight:700;">RECOMMENDED</span>{% endif %}
-                </div>
-                <div style="border-radius:8px; padding:16px; text-align:center;
-                            {% if existing.recommended_type == 'land' %}background:#EFF6FF; border:2px solid #1D4ED8;
-                            {% else %}background:#F8FAFC; border:1px solid #E5E7EB;{% endif %}">
-                    <p style="color:#6B7280; font-size:12px; margin:0 0 6px;">Land Freight</p>
-                    <p style="font-size:24px; font-weight:700; margin:0; color:{% if existing.recommended_type == 'land' %}#1D4ED8{% else %}#374151{% endif %};">{{ existing.land_score|floatformat:3 }}</p>
-                    {% if existing.recommended_type == 'land' %}<span style="color:#1D4ED8; font-size:11px; font-weight:700;">RECOMMENDED</span>{% endif %}
                 </div>
             </div>
 
@@ -395,7 +366,6 @@
                             <th style="padding:10px 14px; text-align:center; font-size:11px;">LCL</th>
                             <th style="padding:10px 14px; text-align:center; font-size:11px;">FCL</th>
                             <th style="padding:10px 14px; text-align:center; font-size:11px;">Air</th>
-                            <th style="padding:10px 14px; text-align:center; color:#94a3b8; font-size:11px;">Land</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -406,7 +376,6 @@
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.cost >= 0.8 %}#22c55e{% elif breakdown.lcl.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.cost|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.cost >= 0.8 %}#22c55e{% elif breakdown.fcl.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.cost|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.cost >= 0.8 %}#22c55e{% elif breakdown.air.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.cost|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.cost >= 0.8 %}#22c55e{% elif breakdown.land.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.cost|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Time</td>
@@ -414,7 +383,6 @@
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.time >= 0.8 %}#22c55e{% elif breakdown.lcl.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.time|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.time >= 0.8 %}#22c55e{% elif breakdown.fcl.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.time|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.time >= 0.8 %}#22c55e{% elif breakdown.air.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.time|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.time >= 0.8 %}#22c55e{% elif breakdown.land.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.time|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Weight/Volume</td>
@@ -422,7 +390,6 @@
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.weight >= 0.8 %}#22c55e{% elif breakdown.lcl.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.weight|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.weight >= 0.8 %}#22c55e{% elif breakdown.fcl.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.weight|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.weight >= 0.8 %}#22c55e{% elif breakdown.air.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.weight|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.weight >= 0.8 %}#22c55e{% elif breakdown.land.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.weight|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Distance</td>
@@ -430,7 +397,6 @@
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.distance >= 0.8 %}#22c55e{% elif breakdown.lcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.distance|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.distance >= 0.8 %}#22c55e{% elif breakdown.fcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.distance|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.distance >= 0.8 %}#22c55e{% elif breakdown.air.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.distance|floatformat:3 }}</td>
-                            <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.land.distance >= 0.8 %}#22c55e{% elif breakdown.land.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.land.distance|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:2px solid #E5E7EB; background:#F8FAFC;">
                             <td style="padding:12px 14px; color:#111827; font-weight:700;">Weighted Total</td>
@@ -443,9 +409,6 @@
                             </td>
                             <td style="padding:12px 14px; text-align:center; font-size:16px; font-weight:700; color:{% if existing.recommended_type == 'air' %}#1D4ED8{% else %}#9CA3AF{% endif %};">
                                 {{ existing.air_score|floatformat:3 }}{% if existing.recommended_type == 'air' %}<br><span style="font-size:10px;">BEST</span>{% endif %}
-                            </td>
-                            <td style="padding:12px 14px; text-align:center; font-size:16px; font-weight:700; color:{% if existing.recommended_type == 'land' %}#3b82f6{% else %}#94a3b8{% endif %};">
-                                {{ existing.land_score|floatformat:3 }}{% if existing.recommended_type == 'land' %}<br><span style="font-size:10px;">BEST</span>{% endif %}
                             </td>
                         </tr>
                     </tbody>
@@ -464,7 +427,7 @@
             <p style="font-size:14px; margin:0 0 6px; color:#374151; font-weight:600;">No result yet</p>
             <p style="font-size:13px; margin:0 0 4px;">Fill in the parameters and click <strong>Compute Recommendation</strong>.</p>
             <p style="font-size:12px; margin:0; color:#9CA3AF;">
-                WMCDA scores LCL, FCL, Air Freight, and Land Freight across cost, time, weight/volume, and distance criteria.
+                WMCDA scores LCL, FCL, and Air Freight across cost, time, weight/volume, and distance criteria.
             </p>
         </div>
         {% endif %}
@@ -480,7 +443,7 @@
                 was the top recommendation
                 <strong style="color:#111827;">{{ wmcda_history.top_pct }}%</strong> of the time.
             </p>
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
                 <div style="border-radius:8px; padding:12px; text-align:center;
                             {% if wmcda_history.top_mode == 'air' %}background:#EFF6FF; border:2px solid #1D4ED8;
                             {% else %}background:#F8FAFC; border:1px solid #E5E7EB;{% endif %}">
@@ -514,17 +477,6 @@
                     </p>
                     <p style="color:#9CA3AF; font-size:10px; margin:2px 0 0;">times</p>
                 </div>
-                <div style="border-radius:8px; padding:12px; text-align:center;
-                            {% if wmcda_history.top_mode == 'land' %}background:#EFF6FF; border:2px solid #1D4ED8;
-                            {% else %}background:#F8FAFC; border:1px solid #E5E7EB;{% endif %}">
-                    <p style="font-size:13px; font-weight:700; margin:0 0 4px; color:#111827;">Land</p>
-                    <p style="color:#6B7280; font-size:11px; margin:0 0 4px;">Land Freight</p>
-                    <p style="font-size:20px; font-weight:700; margin:0;
-                              color:{% if wmcda_history.top_mode == 'land' %}#1D4ED8{% else %}#374151{% endif %};">
-                        {{ wmcda_history.counts.land }}
-                    </p>
-                    <p style="color:#9CA3AF; font-size:10px; margin:2px 0 0;">times</p>
-                </div>
             </div>
         </div>
         {% endif %}
@@ -544,7 +496,6 @@
                 <span style="font-size:22px; font-weight:800; color:#1D4ED8;">
                     {% if existing.declarant_recommendation == 'air' %}Air
                     {% elif existing.declarant_recommendation == 'fcl' %}FCL
-                    {% elif existing.declarant_recommendation == 'land' %}Land
                     {% else %}LCL{% endif %}
                 </span>
                 <div>
@@ -553,7 +504,6 @@
                         {% if existing.declarant_recommendation == 'air' %}Air Freight
                         {% elif existing.declarant_recommendation == 'lcl' %}LCL — Less Container Load
                         {% elif existing.declarant_recommendation == 'fcl' %}FCL — Full Container Load
-                        {% elif existing.declarant_recommendation == 'land' %}Land Freight
                         {% endif %}
                     </p>
                     {% if existing.declarant_note %}
@@ -580,7 +530,7 @@
                 {% csrf_token %}
 
                 <!-- Shipping type cards -->
-                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
 
                     <label id="adv-lcl" onclick="highlightAdv('lcl')"
                            style="border-radius:8px; padding:14px 10px; text-align:center; cursor:pointer; transition:all .15s;
@@ -618,18 +568,6 @@
                         <p style="color:#6B7280; font-size:10px; margin:2px 0 0;">Score: {{ existing.air_score|floatformat:3 }}</p>
                     </label>
 
-                    <label id="adv-land" onclick="highlightAdv('land')"
-                           style="border-radius:8px; padding:14px 10px; text-align:center; cursor:pointer; transition:all .15s;
-                                  border:2px solid {% if existing.declarant_recommendation == 'land' %}#1D4ED8{% else %}#E5E7EB{% endif %};
-                                  background:{% if existing.declarant_recommendation == 'land' %}#EFF6FF{% else %}#F8FAFC{% endif %};">
-                        <input type="radio" name="declarant_recommendation" value="land"
-                               {% if existing.declarant_recommendation == 'land' %}checked{% endif %}
-                               style="display:none;">
-                        <p style="font-size:16px; font-weight:800; margin:0 0 4px; color:#111827;">Land</p>
-                        <p style="color:#374151; font-size:12px; font-weight:600; margin:0;">Land Freight</p>
-                        <p style="color:#6B7280; font-size:10px; margin:2px 0 0;">Score: {{ existing.land_score|floatformat:3 }}</p>
-                    </label>
-
                 </div>
 
                 <!-- Note -->
@@ -653,7 +591,7 @@
 {% block extra_js %}
 <script>
 function highlightAdv(type) {
-    var types = ['lcl', 'fcl', 'air', 'land'];
+    var types = ['lcl', 'fcl', 'air'];
     types.forEach(function(t) {
         var el = document.getElementById('adv-' + t);
         if (!el) return;

@@ -258,4 +258,32 @@
 
     }
 
+    .gp-rate-card{
+
+        align-items:flex-start;
+
+        flex-direction:column;
+
+        gap:8px;
+
+    }
+
+    .gp-rate-value{
+
+        text-align:left;
+
+    }
+
+    .gp-day-value{
+
+        font-size:21px;
+
+    }
+
+    .gp-note{
+
+        font-size:12px;
+
+    }
+
 }

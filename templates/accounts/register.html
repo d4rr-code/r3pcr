@@ -42,16 +42,22 @@
     <div class="breadcrumb"></div>
 
     <div class="register-card">
-        <h1>Create Your Account</h1>
-        <p class="card-note">
+        <h1 data-en="Create Your Account" data-fil="Gumawa ng Iyong Account">Create Your Account</h1>
+        <p class="card-note"
+           data-en="Accounts are for Consignees only. After submitting, your account will be reviewed by a supervisor before you can log in. It will only take 5–10 minutes for verification."
+           data-fil="Ang mga account ay para lamang sa mga Consignee. Pagkatapos magsumite, susuriin ng isang supervisor ang iyong account bago ka makapag-log in. Tatagal lamang ito ng 5–10 minuto para sa beripikasyon.">
             Accounts are for Consignees only. After submitting, your account will be reviewed by
             a supervisor before you can log in. It will only take 5–10 minutes for verification.
         </p>
 
         {% if messages %}
-        <div class="messages">
+        <div class="messages" style="margin-bottom:18px;">
             {% for message in messages %}
-            <div class="message {{ message.tags }}">{{ message|safe }}</div>
+            <div class="message {{ message.tags }}"
+                 style="padding:11px 14px; border-radius:8px; font-size:13px; font-weight:500; margin-bottom:10px;
+                        {% if 'error' in message.tags %}background:#FEE2E2; color:#B91C1C; border:1px solid #FCA5A5;
+                        {% elif 'success' in message.tags %}background:#DCFCE7; color:#15803D; border:1px solid #86EFAC;
+                        {% else %}background:#E0F2FE; color:#075985; border:1px solid #7DD3FC;{% endif %}">{{ message|safe }}</div>
             {% endfor %}
         </div>
         {% endif %}
@@ -66,18 +72,18 @@
                     <input type="text" id="first_name" name="first_name" class="form-input"
                            value="{{ form_data.first_name|default:'' }}"
                            placeholder="Juan" required autocomplete="given-name"
-                           minlength="2" maxlength="50"
+                           minlength="2" maxlength="30"
                            pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
-                           title="Letters, spaces, hyphens, and apostrophes only. 2–50 characters.">
+                           title="Letters, spaces, hyphens, and apostrophes only. 2–30 characters.">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Last Name <span style="color:#ef4444;">*</span></label>
                     <input type="text" id="last_name" name="last_name" class="form-input"
                            value="{{ form_data.last_name|default:'' }}"
                            placeholder="Dela Cruz" required autocomplete="family-name"
-                           minlength="2" maxlength="50"
+                           minlength="2" maxlength="30"
                            pattern="[a-zA-ZÀ-ÿ\s\-'.]+"
-                           title="Letters, spaces, hyphens, and apostrophes only. 2–50 characters.">
+                           title="Letters, spaces, hyphens, and apostrophes only. 2–30 characters.">
                 </div>
             </div>
 
@@ -91,9 +97,9 @@
             <!-- Email -->
             <div class="form-group">
                 <label class="form-label">Email Address <span style="color:#ef4444;">*</span></label>
-                <input type="email" name="email" class="form-input"
+                <input type="email" id="email" name="email" class="form-input"
                        value="{{ form_data.email|default:'' }}"
-                       placeholder="juan@company.com" required autocomplete="email">
+                       placeholder="juandelacruz@gmail.com" required autocomplete="email">
             </div>
 
             <div class="section-divider"></div>
@@ -109,12 +115,12 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Phone Number</label>
-                    <input type="tel" name="phone_number" class="form-input"
+                    <input type="tel" id="phone_number" name="phone_number" class="form-input"
                            value="{{ form_data.phone_number|default:'' }}"
-                           placeholder="09XX-XXX-XXXX or +63-9XX-XXX-XXXX"
-                           inputmode="tel" autocomplete="tel" maxlength="18"
-                           pattern="(?:09\d{2}[- ]?\d{3}[- ]?\d{4}|\+63[- ]?9\d{2}[- ]?\d{3}[- ]?\d{4})"
-                           title="PH mobile format: 09XX-XXX-XXXX or +63-9XX-XXX-XXXX.">
+                           placeholder="09xxxxxxxxx"
+                           inputmode="numeric" autocomplete="tel" maxlength="11"
+                           pattern="09\d{9}"
+                           title="PH mobile number: 11 digits starting with 09 (e.g. 09171234567).">
                 </div>
             </div>
 
@@ -151,11 +157,13 @@
                 </div>
             </div>
 
-            <button type="submit" class="submit-btn">SUBMIT REGISTRATION</button>
+            <button type="submit" class="submit-btn" id="submitBtn"
+                    data-en="SUBMIT REGISTRATION" data-fil="ISUMITE ANG REHISTRASYON">SUBMIT REGISTRATION</button>
         </form>
 
         <div class="login-link">
-            Already have an account? <a href="{% url 'accounts:login' %}">Log in here</a>
+            <span data-en="Already have an account?" data-fil="May account ka na?">Already have an account?</span>
+            <a href="{% url 'accounts:login' %}" data-en="Log in here" data-fil="Mag-log in dito">Log in here</a>
         </div>
     </div>
 </main>
@@ -175,7 +183,7 @@
             <img src="{% static 'accounts/img/Thumbnail for R3-PCR.png' %}" alt="Logo">
             <div class="footer-links">
                 <a href="{% url 'terms' %}">TERMS & PRIVACY</a>
-                <a href="{% url 'landing' %}#trackingSection">FEATURES</a>
+                <a href="{% url 'landing' %}#features">FEATURES</a>
                 <a href="{% url 'about' %}">ABOUT</a>
                 <a href="https://rtriplejcb.com" target="_blank">RTRIPLEJ</a>
             </div>
@@ -192,6 +200,7 @@
     </div>
 </footer>
 
-<script src="{% static 'accounts/js/registerpage.js' %}"></script>
+<script src="{% static 'js/i18n.js' %}"></script>
+<script src="{% static 'accounts/js/registerpage.js' %}?v=20260612-register"></script>
 </body>
 </html>

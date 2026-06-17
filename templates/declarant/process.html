@@ -745,7 +745,6 @@
                     {% if shipment.shipment_type == 'fcl' %}background:#dbeafe;color:#1d4ed8;
                     {% elif shipment.shipment_type == 'air' %}background:#ede9fe;color:#6d28d9;
                     {% elif shipment.shipment_type == 'lcl' %}background:#dcfce7;color:#166534;
-                    {% elif shipment.shipment_type == 'land' %}background:#fef9c3;color:#854d0e;
                     {% else %}background:#f1f5f9;color:#374151;{% endif %}">
                     {% if shipment.shipment_type %}{{ shipment.get_shipment_type_display }}{% else %}Type TBD{% endif %}
                 </span>
@@ -899,7 +898,6 @@
                             {% if adv.recommended_type == 'air' %}Air Freight
                             {% elif adv.recommended_type == 'lcl' %}LCL
                             {% elif adv.recommended_type == 'fcl' %}FCL
-                            {% elif adv.recommended_type == 'land' %}Land
                             {% else %}{{ adv.recommended_type|upper }}{% endif %}
                         </span>
                     </div>
@@ -968,7 +966,7 @@
     </div>
     {% endif %}
 
-    {% if shipment.status == 'assessed' or shipment.status == 'paid' or shipment.status == 'released' or shipment.status == 'billed' %}
+    {% if shipment.status == 'ongoing' or shipment.status == 'assessed' or shipment.status == 'paid' or shipment.status == 'released' or shipment.status == 'billed' %}
     <div class="dark-card" style="margin-bottom:0;">
         <p class="dark-card-title">FAN Document</p>
         {% if sad_document %}
@@ -982,10 +980,10 @@
                 View →
             </a>
         </div>
-        <p style="color:#6b7280;font-size:11px;margin:0 0 8px;">Replace FAN document:</p>
+        <p style="color:#6b7280;font-size:11px;margin:0 0 8px;">Replace FAN Document:</p>
         {% else %}
         <p style="color:#fbbf24;font-size:12px;font-weight:600;margin:0 0 12px;">
-            FAN not yet uploaded. Upload the BOC Final Assessment Notice.
+            FAN Document not yet uploaded. Uploading the BOC FAN Document will mark this shipment as assessed.
         </p>
         {% endif %}
         <form method="POST" enctype="multipart/form-data" action="{% url 'declarant:upload_sad' shipment.id %}">
@@ -1033,7 +1031,7 @@
 
     {% if shipment.status == 'assessed' or shipment.status == 'paid' or shipment.status == 'released' or shipment.status == 'billed' %}
     <div class="dark-card" style="margin-top:16px; margin-bottom:0;">
-        <p class="dark-card-title">Payment Proof / BOC Receipt</p>
+        <p class="dark-card-title">BOC / eTrade Payment Receipt</p>
         {% for doc in shipment.documents.all %}
         {% if doc.document_type == 'payment_proof' %}
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
@@ -1045,9 +1043,28 @@
         </div>
         {% endif %}
         {% endfor %}
+        <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin:0 0 10px;">
+            <p style="color:#0b2d55;font-size:12px;font-weight:700;margin:0 0 4px;">Consignee Payment Receipt</p>
+            {% if shipment.payment_receipt %}
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="flex:1;min-width:0;">
+                    <p style="color:#15803d;font-size:12px;font-weight:600;margin:0;">Receipt uploaded for verification</p>
+                    <p style="color:#6b7280;font-size:11px;margin:2px 0 0;">Uploaded {{ shipment.payment_receipt_uploaded_at|date:"M d, Y H:i" }}</p>
+                </div>
+                <a href="{{ shipment.payment_receipt.url }}" target="_blank"
+                   style="padding:5px 12px;border:1px solid #16a34a;border-radius:6px;background:#fff;color:#16a34a;font-size:11px;font-weight:600;text-decoration:none;flex-shrink:0;">
+                    View
+                </a>
+            </div>
+            {% else %}
+            <p style="color:#6b7280;font-size:11px;margin:0;">
+                No consignee receipt uploaded yet. You may still upload the official BOC/eTrade receipt once payment is confirmed outside the system.
+            </p>
+            {% endif %}
+        </div>
         <form method="POST" enctype="multipart/form-data" action="{% url 'declarant:upload_supporting_document' shipment.id 'payment' %}">
             {% csrf_token %}
-            <p style="color:#6b7280;font-size:11px;margin:0 0 8px;">Upload once duties/taxes are paid. If current status is assessed, this will mark the shipment as paid.</p>
+            <p style="color:#6b7280;font-size:11px;margin:0 0 8px;">Upload after duties/taxes are reflected as paid in eTrade. If current status is assessed, this will mark the shipment as paid.</p>
             <div style="display:flex;gap:8px;align-items:flex-end;">
                 <div style="flex:1;"><input type="file" name="support_files" class="form-input" multiple accept=".pdf,.jpg,.jpeg,.png" required style="font-size:12px;"></div>
                 <button type="submit" style="padding:8px 14px;border:none;border-radius:7px;background:#059669;color:#fff;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;">Upload</button>
@@ -1635,7 +1652,8 @@ function startOCR(url, docLabel) {
 }
 
 {% if has_pending_ocr %}
-setTimeout(function() { window.location.reload(); }, 15000);
+/* OCR runs in a background thread — poll until the results land. */
+setTimeout(function() { window.location.reload(); }, 4000);
 {% endif %}
 
 /* ── Init on load ── */

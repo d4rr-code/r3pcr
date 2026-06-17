@@ -94,6 +94,10 @@
 
         0 4px 16px rgba(0,0,0,.04);
 
+    overflow-x:auto;
+
+    -webkit-overflow-scrolling:touch;
+
 }
 
 /* ==========================================================================
@@ -105,6 +109,8 @@
     width:100%;
 
     border-collapse:collapse;
+
+    min-width:420px;
 
 }
 
@@ -203,6 +209,19 @@
     .fee-card{
 
         padding:16px;
+
+    }
+
+    .fee-section h3{
+
+        font-size:15px;
+
+    }
+
+    .fee-description,
+    .fee-note{
+
+        font-size:12px;
 
     }
 

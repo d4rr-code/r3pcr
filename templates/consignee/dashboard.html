@@ -9,15 +9,20 @@
 
 {% block content %}
 
+<<<<<<< HEAD
 <!-- -- Welcome ----------------------------------------------- -->
 <div style="margin-bottom:16px;">
+=======
+<!-- -- Welcome + Month Picker ----------------------------------------------- -->
+<div class="dashboard-welcome" style="margin-bottom:16px;">
+>>>>>>> main
     <h1 style="font-size:22px; font-weight:700; color:#1B3358; margin-bottom:10px;">
         Welcome Back {{ user.first_name|default:user.username }}!
     </h1>
 </div>
 
 <!-- -- Status Grid + Total ------------------------------------------------- -->
-<div style="display:flex; gap:10px; align-items:stretch; min-width:0; overflow:hidden;">
+<div class="dash-summary-row" style="display:flex; gap:10px; align-items:stretch; min-width:0; overflow:hidden;">
     <div class="dash-status-grid" style="flex:1; min-width:0;">
 
         <!-- ARRIVED -->
@@ -181,14 +186,20 @@
 
     <!-- Shipment Overview Line Chart -->
     <div class="c-card shipment-overview-card">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <div class="dashboard-card-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
             <p class="c-card-title" style="margin:0;">Shipment Overview</p>
+<<<<<<< HEAD
             <div class="chart-range-group">
                 <button type="button" id="chart-start-trigger" class="chart-filter-btn">From: <span id="chart-start-label">May 2026</span></button>
                 <button type="button" id="chart-end-trigger" class="chart-filter-btn">To: <span id="chart-end-label">May 2026</span></button>
                 <button type="button" class="chart-filter-btn chart-group-btn active" data-group="day">by day</button>
                 <button type="button" class="chart-filter-btn chart-group-btn" data-group="week">by week</button>
                 <button type="button" class="chart-filter-btn chart-group-btn" data-group="month">by month</button>
+=======
+            <div class="dashboard-filter-group" style="display:flex; align-items:center; gap:6px;">
+                <span class="chart-filter-btn">By Month</span>
+                <span class="chart-filter-btn">Last 4 Months</span>
+>>>>>>> main
             </div>
         </div>
         <div class="shipment-chart-wrap">
@@ -199,8 +210,13 @@
     <!-- Reminder Panel -->
     <div class="c-card reminder-card">
         <p class="c-card-title" style="color:#1B3358; text-align:center; margin-bottom:16px;">Reminder</p>
+<<<<<<< HEAD
         <div id="reminder-list">
             {% for shipment in reminder_shipments %}
+=======
+        <div id="reminder-list" style="max-height:210px; overflow-y:auto; padding-right:6px;">
+            {% for shipment in reminders %}
+>>>>>>> main
             <div class="reminder-item">
                 <p class="reminder-ref">{{ shipment.hawb_number }}</p>
                 {% if shipment.has_deficiency %}
@@ -238,10 +254,13 @@
                 {% endif %}
             </div>
             {% empty %}
+<<<<<<< HEAD
             {% endfor %}
             {% if not reminder_shipments %}
+=======
+>>>>>>> main
             <p style="color:#9CA3AF; font-size:12px; text-align:center; padding:20px 0;">No pending reminders.</p>
-            {% endif %}
+            {% endfor %}
         </div>
     </div>
 </div>
@@ -250,8 +269,13 @@
 <div class="dash-bottom-row">
 
     <!-- Shipping Type Overview -->
+<<<<<<< HEAD
     <div class="c-card" style="padding:35px 48px;">
         <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+=======
+    <div class="c-card shipping-type-card" style="padding:16px 18px;">
+        <div class="dashboard-card-header" style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+>>>>>>> main
             <div>
                 <p style="font-size:16px; font-weight:700; color:#1B3358; margin:0 0 2px;">Shipping Type Overview</p>
                 <p style="font-size:10px; color:#9CA3AF;">Breakdown of shipments based on cargo structure and handling type</p>
@@ -294,8 +318,13 @@
     </div>
 
     <!-- Urgency Level Donut -->
+<<<<<<< HEAD
     <div class="c-card urgency-card">
         <div class="urgency-header">
+=======
+    <div class="c-card urgency-card" style="display:flex; flex-direction:column; padding:16px 18px;">
+        <div class="dashboard-card-header" style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+>>>>>>> main
             <div>
                 <p class="urgency-title">Urgency Level Overview</p>
                 <p class="urgency-subtitle">Distribution of shipment urgency levels</p>

@@ -12,7 +12,6 @@
     --line: #E7ECF2;
     --soft: #F7F9FC;
     --air: #25466F;
-    --land: #263B59;
     --lcl: #2C527D;
     --fcl: #24466E;
     color: #172033;
@@ -90,17 +89,16 @@
 }
 .metric-total {
     grid-column: span 2;
-    min-height: 142px;
-    padding: clamp(16px, 2vw, 22px);
+    min-height: 130px;
+    padding: clamp(16px, 2vw, 20px);
     background: var(--ink);
     color: #fff;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
-.metric-types { grid-column: span 5; display: grid; grid-template-columns: repeat(2, minmax(170px, 1fr)); gap: 16px; }
-.metric-users { grid-column: span 2; padding: clamp(16px, 2vw, 18px); display: flex; flex-direction: column; justify-content: space-between; }
-.metric-side { grid-column: span 3; display: grid; grid-template-columns: 1fr; gap: 16px; }
+.metric-types { grid-column: span 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; }
+.metric-side  { grid-column: span 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; }
 .mini-card { padding: clamp(14px, 2vw, 16px) clamp(14px, 2vw, 18px); min-height: 76px; }
 .metric-icon {
     width: 28px;
@@ -133,8 +131,7 @@
     overflow-wrap: anywhere;
 }
 .metric-total .metric-label { color: #DCE6F3; display: block; }
-.metric-total .metric-value { color: #fff; font-size: clamp(52px, 5vw, 78px); margin-top: 18px; }
-.metric-users .metric-value { font-size: clamp(52px, 5vw, 78px); }
+.metric-total .metric-value { color: #fff; font-size: clamp(42px, 3.4vw, 56px); margin-top: 8px; }
 .metric-delta { color: #5EE2A2; font-size: clamp(14px, 1.4vw, 20px); font-weight: 800; margin-left: 10px; }
 .panel { padding: clamp(14px, 1.6vw, 18px) clamp(14px, 1.8vw, 20px); }
 .panel-title {
@@ -358,6 +355,23 @@
 .cost-chart-panel { grid-column: span 8; }
 .cost-table-panel { grid-column: span 4; }
 .currency-panel   { grid-column: span 4; }
+.comparison-panel { grid-column: span 12; }
+.cmp-agreement {
+    background: #eef2ff; color: #3730a3; font-weight: 700; font-size: 12px;
+    padding: 6px 14px; border-radius: 999px; white-space: nowrap;
+}
+.cmp-table-wrap { overflow-x: auto; margin-top: 4px; }
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cmp-table th, .cmp-table td {
+    padding: 11px 14px; text-align: center; border-bottom: 1px solid #eef1f5;
+}
+.cmp-table thead th {
+    background: #f7f9fc; color: #18345a; font-weight: 700; font-size: 12px;
+}
+.cmp-table thead th:first-child, .cmp-table tbody th { text-align: left; }
+.cmp-table tbody th { color: #18345a; font-weight: 700; white-space: nowrap; }
+.cmp-table td.cmp-match { background: #eafaf1; color: #15803d; font-weight: 800; }
+.cmp-table tfoot td { font-weight: 700; color: #18345a; border-top: 2px solid #e4e8ee; }
 .chart-fixed { height: clamp(170px, 24vw, 210px); width: 100%; }
 .compact-chart { height: clamp(140px, 18vw, 170px); }
 .compact-bars { height: clamp(150px, 20vw, 180px); }
@@ -461,17 +475,15 @@
     margin-top: 12px;
 }
 @media (max-width: 1180px) {
-    .metric-total, .metric-types, .metric-users, .metric-side,
+    .metric-total, .metric-types, .metric-side,
     .status-panel, .urgency-panel, .due-panel, .monthly-panel,
     .wmcda-panel, .top-panel, .feedback-panel,
     .cost-chart-panel, .cost-table-panel,
     .currency-panel { grid-column: span 12; }
-    .metric-side { grid-template-columns: repeat(2, 1fr); }
     .top-panel, .feedback-panel { min-height: 240px; }
 }
 @media (max-width: 980px) {
     .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .metric-types { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
     .wmcda-content { grid-template-columns: 1fr; align-items: stretch; }
 }
 @media (max-width: 720px) {
@@ -480,7 +492,7 @@
     .metric-types, .metric-side, .status-grid, .wmcda-content { grid-template-columns: 1fr; }
     .status-item { border-right: 0; }
     .panel { padding: 18px; }
-    .metric-users, .metric-total { min-height: 120px; }
+    .metric-total { min-height: 120px; }
     .chart-fixed { height: 220px; }
     .compact-chart { height: 170px; }
     .compact-bars { height: 180px; }
@@ -498,8 +510,7 @@ a.dash-card {
     transition: box-shadow .18s ease, transform .15s ease;
 }
 a.dash-card.metric-total { display: flex; flex-direction: column; justify-content: space-between; }
-a.dash-card.metric-users { display: flex; flex-direction: column; justify-content: space-between; }
-a.dash-card.mini-card    { display: block; }
+a.dash-card.mini-card    { display: flex; flex-direction: column; justify-content: center; }
 a.dash-card:hover {
     box-shadow: 0 14px 36px rgba(31,43,62,.20);
     transform: translateY(-2px);
@@ -532,7 +543,6 @@ canvas { cursor: pointer; }
     .metric-label { font-size: 14px; }
     .metric-value { font-size: 34px; }
     .metric-total .metric-value { font-size: 56px; }
-    .metric-users .metric-value { font-size: 56px; }
     .panel-title h2 { font-size: 16px; }
     .status-item { grid-template-columns: 24px minmax(0, 1fr); }
     .status-count { grid-column: 2; justify-self: start; }
@@ -580,10 +590,6 @@ canvas { cursor: pointer; }
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--air);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409L10 15.857l6.725 2.105a1 1 0 001.17-1.409l-7-14z"/></svg></span>Air</p>
                 <p class="metric-value">{{ shipment_type_counts.air }}</p>
             </a>
-            <a class="dash-card mini-card" href="{% url 'supervisor:shipment_records' %}?stype=land">
-                <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--land);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M3 7h10l4 4v4h-2a2 2 0 11-4 0H8a2 2 0 11-4 0H2V8a1 1 0 011-1z"/></svg></span>Land</p>
-                <p class="metric-value">{{ shipment_type_counts.land }}</p>
-            </a>
             <a class="dash-card mini-card" href="{% url 'supervisor:shipment_records' %}?stype=lcl">
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--lcl);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M2 13h16l-2 4H5l-3-4zm2-8h12v7H4V5zm2 2v3h8V7H6z"/></svg></span>LCL</p>
                 <p class="metric-value">{{ shipment_type_counts.lcl }}</p>
@@ -594,12 +600,11 @@ canvas { cursor: pointer; }
             </a>
         </div>
 
-        <a class="dash-card metric-users" href="{% url 'supervisor:users' %}">
-            <p class="metric-label"><span class="metric-icon" style="width:28px;height:28px;margin:0;background:#9DAFBC;"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zm6 10a5 5 0 00-10 0h10zm.5-9a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/></svg></span>Total Users</p>
-            <p class="metric-value">{{ total_users }}</p>
-        </a>
-
         <div class="metric-side">
+            <a class="dash-card mini-card" href="{% url 'supervisor:users' %}">
+                <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:#9DAFBC;"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zm6 10a5 5 0 00-10 0h10zm.5-9a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/></svg></span>Total Users</p>
+                <p class="metric-value">{{ total_users }}</p>
+            </a>
             <a class="dash-card mini-card" href="{% url 'supervisor:consignee_list' %}">
                 <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:#9DAFBC;"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zm6 9a6 6 0 00-12 0h12z"/></svg></span>Consignee</p>
                 <p class="metric-value">{{ total_consignees }}</p>
@@ -847,6 +852,57 @@ canvas { cursor: pointer; }
             <p class="person-name" style="font-size:18px;">0 submissions</p>
             <p style="color:#111827;font-size:12px;margin-top:18px;">No consignee feedback exists in the system yet.</p>
             {% endif %}
+        </section>
+
+        <section class="dash-card panel comparison-panel">
+            <div class="panel-title">
+                <div>
+                    <h2>Declared Type vs WMCDA Advisory</h2>
+                    <p>How consignee-declared shipment types compare with the system's recommended mode</p>
+                </div>
+                <span class="cmp-agreement">{{ wmcda_comparison_agreement }}% overall agreement &middot; {{ wmcda_comparison_total }} advisories</span>
+            </div>
+            <div class="cmp-table-wrap">
+                <table class="cmp-table">
+                    <thead>
+                        <tr>
+                            <th>Declared &darr; / Recommended &rarr;</th>
+                            <th>Air</th>
+                            <th>LCL</th>
+                            <th>FCL</th>
+                            <th>Declared Total</th>
+                            <th>Match Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in wmcda_comparison_rows %}
+                        <tr>
+                            <th>{{ row.declared }}</th>
+                            {% for cell in row.cells %}
+                            <td class="{% if cell.is_match %}cmp-match{% endif %}">{{ cell.count }}</td>
+                            {% endfor %}
+                            <td>{{ row.total }}</td>
+                            <td><strong>{{ row.match_pct }}%</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" style="text-align:center;color:#6b7280;padding:18px;">No advisory data yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if wmcda_comparison_total %}
+                    <tfoot>
+                        <tr>
+                            <td style="text-align:left;">Overall agreement (declared = recommended)</td>
+                            <td colspan="4"></td>
+                            <td>{{ wmcda_comparison_agreement }}%</td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+                <p style="color:#6b7280;font-size:11px;margin:10px 2px 0;">
+                    Green cells are agreements (consignee's declared mode matched the WMCDA recommendation).
+                    Off-diagonal values show where the advisory suggested a different mode.
+                </p>
+            </div>
         </section>
     </div>
 </div>

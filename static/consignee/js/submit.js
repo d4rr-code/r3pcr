@@ -14,7 +14,7 @@
 
     /* ── Shipping type card selection ──────────────────────────────────────── */
     window.selShip = function(radio) {
-        ['air','lcl','fcl','land'].forEach(function(v) {
+        ['air','lcl','fcl'].forEach(function(v) {
             var el = document.getElementById('ship-' + v);
             if (el) el.className = 'ship-card';
         });

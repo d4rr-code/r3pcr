@@ -1,0 +1,157 @@
+.wmcda-back-link{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:16px;
+    color:#1B3358;
+    font-size:13px;
+    font-weight:700;
+    text-decoration:none;
+}
+
+.wmcda-back-link:hover{
+    opacity:.85;
+}
+
+.wmcda-header-card,
+.wmcda-info-card,
+.wmcda-note,
+.wmcda-card{
+    background:#FFFFFF;
+    border:1px solid #E5E7EB;
+    border-radius:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);
+}
+
+.wmcda-header-card{
+    margin-bottom:18px;
+    padding:20px;
+}
+
+.wmcda-header-card h2{
+    margin:0 0 8px;
+    color:#1B3358;
+    font-size:18px;
+    font-weight:800;
+}
+
+.wmcda-header-card p{
+    margin:0;
+    color:#6B7280;
+    font-size:13px;
+    line-height:1.5;
+}
+
+.wmcda-grid{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:16px;
+    margin-bottom:20px;
+}
+
+.wmcda-card{
+    padding:18px 16px;
+}
+
+.wmcda-weight{
+    margin:0 0 8px;
+    color:#1B3358;
+    font-size:28px;
+    font-weight:900;
+    line-height:1;
+}
+
+.wmcda-label{
+    margin:0 0 6px;
+    color:#111827;
+    font-size:13px;
+    font-weight:800;
+}
+
+.wmcda-desc{
+    margin:0;
+    color:#6B7280;
+    font-size:12px;
+    line-height:1.45;
+}
+
+.wmcda-info-card{
+    padding:20px;
+    margin-bottom:20px;
+}
+
+.wmcda-info-card h3{
+    margin:0 0 12px;
+    color:#1B3358;
+    font-size:16px;
+    font-weight:800;
+}
+
+.wmcda-info-card ul{
+    margin:0;
+    padding-left:20px;
+    color:#374151;
+    font-size:13px;
+    line-height:1.65;
+}
+
+.wmcda-info-card li{
+    margin-bottom:8px;
+}
+
+.wmcda-info-card li:last-child{
+    margin-bottom:0;
+}
+
+.wmcda-note{
+    padding:14px 16px;
+    background:#EFF6FF;
+    border-color:#93C5FD;
+    color:#1D4ED8;
+    font-size:13px;
+    line-height:1.6;
+}
+
+@media (max-width:980px){
+    .wmcda-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+}
+
+@media (max-width:640px){
+    .wmcda-header-card,
+    .wmcda-info-card,
+    .wmcda-note,
+    .wmcda-card{
+        border-radius:10px;
+    }
+
+    .wmcda-header-card,
+    .wmcda-info-card{
+        padding:16px;
+    }
+
+    .wmcda-grid{
+        grid-template-columns:1fr;
+        gap:12px;
+    }
+
+    .wmcda-card{
+        padding:16px;
+    }
+
+    .wmcda-weight{
+        font-size:24px;
+    }
+
+    .wmcda-header-card h2{
+        font-size:16px;
+        line-height:1.3;
+    }
+
+    .wmcda-header-card p,
+    .wmcda-info-card ul,
+    .wmcda-note{
+        font-size:12px;
+    }
+}

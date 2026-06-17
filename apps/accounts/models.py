@@ -57,3 +57,20 @@ class OTP(models.Model):
 
     def __str__(self):
         return f"OTP for {self.user.username} - {self.code}"
+
+
+class EmailVerification(models.Model):
+    """A click-to-confirm token for verifying an email during registration,
+    before the User account exists. Backed by the DB so the confirmation link
+    works even when opened in a different tab or device."""
+    email       = models.EmailField()
+    token       = models.CharField(max_length=64, unique=True, db_index=True)
+    is_verified = models.BooleanField(default=False)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    def is_expired(self, minutes=30):
+        return timezone.now() > self.created_at + timezone.timedelta(minutes=minutes)
+
+    def __str__(self):
+        return f"{self.email} - {'verified' if self.is_verified else 'pending'}"
