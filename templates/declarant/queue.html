@@ -350,7 +350,11 @@
 <div class="card" style="padding:0; overflow:hidden;">
     <div style="padding:16px 20px; background:#F8FAFC; border-bottom:1px solid #E5E7EB;
                 display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-        <p class="card-title" style="margin:0;">My In-Review Shipments</p>
+        <p class="card-title" style="margin:0;">My In-Review Shipments
+            <span style="color:#6B7280; font-weight:400; font-size:13px;">
+                &mdash; {{ in_review.paginator.count }} shipment{{ in_review.paginator.count|pluralize }}
+            </span>
+        </p>
         <input type="text" id="review-search"
                class="form-input"
                style="width:260px; padding:6px 12px; font-size:13px;"
@@ -358,7 +362,7 @@
                oninput="filterReview()">
     </div>
 
-    {% if in_review %}
+    {% if in_review.object_list %}
     <table style="width:100%; border-collapse:collapse;">
         <thead>
             <tr>
@@ -561,6 +565,28 @@
             {% endfor %}
         </tbody>
     </table>
+    {% if in_review.has_other_pages %}
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-top:1px solid #E5E7EB; background:#F8FAFC;">
+        <span style="color:#6B7280; font-size:12px;">
+            Page {{ in_review.number }} of {{ in_review.paginator.num_pages }}
+            &nbsp;&middot;&nbsp; {{ in_review.paginator.count }} shipment{{ in_review.paginator.count|pluralize }} total
+        </span>
+        <div style="display:flex; gap:8px;">
+            {% if in_review.has_previous %}
+            <a href="{{ review_prev_url }}"
+               class="btn btn-secondary" style="padding:5px 12px; font-size:12px;">
+                Previous
+            </a>
+            {% endif %}
+            {% if in_review.has_next %}
+            <a href="{{ review_next_url }}"
+               class="btn btn-secondary" style="padding:5px 12px; font-size:12px;">
+                Next
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
     {% else %}
     <div style="padding:40px; text-align:center;">
         <svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" style="color:#D1D5DB; display:block; margin:0 auto 12px;">
@@ -577,7 +603,7 @@
                 display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
         <p class="card-title" style="margin:0;">My Processed Shipments
             <span style="color:#6B7280; font-weight:400; font-size:13px;">
-                — {{ history.count }} shipment{{ history.count|pluralize }}
+                &mdash; {{ history.paginator.count }} shipment{{ history.paginator.count|pluralize }}
             </span>
         </p>
         <input type="text" id="history-search"
@@ -587,7 +613,7 @@
                oninput="filterHistory()">
     </div>
 
-    {% if history %}
+    {% if history.object_list %}
     <table style="width:100%; border-collapse:collapse;">
         <thead>
             <tr>
@@ -636,6 +662,28 @@
             {% endfor %}
         </tbody>
     </table>
+    {% if history.has_other_pages %}
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-top:1px solid #E5E7EB; background:#F8FAFC;">
+        <span style="color:#6B7280; font-size:12px;">
+            Page {{ history.number }} of {{ history.paginator.num_pages }}
+            &nbsp;&middot;&nbsp; {{ history.paginator.count }} shipment{{ history.paginator.count|pluralize }} total
+        </span>
+        <div style="display:flex; gap:8px;">
+            {% if history.has_previous %}
+            <a href="{{ history_prev_url }}"
+               class="btn btn-secondary" style="padding:5px 12px; font-size:12px;">
+                Previous
+            </a>
+            {% endif %}
+            {% if history.has_next %}
+            <a href="{{ history_next_url }}"
+               class="btn btn-secondary" style="padding:5px 12px; font-size:12px;">
+                Next
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
     {% else %}
     <div style="padding:40px; text-align:center;">
         <svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" style="color:#D1D5DB; display:block; margin:0 auto 12px;">
@@ -979,7 +1027,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-
-
-
-
