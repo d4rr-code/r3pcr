@@ -54,6 +54,53 @@ class DeclarantReportIssueTests(TestCase):
         self.assertIn(con_issue, shared)
 
 
+class QueueManagerTests(TestCase):
+    def setUp(self):
+        self.declarant = User.objects.create_user(
+            username='dec_q', password='x', role='declarant',
+            email='dec_q@test.local',
+        )
+        self.consignee = User.objects.create_user(
+            username='con_q', password='x', role='consignee',
+            email='con_q@test.local',
+        )
+        self.client.force_login(self.declarant)
+        self.url = reverse('declarant:queue')
+
+    def _shipment(self, number, status):
+        return Shipment.objects.create(
+            hawb_number=f'R3PCR-Q-{status}-{number:03d}',
+            consignee=self.consignee,
+            declarant=self.declarant,
+            status=status,
+            shipment_type='lcl',
+        )
+
+    def test_queue_paginates_declarant_owned_sections(self):
+        for i in range(12):
+            self._shipment(i, 'arrived')
+        for i in range(13):
+            self._shipment(i, 'billed')
+
+        resp = self.client.get(self.url)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['in_review'].paginator.count, 12)
+        self.assertEqual(len(resp.context['in_review'].object_list), 10)
+        self.assertTrue(resp.context['in_review'].has_next())
+        self.assertEqual(resp.context['history'].paginator.count, 13)
+        self.assertEqual(len(resp.context['history'].object_list), 10)
+        self.assertTrue(resp.context['history'].has_next())
+        self.assertContains(resp, 'review_page=2')
+        self.assertContains(resp, 'history_page=2')
+
+        resp = self.client.get(self.url, {'review_page': 2, 'history_page': 2})
+        self.assertEqual(len(resp.context['in_review'].object_list), 2)
+        self.assertEqual(len(resp.context['history'].object_list), 3)
+        self.assertContains(resp, 'review_page=1')
+        self.assertContains(resp, 'history_page=1')
+
+
 class ProcessShipmentTests(TestCase):
     def setUp(self):
         self.declarant = User.objects.create_user(

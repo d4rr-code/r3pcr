@@ -70,6 +70,11 @@ def shipment_preview(request, shipment_id):
 def queue_manager(request):
     today = timezone.localdate()
 
+    def page_url(param_name, page_number):
+        params = request.GET.copy()
+        params[param_name] = page_number
+        return f'?{params.urlencode()}'
+
     # Incoming queue with optional filters
     pending_qs = Shipment.objects.filter(status='incoming').select_related('consignee')
 
@@ -104,23 +109,29 @@ def queue_manager(request):
     pending_page = paginator.get_page(page_number)
 
     # In-review: all active shipments from arrived through released
-    in_review = Shipment.objects.filter(
+    in_review_qs = Shipment.objects.filter(
         declarant=request.user,
         status__in=['arrived', 'computed', 'approved', 'rejected', 'for_revision',
                     'lodgement', 'ongoing', 'assessed', 'paid', 'released'],
     ).select_related('consignee').prefetch_related('computation').order_by('-updated_at')
+    in_review = Paginator(in_review_qs, 10).get_page(request.GET.get('review_page', 1))
 
     # Processed: only fully billed shipments
-    history = Shipment.objects.filter(
+    history_qs = Shipment.objects.filter(
         declarant=request.user,
         status='billed',
     ).select_related('consignee').order_by('-updated_at')
+    history = Paginator(history_qs, 10).get_page(request.GET.get('history_page', 1))
 
     context = {
         'pending':        pending_page,   # now a Page object; templates use pending.object_list
         'paginator':      paginator,
         'in_review':      in_review,
         'history':        history,
+        'review_prev_url': page_url('review_page', in_review.previous_page_number()) if in_review.has_previous() else '',
+        'review_next_url': page_url('review_page', in_review.next_page_number()) if in_review.has_next() else '',
+        'history_prev_url': page_url('history_page', history.previous_page_number()) if history.has_previous() else '',
+        'history_next_url': page_url('history_page', history.next_page_number()) if history.has_next() else '',
         'urgency_filter': urgency_filter,
         'due_filter':     due_filter,
     }
@@ -578,4 +589,3 @@ def payment_confirmation(request, shipment_id):
 
 
 # ─── Upload FAN Document ──────────────────────────────────────────────────────
-
