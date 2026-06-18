@@ -194,6 +194,33 @@ class ConsigneeDashboardChartTests(TestCase):
         self.assertEqual(payload['labels'], labels)
         self.assertEqual(payload['data'], data)
 
+    def test_dashboard_flags_match_flagged_submission_rules(self):
+        Shipment.objects.create(
+            hawb_number='R3PCR-DASH-FLAG-1',
+            consignee=self.consignee,
+            status='incoming',
+            shipment_type='lcl',
+            has_deficiency=True,
+        )
+        Shipment.objects.create(
+            hawb_number='R3PCR-DASH-FLAG-2',
+            consignee=self.consignee,
+            status='for_revision',
+            shipment_type='lcl',
+        )
+        Shipment.objects.create(
+            hawb_number='R3PCR-DASH-OK',
+            consignee=self.consignee,
+            status='incoming',
+            shipment_type='lcl',
+        )
+
+        response = self.client.get(reverse('consignee:dashboard'))
+
+        self.assertEqual(response.context['flags'], 2)
+        self.assertContains(response, 'class="sc-count flags-count">2</span>')
+        self.assertContains(response, reverse('consignee:my_submissions') + '#flagged-shipments')
+
 
 class ConsigneeMySubmissionsTests(TestCase):
     def setUp(self):
