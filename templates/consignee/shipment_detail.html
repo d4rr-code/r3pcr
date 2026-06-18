@@ -498,23 +498,31 @@
                 {% if declared_breakdown %}
                 <div class="bar-group">
                     <div>
-                        <div class="bar-label">Cost Efficiency {% widthratio declared_breakdown.cost 1 100 %}%</div>
+                        <div class="bar-label">Cost Efficiency {% widthratio declared_breakdown.cost 1 100 %}% · criterion weight {{ wmcda_weights.0.value|floatformat:0 }}%</div>
                         <div class="bar-track"><div class="bar-fill cost" data-width="{% widthratio declared_breakdown.cost 1 100 %}"></div></div>
                     </div>
                     <div>
-                        <div class="bar-label">Transit Time {% widthratio declared_breakdown.time 1 100 %}%</div>
+                        <div class="bar-label">Transit Time {% widthratio declared_breakdown.time 1 100 %}% · criterion weight {{ wmcda_weights.1.value|floatformat:0 }}%</div>
                         <div class="bar-track"><div class="bar-fill time" data-width="{% widthratio declared_breakdown.time 1 100 %}"></div></div>
                     </div>
                     <div>
-                        <div class="bar-label">Weight Suitability {% widthratio declared_breakdown.weight 1 100 %}%</div>
+                        <div class="bar-label">Weight Suitability {% widthratio declared_breakdown.weight 1 100 %}% · criterion weight {{ wmcda_weights.2.value|floatformat:0 }}%</div>
                         <div class="bar-track"><div class="bar-fill weight" data-width="{% widthratio declared_breakdown.weight 1 100 %}"></div></div>
                     </div>
                     <div>
-                        <div class="bar-label">Distance Score {% widthratio declared_breakdown.distance 1 100 %}%</div>
+                        <div class="bar-label">Distance Score {% widthratio declared_breakdown.distance 1 100 %}% · criterion weight {{ wmcda_weights.3.value|floatformat:0 }}%</div>
                         <div class="bar-track"><div class="bar-fill distance" data-width="{% widthratio declared_breakdown.distance 1 100 %}"></div></div>
                     </div>
                 </div>
                 {% endif %}
+                <p class="advisory-foot" style="margin-top:12px;">
+                    WMCDA weights:
+                    {% if wmcda_method == 'saaty_ahp' %}
+                        derived using Saaty AHP{% if wmcda_consistency_ratio %} · CR {{ wmcda_consistency_ratio }}{% endif %}
+                    {% else %}
+                        manually configured
+                    {% endif %}
+                </p>
                 <p class="advisory-foot">
                     Computed {{ advisory.computed_at|date:"M d, Y g:i A" }}
                     {% if advisory.computed_by %}by {{ advisory.computed_by.get_full_name|default:advisory.computed_by.username }}{% endif %}

@@ -7,6 +7,8 @@ from django.utils import timezone
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
 from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
+from apps.supervisor.models import SystemConfig
+from apps.computation.wmcda import wmcda_weight_rows
 from apps.notifications.utils import create_notification, notify_incoming_shipment, notify_shipment_status_change
 from ..models import Feedback
 
@@ -258,6 +260,9 @@ def shipment_detail(request, shipment_id):
         'declared_label':    declared_label,
         'advisory_matches_declared': advisory_matches_declared,
         'advisory_summary':  advisory_summary,
+        'wmcda_weights':     wmcda_weight_rows(SystemConfig.get),
+        'wmcda_method':      SystemConfig.get('wmcda_weight_method', 'manual'),
+        'wmcda_consistency_ratio': SystemConfig.get('wmcda_ahp_consistency_ratio', ''),
         'status_steps':      build_status_progress(shipment.status, 'consignee'),
         'sad_document':      sad_document,
         'fan_assessment_rows': fan_rows,

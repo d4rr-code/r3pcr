@@ -399,6 +399,8 @@ def system_wmcda(request):
 
     return render(request, 'declarant/system_wmcda.html', {
         'wmcda_items': wmcda_items,
+        'wmcda_method': SystemConfig.get('wmcda_weight_method', 'manual'),
+        'wmcda_consistency_ratio': SystemConfig.get('wmcda_ahp_consistency_ratio', ''),
     })
 
 
@@ -550,4 +552,3 @@ def tariff_book_chapter(request, chapter_num):
 
 
 # ─── Shipment Preview (JSON for queue modal) ──────────────────────────────────
-

@@ -2172,7 +2172,7 @@ document.body.classList.add('light-mode');
         <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
             <div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                    <span style="color:#94a3b8; font-size:11px;">Cost Efficiency</span>
+                    <span style="color:#94a3b8; font-size:11px;">Cost Efficiency ({{ wmcda_weights.0.value|floatformat:0 }}%)</span>
                     <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.cost|floatformat:2 }}</span>
                 </div>
                 <div style="background:#1e293b; border-radius:999px; height:5px;">
@@ -2182,7 +2182,7 @@ document.body.classList.add('light-mode');
             </div>
             <div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                    <span style="color:#94a3b8; font-size:11px;">Transit Time</span>
+                    <span style="color:#94a3b8; font-size:11px;">Transit Time ({{ wmcda_weights.1.value|floatformat:0 }}%)</span>
                     <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.time|floatformat:2 }}</span>
                 </div>
                 <div style="background:#1e293b; border-radius:999px; height:5px;">
@@ -2192,7 +2192,7 @@ document.body.classList.add('light-mode');
             </div>
             <div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                    <span style="color:#94a3b8; font-size:11px;"> Weight Suitability</span>
+                    <span style="color:#94a3b8; font-size:11px;">Weight Suitability ({{ wmcda_weights.2.value|floatformat:0 }}%)</span>
                     <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.weight|floatformat:2 }}</span>
                 </div>
                 <div style="background:#1e293b; border-radius:999px; height:5px;">
@@ -2202,7 +2202,7 @@ document.body.classList.add('light-mode');
             </div>
             <div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                    <span style="color:#94a3b8; font-size:11px;">Distance Score</span>
+                    <span style="color:#94a3b8; font-size:11px;">Distance Score ({{ wmcda_weights.3.value|floatformat:0 }}%)</span>
                     <span style="color:#f1f5f9; font-size:11px; font-weight:600;">{{ declared_breakdown.distance|floatformat:2 }}</span>
                 </div>
                 <div style="background:#1e293b; border-radius:999px; height:5px;">
@@ -3535,4 +3535,3 @@ initAllHsPickers();
 })();
 </script>
 {% endblock %}
-

@@ -20,6 +20,8 @@ from .ecdt import (
 )
 from .advisory import compute_wmcda
 from .hs_codes import suggest_hs_codes
+from ..wmcda import wmcda_weight_rows
+from apps.supervisor.models import SystemConfig
 
 def _wmcda_history(shipment):
     """Most-common historical WMCDA recommendation for this shipment's type.
@@ -699,6 +701,7 @@ def compute_shipment(request, shipment_id):
         'wmcda_breakdown':    wmcda_breakdown,
         'wmcda_explanation':  wmcda_explanation,
         'wmcda_history':      wmcda_history,
+        'wmcda_weights':      wmcda_weight_rows(SystemConfig.get),
         'declared_score':     declared_score,
         'declared_breakdown': declared_breakdown,
         'declared_rating':    declared_rating,
@@ -727,4 +730,3 @@ def compute_shipment(request, shipment_id):
 
 
 # ─── HS Code Suggestion Engine ───────────────────────────────────────────────
-

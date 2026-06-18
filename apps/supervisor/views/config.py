@@ -13,6 +13,10 @@ from django.utils import timezone
 from django.utils.text import slugify
 from apps.shipments.models import HSCode, TariffSchedule, HSCodeRate
 from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
+from apps.computation.wmcda import (
+    WMCDA_WEIGHT_KEYS, WMCDA_METHOD_KEYS, calculate_ahp_weights, pairwise_pairs,
+    serialize_ahp_matrix, wmcda_weight_rows,
+)
 from ..models import SystemConfig
 
 logger = logging.getLogger(__name__)
@@ -48,6 +52,9 @@ def _get_config():
         'wmcda_w_time':   '30',
         'wmcda_w_weight': '20',
         'wmcda_w_distance': '15',
+        'wmcda_weight_method': 'manual',
+        'wmcda_ahp_consistency_ratio': '',
+        'wmcda_ahp_matrix': '',
         'urgency_days_standard': '15',
         'urgency_days_priority': '10',
         'urgency_days_urgent':   '5',
@@ -261,17 +268,78 @@ def fetch_exchange_rates(request):
 @supervisor_required
 def config_wmcda(request):
     config = _get_config()
-    meta   = _config_meta(['wmcda_w_cost', 'wmcda_w_time', 'wmcda_w_weight', 'wmcda_w_distance'])
+    meta   = _config_meta(WMCDA_WEIGHT_KEYS + WMCDA_METHOD_KEYS)
     if request.method == 'POST':
-        for key in ('wmcda_w_cost', 'wmcda_w_time', 'wmcda_w_weight', 'wmcda_w_distance'):
-            val = request.POST.get(key, '').strip()
-            if val:
+        action = request.POST.get('action', 'manual')
+        if action == 'apply_ahp':
+            ahp_result = calculate_ahp_weights(request.POST)
+            weight_map = {
+                'wmcda_w_cost': ahp_result['weights_pct']['cost'],
+                'wmcda_w_time': ahp_result['weights_pct']['time'],
+                'wmcda_w_weight': ahp_result['weights_pct']['weight'],
+                'wmcda_w_distance': ahp_result['weights_pct']['distance'],
+            }
+            for key, val in weight_map.items():
                 SystemConfig.objects.update_or_create(
-                    key=key, defaults={'value': val, 'updated_by': request.user}
+                    key=key, defaults={'value': str(val), 'updated_by': request.user}
                 )
-        messages.success(request, 'WMCDA weights saved.')
+            SystemConfig.objects.update_or_create(
+                key='wmcda_weight_method',
+                defaults={'value': 'saaty_ahp', 'updated_by': request.user},
+            )
+            SystemConfig.objects.update_or_create(
+                key='wmcda_ahp_consistency_ratio',
+                defaults={'value': f"{ahp_result['consistency_ratio']:.4f}", 'updated_by': request.user},
+            )
+            SystemConfig.objects.update_or_create(
+                key='wmcda_ahp_matrix',
+                defaults={'value': serialize_ahp_matrix(ahp_result['matrix']), 'updated_by': request.user},
+            )
+            if ahp_result['consistency_ratio'] <= 0.10:
+                messages.success(request, 'Saaty AHP weights saved. Consistency ratio is acceptable.')
+            else:
+                messages.warning(request, 'Saaty AHP weights saved, but the consistency ratio is above 0.10. Review the judgments if this is for formal reporting.')
+        else:
+            posted = {}
+            for key in WMCDA_WEIGHT_KEYS:
+                val = request.POST.get(key, '').strip()
+                try:
+                    posted[key] = int(val)
+                except (TypeError, ValueError):
+                    messages.error(request, 'WMCDA weights must be whole-number percentages.')
+                    return redirect('supervisor:config_wmcda')
+            if sum(posted.values()) != 100:
+                messages.error(request, 'WMCDA weights must add up to exactly 100%.')
+                return redirect('supervisor:config_wmcda')
+            for key, val in posted.items():
+                SystemConfig.objects.update_or_create(
+                    key=key, defaults={'value': str(val), 'updated_by': request.user}
+                )
+            SystemConfig.objects.update_or_create(
+                key='wmcda_weight_method',
+                defaults={'value': 'manual', 'updated_by': request.user},
+            )
+            messages.success(request, 'Manual WMCDA weights saved.')
         return redirect('supervisor:config_wmcda')
-    return render(request, 'supervisor/config_wmcda.html', {'config': config, 'config_meta': meta})
+    return render(request, 'supervisor/config_wmcda.html', {
+        'config': config,
+        'config_meta': meta,
+        'wmcda_weights': wmcda_weight_rows(SystemConfig.get),
+        'ahp_pairs': pairwise_pairs(),
+        'ahp_scale': [
+            (9, 'Left extremely more important'),
+            (7, 'Left strongly more important'),
+            (5, 'Left moderately more important'),
+            (3, 'Left slightly more important'),
+            (1, 'Equal importance'),
+            (-3, 'Right slightly more important'),
+            (-5, 'Right moderately more important'),
+            (-7, 'Right strongly more important'),
+            (-9, 'Right extremely more important'),
+        ],
+        'wmcda_method': SystemConfig.get('wmcda_weight_method', 'manual'),
+        'wmcda_consistency_ratio': SystemConfig.get('wmcda_ahp_consistency_ratio', ''),
+    })
 
 
 def _selected_tariff_schedule(request):
@@ -734,4 +802,3 @@ def system_config(request):
 
 
 #  Shipment Admin Actions 
-

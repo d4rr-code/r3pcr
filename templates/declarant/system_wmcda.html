@@ -50,7 +50,14 @@
 
 <div class="card" style="margin-bottom: 24px;">
     <h2 style="color: #1B3358; margin: 0 0 8px; font-size: 18px; font-weight: 700;">Weighted Mode Combination Decision Analysis (WMCDA)</h2>
-    <p style="color: #6B7280; margin: 0; font-size: 13px;">Scoring weights used to recommend optimal shipping mode (FCL/LCL/Air)</p>
+    <p style="color: #6B7280; margin: 0; font-size: 13px;">
+        Scoring weights used to recommend optimal shipping mode (FCL/LCL/Air)
+        {% if wmcda_method == 'saaty_ahp' %}
+            - derived through Saaty AHP{% if wmcda_consistency_ratio %} (CR {{ wmcda_consistency_ratio }}){% endif %}
+        {% else %}
+            - manually configured
+        {% endif %}
+    </p>
 </div>
 
 <div class="wmcda-grid">
@@ -81,5 +88,9 @@
 
 <div style="margin-top: 20px; padding: 14px 16px; background: #EFF6FF; border: 1px solid #93C5FD; border-radius: 8px; font-size: 13px; color: #1D4ED8;">
     <strong>ℹ️ Note:</strong> The WMCDA recommendation appears on your computation advisory page for each shipment. Contact the supervisor to adjust these weights.
+</div>
+
+<div style="margin-top: 12px; padding: 14px 16px; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 13px; color: #374151;">
+    Weights may be manually configured or derived from expert pairwise comparisons using Saaty AHP.
 </div>
 {% endblock %}

@@ -38,6 +38,11 @@
     <p>
 
         Scoring weights used to recommend optimal shipping mode (FCL/LCL/Air)
+        {% if wmcda_method == 'saaty_ahp' %}
+            - derived through Saaty AHP{% if wmcda_consistency_ratio %} (CR {{ wmcda_consistency_ratio }}){% endif %}
+        {% else %}
+            - manually configured
+        {% endif %}
 
     </p>
 
@@ -124,6 +129,7 @@
     <strong>Note:</strong>
 
     The WMCDA recommendation appears on your computation advisory page for each shipment.
+    Weights may be manually configured or derived from expert pairwise comparisons using Saaty AHP.
 
     Contact the supervisor to adjust these weights.
 

@@ -30,6 +30,13 @@
         </p>
         <p style="color:#9CA3AF; font-size:12px; margin:0 0 28px;">
             Weights must add up to exactly <strong style="color:#1A1A2E;">100%</strong>.
+            Current method:
+            <strong style="color:#1A1A2E;">
+                {% if wmcda_method == 'saaty_ahp' %}Saaty AHP{% else %}Manual{% endif %}
+            </strong>
+            {% if wmcda_consistency_ratio %}
+                &nbsp;·&nbsp; CR <strong style="color:#1A1A2E;">{{ wmcda_consistency_ratio }}</strong>
+            {% endif %}
         </p>
 
         <form method="POST" id="wmcda-form">
@@ -142,13 +149,59 @@
             </div>
 
             <div style="display:flex; gap:12px;">
-                <button type="submit" id="save-btn" class="btn btn-primary" style="padding:10px 28px;">
-                    Save Changes
+                <button type="submit" id="save-btn" name="action" value="manual" class="btn btn-primary" style="padding:10px 28px;">
+                    Save Manual Weights
                 </button>
                 <a href="{% url 'supervisor:config' %}" class="btn btn-secondary" style="padding:10px 20px;">
                     Cancel
                 </a>
             </div>
+        </form>
+    </div>
+</div>
+
+<div style="margin-top:20px;">
+    <div class="card" style="padding:32px;">
+        <h3 style="color:#1A1A2E; font-size:16px; font-weight:700; margin:0 0 8px;">
+            Saaty AHP Weight Derivation
+        </h3>
+        <p style="color:#6B7280; font-size:13px; margin:0 0 22px; line-height:1.6;">
+            Compare each pair of criteria using Saaty's scale. The system converts the pairwise
+            judgments into criterion weights, saves them to WMCDA, and records the consistency ratio.
+        </p>
+
+        <form method="POST">
+            {% csrf_token %}
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px 22px; margin-bottom:22px;">
+                {% for pair in ahp_pairs %}
+                <div style="border:1px solid #E5E7EB; border-radius:8px; padding:14px 16px; background:#F8FAFC;">
+                    <label for="{{ pair.field }}" style="display:block; color:#1A1A2E; font-size:13px; font-weight:700; margin-bottom:8px;">
+                        {{ pair.left.label }} vs {{ pair.right.label }}
+                    </label>
+                    <select id="{{ pair.field }}" name="{{ pair.field }}" class="form-input"
+                            style="width:100%; padding:8px 10px; border:1px solid #D1D5DB; border-radius:6px;">
+                        {% for value, label in ahp_scale %}
+                        <option value="{{ value }}" {% if value == 1 %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div style="background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px; padding:14px 18px; margin-bottom:18px;">
+                <p style="color:#1A1A2E; font-size:13px; font-weight:700; margin:0 0 6px;">Current WMCDA weights</p>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    {% for item in wmcda_weights %}
+                    <span style="background:#fff; border:1px solid #E5E7EB; border-radius:999px; padding:6px 12px; color:#374151; font-size:12px; font-weight:600;">
+                        {{ item.label }}: {{ item.value|floatformat:0 }}%
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit" name="action" value="apply_ahp" class="btn btn-primary" style="padding:10px 28px;">
+                Calculate & Apply AHP Weights
+            </button>
         </form>
     </div>
 </div>

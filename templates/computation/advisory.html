@@ -264,28 +264,28 @@
                     <tbody>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Cost</td>
-                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">35%</td>
+                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">{{ wmcda_weights.0.value|floatformat:0 }}%</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.cost >= 0.8 %}#22c55e{% elif breakdown.lcl.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.cost|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.cost >= 0.8 %}#22c55e{% elif breakdown.fcl.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.cost|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.cost >= 0.8 %}#22c55e{% elif breakdown.air.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.cost|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Time</td>
-                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">30%</td>
+                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">{{ wmcda_weights.1.value|floatformat:0 }}%</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.time >= 0.8 %}#22c55e{% elif breakdown.lcl.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.time|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.time >= 0.8 %}#22c55e{% elif breakdown.fcl.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.time|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.time >= 0.8 %}#22c55e{% elif breakdown.air.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.time|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Weight/Volume</td>
-                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">20%</td>
+                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">{{ wmcda_weights.2.value|floatformat:0 }}%</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.weight >= 0.8 %}#22c55e{% elif breakdown.lcl.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.weight|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.weight >= 0.8 %}#22c55e{% elif breakdown.fcl.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.weight|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.weight >= 0.8 %}#22c55e{% elif breakdown.air.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.weight|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Distance</td>
-                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">15%</td>
+                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">{{ wmcda_weights.3.value|floatformat:0 }}%</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.distance >= 0.8 %}#22c55e{% elif breakdown.lcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.distance|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.distance >= 0.8 %}#22c55e{% elif breakdown.fcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.distance|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.distance >= 0.8 %}#22c55e{% elif breakdown.air.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.distance|floatformat:3 }}</td>
@@ -372,28 +372,28 @@
                         {% for crit, weight_pct in forloop.parentloop|dictsort:"0" %}{% endfor %}
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Cost</td>
-                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">35%</td>
+                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">{{ wmcda_weights.0.value|floatformat:0 }}%</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.cost >= 0.8 %}#22c55e{% elif breakdown.lcl.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.cost|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.cost >= 0.8 %}#22c55e{% elif breakdown.fcl.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.cost|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.cost >= 0.8 %}#22c55e{% elif breakdown.air.cost >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.cost|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Time</td>
-                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">30%</td>
+                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">{{ wmcda_weights.1.value|floatformat:0 }}%</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.time >= 0.8 %}#22c55e{% elif breakdown.lcl.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.time|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.time >= 0.8 %}#22c55e{% elif breakdown.fcl.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.time|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.time >= 0.8 %}#22c55e{% elif breakdown.air.time >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.time|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Weight/Volume</td>
-                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">20%</td>
+                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">{{ wmcda_weights.2.value|floatformat:0 }}%</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.weight >= 0.8 %}#22c55e{% elif breakdown.lcl.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.weight|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.weight >= 0.8 %}#22c55e{% elif breakdown.fcl.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.weight|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.weight >= 0.8 %}#22c55e{% elif breakdown.air.weight >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.weight|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top:1px solid #F3F4F6;">
                             <td style="padding:12px 14px; color:#111827; font-weight:500;">Distance</td>
-                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">15%</td>
+                            <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:12px;">{{ wmcda_weights.3.value|floatformat:0 }}%</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.lcl.distance >= 0.8 %}#22c55e{% elif breakdown.lcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.lcl.distance|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.fcl.distance >= 0.8 %}#22c55e{% elif breakdown.fcl.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.fcl.distance|floatformat:3 }}</td>
                             <td style="padding:12px 14px; text-align:center; font-weight:600; color:{% if breakdown.air.distance >= 0.8 %}#22c55e{% elif breakdown.air.distance >= 0.6 %}#f59e0b{% else %}#ef4444{% endif %};">{{ breakdown.air.distance|floatformat:3 }}</td>
