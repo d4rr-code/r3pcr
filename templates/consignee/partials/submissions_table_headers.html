@@ -1,0 +1,106 @@
+
+<th>
+    <a class="table-head-link" href="?{% if filter_query %}{{ filter_query }}&{% endif %}sort={{ next_ref_sort }}">
+        Shipment Reference No.
+        <span class="sort-mark {% if sort == 'ref_asc' %}asc{% elif sort == 'ref_desc' %}desc{% endif %}">&varr;</span>
+    </a>
+</th>
+<th>
+    <form method="GET" class="table-filter-form">
+        {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+        {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+        {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+        {% if active_status_filter %}<input type="hidden" name="active_status" value="{{ active_status_filter }}">{% endif %}
+        {% if active_import_type_filter %}<input type="hidden" name="active_import_type" value="{{ active_import_type_filter }}">{% endif %}
+        {% if active_urgency_filter %}<input type="hidden" name="active_urgency" value="{{ active_urgency_filter }}">{% endif %}
+        {% if active_shipment_type_filter %}<input type="hidden" name="active_shipment_type" value="{{ active_shipment_type_filter }}">{% endif %}
+        {% if flagged_status_filter %}<input type="hidden" name="flagged_status" value="{{ flagged_status_filter }}">{% endif %}
+        {% if flagged_import_type_filter %}<input type="hidden" name="flagged_import_type" value="{{ flagged_import_type_filter }}">{% endif %}
+        {% if flagged_urgency_filter %}<input type="hidden" name="flagged_urgency" value="{{ flagged_urgency_filter }}">{% endif %}
+        {% if flagged_shipment_type_filter %}<input type="hidden" name="flagged_shipment_type" value="{{ flagged_shipment_type_filter }}">{% endif %}
+        {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+        <label>Import Type</label>
+        <select name="{{ filter_prefix }}_import_type" class="filter-select-wide" onchange="this.form.submit()" aria-label="Filter import type">
+            <option value="">&nbsp;&nbsp;&nbsp;All</option>
+            {% for value,label in import_type_choices %}
+                <option value="{{ value }}" {% if local_import_type_filter == value %}selected{% endif %}>&nbsp;&nbsp;&nbsp;{{ label }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</th>
+<th>
+    <form method="GET" class="table-filter-form">
+        {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+        {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+        {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+        {% if active_status_filter %}<input type="hidden" name="active_status" value="{{ active_status_filter }}">{% endif %}
+        {% if active_import_type_filter %}<input type="hidden" name="active_import_type" value="{{ active_import_type_filter }}">{% endif %}
+        {% if active_urgency_filter %}<input type="hidden" name="active_urgency" value="{{ active_urgency_filter }}">{% endif %}
+        {% if active_shipment_type_filter %}<input type="hidden" name="active_shipment_type" value="{{ active_shipment_type_filter }}">{% endif %}
+        {% if flagged_status_filter %}<input type="hidden" name="flagged_status" value="{{ flagged_status_filter }}">{% endif %}
+        {% if flagged_import_type_filter %}<input type="hidden" name="flagged_import_type" value="{{ flagged_import_type_filter }}">{% endif %}
+        {% if flagged_urgency_filter %}<input type="hidden" name="flagged_urgency" value="{{ flagged_urgency_filter }}">{% endif %}
+        {% if flagged_shipment_type_filter %}<input type="hidden" name="flagged_shipment_type" value="{{ flagged_shipment_type_filter }}">{% endif %}
+        {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+        <label>Urgency</label>
+        <select name="{{ filter_prefix }}_urgency" onchange="this.form.submit()" aria-label="Filter urgency">
+            <option value="">&nbsp;&nbsp;&nbsp;All</option>
+            {% for value,label in urgency_choices %}
+                <option value="{{ value }}" {% if local_urgency_filter == value %}selected{% endif %}>&nbsp;&nbsp;&nbsp;{{ label }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</th>
+<th>
+    <form method="GET" class="table-filter-form">
+        {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+        {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+        {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+        {% if active_status_filter %}<input type="hidden" name="active_status" value="{{ active_status_filter }}">{% endif %}
+        {% if active_import_type_filter %}<input type="hidden" name="active_import_type" value="{{ active_import_type_filter }}">{% endif %}
+        {% if active_urgency_filter %}<input type="hidden" name="active_urgency" value="{{ active_urgency_filter }}">{% endif %}
+        {% if active_shipment_type_filter %}<input type="hidden" name="active_shipment_type" value="{{ active_shipment_type_filter }}">{% endif %}
+        {% if flagged_status_filter %}<input type="hidden" name="flagged_status" value="{{ flagged_status_filter }}">{% endif %}
+        {% if flagged_import_type_filter %}<input type="hidden" name="flagged_import_type" value="{{ flagged_import_type_filter }}">{% endif %}
+        {% if flagged_urgency_filter %}<input type="hidden" name="flagged_urgency" value="{{ flagged_urgency_filter }}">{% endif %}
+        {% if flagged_shipment_type_filter %}<input type="hidden" name="flagged_shipment_type" value="{{ flagged_shipment_type_filter }}">{% endif %}
+        {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+        <label>Status</label>
+        <select name="{{ filter_prefix }}_status" class="filter-select-medium" onchange="this.form.submit()" aria-label="Filter status">
+            <option value="">&nbsp;&nbsp;&nbsp;All</option>
+            {% for value,label in status_choices %}
+                <option value="{{ value }}" {% if local_status_filter == value %}selected{% endif %}>&nbsp;&nbsp;&nbsp;{{ label }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</th>
+<th>
+    <form method="GET" class="table-filter-form">
+        {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+        {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+        {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+        {% if active_status_filter %}<input type="hidden" name="active_status" value="{{ active_status_filter }}">{% endif %}
+        {% if active_import_type_filter %}<input type="hidden" name="active_import_type" value="{{ active_import_type_filter }}">{% endif %}
+        {% if active_urgency_filter %}<input type="hidden" name="active_urgency" value="{{ active_urgency_filter }}">{% endif %}
+        {% if active_shipment_type_filter %}<input type="hidden" name="active_shipment_type" value="{{ active_shipment_type_filter }}">{% endif %}
+        {% if flagged_status_filter %}<input type="hidden" name="flagged_status" value="{{ flagged_status_filter }}">{% endif %}
+        {% if flagged_import_type_filter %}<input type="hidden" name="flagged_import_type" value="{{ flagged_import_type_filter }}">{% endif %}
+        {% if flagged_urgency_filter %}<input type="hidden" name="flagged_urgency" value="{{ flagged_urgency_filter }}">{% endif %}
+        {% if flagged_shipment_type_filter %}<input type="hidden" name="flagged_shipment_type" value="{{ flagged_shipment_type_filter }}">{% endif %}
+        {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+        <label>Shipment Type</label>
+        <select name="{{ filter_prefix }}_shipment_type" onchange="this.form.submit()" aria-label="Filter shipment type">
+            <option value="">&nbsp;&nbsp;&nbsp;All</option>
+            {% for value,label in shipment_type_choices %}
+                <option value="{{ value }}" {% if local_shipment_type_filter == value %}selected{% endif %}>&nbsp;&nbsp;&nbsp;{{ label }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</th>
+<th>Submitted</th>
+<th>Last Updated</th>
+<th class="text-center">Actions</th>
