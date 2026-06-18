@@ -251,8 +251,8 @@ class ConsigneeMySubmissionsTests(TestCase):
         defaults.update(extra)
         return Shipment.objects.create(**defaults)
 
-    def test_flagged_shipments_render_before_paginated_active_list(self):
-        for index in range(8):
+    def test_flagged_shipments_render_after_paginated_active_list(self):
+        for index in range(12):
             self._shipment(index)
         for index in range(2):
             self._shipment(
@@ -264,14 +264,15 @@ class ConsigneeMySubmissionsTests(TestCase):
 
         response = self.client.get(reverse('consignee:my_submissions'))
 
-        self.assertEqual(len(response.context['shipments']), 6)
+        self.assertEqual(len(response.context['shipments']), 10)
         self.assertEqual(len(response.context['flagged_shipments']), 3)
         self.assertTrue(response.context['page_obj'].has_next())
         self.assertContains(response, 'Flag Shipments')
-        self.assertContains(response, 'Page 1 of 2')
+        self.assertContains(response, 'active_page=2')
+        self.assertContains(response, 'class="page-link current">1</span>')
 
         content = response.content.decode()
-        self.assertLess(content.index('section-kicker-flagged'), content.index('submissions-kicker'))
+        self.assertLess(content.index('submissions-kicker'), content.index('section-kicker-flagged'))
 
     def test_submit_success_message_does_not_render_literal_html(self):
         response = self.client.post(reverse('consignee:submit'), {
@@ -312,7 +313,7 @@ class ConsigneeMySubmissionsTests(TestCase):
         self.assertContains(response, '<th>Job Number</th>', html=False)
         self.assertContains(response, '<th>Container</th>', html=False)
         self.assertContains(response, '<th>ETA</th>', html=False)
-        self.assertNotContains(response, '<th>Import Type</th>', html=False)
+        self.assertContains(response, 'Import Type', html=False)
         self.assertContains(response, 'SRJJJ2511001234')
         self.assertContains(response, 'TGHU1234567')
 
@@ -345,14 +346,14 @@ class ConsigneeMySubmissionsTests(TestCase):
         response = self.client.get(reverse('consignee:my_submissions'), {
             'q': 'TGHU1234567',
             'status': 'paid',
-            'urgency': 'urgent',
-            'shipment_type': 'fcl',
+            'active_urgency': 'urgent',
+            'active_shipment_type': 'fcl',
         })
 
         self.assertEqual(list(response.context['shipments']), [matched])
         self.assertEqual(response.context['total_shipments'], 1)
-        self.assertEqual(response.context['urgency_filter'], 'urgent')
-        self.assertEqual(response.context['shipment_type_filter'], 'fcl')
+        self.assertEqual(response.context['active_urgency_filter'], 'urgent')
+        self.assertEqual(response.context['active_shipment_type_filter'], 'fcl')
         self.assertContains(response, 'TGHU1234567')
         self.assertNotContains(response, 'TGHU7654321')
         self.assertNotContains(response, 'TGHU9999999')

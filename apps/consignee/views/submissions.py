@@ -117,19 +117,84 @@ def submit_shipment(request):
     })
 
 
+@login_required
+@consignee_required
+def edit_submission(request, shipment_id):
+    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+    if shipment.status != 'incoming':
+        messages.error(request, 'This shipment can no longer be edited.')
+        return redirect('consignee:shipment_detail', shipment_id=shipment.id)
+
+    if request.method == 'POST':
+        shipment.import_type = request.POST.get('import_type') or shipment.import_type
+        shipment.urgency = request.POST.get('urgency') or shipment.urgency
+        shipment.shipment_type = (request.POST.get('shipment_type', '').strip() or None)
+        shipment.description = request.POST.get('description', '').strip()
+        invoice_currency = (request.POST.get('invoice_currency', shipment.invoice_currency) or 'USD').strip().upper()
+        if invoice_currency in {'USD', 'EUR', 'JPY', 'HKD', 'CNY', 'GBP', 'SGD'}:
+            shipment.invoice_currency = invoice_currency
+        shipment.save(update_fields=[
+            'import_type', 'urgency', 'shipment_type', 'description',
+            'invoice_currency', 'updated_at',
+        ])
+
+        for doc_type in ['invoice', 'packing_list', 'airway_bill']:
+            file = request.FILES.get(doc_type)
+            if file:
+                shipment.documents.filter(document_type=doc_type).delete()
+                ShipmentDocument.objects.create(
+                    shipment=shipment,
+                    document_type=doc_type,
+                    file=file,
+                )
+
+        for file in request.FILES.getlist('other_docs'):
+            ShipmentDocument.objects.create(
+                shipment=shipment,
+                document_type='other',
+                file=file,
+            )
+
+        messages.success(request, f'Shipment {shipment.hawb_number} updated.')
+        return redirect('consignee:my_submissions')
+
+    from django.templatetags.static import static
+    invoice_template_url = (
+        SystemConfig.get('invoice_template_url', '')
+        or static('templates/RTripleJ_Commercial_Invoice.xlsx')
+    )
+    packing_list_template_url = (
+        SystemConfig.get('packing_list_template_url', '')
+        or static('templates/RTripleJ_Packing_List.xlsx')
+    )
+    return render(request, 'consignee/submit.html', {
+        'is_edit': True,
+        'shipment': shipment,
+        'invoice_template_url': invoice_template_url,
+        'packing_list_template_url': packing_list_template_url,
+    })
+
+
 # ─── My Submissions ───────────────────────────────────────────────────────────
 
 @login_required
 @consignee_required
 def my_submissions(request):
-    shipments = Shipment.objects.filter(consignee=request.user).order_by('-submitted_at')
+    shipments = Shipment.objects.filter(consignee=request.user)
 
     status_filter = request.GET.get('status', '').strip()
-    urgency_filter = request.GET.get('urgency', '').strip()
-    shipment_type_filter = request.GET.get('shipment_type', '').strip()
+    active_status_filter = request.GET.get('active_status', '').strip()
+    active_import_type_filter = request.GET.get('active_import_type', '').strip()
+    active_urgency_filter = request.GET.get('active_urgency', '').strip()
+    active_shipment_type_filter = request.GET.get('active_shipment_type', '').strip()
+    flagged_status_filter = request.GET.get('flagged_status', '').strip()
+    flagged_import_type_filter = request.GET.get('flagged_import_type', '').strip()
+    flagged_urgency_filter = request.GET.get('flagged_urgency', '').strip()
+    flagged_shipment_type_filter = request.GET.get('flagged_shipment_type', '').strip()
     q             = request.GET.get('q', '').strip()
     date_from     = request.GET.get('date_from', '').strip()
     date_to       = request.GET.get('date_to', '').strip()
+    sort          = request.GET.get('sort', '').strip()
 
     valid_statuses = {key for key, _label in Shipment.STATUS_CHOICES}
     valid_urgencies = {key for key, _label in Shipment.URGENCY_CHOICES}
@@ -139,14 +204,6 @@ def my_submissions(request):
         shipments = shipments.filter(status=status_filter)
     else:
         status_filter = ''
-    if urgency_filter in valid_urgencies:
-        shipments = shipments.filter(urgency=urgency_filter)
-    else:
-        urgency_filter = ''
-    if shipment_type_filter in valid_shipment_types:
-        shipments = shipments.filter(shipment_type=shipment_type_filter)
-    else:
-        shipment_type_filter = ''
     if q:
         shipments = shipments.filter(
             Q(hawb_number__icontains=q)
@@ -157,33 +214,86 @@ def my_submissions(request):
         shipments = shipments.filter(submitted_at__date__gte=date_from)
     if date_to:
         shipments = shipments.filter(submitted_at__date__lte=date_to)
+    if sort == 'ref_asc':
+        shipments = shipments.order_by('hawb_number')
+    elif sort == 'ref_desc':
+        shipments = shipments.order_by('-hawb_number')
+    else:
+        shipments = shipments.order_by('-submitted_at')
 
-    now            = timezone.now()
     shipments_list = list(shipments)
-    for s in shipments_list:
-        age_seconds  = (now - s.submitted_at).total_seconds()
-        s.can_cancel     = s.status == 'incoming' and age_seconds <= 3600
-        s.cancel_expired = s.status == 'incoming' and age_seconds > 3600
 
     flagged_shipments = [s for s in shipments_list if s.has_deficiency or s.status == 'for_revision']
     flagged_ids = {s.id for s in flagged_shipments}
     active_shipments = [s for s in shipments_list if s.id not in flagged_ids]
-    paginator = Paginator(active_shipments, 6)
-    page_obj = paginator.get_page(request.GET.get('page'))
+
+    if active_status_filter:
+        active_shipments = [s for s in active_shipments if s.status == active_status_filter]
+    if active_import_type_filter:
+        active_shipments = [s for s in active_shipments if s.import_type == active_import_type_filter]
+    if active_urgency_filter:
+        active_shipments = [s for s in active_shipments if s.urgency == active_urgency_filter]
+    if active_shipment_type_filter:
+        active_shipments = [s for s in active_shipments if s.shipment_type == active_shipment_type_filter]
+
+    if flagged_status_filter:
+        flagged_shipments = [s for s in flagged_shipments if s.status == flagged_status_filter]
+    if flagged_import_type_filter:
+        flagged_shipments = [s for s in flagged_shipments if s.import_type == flagged_import_type_filter]
+    if flagged_urgency_filter:
+        flagged_shipments = [s for s in flagged_shipments if s.urgency == flagged_urgency_filter]
+    if flagged_shipment_type_filter:
+        flagged_shipments = [s for s in flagged_shipments if s.shipment_type == flagged_shipment_type_filter]
+    flagged_paginator = Paginator(flagged_shipments, 10)
+    flagged_page_obj = flagged_paginator.get_page(request.GET.get('flagged_page'))
+    paginator = Paginator(active_shipments, 10)
+    page_obj = paginator.get_page(request.GET.get('active_page'))
+
+    def _page_window(obj, size=5):
+        start = ((obj.number - 1) // size) * size + 1
+        end = min(start + size - 1, obj.paginator.num_pages)
+        return list(range(start, end + 1)), end < obj.paginator.num_pages
+
+    flagged_page_numbers, flagged_has_page_gap = _page_window(flagged_page_obj)
+    active_page_numbers, active_has_page_gap = _page_window(page_obj)
     query_params = request.GET.copy()
-    query_params.pop('page', None)
+    active_query = query_params.copy()
+    active_query.pop('active_page', None)
+    flagged_query = query_params.copy()
+    flagged_query.pop('flagged_page', None)
+    filter_query = query_params.copy()
+    filter_query.pop('sort', None)
+    filter_query.pop('active_page', None)
+    filter_query.pop('flagged_page', None)
 
     return render(request, 'consignee/my_submissions.html', {
         'shipments':     page_obj.object_list,
-        'flagged_shipments': flagged_shipments,
+        'flagged_shipments': flagged_page_obj.object_list,
+        'flagged_count': len(flagged_shipments),
         'active_count':  len(active_shipments),
         'page_obj':      page_obj,
-        'pagination_query': query_params.urlencode(),
+        'flagged_page_obj': flagged_page_obj,
+        'active_page_numbers': active_page_numbers,
+        'active_has_page_gap': active_has_page_gap,
+        'flagged_page_numbers': flagged_page_numbers,
+        'flagged_has_page_gap': flagged_has_page_gap,
+        'active_pagination_query': active_query.urlencode(),
+        'flagged_pagination_query': flagged_query.urlencode(),
         'total_shipments': len(shipments_list),
         'status_filter': status_filter,
-        'urgency_filter': urgency_filter,
-        'shipment_type_filter': shipment_type_filter,
+        'active_status_filter': active_status_filter,
+        'active_import_type_filter': active_import_type_filter,
+        'active_urgency_filter': active_urgency_filter,
+        'active_shipment_type_filter': active_shipment_type_filter,
+        'flagged_status_filter': flagged_status_filter,
+        'flagged_import_type_filter': flagged_import_type_filter,
+        'flagged_urgency_filter': flagged_urgency_filter,
+        'flagged_shipment_type_filter': flagged_shipment_type_filter,
+        'sort':          sort,
+        'next_ref_sort': 'ref_desc' if sort == 'ref_asc' else 'ref_asc',
+        'filter_query':  filter_query.urlencode(),
         'status_choices': Shipment.STATUS_CHOICES,
+        'import_type_choices': Shipment.IMPORT_TYPE_CHOICES,
         'urgency_choices': Shipment.URGENCY_CHOICES,
         'shipment_type_choices': Shipment.SHIPMENT_TYPE_CHOICES,
         'q':             q,
@@ -494,11 +604,8 @@ def cancel_submission(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
 
     if request.method == 'POST':
-        age = timezone.now() - shipment.submitted_at
         if shipment.status != 'incoming':
             messages.error(request, 'Cannot delete - this shipment is already being processed.')
-        elif age.total_seconds() > 3600:
-            messages.error(request, 'Cannot delete - the 1-hour deletion window has passed.')
         else:
             shipment.delete()
             messages.success(request, 'Shipment deleted.')
