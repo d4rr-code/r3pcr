@@ -109,7 +109,7 @@
         startMonth: null,
         endYear: null,
         endMonth: null,
-        groupBy: 'day'
+        groupBy: 'month'
     };
 
     var chartDataCache = {};
