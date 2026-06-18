@@ -25,6 +25,7 @@
                     <th>Urgency</th>
                     <th>Status</th>
                     <th>Shipment Type</th>
+                    <th>ETA</th>
                     <th>Submitted</th>
                     <th>Consignee</th>
                     <th>Declarant</th>
@@ -50,6 +51,7 @@
                         {% endif %}
                     </td>
                     <td>{{ s.get_shipment_type_display|default:"-" }}</td>
+                    <td>{% if s.estimated_arrival_date %}{{ s.estimated_arrival_date|date:"M d, Y" }}{% else %}-{% endif %}</td>
                     <td>{{ s.submitted_at|date:"M d,Y g:i A" }}</td>
                     <td>{{ s.consignee.get_full_name|default:s.consignee.username }}</td>
                     <td>{% if s.declarant %}{{ s.declarant.get_full_name|default:s.declarant.username }}{% else %}-{% endif %}</td>

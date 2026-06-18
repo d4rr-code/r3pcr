@@ -71,6 +71,10 @@
                 <p id="pm-due" style="font-size:13px; margin:0; font-weight:600;"></p>
             </div>
             <div>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">ETA</p>
+                <p id="pm-eta" style="color:#111827; font-size:13px; margin:0;"></p>
+            </div>
+            <div>
                 <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Declared Value (EXW)</p>
                 <p id="pm-value" style="color:#111827; font-size:13px; margin:0;"></p>
             </div>
@@ -196,6 +200,7 @@
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Type</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Urgency</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Docs</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">ETA</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Due Date</th>
                 <th style="padding:10px 16px; text-align:center; font-size:12px;">Action</th>
             </tr>
@@ -251,6 +256,13 @@
                     {% endfor %}
                     {% endwith %}
                 </td>
+                <td style="padding:12px 16px; color:#374151; font-size:12px;">
+                    {% if s.estimated_arrival_date %}
+                    {{ s.estimated_arrival_date|date:"M d, Y" }}
+                    {% else %}
+                    <span style="color:#9CA3AF;">-</span>
+                    {% endif %}
+                </td>
                 <!-- Due date with color coding -->
                 <td style="padding:12px 16px; font-size:12px;">
                     <span style="color:
@@ -283,6 +295,7 @@
                             data-urgency="{{ s.urgency }}"
                             data-urgencylabel="{{ s.get_urgency_display }}"
                             data-due="{{ s.due_date|date:'M d, Y' }}"
+                            data-eta="{% if s.estimated_arrival_date %}{{ s.estimated_arrival_date|date:'M d, Y' }}{% else %}-{% endif %}"
                             data-duecolor="{{ s.due_color }}"
                             data-duelabel="{% if s.due_days_left < 0 %}Overdue {{ s.due_days_left|stringformat:'d'|cut:'-' }} business day{{ s.due_days_left|stringformat:'d'|cut:'-'|add:'0'|pluralize }}{% elif s.due_days_left == 0 %}Due today{% elif s.due_days_left == 1 %}1 business day left{% else %}{{ s.due_days_left }} business days left{% endif %}"
                             data-currency="{{ s.invoice_currency|default:'USD' }}"
@@ -301,7 +314,7 @@
             <!-- Expandable description row -->
             {% if s.description %}
             <tr id="pd-{{ s.id }}" style="display:none; background:#F8FAFC;">
-                <td colspan="8" style="padding:10px 20px 14px 52px;">
+                <td colspan="9" style="padding:10px 20px 14px 52px;">
                     <p style="color:#374151; font-size:12px; margin:0;">
                         <strong style="color:#6B7280;">Description:</strong>
                         {{ s.description }}
@@ -372,6 +385,7 @@
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Type</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Urgency</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Docs</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">ETA</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Claimed</th>
                 <th style="padding:10px 16px; text-align:center; font-size:12px;">Status</th>
                 <th style="padding:10px 16px; text-align:center; font-size:12px;">Action</th>
@@ -424,6 +438,13 @@
                     {% endfor %}
                     {% endwith %}
                 </td>
+                <td style="padding:12px 16px; color:#374151; font-size:12px;">
+                    {% if s.estimated_arrival_date %}
+                    {{ s.estimated_arrival_date|date:"M d, Y" }}
+                    {% else %}
+                    <span style="color:#9CA3AF;">-</span>
+                    {% endif %}
+                </td>
                 <td style="padding:12px 16px; color:#6B7280; font-size:12px;">
                     {{ s.submitted_at|timesince }} ago
                 </td>
@@ -459,7 +480,7 @@
                 </td>
             </tr>
             <tr id="rv-{{ s.id }}" style="display:none; background:#F8FAFC; border-top:1px solid #E5E7EB;">
-                <td colspan="9" style="padding:12px 20px 16px 52px;">
+                <td colspan="10" style="padding:12px 20px 16px 52px;">
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; max-width:860px;">
 
                         <!-- Description + Shipping info -->
@@ -620,6 +641,7 @@
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Shipment Ref. No.</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Consignee</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Type</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">ETA</th>
                 <th style="padding:10px 16px; text-align:center; font-size:12px;">Status</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Last Updated</th>
                 <th style="padding:10px 16px; text-align:center; font-size:12px;">Action</th>
@@ -638,6 +660,13 @@
                 </td>
                 <td style="padding:12px 16px; color:#374151; font-size:12px;">
                     {{ s.get_import_type_display|default:"—" }}
+                </td>
+                <td style="padding:12px 16px; color:#374151; font-size:12px;">
+                    {% if s.estimated_arrival_date %}
+                    {{ s.estimated_arrival_date|date:"M d, Y" }}
+                    {% else %}
+                    <span style="color:#9CA3AF;">-</span>
+                    {% endif %}
                 </td>
                 <td style="padding:12px 16px; text-align:center;">
                     <span style="display:inline-flex; align-items:center; gap:5px; padding:3px 10px;
@@ -771,6 +800,7 @@ function showPreview(btn) {
         btn.dataset.value ? currency + ' ' + parseFloat(btn.dataset.value).toLocaleString() : '—';
     document.getElementById('pm-weight').textContent =
         btn.dataset.weight ? btn.dataset.weight + ' kg' : '—';
+    document.getElementById('pm-eta').textContent = btn.dataset.eta || '-';
     document.getElementById('pm-desc').textContent = btn.dataset.desc;
 
     var docsCount = parseInt(btn.dataset.docs) || 0;

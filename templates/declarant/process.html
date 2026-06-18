@@ -452,7 +452,9 @@
                     <select name="new_status" id="status-modal-select" class="modal-select" required>
                         <option value="">— Select new status —</option>
                         {% for key, label in manual_status_choices %}
+                        {% if key != 'lodgement' or shipment.status == 'approved' %}
                         <option value="{{ key }}">{{ label }}</option>
+                        {% endif %}
                         {% endfor %}
                     </select>
                 </div>
@@ -560,6 +562,9 @@
                 {% else %}Standard{% endif %}
                 {% if shipment.shipment_type %}
                 &nbsp;·&nbsp; <span style="color:#1d4ed8;font-weight:600;">{{ shipment.get_shipment_type_display }}</span>
+                {% endif %}
+                {% if shipment.estimated_arrival_date %}
+                &nbsp;&middot;&nbsp; ETA {{ shipment.estimated_arrival_date|date:"M d, Y" }}
                 {% endif %}
             </p>
         </div>

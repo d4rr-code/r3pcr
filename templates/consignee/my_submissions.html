@@ -110,6 +110,7 @@
                     <th>Urgency</th>
                     <th>Status</th>
                     <th>Shipment Type</th>
+                    <th>ETA</th>
                     <th>Submitted</th>
                     <th>Last Updated</th>
                     <th class="text-center">Actions</th>
@@ -140,6 +141,13 @@
                         <span class="inline-status-note">{{ shipment.deficiency_notes|default:"Documents need revision" }}</span>
                     </td>
                     <td data-label="Shipment Type" class="muted">{{ shipment.get_shipment_type_display|default:"-" }}</td>
+                    <td data-label="ETA" class="meta-time">
+                        {% if shipment.estimated_arrival_date %}
+                            <span class="meta-primary">{{ shipment.estimated_arrival_date|date:"M d, Y" }}</span>
+                        {% else %}
+                            <span class="meta-secondary">-</span>
+                        {% endif %}
+                    </td>
                     <td data-label="Submitted" class="meta-time">
                         <span class="meta-primary">{{ shipment.submitted_at|date:"M d, Y" }}</span>
                         <br>
@@ -184,6 +192,7 @@
                     <th>Urgency</th>
                     <th>Status</th>
                     <th>Shipment Type</th>
+                    <th>ETA</th>
                     <th>Submitted</th>
                     <th>Last Updated</th>
                     <th class="text-center">Actions</th>
@@ -252,6 +261,15 @@
 
                     <!-- Shipment Type -->
                     <td data-label="Shipment Type" class="muted">{{ shipment.get_shipment_type_display|default:"—" }}</td>
+
+                    <!-- ETA -->
+                    <td data-label="ETA" class="muted">
+                        {% if shipment.estimated_arrival_date %}
+                            {{ shipment.estimated_arrival_date|date:"M d, Y" }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
 
                     <!-- Submitted -->
                     <td data-label="Submitted" class="meta-time">

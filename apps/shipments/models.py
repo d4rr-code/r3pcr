@@ -103,6 +103,7 @@ class Shipment(models.Model):
         max_digits=10, decimal_places=2, 
         blank=True, null=True
     )
+    estimated_arrival_date = models.DateField(blank=True, null=True)
     
     CURRENCY_CHOICES = [
         ('USD', 'US Dollar (USD)'),

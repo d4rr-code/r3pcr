@@ -170,3 +170,28 @@ class ProcessShipmentTests(TestCase):
         resp = self.client.get(self.url)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.context['has_pending_ocr'])
+
+    def test_cannot_update_to_lodgement_before_ecdt_approval(self):
+        self.client.force_login(self.declarant)
+        response = self.client.post(
+            reverse('declarant:update_status', args=[self.shipment.id]),
+            {'new_status': 'lodgement'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.shipment.refresh_from_db()
+        self.assertEqual(self.shipment.status, 'arrived')
+
+    def test_can_update_to_lodgement_after_ecdt_approval(self):
+        self.shipment.status = 'approved'
+        self.shipment.save(update_fields=['status'])
+        self.client.force_login(self.declarant)
+
+        response = self.client.post(
+            reverse('declarant:update_status', args=[self.shipment.id]),
+            {'new_status': 'lodgement'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.shipment.refresh_from_db()
+        self.assertEqual(self.shipment.status, 'lodgement')

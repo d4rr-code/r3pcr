@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
 from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
@@ -35,6 +36,8 @@ def submit_shipment(request):
         freight_cost     = _decimal_or_none('freight_cost')
         insurance_cost   = _decimal_or_none('insurance_cost')
         quantity         = _decimal_or_none('quantity')
+        estimated_arrival_raw = request.POST.get('estimated_arrival_date', '').strip()
+        estimated_arrival_date = parse_date(estimated_arrival_raw) if estimated_arrival_raw else None
         invoice_currency = (request.POST.get('invoice_currency', 'USD') or 'USD').strip().upper()
         # Validate against allowed currencies
         _allowed = {'USD', 'EUR', 'JPY', 'HKD', 'CNY', 'GBP', 'SGD'}
@@ -55,6 +58,7 @@ def submit_shipment(request):
             freight_cost=freight_cost,
             insurance_cost=insurance_cost,
             quantity=quantity,
+            estimated_arrival_date=estimated_arrival_date,
             invoice_currency=invoice_currency,
         )
 
