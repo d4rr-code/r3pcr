@@ -12,9 +12,10 @@ from django.core.paginator import Paginator
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, StatusLog
 from apps.computation.models import DutyComputation
+from apps.computation.wmcda import wmcda_weight_rows
 from apps.consignee.models import Feedback
 from apps.notifications.utils import create_notification, notify_shipment_status_change
-from ..models import IssueReport
+from ..models import IssueReport, SystemConfig
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,9 @@ def shipment_detail(request, shipment_id):
         'explanation':        explanation,
         'wmcda_scores':       wmcda_scores,
         'wmcda_breakdown':    wmcda_breakdown,
+        'wmcda_weights':      wmcda_weight_rows(SystemConfig.get),
+        'wmcda_method':       SystemConfig.get('wmcda_weight_method', 'manual'),
+        'wmcda_consistency_ratio': SystemConfig.get('wmcda_ahp_consistency_ratio', ''),
         'declared_score':     declared_score,
         'declared_breakdown': declared_breakdown,
         'declared_rating':    declared_rating,

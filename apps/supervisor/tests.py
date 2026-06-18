@@ -19,7 +19,65 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
+from apps.computation.wmcda import calculate_ahp_weights
 from apps.consignee.models import Feedback
+from apps.supervisor.models import SystemConfig
+
+
+class WmcdaAhpTests(TestCase):
+    def test_ahp_weights_sum_to_100_and_return_consistency_ratio(self):
+        result = calculate_ahp_weights({
+            'ahp_cost_time': '3',
+            'ahp_cost_weight': '5',
+            'ahp_cost_distance': '7',
+            'ahp_time_weight': '3',
+            'ahp_time_distance': '5',
+            'ahp_weight_distance': '3',
+        })
+
+        self.assertEqual(sum(result['weights_pct'].values()), 100)
+        self.assertIn('cost', result['weights_pct'])
+        self.assertGreaterEqual(result['consistency_ratio'], 0)
+
+    def test_config_wmcda_can_apply_ahp_weights(self):
+        supervisor = User.objects.create_user(
+            username='sup_ahp', password='x', role='supervisor',
+            email='supahp@test.local', is_pending_approval=False,
+        )
+        self.client.force_login(supervisor)
+        resp = self.client.post(reverse('supervisor:config_wmcda'), {
+            'action': 'apply_ahp',
+            'ahp_cost_time': '3',
+            'ahp_cost_weight': '5',
+            'ahp_cost_distance': '7',
+            'ahp_time_weight': '3',
+            'ahp_time_distance': '5',
+            'ahp_weight_distance': '3',
+        })
+
+        self.assertRedirects(resp, reverse('supervisor:config_wmcda'), fetch_redirect_response=False)
+        weights = [
+            int(SystemConfig.get('wmcda_w_cost', '0')),
+            int(SystemConfig.get('wmcda_w_time', '0')),
+            int(SystemConfig.get('wmcda_w_weight', '0')),
+            int(SystemConfig.get('wmcda_w_distance', '0')),
+        ]
+        self.assertEqual(sum(weights), 100)
+        self.assertEqual(SystemConfig.get('wmcda_weight_method', ''), 'saaty_ahp')
+        self.assertTrue(SystemConfig.get('wmcda_ahp_matrix', ''))
+
+    def test_config_wmcda_page_renders_ahp_controls(self):
+        supervisor = User.objects.create_user(
+            username='sup_ahp_get', password='x', role='supervisor',
+            email='supahpget@test.local', is_pending_approval=False,
+        )
+        self.client.force_login(supervisor)
+
+        resp = self.client.get(reverse('supervisor:config_wmcda'))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Saaty AHP Weight Derivation')
+        self.assertContains(resp, 'ahp_cost_time')
 
 
 class AnalyticsDashboardContextTests(TestCase):

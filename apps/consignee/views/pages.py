@@ -330,8 +330,12 @@ def system_fees(request):
 @login_required
 @consignee_required
 def system_wmcda(request):
+    from apps.supervisor.models import SystemConfig
+
     return render(request, 'consignee/system_wmcda.html', {
         'wmcda_items': _system_wmcda_items(),
+        'wmcda_method': SystemConfig.get('wmcda_weight_method', 'manual'),
+        'wmcda_consistency_ratio': SystemConfig.get('wmcda_ahp_consistency_ratio', ''),
     })
 
 

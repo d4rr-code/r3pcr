@@ -524,6 +524,19 @@
             </p>
             {% endif %}
 
+            <div style="font-size:11px; color:#6B7280; padding:10px 0; border-top:1px solid #E5E7EB;">
+                WMCDA weights:
+                Cost {{ wmcda_weights.0.value|floatformat:0 }}%,
+                Time {{ wmcda_weights.1.value|floatformat:0 }}%,
+                Weight/Volume {{ wmcda_weights.2.value|floatformat:0 }}%,
+                Distance {{ wmcda_weights.3.value|floatformat:0 }}%.
+                {% if wmcda_method == 'saaty_ahp' %}
+                    Derived using Saaty AHP{% if wmcda_consistency_ratio %} (CR {{ wmcda_consistency_ratio }}){% endif %}.
+                {% else %}
+                    Manually configured.
+                {% endif %}
+            </div>
+
             <div style="font-size:11px; color:#9CA3AF; padding-top:10px; border-top:1px solid #E5E7EB;">
                 Advisory computed {{ advisory.computed_at|date:"M d, Y g:i A" }}
                 {% if advisory.computed_by %}by {{ advisory.computed_by.get_full_name|default:advisory.computed_by.username }}{% endif %}

@@ -6,6 +6,7 @@ from django.contrib import messages
 from apps.shipments.models import Shipment
 from apps.supervisor.models import SystemConfig
 from ..models import ShippingAdvisory
+from ..wmcda import load_wmcda_weights, wmcda_weight_rows
 
 logger = logging.getLogger('r3pcr.computation')
 
@@ -68,10 +69,11 @@ def compute_wmcda(weight, volume, value, urgency, distance):
     air_distance = min(0.95, _lerp(distance, 0, distance_max, 0.60, 0.95))
 
     try:
-        w_cost = float(SystemConfig.get('wmcda_w_cost', '35')) / 100
-        w_time = float(SystemConfig.get('wmcda_w_time', '30')) / 100
-        w_weight = float(SystemConfig.get('wmcda_w_weight', '20')) / 100
-        w_dist = float(SystemConfig.get('wmcda_w_distance', '15')) / 100
+        _, weights = load_wmcda_weights(SystemConfig.get)
+        w_cost = weights['cost']
+        w_time = weights['time']
+        w_weight = weights['weight']
+        w_dist = weights['distance']
     except Exception:
         w_cost, w_time, w_weight, w_dist = 0.35, 0.30, 0.20, 0.15
 
@@ -278,6 +280,7 @@ def shipping_advisory(request, shipment_id):
         'auto_sources':   auto_sources,
         'missing_fields': missing_fields,
         'wmcda_history':  wmcda_history,
+        'wmcda_weights':  wmcda_weight_rows(SystemConfig.get),
     }
     return render(request, 'computation/advisory.html', context)
 
