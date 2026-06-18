@@ -181,9 +181,46 @@
             </div>
             {% endif %}
             <div>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Container Number</p>
+                <p style="font-size:13px; color:#374151; margin:0;">{{ shipment.container_number|default:"-" }}</p>
+            </div>
+            <div>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Job Number</p>
+                <p style="font-size:13px; color:#374151; margin:0;">{{ shipment.job_order_reference|default:"-" }}</p>
+            </div>
+            <div>
                 <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Estimated Arrival</p>
                 <p style="font-size:13px; color:#374151; margin:0;">
                     {% if shipment.estimated_arrival_date %}{{ shipment.estimated_arrival_date|date:"M d, Y" }}{% else %}-{% endif %}
+                </p>
+            </div>
+            <div>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">KPI Target</p>
+                <p style="font-size:13px; color:#374151; margin:0;">{{ shipment.kpi_target_label|default:"-" }}</p>
+            </div>
+            <div>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">KPI ETA</p>
+                <p style="font-size:13px; color:#374151; margin:0;">
+                    {% if shipment.kpi_eta_start and shipment.kpi_eta_end %}
+                    {{ shipment.kpi_eta_start|date:"M d" }}-{{ shipment.kpi_eta_end|date:"M d, Y" }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </p>
+            </div>
+            <div>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">KPI Status</p>
+                <p style="font-size:13px; color:#374151; margin:0;">
+                    <span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;
+                                 {% if shipment.kpi_timing_status == 'delayed' %}background:#FEE2E2;color:#B91C1C;
+                                 {% elif shipment.kpi_timing_status == 'due_soon' %}background:#FEF3C7;color:#92400E;
+                                 {% elif shipment.kpi_timing_status == 'on_track' %}background:#DCFCE7;color:#15803D;
+                                 {% else %}background:#F1F5F9;color:#475569;{% endif %}">
+                        {{ shipment.kpi_timing_label }}
+                    </span>
+                    {% if shipment.kpi_timing_help %}
+                    <br><span style="color:#9CA3AF;font-size:11px;">{{ shipment.kpi_timing_help }}</span>
+                    {% endif %}
                 </p>
             </div>
             {% if shipment.description %}

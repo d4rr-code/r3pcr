@@ -15,7 +15,7 @@ from .pages import (
 from .workflow import (
     shipment_preview, queue_manager, claim_shipment,
     run_ocr_sync, ocr_status, process_shipment,
-    update_shipping_mode, proceed_to_lodgement, update_status,
+    update_shipping_mode, update_tracking_fields, proceed_to_lodgement, update_status,
     payment_confirmation,
 )
 from .uploads import (

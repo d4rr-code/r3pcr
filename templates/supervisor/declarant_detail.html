@@ -211,7 +211,7 @@
                 <thead>
                     <tr>
                         <th>Shipment Reference No.</th>
-                        <th>Import Type</th>
+                        <th>Job Number</th>
                         <th>Urgency</th>
                         <th>Status</th>
                         <th>Shipment Type</th>
@@ -224,7 +224,7 @@
                     {% for s in shipments %}
                     <tr>
                         <td class="dd-ref">{{ s.hawb_number }}</td>
-                        <td>{{ s.get_import_type_display }}</td>
+                        <td>{{ s.job_order_reference|default:"-" }}</td>
                         <td><span class="dd-pill urgency-{{ s.urgency|default:'standard' }}">{{ s.get_urgency_display }}</span></td>
                         <td>
                             <span class="dd-status-text">{{ s.get_status_display|default:"-" }}</span>
