@@ -162,7 +162,7 @@
         </a>
 
         <!-- FLAGS Card -->
-        <a href="{% url 'consignee:my_submissions' %}" class="status-card dash-flags-card">
+        <a href="{% url 'consignee:my_submissions' %}#flagged-shipments" class="status-card dash-flags-card">
             <div class="sc-left">
                 <div class="sc-icon flags-icon-wrap">
                     <img src="{% static 'consignee/img/dashboard/flags.png' %}" alt="Flags icon">
@@ -188,9 +188,9 @@
                 <span class="chart-range-summary" aria-label="Cumulative">Cumulative</span>
                 <button type="button" id="chart-start-trigger" class="chart-filter-btn">From: <span id="chart-start-label">May 2026</span></button>
                 <button type="button" id="chart-end-trigger" class="chart-filter-btn">To: <span id="chart-end-label">May 2026</span></button>
-                <button type="button" class="chart-filter-btn chart-group-btn active" data-group="day">by day</button>
-                <button type="button" class="chart-filter-btn chart-group-btn" data-group="week">by week</button>
-                <button type="button" class="chart-filter-btn chart-group-btn" data-group="month">by month</button>
+                <button type="button" class="chart-filter-btn chart-group-btn" data-group="day">Day</button>
+                <button type="button" class="chart-filter-btn chart-group-btn" data-group="week">Week</button>
+                <button type="button" class="chart-filter-btn chart-group-btn active" data-group="month">Month</button>
             </div>
         </div>
         <div class="shipment-chart-wrap">

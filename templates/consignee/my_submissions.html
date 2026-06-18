@@ -93,7 +93,7 @@
 
 <!-- ── Submissions Table ─────────────────────────────────────────────────────── -->
 {% if flagged_shipments %}
-<div class="section-kicker section-kicker-flagged">
+<div id="flagged-shipments" class="section-kicker section-kicker-flagged">
     <div>
         <h2>Flag Shipments <span class="section-count">: {{ flagged_shipments|length|stringformat:"02d" }}</span></h2>
         <p>Kindly comply with the revisions and requirements to process your shipment.</p>

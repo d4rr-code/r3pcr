@@ -212,10 +212,15 @@ def dashboard(request):
         s for s in recent_shipments
         if s.has_deficiency or s.status in ('arrived', 'computed')
     ][:4]
+    flags = (
+        shipments.filter(has_deficiency=True).count()
+        + shipments.filter(status='for_revision', has_deficiency=False).count()
+    )
 
     context = {
         'total': total,
         **status_counts,
+        'flags':             flags,
         'import_breakdown':   import_breakdown,
         'mode_breakdown':     mode_breakdown,
         'urgency_breakdown':  urgency_breakdown,
