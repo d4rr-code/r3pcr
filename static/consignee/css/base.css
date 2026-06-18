@@ -14,10 +14,6 @@ body {
     overflow-x: hidden;
 }
 
-body.c-menu-open {
-    overflow: hidden;
-}
-
 /* ===================================================================
    SIDEBAR (BASE)
 =================================================================== */
@@ -431,11 +427,6 @@ body.c-menu-open {
     font-weight: 700;
 }
 
-.c-notif-badge,
-.c-nav-badge {
-    font-variant-numeric: tabular-nums;
-}
-
 /* ===================================================================
    PAGE CONTENT
 =================================================================== */
@@ -492,22 +483,6 @@ body.c-menu-open {
 =================================================================== */
 
 @media (max-width: 1024px) {
-    .c-main.sidebar-open {
-        margin-left: 64px;
-    }
-
-    .sidebar-toggle {
-        display: none;
-    }
-
-    .c-sidebar {
-        width: 64px !important;
-    }
-
-    .c-sidebar.expanded {
-        width: 64px !important;
-    }
-
     .c-nav-label,
     .c-sidebar-user,
     .c-sidebar.expanded .c-sidebar-logo img {
@@ -524,28 +499,14 @@ body.c-menu-open {
         transition: transform .25s ease;
     }
 
-    .c-sidebar-logo {
-        justify-content: flex-start;
-        padding: 16px 18px;
-    }
-
-    .c-sidebar.mobile-open,
-    .c-sidebar.expanded.mobile-open {
-        width: 220px !important;
+    .c-sidebar.mobile-open {
         transform: translateX(0);
-    }
-
-    .c-sidebar.mobile-open .c-sidebar-logo-mini {
-        opacity: 0 !important;
-        pointer-events: none !important;
     }
 
     .c-sidebar.mobile-open .c-nav-label,
     .c-sidebar.mobile-open .c-sidebar-user {
         display: flex !important;
         opacity: 1 !important;
-        max-width: none !important;
-        overflow: visible !important;
     }
 
     .c-sidebar.mobile-open .c-sidebar-logo img {
@@ -558,31 +519,13 @@ body.c-menu-open {
         padding: 9px 12px !important;
     }
 
-    .c-sidebar.mobile-open .c-nav-badge {
-        position: static !important;
-        width: auto !important;
-        height: 18px !important;
-        min-width: 18px !important;
-        max-width: 42px !important;
-        margin-left: auto !important;
-        padding: 0 6px !important;
-        border: 0 !important;
-        color: #FFFFFF !important;
-        font-size: 10px !important;
-        line-height: 18px !important;
-    }
-
     .c-main,
     .c-main.sidebar-open {
         margin-left: 0 !important;
     }
 
     .c-topbar {
-        position: sticky;
-        top: 0;
-        z-index: 120;
-        padding: 10px 14px 8px;
-        background: #F0F2F5;
+        padding: 12px 14px 6px;
     }
 
     .c-content {
@@ -603,33 +546,6 @@ body.c-menu-open {
     [style*="grid-template-columns:1fr 1fr"] {
         grid-template-columns: 1fr !important;
     }
-}
-
-@media (max-width: 480px) {
-
-    .c-sidebar {
-        width: min(84vw, 280px) !important;
-    }
-
-    .c-sidebar.mobile-open,
-    .c-sidebar.expanded.mobile-open {
-        width: min(84vw, 280px) !important;
-    }
-
-    .c-topbar-btn {
-        width: 36px;
-        height: 36px;
-    }
-
-    .c-content {
-        padding: 0 10px 20px;
-    }
-
-    .c-card {
-        padding: 14px;
-        border-radius: 10px;
-    }
-
 }
 
 /* ===================================================================
@@ -666,14 +582,13 @@ body.c-menu-open {
 .c-input {
     width: 100%;
     padding: 10px 14px;
-    border: 1.5px solid #E5E7EB;
-    border-radius: 8px;
-    background: #F3F4F6;
+    border: 1.5px solid #E5E7EB;;
     color: #1A1A2E;
     font-size: 13px;
     font-family: 'Poppins', sans-serif;
     outline: none;
     transition: border-color .15s, background .15s;
+    border-radius: 8px;
 }
 
 .c-input:focus {
@@ -707,11 +622,12 @@ body.c-menu-open {
 .c-btn-primary {
     background: #1B3358;
     color: #FFFFFF;
+    font-family: 'Poppins', sans-serif;
 }
 
 .c-btn-primary:hover {
-    background: #152847;
-    color: #FFFFFF;
+    background: #526a90;
+    color: #ffffff;
 }
 
 .c-btn-outline {
@@ -719,10 +635,11 @@ body.c-menu-open {
     color: #1B3358;
     border: 1.5px solid #1B3358;
     padding: 8px 22px;
+    font-family: 'Poppins', sans-serif;
 }
 
 .c-btn-outline:hover {
-    background: #1B3358;
+    background: #3d4858;
     color: #FFFFFF;
 }
 
@@ -735,7 +652,7 @@ body.c-menu-open {
     padding: 3px 12px;
     border-radius: 20px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
 }
 
