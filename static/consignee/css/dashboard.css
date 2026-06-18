@@ -143,6 +143,15 @@
     justify-content: flex-end;
 }
 
+.chart-range-summary {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
 .chart-filter-btn {
     font-family: 'Poppins', sans-serif;
     display: inline-flex;

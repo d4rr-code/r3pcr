@@ -360,6 +360,11 @@ def chart_data(request):
     today = timezone.localdate()
     shipments = Shipment.objects.filter(consignee=request.user)
 
+    range_params = {'start_year', 'start_month', 'end_year', 'end_month', 'group_by'}
+    if not any(param in request.GET for param in range_params):
+        labels, data = _monthly_shipment_series(shipments)
+        return JsonResponse({'labels': labels, 'data': data})
+
     group_by = (request.GET.get('group_by') or 'day').strip().lower()
     if group_by not in {'day', 'week', 'month'}:
         group_by = 'day'
