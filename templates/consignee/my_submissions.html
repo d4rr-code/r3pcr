@@ -34,9 +34,9 @@
 <div class="c-card filter-card">
     <form method="GET" class="filter-form">
 
-        <!-- Search Ref No -->
+        <!-- Search -->
         <div class="search-field">
-            <label class="c-label">Shipment Ref No.</label>
+            <label class="c-label">Search Shipment</label>
             <div class="input-with-icon">
                  <svg class="icon-left" 
                      width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
@@ -44,7 +44,7 @@
                 </svg>
                   <input type="text" name="q" value="{{ q }}"
                       class="c-input input-icon"
-                      placeholder="Search ref no...">
+                      placeholder="Ref no, job no, container...">
             </div>
         </div>
 
@@ -52,19 +52,32 @@
         <div class="filter-field">
             <label class="c-label">Status</label>
             <select name="status" class="c-input">
-                <option value=""            {% if not status_filter %}selected{% endif %}>All Statuses</option>
-                <option value="incoming"    {% if status_filter == 'incoming'    %}selected{% endif %}>Incoming</option>
-                <option value="arrived"     {% if status_filter == 'arrived'     %}selected{% endif %}>Arrived</option>
-                <option value="computed"    {% if status_filter == 'computed'    %}selected{% endif %}>Computed</option>
-                <option value="lodgement"   {% if status_filter == 'lodgement'   %}selected{% endif %}>Lodgement</option>
-                <option value="ongoing"     {% if status_filter == 'ongoing'     %}selected{% endif %}>Ongoing</option>
-                <option value="assessed"    {% if status_filter == 'assessed'    %}selected{% endif %}>Assessed</option>
-                <option value="paid"        {% if status_filter == 'paid'        %}selected{% endif %}>Paid</option>
-                <option value="released"    {% if status_filter == 'released'    %}selected{% endif %}>Released</option>
-                <option value="billed"      {% if status_filter == 'billed'      %}selected{% endif %}>Billed</option>
-                <option value="approved"    {% if status_filter == 'approved'    %}selected{% endif %}>Approved</option>
-                <option value="rejected"    {% if status_filter == 'rejected'    %}selected{% endif %}>Rejected</option>
-                <option value="for_revision" {% if status_filter == 'for_revision' %}selected{% endif %}>For Revision</option>
+                <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+                {% for key, label in status_choices %}
+                <option value="{{ key }}" {% if status_filter == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Urgency -->
+        <div class="filter-field">
+            <label class="c-label">Urgency</label>
+            <select name="urgency" class="c-input">
+                <option value="" {% if not urgency_filter %}selected{% endif %}>All Urgency</option>
+                {% for key, label in urgency_choices %}
+                <option value="{{ key }}" {% if urgency_filter == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Shipment Type -->
+        <div class="filter-field">
+            <label class="c-label">Shipment Type</label>
+            <select name="shipment_type" class="c-input">
+                <option value="" {% if not shipment_type_filter %}selected{% endif %}>All Types</option>
+                {% for key, label in shipment_type_choices %}
+                <option value="{{ key }}" {% if shipment_type_filter == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
             </select>
         </div>
 
@@ -81,8 +94,8 @@
         </div>
 
         <div class="filter-actions">
-            <button type="submit" class="c-btn c-btn-primary btn-small">Search</button>
-            {% if q or status_filter or date_from or date_to %}
+            <button type="submit" class="c-btn c-btn-primary btn-small">Filter</button>
+            {% if q or status_filter or urgency_filter or shipment_type_filter or date_from or date_to %}
             <a href="{% url 'consignee:my_submissions' %}" class="c-btn c-btn-outline btn-small">
                 Clear
             </a>
@@ -171,7 +184,10 @@
                         <span class="meta-secondary">{{ shipment.updated_at|date:"H:i" }}</span>
                     </td>
                     <td data-label="Actions" class="text-center">
-                        <a href="{% url 'consignee:shipment_detail' shipment.id %}" class="c-btn c-btn-primary btn-compact">View</a>
+                        <div class="actions-row">
+                            <a href="{% url 'consignee:shipment_detail' shipment.id %}" class="c-btn c-btn-primary btn-compact">View</a>
+                            <a href="{% url 'consignee:shipment_detail' shipment.id %}#resubmit-documents" class="c-btn c-btn-outline btn-compact">Resubmit Documents</a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -316,12 +332,12 @@
                         <div class="actions-row">
                             <a href="{% url 'consignee:shipment_detail' shipment.id %}" class="c-btn c-btn-primary btn-compact">View</a>
                             {% if shipment.can_cancel %}
-                            <form method="POST" action="{% url 'consignee:cancel' shipment.id %}" onsubmit="return confirm('Cancel shipment {{ shipment.hawb_number }}? This cannot be undone.');" class="inline-form">
+                            <form method="POST" action="{% url 'consignee:cancel' shipment.id %}" onsubmit="return confirm('Delete shipment {{ shipment.hawb_number }}? This cannot be undone.');" class="inline-form">
                                 {% csrf_token %}
-                                <button type="submit" class="c-btn btn-cancel">Cancel</button>
+                                <button type="submit" class="c-btn btn-cancel">Delete</button>
                             </form>
                             {% elif shipment.cancel_expired %}
-                            <span class="expired-badge" title="1-hour cancellation window has passed">Expired</span>
+                            <span class="expired-badge" title="1-hour deletion window has passed">Delete Expired</span>
                             {% endif %}
                         </div>
                     </td>

@@ -7,6 +7,7 @@ import tempfile
 import threading
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation
+from functools import wraps
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -135,12 +136,16 @@ ETRADE_LODGEMENT_URL = 'https://www.etrade.net.ph/etrade-2.0/login/auth'
 
 def declarant_required(view_func):
     """Restrict view to authenticated users with role='declarant'."""
+    @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated or request.user.role != 'declarant':
-            messages.error(request, 'Access denied — declarants only.')
+        if not request.user.is_authenticated:
+            messages.error(request, 'Access denied - declarants only.')
             return redirect('accounts:login')
+        if request.user.role != 'declarant':
+            from apps.accounts.views.common import redirect_by_role
+            messages.error(request, 'Access denied - declarants only.')
+            return redirect_by_role(request.user)
         return view_func(request, *args, **kwargs)
-    wrapper.__name__ = view_func.__name__
     return wrapper
 
 

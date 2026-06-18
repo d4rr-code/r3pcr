@@ -7,12 +7,12 @@
 
 .filter-card{margin-bottom:16px;padding:16px 20px}
 .filter-form{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
-.search-field{flex:1;min-width:180px}
+.search-field{flex:1 1 240px;min-width:220px}
 .input-with-icon{position:relative}
 .icon-left{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9CA3AF;pointer-events:none}
 .input-icon{padding-left:34px}
 
-.filter-field{min-width:130px}
+.filter-field{min-width:140px;flex:0 1 170px}
 .filter-actions{display:flex;gap:8px;align-self:flex-end}
 .btn-small{padding:9px 18px}
 

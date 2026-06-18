@@ -7,6 +7,7 @@ import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, date as date_type
 from decimal import Decimal, InvalidOperation
+from functools import wraps
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
@@ -136,11 +137,14 @@ def _send_mail_async(subject, message, from_email, recipient_list, html_message=
                      from_email=from_email, log_tag=log_tag)
 
 def supervisor_required(view_func):
+    @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated or request.user.role != 'supervisor':
+        if not request.user.is_authenticated:
             return redirect('accounts:login')
+        if request.user.role != 'supervisor':
+            from apps.accounts.views.common import redirect_by_role
+            return redirect_by_role(request.user)
         return view_func(request, *args, **kwargs)
-    wrapper.__name__ = view_func.__name__
     return wrapper
 
 

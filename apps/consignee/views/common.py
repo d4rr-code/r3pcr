@@ -1,4 +1,5 @@
 import logging
+from functools import wraps
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -15,12 +16,16 @@ logger = logging.getLogger('r3pcr.consignee')
 
 def consignee_required(view_func):
     """Restrict view to authenticated users with role='consignee'."""
+    @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated or request.user.role != 'consignee':
-            messages.error(request, 'Access denied — consignees only.')
+        if not request.user.is_authenticated:
+            messages.error(request, 'Access denied - consignees only.')
             return redirect('accounts:login')
+        if request.user.role != 'consignee':
+            from apps.accounts.views.common import redirect_by_role
+            messages.error(request, 'Access denied - consignees only.')
+            return redirect_by_role(request.user)
         return view_func(request, *args, **kwargs)
-    wrapper.__name__ = view_func.__name__
     return wrapper
 
 

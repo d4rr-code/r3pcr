@@ -518,9 +518,6 @@ def update_tracking_fields(request, shipment_id):
         update_fields.append('job_order_reference')
 
     if 'container_number' in request.POST:
-        if shipment.status not in {'paid', 'released', 'billed'}:
-            messages.error(request, 'Container Number can be updated once the shipment reaches the release/delivery stage.')
-            return redirect('declarant:process', shipment_id=shipment_id)
         shipment.container_number = request.POST.get('container_number', '').strip() or None
         update_fields.append('container_number')
 
