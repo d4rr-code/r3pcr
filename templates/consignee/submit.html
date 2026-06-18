@@ -1,7 +1,7 @@
 {% extends 'consignee/base_consignee.html' %}
 {% load static %}
 
-{% block title %}New Submission{% endblock %}
+{% block title %}{% if is_edit %}Edit Submission{% else %}New Submission{% endif %}{% endblock %}
 {% block nav_submit %}active{% endblock %}
 
 {% block extra_css %}
@@ -13,11 +13,11 @@
 <!-- ── Page Header ────────────────────────────────────────────────────────── -->
 <div style="margin-bottom:16px;">
     <p style="font-size:10px; font-weight:600; color:#9CA3AF; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:3px;">Shipment Ref. No.</p>
-    <h1 style="font-size:22px; font-weight:800; color:#1B3358; letter-spacing:-0.5px; margin-bottom:5px;">
-        R3PCR-{% now "Y" %}-XXXXXX
+    <h1 style="font-size:22px; font-weight:700; color:#1B3358; letter-spacing:-0.5px; margin-bottom:5px;">
+        {% if is_edit %}{{ shipment.hawb_number }}{% else %}R3PCR-{% now "Y" %}-XXXXXX{% endif %}
     </h1>
     <p style="font-size:11px; color:#6B7280; max-width:640px;">
-        A Shipment Reference No. (e.g. R3PCR-{% now "Y" %}-000XXX) will be automatically assigned after submission.
+        {% if is_edit %}Update your shipment details while it is still awaiting declarant processing.{% else %}A Shipment Reference No. (e.g. R3PCR-{% now "Y" %}-000XXX) will be automatically assigned after submission.{% endif %}
     </p>
 </div>
 <hr class="sub-hr" style="margin-top:0; margin-bottom:16px;">
@@ -26,30 +26,60 @@
     {% csrf_token %}
 
     <!-- ── IMPORT TYPE ──────────────────────────────────────────────────────── -->
-    <div style="margin-bottom:18px;">
-        <p class="sub-hint">CMTA classification</p>
+    <div style="margin-bottom:18px; display:-webkit-box; column-gap:53px;">
+       
+        <div style="margin-bottom:12px; display:flex; gap:12px; flex-direction:column;">
+        
         <label class="sub-label">IMPORT TYPE <span class="sub-req">*</span></label>
+        <p class="sub-hint">CMTA classification</p>
         <select name="import_type" class="sub-select" required>
             <option value="">— SELECT —</option>
-            <option value="commercial">Commercial / Trade Goods</option>
-            <option value="personal">Personal Effects &amp; Household Goods</option>
-            <option value="balikbayan">Balikbayan Box (RA 10021)</option>
-            <option value="samples">Samples / No Commercial Value</option>
-            <option value="machinery">Machinery &amp; Equipment (Capital Goods)</option>
-            <option value="raw_materials">Raw Materials &amp; Inputs</option>
-            <option value="ecommerce">Online Purchase / E-Commerce</option>
+            <option value="commercial" {% if shipment.import_type == 'commercial' %}selected{% endif %}>Commercial / Trade Goods</option>
+            <option value="personal" {% if shipment.import_type == 'personal' %}selected{% endif %}>Personal Effects &amp; Household Goods</option>
+            <option value="balikbayan" {% if shipment.import_type == 'balikbayan' %}selected{% endif %}>Balikbayan Box (RA 10021)</option>
+            <option value="samples" {% if shipment.import_type == 'samples' %}selected{% endif %}>Samples / No Commercial Value</option>
+            <option value="machinery" {% if shipment.import_type == 'machinery' %}selected{% endif %}>Machinery &amp; Equipment (Capital Goods)</option>
+            <option value="raw_materials" {% if shipment.import_type == 'raw_materials' %}selected{% endif %}>Raw Materials &amp; Inputs</option>
+            <option value="ecommerce" {% if shipment.import_type == 'ecommerce' %}selected{% endif %}>Online Purchase / E-Commerce</option>
         </select>
+    </div>
+
+        <div style="margin-bottom:12px; display:flex; gap:12px; flex-direction:column;">
+            <label style="font-size:12px; font-weight:700; color: #1f3d66;;">Invoice Currency:</label>
+            <span style="font-size:11px; color:#9CA3AF; margin-top: -6px;">Select the currency shown on your commercial invoice.</span>
+            <select name="invoice_currency" id="invoice_currency" class="c-input"
+                    style="width:auto; min-width:200px; padding:7px 14px;color: #1f3d66; font-weight: 500;padding: 12px 18px;"
+                    onchange="updateCurrencyLabels(this.value)">
+                <option value="USD" {% if shipment.invoice_currency == 'USD' %}selected{% endif %}>US Dollar (USD)</option>
+                <option value="EUR" {% if shipment.invoice_currency == 'EUR' %}selected{% endif %}>Euro (EUR)</option>
+                <option value="JPY" {% if shipment.invoice_currency == 'JPY' %}selected{% endif %}>Japanese Yen (JPY)</option>
+                <option value="HKD" {% if shipment.invoice_currency == 'HKD' %}selected{% endif %}>Hong Kong Dollar (HKD)</option>
+                <option value="CNY" {% if shipment.invoice_currency == 'CNY' %}selected{% endif %}>Chinese Yuan (CNY)</option>
+                <option value="GBP" {% if shipment.invoice_currency == 'GBP' %}selected{% endif %}>British Pound (GBP)</option>
+                <option value="SGD" {% if shipment.invoice_currency == 'SGD' %}selected{% endif %}>Singapore Dollar (SGD)</option>
+            </select>
+            
+        </div>
     </div>
 
     <!-- ── URGENCY LEVEL ────────────────────────────────────────────────────── -->
     <div style="margin-bottom:18px;">
         <label class="sub-label">URGENCY LEVEL <span class="sub-req">*</span></label>
+        <div style="background:#EFF6FF; border:1px solid #93C5FD; border-radius:8px;
+                    padding:10px 14px; margin-bottom:14px; display:flex; align-items:flex-start; gap:8px; width:70rem;">
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"
+                 style="color:#1D4ED8; flex-shrink:0; margin-top:1px;">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
+            </svg>
+            <p style="font-size:11px; color:#1D4ED8; margin:0; line-height:1.5;">
+                <strong>Business-day processing:</strong> RTripleJ operates on weekdays. Urgency windows count Monday to Friday only, so Friday or weekend submissions begin/continue counting on the next business day.
+            </p>
+        </div>
         <div class="urg-grid">
-
             <!-- Standard -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="urgency" value="standard" required style="display:none;" onchange="selUrg(this)">
-                <div class="urg-card" id="urg-standard">
+                <input type="radio" name="urgency" value="standard" required style="display:none;" onchange="selUrg(this)" {% if shipment.urgency == 'standard' or shipment.urgency == 'normal' %}checked{% endif %}>
+                <div class="urg-card {% if shipment.urgency == 'standard' or shipment.urgency == 'normal' %}s-std{% endif %}" id="urg-standard">
                     <div class="urg-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
@@ -65,8 +95,8 @@
 
             <!-- Priority -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="urgency" value="priority" style="display:none;" onchange="selUrg(this)">
-                <div class="urg-card" id="urg-priority">
+                <input type="radio" name="urgency" value="priority" style="display:none;" onchange="selUrg(this)" {% if shipment.urgency == 'priority' %}checked{% endif %}>
+                <div class="urg-card {% if shipment.urgency == 'priority' %}s-pri{% endif %}" id="urg-priority">
                     <div class="urg-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M5.5 12h13M13 6l6 6-6 6"/>
@@ -81,8 +111,8 @@
 
             <!-- Urgent -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="urgency" value="urgent" style="display:none;" onchange="selUrg(this)">
-                <div class="urg-card" id="urg-urgent">
+                <input type="radio" name="urgency" value="urgent" style="display:none;" onchange="selUrg(this)" {% if shipment.urgency == 'urgent' %}checked{% endif %}>
+                <div class="urg-card {% if shipment.urgency == 'urgent' %}s-urg{% endif %}" id="urg-urgent">
                     <div class="urg-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -96,8 +126,8 @@
 
             <!-- Rush -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="urgency" value="rush" style="display:none;" onchange="selUrg(this)">
-                <div class="urg-card" id="urg-rush">
+                <input type="radio" name="urgency" value="rush" style="display:none;" onchange="selUrg(this)" {% if shipment.urgency == 'rush' %}checked{% endif %}>
+                <div class="urg-card {% if shipment.urgency == 'rush' %}s-rush{% endif %}" id="urg-rush">
                     <div class="urg-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
@@ -110,11 +140,6 @@
                 </div>
             </label>
         </div>
-        <div style="margin-top:10px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:9px 12px;">
-            <p style="font-size:11px; color:#1D4ED8; margin:0; line-height:1.45;">
-                <strong>Business-day processing:</strong> RTripleJ operates on weekdays. Urgency windows count Monday to Friday only, so Friday or weekend submissions begin/continue counting on the next business day.
-            </p>
-        </div>
     </div>
 
     <!-- ── SHIPPING TYPE ────────────────────────────────────────────────────── -->
@@ -124,8 +149,8 @@
 
             <!-- Air Freight -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="shipment_type" value="air" required style="display:none;" onchange="selShip(this)">
-                <div class="ship-card" id="ship-air">
+                <input type="radio" name="shipment_type" value="air" required style="display:none;" onchange="selShip(this)" {% if shipment.shipment_type == 'air' %}checked{% endif %}>
+                <div class="ship-card {% if shipment.shipment_type == 'air' %}s-sel{% endif %}" id="ship-air">
                     <div class="ship-icon">
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
@@ -138,8 +163,8 @@
 
             <!-- LCL -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="shipment_type" value="lcl" style="display:none;" onchange="selShip(this)">
-                <div class="ship-card" id="ship-lcl">
+                <input type="radio" name="shipment_type" value="lcl" style="display:none;" onchange="selShip(this)" {% if shipment.shipment_type == 'lcl' %}checked{% endif %}>
+                <div class="ship-card {% if shipment.shipment_type == 'lcl' %}s-sel{% endif %}" id="ship-lcl">
                     <div class="ship-icon">
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
@@ -155,15 +180,15 @@
 
             <!-- FCL -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="shipment_type" value="fcl" style="display:none;" onchange="selShip(this)">
-                <div class="ship-card" id="ship-fcl">
+                <input type="radio" name="shipment_type" value="fcl" style="display:none;" onchange="selShip(this)" {% if shipment.shipment_type == 'fcl' %}checked{% endif %}>
+                <div class="ship-card {% if shipment.shipment_type == 'fcl' %}s-sel{% endif %}" id="ship-fcl">
                     <div class="ship-icon">
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="2" y="7" width="13" height="10" rx="1"/>
                             <path d="M15 9h4l3 4v4h-7V9z"/>
                             <circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/>
                             <path d="M6 9V5l5-2 5 2v2"/>
-                        </svg>
+</svg>
                     </div>
                     <p class="ship-name">FCL</p>
                     <p class="ship-sub">Full container load<br>3–4 days transit time</p>
@@ -179,35 +204,7 @@
         <label class="sub-label">DESCRIPTION OF GOODS <span class="sub-req">*</span></label>
         <textarea name="description" class="c-input" rows="3" required
                   style="resize:vertical; width:100%;"
-                  placeholder="Brief description of the shipment contents....."></textarea>
-    </div>
-
-    <!-- ── SHIPMENT VALUES ──────────────────────────────────────────────────── -->
-    <div style="margin-bottom:18px;">
-        <div style="display:flex; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-            <span class="sub-label" style="margin:0;">SHIPMENT VALUES</span>
-            <span style="font-size:11px; color:#9CA3AF;">(optional — helps your declarant process faster)</span>
-        </div>
-        <p style="font-size:11px; color:#6B7280; margin-bottom:12px; max-width:700px; line-height:1.5;">
-            Fill in if you have your commercial invoice and airway bill / bill of lading on hand.
-            These values are <strong style="color:#374151;">unverified</strong> — your declarant will confirm them against the documents.
-        </p>
-        <!-- Currency selector — affects declared invoice value only -->
-        <div class="currency-row" style="margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            <label style="font-size:12px; font-weight:700; color:#374151;">Invoice Currency:</label>
-            <select name="invoice_currency" id="invoice_currency" class="c-input"
-                    style="width:auto; min-width:200px; padding:7px 14px;"
-                    onchange="updateCurrencyLabels(this.value)">
-                <option value="USD">US Dollar (USD)</option>
-                <option value="EUR">Euro (EUR)</option>
-                <option value="JPY">Japanese Yen (JPY)</option>
-                <option value="HKD">Hong Kong Dollar (HKD)</option>
-                <option value="CNY">Chinese Yuan (CNY)</option>
-                <option value="GBP">British Pound (GBP)</option>
-                <option value="SGD">Singapore Dollar (SGD)</option>
-            </select>
-            <span style="font-size:11px; color:#9CA3AF;">Select the currency shown on your commercial invoice.</span>
-        </div>
+                  placeholder="Brief description of the shipment contents.....">{% if shipment.description %}{{ shipment.description }}{% endif %}</textarea>
     </div>
 
     <!-- ── REQUIRED DOCUMENTS ────────────────────────────────────────────────── -->
@@ -217,7 +214,7 @@
         <!-- Template instructions note — full width, above the upload grid -->
         {% if invoice_template_url or packing_list_template_url %}
         <div style="background:#EFF6FF; border:1px solid #93C5FD; border-radius:8px;
-                    padding:10px 14px; margin-bottom:14px; display:flex; align-items:flex-start; gap:8px;">
+                    padding:10px 14px; margin-bottom:14px; display:flex; align-items:flex-start; gap:8px; width:59rem">
             <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"
                  style="color:#1D4ED8; flex-shrink:0; margin-top:1px;">
                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
@@ -330,8 +327,8 @@
         </div>
 
         {% if invoice_template_url or packing_list_template_url %}
-        <p style="font-size:11px;color:#6B7280;margin-top:10px;line-height:1.5;">
-            <strong style="color:#374151;">Don't have your own invoice or packing list?</strong>
+        <p style="font-size:11px;color:#585e6a;margin-top:10px;line-height:1.5; margin-bottom:1rem;">
+            <strong style="color:#374151; font-weight:600">Don't have your own invoice or packing list?</strong>
             Download the template above, fill it in, and upload the completed file.
             If your supplier already provided official documents, upload those directly — no template needed.
         </p>
@@ -347,7 +344,7 @@
         <p style="font-size:11px; color:#9CA3AF; margin-bottom:10px;">
             e.g. Certificate of Origin, Import Permit, Authorization Letter
         </p>
-        <div class="supporting-upload-wrap" style="max-width:360px;">
+        <div style="max-width:360px;">
             <div class="upload-zone" id="zone-other"
                  onclick="trigFile('f-other')"
                  ondragover="dzOver(event,'zone-other')"
@@ -370,10 +367,10 @@
     </div>
 
     <!-- ── Submit Buttons ─────────────────────────────────────────────────────── -->
-    <div class="submit-actions" style="display:flex; gap:12px; padding-top:20px; border-top:1px solid #E5E7EB;">
+    <div style="display:flex; gap:12px; padding-top:20px; border-top:1px solid #E5E7EB;">
         <button type="submit" class="c-btn c-btn-primary"
-                style="padding:11px 28px; font-size:13px; font-weight:700; letter-spacing:0.4px;">
-            + SUBMIT SHIPMENT
+                style="padding:11px 22px; font-size:11px; font-weight:600; letter-spacing:0.4px;">
+            {% if is_edit %}SAVE CHANGES{% else %}+ SUBMIT SHIPMENT{% endif %}
         </button>
         <a href="{% url 'consignee:my_submissions' %}" class="c-btn c-btn-outline"
            style="padding:11px 28px; font-size:13px; font-weight:700; letter-spacing:0.4px;">

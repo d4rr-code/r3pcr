@@ -240,8 +240,8 @@ class ConsigneeMySubmissionsTests(TestCase):
         defaults.update(extra)
         return Shipment.objects.create(**defaults)
 
-    def test_flagged_shipments_render_before_paginated_active_list(self):
-        for index in range(8):
+    def test_flagged_shipments_render_after_paginated_active_list(self):
+        for index in range(12):
             self._shipment(index)
         for index in range(2):
             self._shipment(
@@ -253,14 +253,15 @@ class ConsigneeMySubmissionsTests(TestCase):
 
         response = self.client.get(reverse('consignee:my_submissions'))
 
-        self.assertEqual(len(response.context['shipments']), 6)
+        self.assertEqual(len(response.context['shipments']), 10)
         self.assertEqual(len(response.context['flagged_shipments']), 3)
         self.assertTrue(response.context['page_obj'].has_next())
         self.assertContains(response, 'Flag Shipments')
-        self.assertContains(response, 'Page 1 of 2')
+        self.assertContains(response, 'active_page=2')
+        self.assertContains(response, 'class="page-link current">1</span>')
 
         content = response.content.decode()
-        self.assertLess(content.index('section-kicker-flagged'), content.index('submissions-kicker'))
+        self.assertLess(content.index('submissions-kicker'), content.index('section-kicker-flagged'))
 
     def test_submit_success_message_does_not_render_literal_html(self):
         response = self.client.post(reverse('consignee:submit'), {

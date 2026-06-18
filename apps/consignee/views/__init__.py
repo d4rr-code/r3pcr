@@ -11,7 +11,7 @@ from .pages import (
     system_parameters, system_fees, system_wmcda, chart_data,
 )
 from .submissions import (
-    submit_shipment, my_submissions, shipment_detail, upload_receipt,
+    submit_shipment, edit_submission, my_submissions, shipment_detail, upload_receipt,
     submit_feedback, approve_computation, revise_computation,
     reject_computation, cancel_submission, resubmit_documents,
 )
