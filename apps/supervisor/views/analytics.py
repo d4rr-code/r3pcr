@@ -130,9 +130,10 @@ def _analytics_report_data(request):
                 f'{round(completed / assigned * 100, 1) if assigned else 0}%',
             ])
 
-    feedback_total = Feedback.objects.count()
-    feedback_avg = Feedback.objects.aggregate(avg=Avg('rating'))['avg']
-    feedback_positive = Feedback.objects.filter(rating__gte=4).count()
+    feedback_qs = Feedback.objects.filter(shipment_id__in=ids)
+    feedback_total = feedback_qs.count()
+    feedback_avg = feedback_qs.aggregate(avg=Avg('rating'))['avg']
+    feedback_positive = feedback_qs.filter(rating__gte=4).count()
 
     recent_rows = []
     for s in qs.order_by('-submitted_at')[:100]:
@@ -390,8 +391,9 @@ def _analytics_context_response(request):
     chart_total      = _f['chart_total']
     table_qs         = _f['table_qs']
 
-    #  KPI strip (always all-time)
-    total_all = all_shipments.count()
+    # KPI strip shipment counts respect the active analytics filters.
+    filtered_shipments = chart_qs
+    total_all = chart_total
     _kpi = _kpi_strip()
     total_computed_presented = _kpi['total_computed_presented']
     total_consignee_approved = _kpi['total_consignee_approved']
@@ -422,8 +424,8 @@ def _analytics_context_response(request):
 
     # ── Redesigned dashboard: new context variables ──────────────────────
 
-    # Shipment type KPI counts (all-time)
-    shipment_type_counts = _shipment_type_counts(all_shipments)
+    # Shipment type KPI counts respect the active analytics filters.
+    shipment_type_counts = _shipment_type_counts(filtered_shipments)
 
     # Urgency distribution (respects chart filters)
     _urg = _urgency_distribution(chart_qs)
@@ -471,17 +473,17 @@ def _analytics_context_response(request):
     cost_bar_data   = _cost['cost_bar_data']
     cost_bar_colors = _cost['cost_bar_colors']
 
-    # Feedback summary — all-time
-    feedback_summary = _feedback_summary()
+    # Feedback summary respects the active analytics filters.
+    feedback_summary = _feedback_summary(_chart_ids_qs)
 
     return render(request, 'supervisor/analytics.html', {
         # KPI strip
         'total_all':                  total_all,
-        'total_incoming':             all_shipments.filter(status='incoming').count(),
-        'total_arrived':              all_shipments.filter(status='arrived').count(),
-        'total_computed':             all_shipments.filter(status='computed').count(),
-        'total_approved':             all_shipments.filter(status='approved').count(),
-        'total_rejected':             all_shipments.filter(status='rejected').count(),
+        'total_incoming':             filtered_shipments.filter(status='incoming').count(),
+        'total_arrived':              filtered_shipments.filter(status='arrived').count(),
+        'total_computed':             filtered_shipments.filter(status='computed').count(),
+        'total_approved':             filtered_shipments.filter(status='approved').count(),
+        'total_rejected':             filtered_shipments.filter(status='rejected').count(),
         'total_users':                User.objects.filter(role__in=['consignee', 'declarant'], is_active=True, is_pending_approval=False).count(),
         'total_consignees':           User.objects.filter(role='consignee', is_active=True, is_pending_approval=False).count(),
         'total_declarants':           User.objects.filter(role='declarant', is_active=True, is_pending_approval=False).count(),
@@ -551,6 +553,15 @@ def _analytics_context_response(request):
 def analytics_status_counts(request):
     from django.http import JsonResponse
     qs = Shipment.objects.all()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+    declarant_filter = request.GET.get('declarant', '').strip()
+    if date_from:
+        qs = qs.filter(submitted_at__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(submitted_at__date__lte=date_to)
+    if declarant_filter:
+        qs = qs.filter(declarant__username=declarant_filter)
     total = qs.count()
     counts = {}
     max_count = 0
@@ -563,4 +574,3 @@ def analytics_status_counts(request):
 
 
 #  Supervisor Shipment Detail (read-only) 
-

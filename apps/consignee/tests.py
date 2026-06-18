@@ -267,11 +267,13 @@ class ConsigneeMySubmissionsTests(TestCase):
             'import_type': 'commercial',
             'urgency': 'standard',
             'shipment_type': 'lcl',
+            'estimated_arrival_date': '2026-06-30',
             'description': 'Computer accessories',
             'invoice_currency': 'USD',
         }, follow=True)
 
         shipment = Shipment.objects.get(consignee=self.consignee)
+        self.assertEqual(shipment.estimated_arrival_date.isoformat(), '2026-06-30')
         self.assertContains(
             response,
             f'Shipment submitted! Your Shipment Reference No. is {shipment.hawb_number}.',

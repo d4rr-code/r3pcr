@@ -112,6 +112,16 @@
                     <p class="eyebrow">Shipment Type</p>
                     <p class="info-value">{{ shipment.get_shipment_type_display|default:"-" }}</p>
                 </div>
+                <div>
+                    <p class="eyebrow">Estimated Arrival</p>
+                    <p class="info-value">
+                        {% if shipment.estimated_arrival_date %}
+                            {{ shipment.estimated_arrival_date|date:"M d, Y" }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </p>
+                </div>
             </div>
         </section>
 

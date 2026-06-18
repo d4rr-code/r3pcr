@@ -544,6 +544,10 @@ def update_status(request, shipment_id):
         messages.error(request, 'Invalid status selected.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
+    if new_status == 'lodgement' and shipment.status != 'approved':
+        messages.error(request, 'ECDT must be approved before proceeding to lodgement.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
     old_status = shipment.status
     shipment.status = new_status
 

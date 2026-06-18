@@ -85,15 +85,15 @@
             <!-- FORM -->
             <form method="POST">
                 {% csrf_token %}
-                <!-- USERNAME -->
+                <!-- USERNAME OR EMAIL -->
                 <div class="form-group">
-                    <label id="usernameLabel" data-en="USERNAME" data-fil="USERNAME"> USERNAME </label>
+                    <label id="usernameLabel" data-en="USERNAME OR EMAIL" data-fil="USERNAME O EMAIL"> USERNAME OR EMAIL </label>
                     <input
                     type="text"
                     name="username"
                     id="usernameInput"
-                    placeholder="Enter your username"
-                    data-en-ph="Enter your username" data-fil-ph="Ilagay ang iyong username"
+                    placeholder="Enter your username or email address"
+                    data-en-ph="Enter your username or email address" data-fil-ph="Ilagay ang iyong username o email address"
                     required>
                 </div>
 
@@ -127,7 +127,7 @@
             </form>
 
             <!-- HELP -->
-            <div class="help-text" id="helpText"> Need help with your <a href="{% url 'accounts:forgot_username' %}">username</a> or <a href="{% url 'accounts:forgot_password' %}">password</a>?</div><hr>
+            <div class="help-text" id="helpText"> Need help with your <a href="{% url 'accounts:forgot_username' %}">username</a>, email, or <a href="{% url 'accounts:forgot_password' %}">password</a>?</div><hr>
 
             <!-- REGISTER -->
             <div class="register-text" id="registerText"> Don’t have account yet?

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About — R3-PCR | RTripleJ Prime Cargo Relay</title>
+    <title>About - R3-PCR | RTripleJ Prime Cargo Relay</title>
     <link rel="icon" href="{% static 'images/rtriplej-favicon.png' %}" type="image/png">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -19,7 +19,7 @@
     .about-hero {
         position:relative;
         min-height:420px;
-        background:url("{% static 'images/main bg 1.png' %}") center/cover no-repeat;
+        background:url("{% static 'images/BG MAIN.png' %}") center/cover no-repeat;
         display:flex;
         align-items:center;
         justify-content:center;
@@ -36,6 +36,12 @@
         position:relative;
         z-index:2;
         max-width:760px;
+    }
+    .about-hero-logo {
+        width:154px;
+        height:auto;
+        margin:0 auto 22px;
+        filter:drop-shadow(0 14px 26px rgba(0,0,0,0.24));
     }
     .about-hero-content h1 {
         font-size:42px;
@@ -85,6 +91,75 @@
         color:#374151;
     }
     .about-redefining p strong { color:#1f3d66; }
+
+    .about-showcase {
+        background:#eef3f8;
+        padding:76px 24px;
+    }
+    .about-showcase-shell {
+        max-width:1120px;
+        margin:0 auto;
+    }
+    .about-showcase-heading {
+        display:flex;
+        justify-content:space-between;
+        gap:28px;
+        align-items:flex-end;
+        margin-bottom:30px;
+    }
+    .about-showcase-heading h2 {
+        font-size:32px;
+        font-weight:800;
+        color:#1f3d66;
+        line-height:1.2;
+    }
+    .about-showcase-heading p {
+        max-width:520px;
+        font-size:14px;
+        line-height:1.75;
+        color:#4b5563;
+    }
+    .about-showcase-grid {
+        display:grid;
+        grid-template-columns:1.25fr 1fr;
+        gap:22px;
+        align-items:stretch;
+    }
+    .about-showcase-card {
+        position:static;
+        background:#fff;
+        border:1px solid #dbe4ef;
+        border-radius:8px;
+        box-shadow:0 10px 24px rgba(15,23,42,0.08);
+        overflow:hidden;
+        cursor:default;
+    }
+    .about-showcase-card.large { grid-row:span 2; }
+    .about-showcase-card img {
+        display:block;
+        width:100%;
+        height:100%;
+        min-height:210px;
+        object-fit:cover;
+        object-position:top left;
+        border-radius:0;
+    }
+    .about-showcase-card.large img { min-height:464px; }
+    .about-showcase-caption {
+        padding:16px 18px 18px;
+        border-top:1px solid #edf2f7;
+    }
+    .about-showcase-caption h3 {
+        font-size:15px;
+        color:#1f3d66;
+        font-weight:800;
+        margin-bottom:5px;
+    }
+    .about-showcase-caption p {
+        font-size:12.5px;
+        color:#64748b;
+        line-height:1.55;
+    }
 
     /* ── FEATURES ─────────────────────────────────────────────────────────── */
     .about-features {
@@ -261,6 +336,15 @@
     /* ── RESPONSIVE ───────────────────────────────────────────────────────── */
     @media(max-width:900px) {
         .features-grid { grid-template-columns:repeat(2,1fr); }
+        .about-showcase-heading { display:block; }
+        .about-showcase-heading h2 { margin-bottom:14px; }
+        .about-showcase-grid { grid-template-columns:1fr; }
+        .about-showcase-card.large { grid-row:auto; }
+        .about-showcase-card.large img,
+        .about-showcase-card img {
+            min-height:0;
+            aspect-ratio:16/9;
+        }
         .about-mv { grid-template-columns:1fr; }
         .how-grid { grid-template-columns:1fr 1fr; }
         .how-grid .step-card:nth-child(4),
@@ -309,6 +393,7 @@
 <!-- ── HERO ────────────────────────────────────────────────────────────────── -->
 <section class="about-hero">
     <div class="about-hero-content">
+        <img class="about-hero-logo" src="{% static 'images/Thumbnail for R3-PCR.png' %}" alt="R3-PCR">
         <h1>About RtripleJ Prime Cargo Relay</h1>
         <blockquote>
             "Delivering reliable and efficient customs brokerage solutions through<br>
@@ -334,6 +419,45 @@
         and efficiency, R3-PCR empowers users to make informed decisions and ensures a smoother,
         more organized approach to shipment pre-clearance.
     </p>
+</section>
+
+<!-- ── PLATFORM SHOWCASE ───────────────────────────────────────────────────── -->
+<section class="about-showcase" aria-label="R3-PCR platform preview">
+    <div class="about-showcase-shell">
+        <div class="about-showcase-heading">
+            <h2>Built Around Actual Shipment Workflows</h2>
+            <p>
+                R3-PCR brings submissions, status monitoring, and processing records into one
+                interface so consignees and brokerage teams can work from the same shipment view.
+            </p>
+        </div>
+
+        <div class="about-showcase-grid">
+            <article class="about-showcase-card large">
+                <img src="{% static 'images/showcase_dashboard.png' %}" alt="R3-PCR consignee dashboard with shipment overview">
+                <div class="about-showcase-caption">
+                    <h3>Dashboard Visibility</h3>
+                    <p>Status cards, reminders, and shipment volume trends keep current work easy to scan.</p>
+                </div>
+            </article>
+
+            <article class="about-showcase-card">
+                <img src="{% static 'images/showcase_submissions.png' %}" alt="R3-PCR shipment submission form">
+                <div class="about-showcase-caption">
+                    <h3>Guided Submissions</h3>
+                    <p>Structured shipment forms help collect the details needed for customs pre-clearance.</p>
+                </div>
+            </article>
+
+            <article class="about-showcase-card">
+                <img src="{% static 'images/showcase_records.png' %}" alt="R3-PCR shipment records table">
+                <div class="about-showcase-caption">
+                    <h3>Trackable Records</h3>
+                    <p>Shipment lists and flagged items make follow-up work visible instead of scattered.</p>
+                </div>
+            </article>
+        </div>
+    </div>
 </section>
 
 <!-- ── KEY FEATURES ────────────────────────────────────────────────────────── -->
@@ -468,7 +592,7 @@
         <div class="step-card">
             <div class="step-number">4</div>
             <h3>Leave Feedback</h3>
-            <p>Once your shipment is Approved or Rejected, open the shipment detail, select a star rating (1–5), write a comment, and submit your feedback.</p>
+            <p>Once your shipment is Approved or Rejected, open the shipment detail, select a star rating (1-5), write a comment, and submit your feedback.</p>
         </div>
 
         <div class="step-card">
@@ -512,7 +636,7 @@
                 <a href="{% url 'about' %}">ABOUT</a>
                 <a href="https://rtriplejcb.com" target="_blank">RTRIPLEJ</a>
             </div>
-            <p>© 2026 R3-PCR — RTripleJ Customs Brokerage. All Rights Reserved.</p>
+            <p>&copy; 2026 R3-PCR - RTripleJ Customs Brokerage. All Rights Reserved.</p>
         </div>
 
         <div class="footer-contact">

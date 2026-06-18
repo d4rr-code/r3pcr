@@ -34,9 +34,11 @@ logger = logging.getLogger(__name__)
 
 from .common import *  # noqa: F401,F403
 
-def _feedback_summary():
-    """All-time consignee feedback aggregates for the analytics dashboard."""
-    fb_qs       = Feedback.objects.all()
+def _feedback_summary(shipment_ids=None):
+    """Consignee feedback aggregates for the analytics dashboard."""
+    fb_qs = Feedback.objects.all()
+    if shipment_ids is not None:
+        fb_qs = fb_qs.filter(shipment_id__in=shipment_ids)
     fb_total    = fb_qs.count()
     fb_avg      = fb_qs.aggregate(avg=Avg('rating'))['avg']
     fb_positive = fb_qs.filter(rating__gte=4).count()

@@ -115,6 +115,11 @@ def dashboard(request):
         'released': 'Released shipment',
         'billed': 'Fully processed',
     }
+    status_doc_filters = {'ongoing', 'assessed', 'paid', 'released', 'billed'}
+    latest_status_shipment_ids = {}
+    for shipment in my_shipments.order_by('-updated_at'):
+        if shipment.status in status_doc_filters and shipment.status not in latest_status_shipment_ids:
+            latest_status_shipment_ids[shipment.status] = shipment.id
     my_total_shipments = my_shipments.count()
     status_rows = []
     for key in status_order:
@@ -127,6 +132,8 @@ def dashboard(request):
             'count': count,
             'pct': round(count / my_total_shipments * 100, 1) if my_total_shipments else 0,
             'color': status_colors.get(key, '#64748B'),
+            'doc_filter_available': key in status_doc_filters and count > 0,
+            'sample_shipment_id': latest_status_shipment_ids.get(key),
         })
 
     type_meta = [

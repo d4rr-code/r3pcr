@@ -180,6 +180,12 @@
                 <p style="font-size:13px; color:#374151; margin:0;">{{ shipment.get_shipment_type_display }}</p>
             </div>
             {% endif %}
+            <div>
+                <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Estimated Arrival</p>
+                <p style="font-size:13px; color:#374151; margin:0;">
+                    {% if shipment.estimated_arrival_date %}{{ shipment.estimated_arrival_date|date:"M d, Y" }}{% else %}-{% endif %}
+                </p>
+            </div>
             {% if shipment.description %}
             <div style="grid-column:1/-1;">
                 <p style="font-size:10px; font-weight:600; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:3px;">Description</p>
