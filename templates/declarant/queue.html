@@ -96,6 +96,14 @@
                 <p id="pm-mode" style="color:#111827; font-size:13px; margin:0;">—</p>
             </div>
             <div>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Container Number</p>
+                <p id="pm-container" style="color:#111827; font-size:13px; margin:0;">-</p>
+            </div>
+            <div>
+                <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Job Number</p>
+                <p id="pm-job-order" style="color:#111827; font-size:13px; margin:0;">-</p>
+            </div>
+            <div>
                 <p style="color:#6B7280; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.05em;">Quantity</p>
                 <p id="pm-quantity" style="color:#111827; font-size:13px; margin:0;">—</p>
             </div>
@@ -197,7 +205,7 @@
                 <th style="padding:10px 16px; text-align:left; font-size:12px; width:24px;"></th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Shipment Ref. No.</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Consignee</th>
-                <th style="padding:10px 16px; text-align:left; font-size:12px;">Type</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Job Number</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Urgency</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Docs</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">ETA</th>
@@ -229,7 +237,7 @@
                     {{ s.consignee.get_full_name|default:s.consignee.username }}
                 </td>
                 <td style="padding:12px 16px; color:#374151; font-size:12px;">
-                    {{ s.import_type|capfirst|default:"—" }}
+                    {{ s.job_order_reference|default:"-" }}
                 </td>
                 <td style="padding:12px 16px; font-size:12px;">
                     {% if s.urgency == 'rush' %}
@@ -257,8 +265,16 @@
                     {% endwith %}
                 </td>
                 <td style="padding:12px 16px; color:#374151; font-size:12px;">
-                    {% if s.estimated_arrival_date %}
-                    {{ s.estimated_arrival_date|date:"M d, Y" }}
+                    {% if s.kpi_eta_start and s.kpi_eta_end %}
+                    {{ s.kpi_eta_start|date:"M d" }}-{{ s.kpi_eta_end|date:"M d, Y" }}
+                    <br><span style="color:#9CA3AF;font-size:11px;">KPI {{ s.kpi_target_label }}</span>
+                    <br><span style="display:inline-flex;margin-top:3px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:800;
+                              {% if s.kpi_timing_status == 'delayed' %}background:#FEE2E2;color:#B91C1C;
+                              {% elif s.kpi_timing_status == 'due_soon' %}background:#FEF3C7;color:#92400E;
+                              {% elif s.kpi_timing_status == 'on_track' %}background:#DCFCE7;color:#15803D;
+                              {% else %}background:#F1F5F9;color:#475569;{% endif %}">
+                        {{ s.kpi_timing_label }}
+                    </span>
                     {% else %}
                     <span style="color:#9CA3AF;">-</span>
                     {% endif %}
@@ -295,7 +311,7 @@
                             data-urgency="{{ s.urgency }}"
                             data-urgencylabel="{{ s.get_urgency_display }}"
                             data-due="{{ s.due_date|date:'M d, Y' }}"
-                            data-eta="{% if s.estimated_arrival_date %}{{ s.estimated_arrival_date|date:'M d, Y' }}{% else %}-{% endif %}"
+                            data-eta="{% if s.kpi_eta_start and s.kpi_eta_end %}{{ s.kpi_eta_start|date:'M d' }}-{{ s.kpi_eta_end|date:'M d, Y' }}{% if s.kpi_target_label %} - KPI {{ s.kpi_target_label }}{% endif %}{% else %}-{% endif %}"
                             data-duecolor="{{ s.due_color }}"
                             data-duelabel="{% if s.due_days_left < 0 %}Overdue {{ s.due_days_left|stringformat:'d'|cut:'-' }} business day{{ s.due_days_left|stringformat:'d'|cut:'-'|add:'0'|pluralize }}{% elif s.due_days_left == 0 %}Due today{% elif s.due_days_left == 1 %}1 business day left{% else %}{{ s.due_days_left }} business days left{% endif %}"
                             data-currency="{{ s.invoice_currency|default:'USD' }}"
@@ -382,7 +398,7 @@
                 <th style="padding:10px 16px; text-align:left; font-size:12px; width:24px;"></th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Shipment Ref. No.</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Consignee</th>
-                <th style="padding:10px 16px; text-align:left; font-size:12px;">Type</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Job Number</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Urgency</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Docs</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">ETA</th>
@@ -411,7 +427,7 @@
                     {{ s.consignee.get_full_name|default:s.consignee.username }}
                 </td>
                 <td style="padding:12px 16px; color:#374151; font-size:12px;">
-                    {{ s.import_type|capfirst|default:"—" }}
+                    {{ s.job_order_reference|default:"-" }}
                 </td>
                 <td style="padding:12px 16px; font-size:12px;">
                     {% if s.urgency == 'rush' %}
@@ -439,8 +455,16 @@
                     {% endwith %}
                 </td>
                 <td style="padding:12px 16px; color:#374151; font-size:12px;">
-                    {% if s.estimated_arrival_date %}
-                    {{ s.estimated_arrival_date|date:"M d, Y" }}
+                    {% if s.kpi_eta_start and s.kpi_eta_end %}
+                    {{ s.kpi_eta_start|date:"M d" }}-{{ s.kpi_eta_end|date:"M d, Y" }}
+                    <br><span style="color:#9CA3AF;font-size:11px;">KPI {{ s.kpi_target_label }}</span>
+                    <br><span style="display:inline-flex;margin-top:3px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:800;
+                              {% if s.kpi_timing_status == 'delayed' %}background:#FEE2E2;color:#B91C1C;
+                              {% elif s.kpi_timing_status == 'due_soon' %}background:#FEF3C7;color:#92400E;
+                              {% elif s.kpi_timing_status == 'on_track' %}background:#DCFCE7;color:#15803D;
+                              {% else %}background:#F1F5F9;color:#475569;{% endif %}">
+                        {{ s.kpi_timing_label }}
+                    </span>
                     {% else %}
                     <span style="color:#9CA3AF;">-</span>
                     {% endif %}
@@ -640,7 +664,7 @@
             <tr>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Shipment Ref. No.</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Consignee</th>
-                <th style="padding:10px 16px; text-align:left; font-size:12px;">Type</th>
+                <th style="padding:10px 16px; text-align:left; font-size:12px;">Job Number</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">ETA</th>
                 <th style="padding:10px 16px; text-align:center; font-size:12px;">Status</th>
                 <th style="padding:10px 16px; text-align:left; font-size:12px;">Last Updated</th>
@@ -659,11 +683,19 @@
                     {{ s.consignee.get_full_name|default:s.consignee.username }}
                 </td>
                 <td style="padding:12px 16px; color:#374151; font-size:12px;">
-                    {{ s.get_import_type_display|default:"—" }}
+                    {{ s.job_order_reference|default:"-" }}
                 </td>
                 <td style="padding:12px 16px; color:#374151; font-size:12px;">
-                    {% if s.estimated_arrival_date %}
-                    {{ s.estimated_arrival_date|date:"M d, Y" }}
+                    {% if s.kpi_eta_start and s.kpi_eta_end %}
+                    {{ s.kpi_eta_start|date:"M d" }}-{{ s.kpi_eta_end|date:"M d, Y" }}
+                    <br><span style="color:#9CA3AF;font-size:11px;">KPI {{ s.kpi_target_label }}</span>
+                    <br><span style="display:inline-flex;margin-top:3px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:800;
+                              {% if s.kpi_timing_status == 'delayed' %}background:#FEE2E2;color:#B91C1C;
+                              {% elif s.kpi_timing_status == 'due_soon' %}background:#FEF3C7;color:#92400E;
+                              {% elif s.kpi_timing_status == 'on_track' %}background:#DCFCE7;color:#15803D;
+                              {% else %}background:#F1F5F9;color:#475569;{% endif %}">
+                        {{ s.kpi_timing_label }}
+                    </span>
                     {% else %}
                     <span style="color:#9CA3AF;">-</span>
                     {% endif %}
@@ -811,6 +843,8 @@ function showPreview(btn) {
 
     // Reset AJAX fields
     document.getElementById('pm-mode').textContent      = '—';
+    document.getElementById('pm-container').textContent = '-';
+    document.getElementById('pm-job-order').textContent = '-';
     document.getElementById('pm-quantity').textContent  = '—';
     document.getElementById('pm-freight').textContent   = '—';
     document.getElementById('pm-insurance').textContent = '—';
@@ -834,6 +868,10 @@ function showPreview(btn) {
             currency = d.invoice_currency || currency;
             document.getElementById('pm-mode').textContent =
                 d.shipment_type || 'Not yet declared';
+            document.getElementById('pm-container').textContent =
+                d.container_number || '-';
+            document.getElementById('pm-job-order').textContent =
+                d.job_order_reference || '-';
             document.getElementById('pm-quantity').textContent =
                 d.quantity ? d.quantity + ' units' : '—';
             document.getElementById('pm-freight').textContent =

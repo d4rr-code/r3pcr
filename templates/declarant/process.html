@@ -132,6 +132,14 @@
 
 /* ── Doc Viewer ── */
 .doc-viewer-wrap { background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+.doc-filter-note {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 9px 12px; background: #fff; border-bottom: 1px solid #E5E7EB;
+    color: #475569; font-size: 12px;
+}
+.doc-filter-note strong { color: #1B3358; }
+.doc-filter-note a { color: #1d4ed8; font-weight: 700; text-decoration: none; }
+.doc-filter-note a:hover { text-decoration: underline; }
 .doc-tabs-row {
     display: flex; gap: 4px; padding: 10px 12px 0;
     background: #F8FAFC; border-bottom: 1px solid #E5E7EB; flex-wrap: wrap;
@@ -563,8 +571,27 @@
                 {% if shipment.shipment_type %}
                 &nbsp;·&nbsp; <span style="color:#1d4ed8;font-weight:600;">{{ shipment.get_shipment_type_display }}</span>
                 {% endif %}
-                {% if shipment.estimated_arrival_date %}
-                &nbsp;&middot;&nbsp; ETA {{ shipment.estimated_arrival_date|date:"M d, Y" }}
+                {% if shipment.container_number %}
+                &nbsp;&middot;&nbsp; Container {{ shipment.container_number }}
+                {% endif %}
+                {% if shipment.job_order_reference %}
+                &nbsp;&middot;&nbsp; Job Number {{ shipment.job_order_reference }}
+                {% endif %}
+                {% if shipment.kpi_eta_start and shipment.kpi_eta_end %}
+                &nbsp;&middot;&nbsp; ETA {{ shipment.kpi_eta_start|date:"M d" }}-{{ shipment.kpi_eta_end|date:"M d, Y" }}
+                {% endif %}
+                {% if shipment.kpi_target_label %}
+                &nbsp;&middot;&nbsp; KPI {{ shipment.kpi_target_label }}
+                {% endif %}
+                {% if shipment.kpi_eta_start and shipment.kpi_eta_end %}
+                &nbsp;&middot;&nbsp;
+                <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800;
+                             {% if shipment.kpi_timing_status == 'delayed' %}background:#FEE2E2;color:#B91C1C;
+                             {% elif shipment.kpi_timing_status == 'due_soon' %}background:#FEF3C7;color:#92400E;
+                             {% elif shipment.kpi_timing_status == 'on_track' %}background:#DCFCE7;color:#15803D;
+                             {% else %}background:#F1F5F9;color:#475569;{% endif %}">
+                    {{ shipment.kpi_timing_label }}
+                </span>
                 {% endif %}
             </p>
         </div>
@@ -589,6 +616,26 @@
             </a>
         </div>
     </div>
+
+    <form method="POST" action="{% url 'declarant:update_tracking_fields' shipment.id %}"
+          style="margin:12px 0 10px; padding:12px; border:1px solid #E5E7EB; border-radius:8px; background:#F8FAFC;">
+        {% csrf_token %}
+        <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
+            <div style="flex:1 1 260px;">
+                <label style="display:block; color:#64748B; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px;">Job Number</label>
+                <input type="text" name="job_order_reference" value="{{ shipment.job_order_reference|default:'' }}"
+                       maxlength="100" placeholder="e.g. SRJJJ2511001234"
+                       style="width:100%; border:1px solid #CBD5E1; border-radius:7px; padding:8px 10px; font-size:12px; color:#0F172A; text-transform:uppercase;">
+                <p style="color:#64748B; font-size:11px; line-height:1.4; margin:6px 0 0;">
+                    Use the official Job Number from the client's shipment monitoring / operations records.
+                </p>
+            </div>
+            <button type="submit"
+                    style="padding:9px 14px; border:none; border-radius:7px; background:#1B3358; color:#FFFFFF; font-size:12px; font-weight:700; cursor:pointer;">
+                Save Job Number
+            </button>
+        </div>
+    </form>
 
     <!-- Status alert banners (light-bg, dark text) -->
     {% if shipment.status == 'for_revision' %}
@@ -657,17 +704,25 @@
 
         <!-- 1. Document Viewer (tabbed) -->
         <div class="doc-viewer-wrap">
+            {% if document_filter_status %}
+            <div class="doc-filter-note">
+                <span>Showing files for <strong>{{ document_filter_label }}</strong></span>
+                <a href="{% url 'declarant:process' shipment.id %}">Show all</a>
+            </div>
+            {% endif %}
             <div class="doc-tabs-row" id="doc-tabs-row">
-                {% for doc in documents %}{% if doc.document_type != 'sad' %}
+                {% for doc in visible_documents %}
                 <button type="button" class="doc-tab-btn"
                         data-url="{{ doc.file.url }}"
                         data-label="{{ doc.get_document_type_display }}"
                         onclick="activateDocTab(this)">
                     {{ doc.get_document_type_display }}
                 </button>
-                {% endif %}{% endfor %}
-                {% if not documents %}
-                <span style="padding:10px 12px;color:#475569;font-size:12px;">No documents uploaded yet.</span>
+                {% endfor %}
+                {% if not visible_documents %}
+                <span style="padding:10px 12px;color:#475569;font-size:12px;">
+                    {% if document_filter_status %}No files for this status yet.{% else %}No documents uploaded yet.{% endif %}
+                </span>
                 {% endif %}
             </div>
             <div id="doc-viewer-area">
@@ -1121,6 +1176,25 @@
     {% if shipment.status == 'paid' or shipment.status == 'released' or shipment.status == 'billed' %}
     <div class="dark-card" style="margin-top:16px; margin-bottom:0;">
         <p class="dark-card-title">Release / Delivery Documents</p>
+        <form method="POST" action="{% url 'declarant:update_tracking_fields' shipment.id %}"
+              style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;margin:0 0 10px;">
+            {% csrf_token %}
+            <label style="display:block;color:#0b2d55;font-size:12px;font-weight:700;margin:0 0 4px;">Container Number</label>
+            <p style="color:#6b7280;font-size:11px;margin:0 0 8px;">
+                Optional release/delivery detail. Leave blank for air shipments or if the container number is not yet available.
+            </p>
+            <div style="display:flex;gap:8px;align-items:flex-end;">
+                <div style="flex:1;">
+                    <input type="text" name="container_number" value="{{ shipment.container_number|default:'' }}"
+                           maxlength="100" placeholder="e.g. TGHU1234567"
+                           class="form-input" style="font-size:12px;text-transform:uppercase;">
+                </div>
+                <button type="submit"
+                        style="padding:8px 14px;border:none;border-radius:7px;background:#1B3358;color:#fff;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">
+                    Save Container
+                </button>
+            </div>
+        </form>
         {% for doc in shipment.documents.all %}
         {% if doc.document_type == 'release_doc' %}
         <div class="support-doc-row">

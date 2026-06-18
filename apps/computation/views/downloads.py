@@ -97,6 +97,8 @@ def _download_excel_report(shipment, computation):
         ('Declarant', declarant),
         ('Date', computation.computed_at.strftime('%Y-%m-%d') if computation.computed_at else ''),
         ('Shipment Mode', computation.container_type or shipment.shipment_type or ''),
+        ('Container No.', shipment.container_number or ''),
+        ('Job Number', shipment.job_order_reference or ''),
         ('Import Type', shipment.get_import_type_display()),
         ('Invoice Currency', shipment.invoice_currency or 'USD'),
         ('Exchange Rate (to PHP)', _num(computation.exchange_rate)),
@@ -181,7 +183,8 @@ def _download_pdf_report(request, shipment, computation):
         ['HAWB / BOL', shipment.hawb_number, 'Consignee', consignee],
         ['Declarant', declarant, 'Date', computation.computed_at.strftime('%Y-%m-%d') if computation.computed_at else ''],
         ['Shipment Mode', computation.container_type or shipment.shipment_type or '', 'Import Currency', shipment.invoice_currency or 'USD'],
-        ['Exchange Rate (→PHP)', f'{_num(computation.exchange_rate):,.4f}', '', ''],
+        ['Container No.', shipment.container_number or '', 'Job Number', shipment.job_order_reference or ''],
+        ['Exchange Rate (to PHP)', f'{_num(computation.exchange_rate):,.4f}', '', ''],
     ]
     detail_table = Table(details, colWidths=[1.1 * inch, 2.0 * inch, 1.1 * inch, 2.3 * inch])
     detail_table.setStyle(TableStyle([
@@ -243,5 +246,3 @@ def download_computation(request, shipment_id):
     if request.GET.get('format') == 'pdf':
         return _download_pdf_report(request, shipment, computation)
     return _download_excel_report(shipment, computation)
-
-

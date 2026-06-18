@@ -38,6 +38,8 @@ def _info_block(shipment, computation, request):
         ('Declarant',       decl_name),
         ('Date Computed',   date_str),
         ('Shipment Mode',   mode_str),
+        ('Container No.',   shipment.container_number or '—'),
+        ('Job Number',     shipment.job_order_reference or '—'),
         ('Exchange Rate',   exrate),
     ]
 
@@ -636,4 +638,3 @@ def _ecdt_pdf(request, shipment, computation, advisory):
 
 
 # ─── Chart Data (AJAX) ───────────────────────────────────────────────────────
-

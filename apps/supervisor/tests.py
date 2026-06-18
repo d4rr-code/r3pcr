@@ -24,6 +24,47 @@ from apps.consignee.models import Feedback
 from apps.supervisor.models import SystemConfig
 
 
+class SupervisorShipmentTrackingDisplayTests(TestCase):
+    def setUp(self):
+        self.supervisor = User.objects.create_user(
+            username='sup_track', password='x', role='supervisor',
+            email='sup_track@test.local', is_pending_approval=False,
+        )
+        self.declarant = User.objects.create_user(
+            username='dec_track', password='x', role='declarant',
+            email='dec_track@test.local', is_pending_approval=False,
+        )
+        self.consignee = User.objects.create_user(
+            username='con_track', password='x', role='consignee',
+            email='con_track@test.local', is_pending_approval=False,
+        )
+        self.shipment = Shipment.objects.create(
+            hawb_number='R3PCR-TRACK-1',
+            consignee=self.consignee,
+            declarant=self.declarant,
+            status='paid',
+            shipment_type='lcl',
+            job_order_reference='SRJJJ2511001234',
+            container_number='TGHU1234567',
+        )
+        self.client.force_login(self.supervisor)
+
+    def test_shipment_records_table_prioritizes_job_number(self):
+        response = self.client.get(reverse('supervisor:shipment_records'))
+
+        self.assertContains(response, '<th>Job Number</th>', html=False)
+        self.assertNotContains(response, '<th>Import Type</th>', html=False)
+        self.assertContains(response, 'SRJJJ2511001234')
+        self.assertContains(response, 'TGHU1234567')
+
+    def test_supervisor_detail_shows_tracking_values_read_only(self):
+        response = self.client.get(reverse('supervisor:shipment_detail', args=[self.shipment.id]))
+
+        self.assertContains(response, 'Job Number')
+        self.assertContains(response, 'SRJJJ2511001234')
+        self.assertContains(response, 'TGHU1234567')
+
+
 class WmcdaAhpTests(TestCase):
     def test_ahp_weights_sum_to_100_and_return_consistency_ratio(self):
         result = calculate_ahp_weights({
@@ -187,6 +228,44 @@ class AnalyticsDashboardContextTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         # dec1 owns s1, s2, s5 -> 3
         self.assertEqual(resp.context['chart_total'], 3)
+
+    def test_date_filter_updates_dashboard_kpis_and_type_counts(self):
+        today = timezone.localdate()
+        old = timezone.now() - timedelta(days=7)
+        Shipment.objects.filter(pk__in=[self.s2.pk, self.s3.pk, self.s4.pk, self.s5.pk]).update(submitted_at=old)
+        Shipment.objects.filter(pk=self.s1.pk).update(submitted_at=timezone.now())
+
+        resp = self.client.get(self.url, {
+            'date_from': today.isoformat(),
+            'date_to': today.isoformat(),
+        })
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['total_all'], 1)
+        self.assertEqual(resp.context['chart_total'], 1)
+        self.assertEqual(resp.context['total_incoming'], 1)
+        self.assertEqual(resp.context['total_arrived'], 0)
+        self.assertEqual(resp.context['shipment_type_counts'], {'air': 1, 'lcl': 0, 'fcl': 0})
+        self.assertEqual(resp.context['feedback_summary']['total'], 1)
+        self.assertEqual(resp.context['feedback_summary']['avg_rating'], 5.0)
+
+    def test_live_status_counts_respect_date_and_declarant_filters(self):
+        today = timezone.localdate()
+        old = timezone.now() - timedelta(days=7)
+        Shipment.objects.filter(pk__in=[self.s2.pk, self.s3.pk, self.s4.pk, self.s5.pk]).update(submitted_at=old)
+        Shipment.objects.filter(pk=self.s1.pk).update(submitted_at=timezone.now())
+
+        resp = self.client.get(reverse('supervisor:analytics_status_counts'), {
+            'date_from': today.isoformat(),
+            'date_to': today.isoformat(),
+            'declarant': 'dec1',
+        })
+
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data['total'], 1)
+        self.assertEqual(data['counts']['incoming']['count'], 1)
+        self.assertEqual(data['counts']['arrived']['count'], 0)
 
     def test_wmcda_scoreboard_and_agreement(self):
         def _adv(shipment, recommended):

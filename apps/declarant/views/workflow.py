@@ -18,6 +18,15 @@ logger = logging.getLogger('r3pcr.declarant')
 
 from .common import *  # noqa: F401,F403
 
+STATUS_DOCUMENT_FILTERS = {
+    'ongoing': ('sad',),
+    'assessed': ('sad',),
+    'paid': ('payment_proof',),
+    'released': ('release_doc',),
+    'billed': ('billing_doc', 'receipt'),
+}
+
+
 @login_required
 @declarant_required
 def shipment_preview(request, shipment_id):
@@ -47,6 +56,8 @@ def shipment_preview(request, shipment_id):
         'consignee':       shipment.consignee.get_full_name() or shipment.consignee.username,
         'import_type':     shipment.get_import_type_display(),
         'shipment_type':   shipment.get_shipment_type_display() if shipment.shipment_type else None,
+        'container_number': shipment.container_number or '',
+        'job_order_reference': shipment.job_order_reference or '',
         'urgency':         shipment.urgency,
         'urgency_label':   shipment.get_urgency_display(),
         'description':     shipment.description or '',
@@ -403,6 +414,14 @@ def process_shipment(request, shipment_id):
         return redirect('declarant:queue')
 
     documents = shipment.documents.all()
+    document_filter_status = request.GET.get('doc_status', '').strip()
+    if document_filter_status not in STATUS_DOCUMENT_FILTERS:
+        document_filter_status = ''
+    document_filter_types = STATUS_DOCUMENT_FILTERS.get(document_filter_status)
+    if document_filter_types:
+        visible_documents = documents.filter(document_type__in=document_filter_types)
+    else:
+        visible_documents = documents.exclude(document_type='sad')
     # Check if any docs still need OCR (e.g. declarant navigated directly, skipping the queue flow)
     _pending_ocr = [
         doc for doc in documents
@@ -434,6 +453,9 @@ def process_shipment(request, shipment_id):
     context = {
         'shipment':            shipment,
         'documents':           documents,
+        'visible_documents':   visible_documents,
+        'document_filter_status': document_filter_status,
+        'document_filter_label': dict(Shipment.STATUS_CHOICES).get(document_filter_status, ''),
         'status_logs':         status_logs,
         'ocr_fields':          ocr_fields,
         'ocr_documents':       _ocr_display_documents(documents),
@@ -474,6 +496,41 @@ def update_shipping_mode(request, shipment_id):
         messages.success(request, f'Shipping mode refined to "{shipment.get_shipment_type_display()}".')
     else:
         messages.error(request, 'Please select LCL or FCL.')
+    return redirect('declarant:process', shipment_id=shipment_id)
+
+
+@login_required
+@declarant_required
+def update_tracking_fields(request, shipment_id):
+    if request.method != 'POST':
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    shipment = get_object_or_404(Shipment, id=shipment_id)
+
+    if shipment.declarant != request.user:
+        messages.error(request, 'You are not assigned to this shipment.')
+        return redirect('declarant:queue')
+
+    update_fields = ['updated_at']
+
+    if 'job_order_reference' in request.POST:
+        shipment.job_order_reference = request.POST.get('job_order_reference', '').strip() or None
+        update_fields.append('job_order_reference')
+
+    if 'container_number' in request.POST:
+        if shipment.status not in {'paid', 'released', 'billed'}:
+            messages.error(request, 'Container Number can be updated once the shipment reaches the release/delivery stage.')
+            return redirect('declarant:process', shipment_id=shipment_id)
+        shipment.container_number = request.POST.get('container_number', '').strip() or None
+        update_fields.append('container_number')
+
+    if len(update_fields) == 1:
+        messages.error(request, 'No tracking fields were submitted.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    shipment.save(update_fields=update_fields)
+
+    messages.success(request, 'Shipment tracking details updated.')
     return redirect('declarant:process', shipment_id=shipment_id)
 
 

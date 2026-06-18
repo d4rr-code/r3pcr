@@ -124,6 +124,8 @@
 .perf-side { grid-column:2; }
 .perf-status-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); border:1px solid #E6ECF2; border-radius:8px; overflow:hidden; }
 .perf-status { display:grid; grid-template-columns:28px minmax(0, 1fr) auto; gap:8px; align-items:center; min-height:60px; padding:11px 12px; border-right:1px solid #E6ECF2; border-bottom:1px solid #E6ECF2; }
+.perf-status-link { color:inherit; text-decoration:none; transition:background .15s ease; }
+.perf-status-link:hover { background:#F8FAFC; }
 .perf-status:nth-child(3n) { border-right:0; }
 .perf-status:nth-last-child(-n+3) { border-bottom:0; }
 .perf-status-dot { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:color-mix(in srgb, var(--c) 16%, white); }
@@ -344,7 +346,7 @@ a.compact-row:hover { background: #f1f5f9; }
                 <tr>
                     <th>HAWB Number</th>
                     <th>Consignee</th>
-                    <th>Import Type</th>
+                    <th>Job Number</th>
                     <th>Urgency</th>
                     <th>Due Date</th>
                     <th>Action</th>
@@ -355,7 +357,7 @@ a.compact-row:hover { background: #f1f5f9; }
                 <tr data-ts="{{ s.submitted_at|date:'U' }}" data-urgency="{{ s.urgency }}">
                     <td><strong>{{ s.hawb_number }}</strong></td>
                     <td>{{ s.consignee.get_full_name|default:s.consignee.username }}</td>
-                    <td>{{ s.get_import_type_display }}</td>
+                    <td>{{ s.job_order_reference|default:"-" }}</td>
                     <td>
                         {% if s.urgency == 'urgent' %}
                             <span class="badge badge-rejected">Urgent</span>
@@ -434,6 +436,16 @@ a.compact-row:hover { background: #f1f5f9; }
         </div>
         <div class="perf-status-grid">
             {% for row in status_rows %}
+            {% if row.doc_filter_available and row.sample_shipment_id %}
+            <a class="perf-status perf-status-link" style="--c:{{ row.color }};" href="{% url 'declarant:process' row.sample_shipment_id %}?doc_status={{ row.key }}">
+                <span class="perf-status-dot"></span>
+                <div>
+                    <p class="perf-status-name">{{ row.label }}</p>
+                    <p class="perf-status-sub">{{ row.subtitle }}</p>
+                </div>
+                <strong class="perf-status-count">{{ row.count|stringformat:"02d" }}</strong>
+            </a>
+            {% else %}
             <div class="perf-status" style="--c:{{ row.color }};">
                 <span class="perf-status-dot"></span>
                 <div>
@@ -442,6 +454,7 @@ a.compact-row:hover { background: #f1f5f9; }
                 </div>
                 <strong class="perf-status-count">{{ row.count|stringformat:"02d" }}</strong>
             </div>
+            {% endif %}
             {% endfor %}
         </div>
         <div class="perf-bar">
@@ -483,7 +496,7 @@ a.compact-row:hover { background: #f1f5f9; }
             <thead>
                 <tr>
                     <th>Shipment Reference No.</th>
-                    <th>Import Type</th>
+                    <th>Job Number</th>
                     <th>Urgency</th>
                     <th>Status</th>
                     <th>Shipment Type</th>
@@ -496,7 +509,7 @@ a.compact-row:hover { background: #f1f5f9; }
                 {% for s in my_records %}
                 <tr>
                     <td class="perf-ref">{{ s.hawb_number }}</td>
-                    <td>{{ s.get_import_type_display }}</td>
+                    <td>{{ s.job_order_reference|default:"-" }}</td>
                     <td><a class="perf-pill urgency-{{ s.urgency|default:'standard' }}" href="{% url 'declarant:queue' %}?urgency={{ s.urgency|default:'standard' }}">{{ s.get_urgency_display }}</a></td>
                     <td>
                         <span class="perf-status-text">{{ s.get_status_display|default:"-" }}</span>

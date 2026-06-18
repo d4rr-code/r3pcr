@@ -268,14 +268,49 @@ class ConsigneeMySubmissionsTests(TestCase):
             'urgency': 'standard',
             'shipment_type': 'lcl',
             'estimated_arrival_date': '2026-06-30',
+            'container_number': 'TGHU1234567',
+            'job_order_reference': 'JO-2026-000123',
             'description': 'Computer accessories',
             'invoice_currency': 'USD',
         }, follow=True)
 
         shipment = Shipment.objects.get(consignee=self.consignee)
         self.assertEqual(shipment.estimated_arrival_date.isoformat(), '2026-06-30')
+        self.assertIsNone(shipment.container_number)
+        self.assertIsNone(shipment.job_order_reference)
         self.assertContains(
             response,
             f'Shipment submitted! Your Shipment Reference No. is {shipment.hawb_number}.',
         )
         self.assertNotContains(response, '&lt;strong&gt;')
+
+    def test_submit_form_does_not_collect_declarant_tracking_fields(self):
+        response = self.client.get(reverse('consignee:submit'))
+
+        self.assertNotContains(response, 'name="container_number"')
+        self.assertNotContains(response, 'name="job_order_reference"')
+
+    def test_my_submissions_table_prioritizes_job_number(self):
+        shipment = self._shipment(400)
+        shipment.job_order_reference = 'SRJJJ2511001234'
+        shipment.container_number = 'TGHU1234567'
+        shipment.save(update_fields=['job_order_reference', 'container_number'])
+
+        response = self.client.get(reverse('consignee:my_submissions'))
+
+        self.assertContains(response, '<th>Job Number</th>', html=False)
+        self.assertNotContains(response, '<th>Import Type</th>', html=False)
+        self.assertContains(response, 'SRJJJ2511001234')
+        self.assertContains(response, 'TGHU1234567')
+
+    def test_consignee_detail_shows_tracking_values_read_only(self):
+        shipment = self._shipment(401)
+        shipment.job_order_reference = 'SRJJJ2511001234'
+        shipment.container_number = 'TGHU1234567'
+        shipment.save(update_fields=['job_order_reference', 'container_number'])
+
+        response = self.client.get(reverse('consignee:shipment_detail', args=[shipment.id]))
+
+        self.assertContains(response, 'Job Number')
+        self.assertContains(response, 'SRJJJ2511001234')
+        self.assertContains(response, 'TGHU1234567')

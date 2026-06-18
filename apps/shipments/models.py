@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.db import models
+from django.utils import timezone
 from apps.accounts.models import User
 
 class Shipment(models.Model):
@@ -32,6 +35,12 @@ class Shipment(models.Model):
         ('lcl',  'LCL - Less Container Load'),
         ('fcl',  'FCL - Full Container Load'),
     ]
+    KPI_TARGET_DAYS = {
+        'air': (2, 3),
+        'lcl': (4, 5),
+        'fcl': (3, 4),
+    }
+    KPI_COMPLETE_STATUSES = {'released', 'billed'}
 
     URGENCY_CHOICES = [
         ('standard', 'Standard'),
@@ -104,6 +113,8 @@ class Shipment(models.Model):
         blank=True, null=True
     )
     estimated_arrival_date = models.DateField(blank=True, null=True)
+    container_number = models.CharField(max_length=100, blank=True, null=True)
+    job_order_reference = models.CharField(max_length=100, blank=True, null=True)
     
     CURRENCY_CHOICES = [
         ('USD', 'US Dollar (USD)'),
@@ -166,6 +177,93 @@ class Shipment(models.Model):
 
     def __str__(self):
         return f"{self.hawb_number} - {self.consignee.username}"
+
+    @property
+    def kpi_target_days(self):
+        return self.KPI_TARGET_DAYS.get(self.shipment_type or '')
+
+    @property
+    def kpi_target_label(self):
+        target = self.kpi_target_days
+        if not target:
+            return ''
+        return f'{target[0]}-{target[1]} days'
+
+    @property
+    def kpi_base_date(self):
+        if self.estimated_arrival_date:
+            return self.estimated_arrival_date
+        if self.submitted_at:
+            return timezone.localtime(self.submitted_at).date()
+        return None
+
+    @property
+    def kpi_base_label(self):
+        return 'Estimated arrival' if self.estimated_arrival_date else 'Submission date'
+
+    @property
+    def kpi_eta_start(self):
+        base_date = self.kpi_base_date
+        target = self.kpi_target_days
+        if not base_date or not target:
+            return None
+        return base_date + timedelta(days=target[0])
+
+    @property
+    def kpi_eta_end(self):
+        base_date = self.kpi_base_date
+        target = self.kpi_target_days
+        if not base_date or not target:
+            return None
+        return base_date + timedelta(days=target[1])
+
+    @property
+    def kpi_days_remaining(self):
+        eta_end = self.kpi_eta_end
+        if not eta_end:
+            return None
+        return (eta_end - timezone.localdate()).days
+
+    @property
+    def kpi_timing_status(self):
+        if not self.kpi_eta_end:
+            return 'unknown'
+        if self.status in self.KPI_COMPLETE_STATUSES:
+            return 'complete'
+        days_remaining = self.kpi_days_remaining
+        if days_remaining is not None and days_remaining < 0:
+            return 'delayed'
+        if self.kpi_eta_start and timezone.localdate() >= self.kpi_eta_start:
+            return 'due_soon'
+        return 'on_track'
+
+    @property
+    def kpi_timing_label(self):
+        return {
+            'unknown': 'No KPI ETA',
+            'complete': 'Complete',
+            'delayed': 'Delayed',
+            'due_soon': 'Due Soon',
+            'on_track': 'On Track',
+        }.get(self.kpi_timing_status, 'No KPI ETA')
+
+    @property
+    def kpi_timing_help(self):
+        status = self.kpi_timing_status
+        days_remaining = self.kpi_days_remaining
+        if status == 'delayed' and days_remaining is not None:
+            overdue_days = abs(days_remaining)
+            return f'{overdue_days} day{"s" if overdue_days != 1 else ""} past KPI target'
+        if status == 'due_soon':
+            if days_remaining == 0:
+                return 'KPI target ends today'
+            return f'{days_remaining} day{"s" if days_remaining != 1 else ""} left in KPI window'
+        if status == 'on_track' and self.kpi_eta_start:
+            days_to_window = (self.kpi_eta_start - timezone.localdate()).days
+            return f'{days_to_window} day{"s" if days_to_window != 1 else ""} before KPI window'
+        if status == 'complete':
+            return 'Shipment has reached released or billed status'
+        return ''
 
 
 class ShipmentDocument(models.Model):
