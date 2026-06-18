@@ -1207,7 +1207,7 @@ canvas { cursor: pointer; }
 
 // ─── Live status polling (every 60 s) ────────────────────────────────────────
 (function () {
-    var POLL_URL  = '{% url "supervisor:analytics_status_counts" %}';
+    var POLL_URL  = '{% url "supervisor:analytics_status_counts" %}' + window.location.search;
     var INTERVAL  = 60000; // 60 seconds
 
     function pad2(n) { return String(n).padStart(2, '0'); }

@@ -20,66 +20,70 @@
             overflow-x: hidden;
         }
         .s-sidebar {
-            width: 64px;
+            width: 83px;
             min-height: 100vh;
             background: #fff;
             box-shadow: 2px 0 12px rgba(0,0,0,0.07);
+            border-radius: 0 18px 18px 0;
             display: flex;
             flex-direction: column;
             position: fixed;
-            left: 0; top: 0; bottom: 0;
+            left: 0; top: 0; bottom: 14px;
             z-index: 200;
-            overflow: hidden;
+            overflow: visible;
             transition: width 0.25s cubic-bezier(0.4,0,0.2,1);
         }
-        .s-sidebar.expanded { width: 220px; }
+        .s-sidebar.expanded { width: 234px; }
         .s-sidebar-logo {
-            padding: 16px 0;
-            border-bottom: 1px solid #F0F2F5;
+            padding: 30px 0 16px;
+            border-bottom: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 72px;
+            min-height: 112px;
             overflow: hidden;
             position: relative;
         }
-        .s-sidebar.expanded .s-sidebar-logo { justify-content: flex-start; padding: 16px 18px; }
+        .s-sidebar.expanded .s-sidebar-logo { justify-content: center; padding: 34px 24px 22px; }
         .s-sidebar-logo-mini {
-            width: 34px; height: 34px;
-            border-radius: 8px;
-            background: #EEF2F8;
+            width: 36px; height: 36px;
+            border-radius: 0;
+            background: transparent;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
             position: absolute;
             transition: opacity 0.15s;
         }
+        .s-sidebar-logo-mini img { width: 36px; height: 36px; object-fit: contain; }
         .s-sidebar.expanded .s-sidebar-logo-mini { opacity: 0; pointer-events: none; }
-        .s-sidebar-logo img {
-            height: 42px;
-            max-width: 178px;
-            width: auto;
+        .s-sidebar-logo > img {
+            height: auto;
+            max-width: 150px;
+            width: 150px;
             object-fit: contain;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.2s ease 0.08s;
             flex-shrink: 0;
         }
-        .s-sidebar.expanded .s-sidebar-logo img { opacity: 1; pointer-events: auto; }
+        .s-sidebar.expanded .s-sidebar-logo > img { opacity: 1; pointer-events: auto; }
         .s-sidebar-nav {
             flex: 1;
-            padding: 12px 8px;
+            padding: 20px 17px 8px;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 14px;
             overflow: hidden;
         }
+        .s-sidebar.expanded .s-sidebar-nav { gap: 10px; padding: 20px 26px 8px; }
         .s-nav-item {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 10px 0;
-            border-radius: 8px;
-            color: #111827;
+            width: 48px;
+            padding: 0;
+            border-radius: 6px;
+            color: #858585;
             text-decoration: none;
             font-size: 13px;
             font-weight: 500;
@@ -88,11 +92,12 @@
             overflow: hidden;
             justify-content: center;
             position: relative;
-            min-height: 38px;
+            min-height: 32px;
         }
-        .s-nav-item:hover { background: #F3F4F6; color: #111827; }
-        .s-nav-item.active { background: #1B3358; color: #fff; font-weight: 600; }
-        .s-sidebar.expanded .s-nav-item { justify-content: flex-start; padding: 9px 12px; }
+        .s-nav-item:hover { background: #F4F6F9; color: #1B3358; font-weight: 600; }
+        .s-nav-item.active { background: #1B3358; color: #fff; font-weight: 600; box-shadow: 0 3px 8px rgba(27, 51, 88, 0.22); }
+        .s-sidebar:not(.expanded) .s-nav-item.active { background: transparent; color: #1B3358; box-shadow: none; }
+        .s-sidebar.expanded .s-nav-item { justify-content: flex-start; width: 100%; min-height: 32px; padding: 0 14px; border-radius: 4px; }
         .s-nav-label {
             opacity: 0;
             max-width: 0;
@@ -102,6 +107,24 @@
         }
         .s-sidebar.expanded .s-nav-label { opacity: 1; max-width: 160px; }
         .s-nav-icon { width: 18px; height: 18px; flex-shrink: 0; display: block; }
+        .s-nav-icon-img {
+            object-fit: contain;
+            filter: brightness(0) saturate(100%) invert(53%) sepia(0%) saturate(0%) hue-rotate(154deg) brightness(93%) contrast(88%);
+            -webkit-filter: brightness(0) saturate(100%) invert(53%) sepia(0%) saturate(0%) hue-rotate(154deg) brightness(93%) contrast(88%);
+        }
+        .s-nav-item:hover .s-nav-icon-img,
+        .s-sidebar:not(.expanded) .s-nav-item.active .s-nav-icon-img {
+            filter: brightness(0) saturate(100%) invert(19%) sepia(22%) saturate(1577%) hue-rotate(178deg) brightness(91%) contrast(91%);
+            -webkit-filter: brightness(0) saturate(100%) invert(19%) sepia(22%) saturate(1577%) hue-rotate(178deg) brightness(91%) contrast(91%);
+        }
+        .s-nav-item.active .s-nav-icon-img {
+            filter: brightness(0) invert(1);
+            -webkit-filter: brightness(0) invert(1);
+        }
+        .s-sidebar:not(.expanded) .s-nav-item.active .s-nav-icon-img {
+            filter: brightness(0) saturate(100%) invert(19%) sepia(22%) saturate(1577%) hue-rotate(178deg) brightness(91%) contrast(91%);
+            -webkit-filter: brightness(0) saturate(100%) invert(19%) sepia(22%) saturate(1577%) hue-rotate(178deg) brightness(91%) contrast(91%);
+        }
         .s-nav-badge {
             min-width: 16px;
             height: 16px;
@@ -169,12 +192,13 @@
         }
 
         .s-sidebar-bottom {
-            padding: 8px;
-            border-top: 1px solid #F0F2F5;
+            padding: 8px 17px 28px;
+            border-top: 0;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 12px;
         }
+        .s-sidebar.expanded .s-sidebar-bottom { gap: 8px; padding: 8px 26px 28px; }
         .s-sidebar-user {
             padding: 0 14px;
             border-top: 1px solid #F0F2F5;
@@ -184,33 +208,39 @@
             transition: max-height 0.25s, opacity 0.2s, padding 0.25s;
         }
         .s-sidebar.expanded .s-sidebar-user {
-            max-height: 80px;
+            max-height: 92px;
             opacity: 1;
-            padding: 12px 16px 16px;
+            padding: 22px 38px 30px;
         }
-        .s-sidebar-user p { color: #1B3358; font-size: 13px; font-weight: 700; margin: 0 0 2px; white-space: nowrap; }
-        .s-sidebar-user span { color: #111827; font-size: 11px; white-space: nowrap; }
+        .s-sidebar-user p { color: #111111; font-size: 15px; font-weight: 600; margin: 0 0 2px; white-space: nowrap; }
+        .s-sidebar-user span { color: #111111; font-size: 11px; white-space: nowrap; }
         .sidebar-toggle {
             position: absolute;
             top: 50%;
-            right: -14px;
+            right: -22px;
             transform: translateY(-50%);
-            width: 28px; height: 28px;
-            border-radius: 50%;
+            width: 30px; height: 48px;
+            border-radius: 8px;
             background: #fff;
-            border: 1.5px solid #E2E8F0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+            border: 0;
+            box-shadow: none;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer;
-            color: #1B3358;
-            z-index: 201;
+            color: #0F2A52;
+            z-index: 1000;
             padding: 0;
         }
-        .sidebar-toggle:hover { background: #F0F2F5; }
-        .sidebar-toggle svg { transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); }
-        .s-sidebar.expanded .sidebar-toggle svg { transform: rotate(180deg); }
+        .sidebar-toggle:hover { background: #FFFFFF; color: #1B3358; }
+        .sidebar-toggle-icon {
+            display: block;
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1;
+            transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+        .s-sidebar.expanded .sidebar-toggle-icon { transform: rotate(180deg); }
         .s-main {
-            margin-left: 64px;
+            margin-left: 118px;
             flex: 1;
             min-height: 100vh;
             display: flex;
@@ -218,7 +248,7 @@
             transition: margin-left 0.25s cubic-bezier(0.4,0,0.2,1);
             min-width: 0;
         }
-        .s-main.sidebar-open { margin-left: 220px; }
+        .s-main.sidebar-open { margin-left: 250px; }
         .s-topbar {
             display: flex;
             justify-content: flex-end;
@@ -260,23 +290,25 @@
         .s-mobile-overlay.visible { display: block; }
 
         @media (max-width: 1024px) {
-            .s-main.sidebar-open { margin-left: 64px; }
-            .s-sidebar { width: 64px !important; }
-            .s-sidebar.expanded { width: 64px !important; }
-            .s-nav-label, .s-sidebar-user, .s-sidebar.expanded .s-sidebar-logo img { display: none !important; opacity: 0 !important; }
+            .s-main.sidebar-open { margin-left: 118px; }
+            .s-sidebar { width: 83px !important; }
+            .s-sidebar.expanded { width: 83px !important; }
+            .s-nav-label, .s-sidebar-user, .s-sidebar.expanded .s-sidebar-logo > img { display: none !important; opacity: 0 !important; }
         }
         @media (max-width: 768px) {
             .s-sidebar {
                 transform: translateX(-100%);
-                width: 220px !important;
+                width: 234px !important;
                 z-index: 200;
+                overflow: hidden;
                 transition: transform 0.25s ease;
             }
             .s-sidebar.mobile-open { transform: translateX(0); }
             .s-sidebar.mobile-open .s-nav-label,
             .s-sidebar.mobile-open .s-sidebar-user { display: flex !important; opacity: 1 !important; }
-            .s-sidebar.mobile-open .s-sidebar-logo img { opacity: 1 !important; pointer-events: auto !important; }
-            .s-sidebar.mobile-open .s-nav-item { justify-content: flex-start !important; padding: 9px 12px !important; }
+            .s-sidebar.mobile-open .s-sidebar-logo-mini { opacity: 0 !important; pointer-events: none !important; }
+            .s-sidebar.mobile-open .s-sidebar-logo > img { opacity: 1 !important; pointer-events: auto !important; }
+            .s-sidebar.mobile-open .s-nav-item { justify-content: flex-start !important; width: 100%; padding: 0 14px !important; }
             .s-main, .s-main.sidebar-open { margin-left: 0 !important; }
             .s-content { padding: 0 14px 24px; }
             .s-topbar { padding: 12px 14px 6px; }
@@ -396,24 +428,19 @@
 <aside class="s-sidebar" id="s-sidebar">
     <div class="s-sidebar-logo">
         <div class="s-sidebar-logo-mini">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B3358" stroke-width="2">
-                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-            </svg>
+            <img src="{% static 'images/R3PCR Logo.png' %}" alt="">
         </div>
         <img src="{% static 'images/Thumbnail for R3-PCR.png' %}" alt="RTripleJ Primecargo Relay">
     </div>
     <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSupervisorSidebar()" title="Toggle sidebar">
-        <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
-        </svg>
+        <span class="sidebar-toggle-icon">&rsaquo;</span>
     </button>
 
     <nav class="s-sidebar-nav">
 
         <!-- 1. Dashboard -->
         <a href="{% url 'supervisor:dashboard' %}" class="s-nav-item {% block nav_dashboard %}{% endblock %}">
-            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
+            <img class="s-nav-icon s-nav-icon-img" src="{% static 'consignee/img/sidebar/dashboard.png' %}" alt="">
             <span class="s-nav-label">Dashboard</span>
         </a>
 
@@ -454,7 +481,7 @@
 
         <!-- 5. Notifications -->
         <a href="{% url 'notifications:list' %}" class="s-nav-item {% block nav_notifications %}{% endblock %}">
-            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.94 32.94 0 003.256.508 3.5 3.5 0 006.972 0 32.933 32.933 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6z" clip-rule="evenodd"/></svg>
+            <img class="s-nav-icon s-nav-icon-img" src="{% static 'consignee/img/sidebar/notifications.png' %}" alt="">
             <span class="s-nav-label">Notifications</span>
             {% if unread_notification_count %}<span class="s-nav-badge">{{ unread_notification_count }}</span>{% endif %}
         </a>
@@ -472,7 +499,7 @@
         </a>
 
         <a href="{% url 'supervisor:issue_reports' %}" class="s-nav-item {% block nav_issue_reports %}{% endblock %}">
-            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM9.25 6.5a.75.75 0 011.5 0v4a.75.75 0 01-1.5 0v-4zm.75 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+            <img class="s-nav-icon s-nav-icon-img" src="{% static 'consignee/img/sidebar/report-issue.png' %}" alt="">
             <span class="s-nav-label">Issue Reports</span>
         </a>
 
@@ -486,11 +513,11 @@
 
     <div class="s-sidebar-bottom">
         <a href="{% url 'accounts:settings' %}" class="s-nav-item">
-            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z"/></svg>
+            <img class="s-nav-icon s-nav-icon-img" src="{% static 'consignee/img/sidebar/settings.png' %}" alt="">
             <span class="s-nav-label">Account Settings</span>
         </a>
         <a href="{% url 'accounts:logout' %}" class="s-nav-item">
-            <svg class="s-nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clip-rule="evenodd"/><path fill-rule="evenodd" d="M6 10a.75.75 0 01.75-.75h9.546l-1.048-.943a.75.75 0 111.004-1.114l2.5 2.25a.75.75 0 010 1.114l-2.5 2.25a.75.75 0 11-1.004-1.114l1.048-.943H6.75A.75.75 0 016 10z" clip-rule="evenodd"/></svg>
+            <img class="s-nav-icon s-nav-icon-img" src="{% static 'consignee/img/sidebar/logout.png' %}" alt="">
             <span class="s-nav-label">Logout</span>
         </a>
     </div>
@@ -503,7 +530,7 @@
 <!-- Floating menu for Clients & Staff when sidebar is collapsed -->
 <div id="clients-floating-menu" style="position:fixed; display:none; background:#fff;
      border:1px solid #E5E7EB; border-radius:10px;
-     box-shadow:0 4px 20px rgba(0,0,0,0.13); z-index:9999; min-width:170px; padding:6px; left:70px;">
+     box-shadow:0 4px 20px rgba(0,0,0,0.13); z-index:9999; min-width:170px; padding:6px; left:94px;">
     <a href="{% url 'supervisor:consignee_list' %}"
        style="display:flex; align-items:center; gap:9px; padding:9px 12px; border-radius:6px;
               color:#111827; text-decoration:none; font-size:13px; font-weight:500;

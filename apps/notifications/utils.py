@@ -98,15 +98,23 @@ def send_billed_email(shipment):
 def notify_incoming_shipment(shipment):
     declarants = User.objects.filter(role='declarant', is_active=True)
     for declarant in declarants:
+        title = f'New Incoming Shipment - {shipment.hawb_number}'
+        message = (
+            f'A new incoming shipment ({shipment.hawb_number}) is ready '
+            f'to claim and process.'
+        )
         create_notification(
             recipient=declarant,
             shipment=shipment,
             notification_type='submission',
-            title=f'New Incoming Shipment - {shipment.hawb_number}',
-            message=(
-                f'A new incoming shipment ({shipment.hawb_number}) is ready '
-                f'to claim and process.'
-            ),
+            title=title,
+            message=message,
+        )
+        send_transition_email(
+            recipient=declarant,
+            shipment=shipment,
+            subject=f'R3-PCR: {title}',
+            message=message,
         )
 
 
@@ -143,15 +151,22 @@ def _notify_declarant_revision(shipment, status_label, new_status, changed_by, n
             and shipment.declarant
             and getattr(changed_by, 'role', None) == 'consignee'):
         return
+    message = (
+        f'Shipment {shipment.hawb_number} was marked {status_label}. '
+        f'{notes or ""}'
+    ).strip()
     create_notification(
         recipient=shipment.declarant,
         shipment=shipment,
         notification_type=new_status,
         title=f'Shipment {status_label} - {shipment.hawb_number}',
-        message=(
-            f'Shipment {shipment.hawb_number} was marked {status_label}. '
-            f'{notes or ""}'
-        ).strip(),
+        message=message,
+    )
+    send_transition_email(
+        recipient=shipment.declarant,
+        shipment=shipment,
+        subject=f'R3-PCR: Shipment {status_label} - {shipment.hawb_number}',
+        message=message,
     )
 
 
@@ -168,10 +183,16 @@ def _notify_supervisors(shipment, new_status):
             title=title,
             message=message,
         )
+        send_transition_email(
+            recipient=supervisor,
+            shipment=shipment,
+            subject=f'R3-PCR: {title}',
+            message=message,
+        )
 
 
 def _maybe_send_status_email(shipment, status_label, base_message, new_status):
-    if new_status not in {'approved', 'rejected', 'computed'}:
+    if new_status not in CONSIGNEE_STATUSES:
         return
     subject = f'R3-PCR: Shipment {status_label} - {shipment.hawb_number}'
     if new_status == 'computed':

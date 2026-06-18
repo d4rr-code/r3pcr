@@ -115,6 +115,34 @@ class LoginTests(TestCase):
         self.assertRedirects(resp, '/consignee/dashboard/', fetch_redirect_response=False)
         self.assertIn('_auth_user_id', self.client.session)
 
+    def test_login_accepts_email_identifier(self):
+        self.user.otp_enabled = False
+        self.user.save()
+        resp = self.client.post(reverse('accounts:login'),
+                                {'username': 'cx@test.local', 'password': 'Secret123!'})
+        self.assertRedirects(resp, '/consignee/dashboard/', fetch_redirect_response=False)
+        self.assertIn('_auth_user_id', self.client.session)
+
+    def test_login_email_identifier_is_case_insensitive(self):
+        self.user.otp_enabled = False
+        self.user.save()
+        resp = self.client.post(reverse('accounts:login'),
+                                {'username': 'CX@Test.Local', 'password': 'Secret123!'})
+        self.assertRedirects(resp, '/consignee/dashboard/', fetch_redirect_response=False)
+        self.assertIn('_auth_user_id', self.client.session)
+
+    def test_login_duplicate_email_identifier_is_ambiguous(self):
+        self.user.otp_enabled = False
+        self.user.save()
+        User.objects.create_user(
+            username='other_cx', password='Secret123!', role='consignee',
+            email='cx@test.local', is_active=True,
+        )
+        resp = self.client.post(reverse('accounts:login'),
+                                {'username': 'cx@test.local', 'password': 'Secret123!'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
     def test_login_otp_enabled_goes_to_verify(self):
         resp = self.client.post(reverse('accounts:login'),
                                 {'username': 'consignee_x', 'password': 'Secret123!'})

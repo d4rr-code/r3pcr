@@ -14,12 +14,24 @@ LOGIN_FAIL_WINDOW = 15 * 60     # ...within this many seconds before a cooloff
 OTP_ATTEMPT_LIMIT = 5           # wrong OTP codes before the login is reset
 
 
+def _resolve_login_username(identifier):
+    """Return the auth username for a username-or-email login identifier."""
+    identifier = (identifier or '').strip()
+    if '@' not in identifier:
+        return identifier
+
+    matches = list(User.objects.filter(email__iexact=identifier).values_list('username', flat=True)[:2])
+    if len(matches) == 1:
+        return matches[0]
+    return identifier
+
+
 def login_view(request):
     if request.user.is_authenticated:
         return redirect_by_role(request.user)
 
     if request.method == 'POST':
-        username = request.POST.get('username')
+        username = (request.POST.get('username') or '').strip()
         password = request.POST.get('password')
 
         # ── Brute-force throttle (per account, with cooloff) ──
@@ -30,7 +42,8 @@ def login_view(request):
                 'Please wait about 15 minutes and try again.')
             return render(request, 'accounts/login.html')
 
-        user = authenticate(request, username=username, password=password)
+        auth_username = _resolve_login_username(username)
+        user = authenticate(request, username=auth_username, password=password)
 
         if user is not None:
             cache.delete(fail_key)               # reset on success

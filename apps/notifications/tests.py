@@ -7,6 +7,8 @@ the refactor stays behavior-preserving.
 
 Run:  python manage.py test apps.notifications --settings=config.settings_test
 """
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.urls import reverse
 
@@ -77,12 +79,32 @@ class StatusChangeNotificationTests(TestCase):
         n = Notification.objects.get(recipient=self.consignee)
         self.assertEqual(n.notification_type, 'computed')
 
+    @patch('apps.notifications.utils.send_transition_email')
+    def test_consignee_emailed_for_status_notification(self, send_email):
+        self.shipment.status = 'arrived'
+        self.shipment.save()
+        utils.notify_shipment_status_change(self.shipment, 'computed', 'arrived')
+        send_email.assert_called_once()
+        self.assertEqual(send_email.call_args.kwargs['recipient'], self.consignee)
+        self.assertIn('Shipment Arrived', send_email.call_args.kwargs['subject'])
+
     def test_declarant_notified_on_revision_by_consignee(self):
         self.shipment.status = 'for_revision'
         self.shipment.save()
         utils.notify_shipment_status_change(
             self.shipment, 'computed', 'for_revision', changed_by=self.consignee)
         self.assertIn('dec_n', self._recipients(notification_type='for_revision'))
+
+    @patch('apps.notifications.utils.send_transition_email')
+    def test_declarant_emailed_on_revision_by_consignee(self, send_email):
+        self.shipment.status = 'for_revision'
+        self.shipment.save()
+        utils.notify_shipment_status_change(
+            self.shipment, 'computed', 'for_revision', changed_by=self.consignee,
+            notes='Please upload a clearer invoice.')
+        recipients = [call.kwargs['recipient'] for call in send_email.call_args_list]
+        self.assertIn(self.consignee, recipients)
+        self.assertIn(self.declarant, recipients)
 
     def test_declarant_not_notified_when_change_not_by_consignee(self):
         self.shipment.status = 'for_revision'
@@ -98,6 +120,15 @@ class StatusChangeNotificationTests(TestCase):
         self.assertIn('sup_n', self._recipients(recipient=self.sup1,
                                                 notification_type='approved'))
 
+    @patch('apps.notifications.utils.send_transition_email')
+    def test_supervisors_emailed_on_approved(self, send_email):
+        self.shipment.status = 'approved'
+        self.shipment.save()
+        utils.notify_shipment_status_change(self.shipment, 'computed', 'approved')
+        recipients = [call.kwargs['recipient'] for call in send_email.call_args_list]
+        self.assertIn(self.consignee, recipients)
+        self.assertIn(self.sup1, recipients)
+
     def test_supervisors_notified_on_billed(self):
         self.shipment.status = 'billed'
         self.shipment.save()
@@ -108,6 +139,13 @@ class StatusChangeNotificationTests(TestCase):
     def test_incoming_notifies_active_declarants(self):
         utils.notify_incoming_shipment(self.shipment)
         self.assertIn('dec_n', self._recipients(notification_type='submission'))
+
+    @patch('apps.notifications.utils.send_transition_email')
+    def test_incoming_emails_active_declarants(self, send_email):
+        utils.notify_incoming_shipment(self.shipment)
+        send_email.assert_called_once()
+        self.assertEqual(send_email.call_args.kwargs['recipient'], self.declarant)
+        self.assertIn('New Incoming Shipment', send_email.call_args.kwargs['subject'])
 
 
 class NotificationViewTests(TestCase):
