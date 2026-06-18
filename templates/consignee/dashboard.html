@@ -9,33 +9,25 @@
 
 {% block content %}
 
-<!-- -- Welcome + Month Picker ----------------------------------------------- -->
-<div class="dashboard-welcome" style="margin-bottom:16px;">
+<!-- -- Welcome ----------------------------------------------- -->
+<div style="margin-bottom:16px;">
     <h1 style="font-size:22px; font-weight:700; color:#1B3358; margin-bottom:10px;">
         Welcome Back {{ user.first_name|default:user.username }}!
     </h1>
-    <div class="c-month-pill" id="mpbtn-main" data-month-picker-trigger style="display:inline-flex;">
-        <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
-            <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/>
-        </svg>
-        <span class="mp-label">May 2026</span>
-    </div>
 </div>
 
 <!-- -- Status Grid + Total ------------------------------------------------- -->
-<div class="dash-summary-row" style="display:flex; gap:10px; align-items:stretch; min-width:0; overflow:hidden;">
+<div style="display:flex; gap:10px; align-items:stretch; min-width:0; overflow:hidden;">
     <div class="dash-status-grid" style="flex:1; min-width:0;">
 
         <!-- ARRIVED -->
-        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=arrived">
+        <a class="status-card status-arrived" href="{% url 'consignee:my_submissions' %}?status=arrived">
             <div class="sc-left">
-                <div class="sc-icon" style="background:#FEF3C7;">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#F59E0B">
-                        <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z"/>
-                    </svg>
+                <div class="sc-icon">
+                    <img src="{% static 'consignee/img/dashboard/arrived.png' %}" alt="Arrived icon">
                 </div>
                 <div class="sc-text">
-                    <span class="sc-label" style="color:#F59E0B;">Arrived</span>
+                    <span class="sc-label">Arrived</span>
                     <span class="sc-sub">Awaits Revised Invoice</span>
                 </div>
             </div>
@@ -43,15 +35,13 @@
         </a>
 
         <!-- LODGEMENT -->
-        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=lodgement">
+        <a class="status-card status-lodgement" href="{% url 'consignee:my_submissions' %}?status=lodgement">
             <div class="sc-left">
-                <div class="sc-icon" style="background:#E0F2FE;">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#0EA5E9">
-                        <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/>
-                    </svg>
+                <div class="sc-icon">
+                    <img src="{% static 'consignee/img/dashboard/lodgement.png' %}" alt="Lodgement icon">
                 </div>
                 <div class="sc-text">
-                    <span class="sc-label" style="color:#0EA5E9;">Lodgement</span>
+                    <span class="sc-label">Lodgement</span>
                     <span class="sc-sub">Lined Up for Final Assessment</span>
                 </div>
             </div>
@@ -59,15 +49,13 @@
         </a>
 
         <!-- PAID -->
-        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=paid">
+        <a class="status-card status-paid" href="{% url 'consignee:my_submissions' %}?status=paid">
             <div class="sc-left">
-                <div class="sc-icon" style="background:#DCFCE7;">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#16A34A">
-                        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
-                    </svg>
+                <div class="sc-icon">
+                    <img src="{% static 'consignee/img/dashboard/paid.png' %}" alt="Paid icon">
                 </div>
                 <div class="sc-text">
-                    <span class="sc-label" style="color:#16A34A;">Paid</span>
+                    <span class="sc-label">Paid</span>
                     <span class="sc-sub">Awaits CDH Discharge &amp; Delivery Schedule</span>
                 </div>
             </div>
@@ -75,15 +63,13 @@
         </a>
 
         <!-- COMPUTED -->
-        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=computed">
+        <a class="status-card status-computed" href="{% url 'consignee:my_submissions' %}?status=computed">
             <div class="sc-left">
-                <div class="sc-icon" style="background:#EFF6FF;">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#3B82F6">
-                        <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm1 8a1 1 0 100 2h6a1 1 0 100-2H7zm1 3a1 1 0 011-1h4a1 1 0 110 2H9a1 1 0 01-1-1zM9 8a1 1 0 000 2h2a1 1 0 000-2H9z" clip-rule="evenodd"/>
-                    </svg>
+                <div class="sc-icon">
+                    <img src="{% static 'consignee/img/dashboard/computed.png' %}" alt="Computed icon">
                 </div>
                 <div class="sc-text">
-                    <span class="sc-label" style="color:#3B82F6;">Computed</span>
+                    <span class="sc-label">Computed</span>
                     <span class="sc-sub">Awaits CDT Approval</span>
                 </div>
             </div>
@@ -91,15 +77,13 @@
         </a>
 
         <!-- ONGOING -->
-        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=ongoing">
+        <a class="status-card status-ongoing" href="{% url 'consignee:my_submissions' %}?status=ongoing">
             <div class="sc-left">
-                <div class="sc-icon" style="background:#FFF7ED;">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#F97316">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd"/>
-                    </svg>
+                <div class="sc-icon">
+                    <img src="{% static 'consignee/img/dashboard/ongoing.png' %}" alt="Ongoing icon">
                 </div>
                 <div class="sc-text">
-                    <span class="sc-label" style="color:#F97316;">Ongoing</span>
+                    <span class="sc-label">Ongoing</span>
                     <span class="sc-sub">Lined Up for Final Assessment</span>
                 </div>
             </div>
@@ -107,15 +91,13 @@
         </a>
 
         <!-- RELEASED -->
-        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=released">
+        <a class="status-card status-released" href="{% url 'consignee:my_submissions' %}?status=released">
             <div class="sc-left">
-                <div class="sc-icon" style="background:#CCFBF1;">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#14B8A6">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM6.75 9.25a.75.75 0 000 1.5h4.59l-2.1 1.95a.75.75 0 001.02 1.1l3.5-3.25a.75.75 0 000-1.1l-3.5-3.25a.75.75 0 10-1.02 1.1l2.1 1.95H6.75z" clip-rule="evenodd"/>
-                    </svg>
+                <div class="sc-icon">
+                    <img src="{% static 'consignee/img/dashboard/released.png' %}" alt="Released icon">
                 </div>
                 <div class="sc-text">
-                    <span class="sc-label" style="color:#14B8A6;">Released</span>
+                    <span class="sc-label">Released</span>
                     <span class="sc-sub">Cargo Cleared from Customs</span>
                 </div>
             </div>
@@ -123,15 +105,13 @@
         </a>
 
         <!-- APPROVED -->
-        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=approved">
+        <a class="status-card status-approved" href="{% url 'consignee:my_submissions' %}?status=approved">
             <div class="sc-left">
-                <div class="sc-icon" style="background:#DCFCE7;">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#22C55E">
-                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
-                    </svg>
+                <div class="sc-icon">
+                    <img src="{% static 'consignee/img/dashboard/approved.png' %}" alt="Approved icon">
                 </div>
                 <div class="sc-text">
-                    <span class="sc-label" style="color:#22C55E;">Approved</span>
+                    <span class="sc-label">Approved</span>
                     <span class="sc-sub">Awaits Manifest Validation</span>
                 </div>
             </div>
@@ -139,16 +119,13 @@
         </a>
 
         <!-- ASSESSED -->
-        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=assessed">
+        <a class="status-card status-assessed" href="{% url 'consignee:my_submissions' %}?status=assessed">
             <div class="sc-left">
-                <div class="sc-icon" style="background:#EDE9FE;">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#8B5CF6">
-                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-                    </svg>
+                <div class="sc-icon">
+                    <img src="{% static 'consignee/img/dashboard/assessed.png' %}" alt="Assessed icon">
                 </div>
                 <div class="sc-text">
-                    <span class="sc-label" style="color:#8B5CF6;">Assessed</span>
+                    <span class="sc-label">Assessed</span>
                     <span class="sc-sub">Awaits Payment of D/T</span>
                 </div>
             </div>
@@ -156,15 +133,13 @@
         </a>
 
         <!-- BILLED -->
-        <a class="status-card" href="{% url 'consignee:my_submissions' %}?status=billed">
+        <a class="status-card status-billed" href="{% url 'consignee:my_submissions' %}?status=billed">
             <div class="sc-left">
-                <div class="sc-icon" style="background:#F1F5F9;">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="#64748B">
-                        <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-                    </svg>
+                <div class="sc-icon">
+                    <img src="{% static 'consignee/img/dashboard/billed.png' %}" alt="Billed icon">
                 </div>
                 <div class="sc-text">
-                    <span class="sc-label" style="color:#64748B;">Billed</span>
+                    <span class="sc-label">Billed</span>
                     <span class="sc-sub">Awaits Payment of Broker Fee</span>
                 </div>
             </div>
@@ -173,14 +148,32 @@
 
     </div><!-- /dash-status-grid -->
 
-    <!-- TOTAL Card -->
-    <a href="{% url 'consignee:my_submissions' %}" class="dash-total-link">
-        <div class="dash-total-card">
-            <p style="font-size:20px; font-weight:900; color:#1B3358; letter-spacing:-0.5px; margin-bottom:4px;">TOTAL</p>
-            <p style="font-size:10px; color:#9CA3AF; margin-bottom:16px;">Overall Submissions</p>
-            <p style="font-size:52px; font-weight:900; color:#1B3358; line-height:1;">{{ total|default:'0' }}</p>
-        </div>
-    </a>
+    <div class="dash-summary-stack">
+        <!-- TOTAL Card -->
+        <a href="{% url 'consignee:my_submissions' %}" class="dash-total-link">
+            <div class="dash-total-card">
+                <div class="overall-icon-wrap">
+                    <img src="{% static 'consignee/img/dashboard/overall.png' %}" alt="Overall icon">
+                </div>
+                <p class="total-title">TOTAL</p>
+                <p class="total-subtitle">Overall Submissions</p>
+                <p class="total-count">{{ total|default:'0' }}</p>
+            </div>
+        </a>
+
+        <!-- FLAGS Card -->
+        <a href="{% url 'consignee:my_submissions' %}" class="status-card dash-flags-card">
+            <div class="sc-left">
+                <div class="sc-icon flags-icon-wrap">
+                    <img src="{% static 'consignee/img/dashboard/flags.png' %}" alt="Flags icon">
+                </div>
+                <div class="sc-text">
+                    <span class="sc-label flags-label">FLAGS</span>
+                </div>
+            </div>
+            <span class="sc-count flags-count">{{ flags|default:'0' }}</span>
+        </a>
+    </div>
 </div>
 
 <!-- -- Chart Row ------------------------------------------------------------ -->
@@ -188,11 +181,16 @@
 
     <!-- Shipment Overview Line Chart -->
     <div class="c-card shipment-overview-card">
-        <div class="dashboard-card-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
             <p class="c-card-title" style="margin:0;">Shipment Overview</p>
-            <div class="dashboard-filter-group" style="display:flex; align-items:center; gap:6px;">
-                <span class="chart-filter-btn">Cumulative</span>
-                <span class="chart-filter-btn">Last 12 Months</span>
+            <div class="chart-range-group">
+                <span class="chart-range-summary" aria-label="Last 12 Months">Last 12 Months</span>
+                <span class="chart-range-summary" aria-label="Cumulative">Cumulative</span>
+                <button type="button" id="chart-start-trigger" class="chart-filter-btn">From: <span id="chart-start-label">May 2026</span></button>
+                <button type="button" id="chart-end-trigger" class="chart-filter-btn">To: <span id="chart-end-label">May 2026</span></button>
+                <button type="button" class="chart-filter-btn chart-group-btn active" data-group="day">by day</button>
+                <button type="button" class="chart-filter-btn chart-group-btn" data-group="week">by week</button>
+                <button type="button" class="chart-filter-btn chart-group-btn" data-group="month">by month</button>
             </div>
         </div>
         <div class="shipment-chart-wrap">
@@ -201,24 +199,46 @@
     </div>
 
     <!-- Reminder Panel -->
-    <div class="c-card">
+    <div class="c-card reminder-card">
         <p class="c-card-title" style="color:#1B3358; text-align:center; margin-bottom:16px;">Reminder</p>
-        <div id="reminder-list" style="max-height:210px; overflow-y:auto; padding-right:6px;">
+        <div id="reminder-list">
             {% for shipment in reminders %}
             <div class="reminder-item">
                 <p class="reminder-ref">{{ shipment.hawb_number }}</p>
                 {% if shipment.has_deficiency %}
-                    <p class="reminder-red">{{ shipment.deficiency_type|default:'Missing Document' }}</p>
-                    <p class="reminder-desc">{{ shipment.deficiency_notes|default:'Please upload the file to process your shipment.' }}</p>
-                {% elif shipment.status == 'computed' %}
-                    <p class="reminder-amber">Awaits Manifest Validation</p>
-                    <p class="reminder-desc">Kindly review the clearance and approved to proceed.</p>
-                {% elif shipment.status == 'arrived' %}
-                    <p class="reminder-amber">Shipment Arrived</p>
-                    <p class="reminder-desc">Your shipment has arrived and is awaiting processing.</p>
+                    <p class="reminder-status reminder-status-flags">{{ shipment.deficiency_type|default:'Missing Document' }}</p>
+                    <p class="reminder-desc">{{ shipment.deficiency_notes|default:'Action needed: Please upload the required file(s) so we can continue processing your shipment.' }}</p>
+                {% else %}
+                    <p class="reminder-status reminder-status-{{ shipment.status|default:'incoming' }}">{{ shipment.get_status_display }}</p>
+                    {% if shipment.status == 'incoming' %}
+                        <p class="reminder-desc">Your shipment has been submitted and is queued for initial review.</p>
+                    {% elif shipment.status == 'arrived' %}
+                        <p class="reminder-desc">Your shipment has arrived and is awaiting document review and processing.</p>
+                    {% elif shipment.status == 'computed' %}
+                        <p class="reminder-desc">Computation is ready. Please review and confirm to proceed to the next step.</p>
+                    {% elif shipment.status == 'approved' %}
+                        <p class="reminder-desc">Shipment has been approved and is pending manifest validation/lodgement processing.</p>
+                    {% elif shipment.status == 'rejected' %}
+                        <p class="reminder-desc">Shipment was rejected. Please review notes and coordinate for required corrections.</p>
+                    {% elif shipment.status == 'for_revision' %}
+                        <p class="reminder-desc">Shipment is marked for revision. Please update required details/documents for reprocessing.</p>
+                    {% elif shipment.status == 'lodgement' %}
+                        <p class="reminder-desc">Shipment is currently in lodgement and lined up for final customs assessment.</p>
+                    {% elif shipment.status == 'ongoing' %}
+                        <p class="reminder-desc">Shipment processing is ongoing. We will notify you once the next milestone is reached.</p>
+                    {% elif shipment.status == 'assessed' %}
+                        <p class="reminder-desc">Shipment has been assessed and is awaiting payment of duties and taxes.</p>
+                    {% elif shipment.status == 'paid' %}
+                        <p class="reminder-desc">Payment is confirmed. Shipment now awaits discharge and delivery scheduling.</p>
+                    {% elif shipment.status == 'released' %}
+                        <p class="reminder-desc">Shipment has been released by customs and is ready for delivery coordination.</p>
+                    {% elif shipment.status == 'billed' %}
+                        <p class="reminder-desc">Shipment is billed. Please settle remaining brokerage charges if applicable.</p>
+                    {% else %}
+                        <p class="reminder-desc">Please monitor this shipment for the latest status updates and required actions.</p>
+                    {% endif %}
                 {% endif %}
             </div>
-            {% empty %}
             <p style="color:#9CA3AF; font-size:12px; text-align:center; padding:20px 0;">No pending reminders.</p>
             {% endfor %}
         </div>
@@ -229,26 +249,26 @@
 <div class="dash-bottom-row">
 
     <!-- Shipping Type Overview -->
-    <div class="c-card shipping-type-card" style="padding:16px 18px;">
-        <div class="dashboard-card-header" style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+    <div class="c-card" style="padding:35px 48px;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
             <div>
-                <p style="font-size:13px; font-weight:700; color:#1B3358; margin:0 0 2px;">Shipping Type Overview</p>
+                <p style="font-size:16px; font-weight:700; color:#1B3358; margin:0 0 2px;">Shipping Type Overview</p>
                 <p style="font-size:10px; color:#9CA3AF;">Breakdown of shipments based on cargo structure and handling type</p>
             </div>
             <button id="mpbtn-shipping" class="chart-filter-btn" data-month-picker-trigger style="flex-shrink:0; margin-left:8px;">
                 <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
                     <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/>
                 </svg>
-                <span class="mp-label">May 2026</span>
+                <span class="mp-label">{{ selected_label|default:"May 2026" }}</span>
             </button>
         </div>
 
         <div style="display:flex; align-items:center; justify-content:space-between; margin:0 0 4px;">
             <p style="font-size:11px; font-weight:600; color:#374151;">Total Shipping</p>
-            <p style="font-size:13px; font-weight:700; color:#1B3358;">{{ total }}</p>
+            <p id="shipping-total-value" style="font-size:13px; font-weight:700; color:#1B3358;">{{ shipping_total }}</p>
         </div>
 
-        <div class="ship-type-bar">
+        <div id="shipping-type-bar" class="ship-type-bar">
             {% for item in mode_breakdown %}
                 <div class="ship-type-segment ship-type-{{ item.shipment_type|default:'other' }}"
                      data-count="{{ item.count }}"></div>
@@ -257,12 +277,12 @@
             {% endfor %}
         </div>
 
-        <div class="ship-type-grid">
+        <div id="shipping-type-grid" class="ship-type-grid">
             {% for item in mode_breakdown %}
-            <div class="ship-type-item">
+            <div class="ship-type-item" data-shipment-type="{{ item.shipment_type|default:'other' }}" data-label="{{ item.label }}">
                 <div class="ship-type-label">
                     <span class="ship-type-dot ship-type-{{ item.shipment_type|default:'other' }}"></span>
-                    {{ item.label }} ({% widthratio item.count total 100 %}%)
+                    <span class="ship-type-text">{{ item.label }} ({% widthratio item.count shipping_total|default:1 100 %}%)</span>
                 </div>
                 <p class="ship-type-count">{{ item.count }}</p>
             </div>
@@ -273,53 +293,52 @@
     </div>
 
     <!-- Urgency Level Donut -->
-    <div class="c-card urgency-card" style="display:flex; flex-direction:column; padding:16px 18px;">
-        <div class="dashboard-card-header" style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+    <div class="c-card urgency-card">
+        <div class="urgency-header">
             <div>
-                <p style="font-size:13px; font-weight:700; color:#1B3358; margin:0 0 2px;">Urgency Level Overview</p>
-                <p style="font-size:10px; color:#9CA3AF; margin:0;">Distribution of shipment urgency levels</p>
+                <p class="urgency-title">Urgency Level Overview</p>
+                <p class="urgency-subtitle">Distribution of shipment urgency levels</p>
             </div>
-            <button id="mpbtn-urgency" class="chart-filter-btn" data-month-picker-trigger style="flex-shrink:0; margin-left:8px;">
+            <button id="mpbtn-urgency" class="chart-filter-btn urgency-filter-btn" data-month-picker-trigger>
                 <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="color:#6B7280;">
                     <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/>
                 </svg>
-                <span class="mp-label">May 2026</span>
+                <span class="mp-label">{{ selected_label|default:"May 2026" }}</span>
             </button>
         </div>
-        <div style="position:relative; display:flex; align-items:center; justify-content:center; padding:6px 0;">
-            <canvas id="urgencyChart" width="130" height="130"></canvas>
-            <div style="position:absolute; text-align:center; pointer-events:none;">
-                <p style="font-size:8px; color:#6B7280; font-weight:500; margin:0;">Total</p>
-                <p style="font-size:16px; font-weight:800; color:#1B3358; margin:0; line-height:1.2;">{{ total }}</p>
+
+        <div class="urgency-donut-wrap">
+            <canvas id="urgencyChart" width="190" height="190"></canvas>
+            <div class="urgency-center-label">
+                <p class="urgency-center-top">Total Shipping</p>
+                <p class="urgency-center-value">{{ urgency_total|default:0 }}</p>
             </div>
         </div>
-        <div style="margin-top:10px; display:flex; flex-direction:column; gap:5px;">
+
+        <div class="urgency-list">
             {% for item in urgency_breakdown %}
-            <div style="display:flex; align-items:center; justify-content:space-between; font-size:10.5px;">
-                <div style="display:flex; align-items:center; gap:6px;">
+            <div class="urgency-list-item">
+                <div class="urgency-list-left">
                     <span class="urgency-dot urgency-{{ item.urgency|default:'other' }}"></span>
-                    <span style="color:#374151;">{{ item.label }}</span>
+                    <span class="urgency-label">{{ item.label }}</span>
                 </div>
-                <span style="font-weight:700; color:#1B3358;">{{ item.count }}</span>
+                <span class="urgency-count">{{ item.count }}</span>
             </div>
             {% empty %}
-            <p style="color:#9CA3AF; font-size:11px; text-align:center;">No data.</p>
+            <p class="urgency-empty">No data.</p>
             {% endfor %}
         </div>
     </div>
 </div>
 
 <!-- -- Month Picker Popover ------------------------------------------------- -->
-<div id="month-picker" style="display:none; position:fixed; z-index:999; background:#fff; border-radius:14px;
-     box-shadow:0 8px 32px rgba(0,0,0,0.15); padding:18px; min-width:260px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-        <span id="picker-year-label" style="font-size:15px; font-weight:700; color:#1B3358;">{{ current_year }}</span>
-        <div style="display:flex; gap:6px;">
-            <button data-picker-year="-1" style="background:none;border:none;cursor:pointer;font-size:14px;color:#6B7280;">&#8963;</button>
-            <button data-picker-year="1" style="background:none;border:none;cursor:pointer;font-size:14px;color:#6B7280; transform:rotate(180deg);">&#8963;</button>
-        </div>
+<div id="month-picker" style="display:none; position:fixed; z-index:999; background:#fff; border-radius:18px;
+     box-shadow:0 10px 32px rgba(0,0,0,0.20); padding:20px; min-width:340px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:24px;">
+        <span id="picker-header-label" style="font-size:14px; font-weight:700; color:#1B3358;">{{ current_year }}</span>
     </div>
-    <div id="month-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px;"></div>
+    <div id="month-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;"></div>
+    <div id="year-grid" style="display:none; grid-template-columns:repeat(4,1fr); gap:10px;"></div>
 </div>
 
 {% endblock %}
@@ -330,6 +349,9 @@
 {
     "chartDataUrl": "{% url 'consignee:chart_data' %}",
     "currentYear": {{ current_year }},
+    "selectedYear": {{ selected_year|default:current_year }},
+    "selectedMonth": {{ selected_month|default:1 }},
+    "selectedLabel": "{{ selected_label|escapejs }}",
     "monthlyLabels": {{ monthly_labels|safe }},
     "monthlyData": {{ monthly_data|safe }},
     "urgencyData": [
