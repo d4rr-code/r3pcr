@@ -313,7 +313,7 @@ class ConsigneeMySubmissionsTests(TestCase):
         self.assertContains(response, '<th>Job Number</th>', html=False)
         self.assertContains(response, '<th>Container</th>', html=False)
         self.assertContains(response, '<th>ETA</th>', html=False)
-        self.assertContains(response, 'Import Type', html=False)
+        self.assertNotContains(response, 'Import Type', html=False)
         self.assertContains(response, 'SRJJJ2511001234')
         self.assertContains(response, 'TGHU1234567')
 

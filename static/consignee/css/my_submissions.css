@@ -90,11 +90,17 @@
 
 .card-no-padding{padding:0;overflow:hidden}
 .table-responsive{overflow-x:auto}
-.c-table{width:100%;min-width:1180px;border-collapse:separate;border-spacing:0}
+.c-table{
+    width:100%;
+    min-width:1340px;
+    table-layout:fixed;
+    border-collapse:separate;
+    border-spacing:0
+}
 .c-table thead th{background:#1B3358;color:#FFFFFF;height:56px;padding:0 18px;border-right:1px solid rgba(255,255,255,.18);font-size:10px;font-weight:600;text-align:center;text-transform:uppercase;letter-spacing:.25px;white-space:nowrap;vertical-align:middle}
 .c-table thead th:first-child{border-top-left-radius:6px}
 .c-table thead th:last-child{border-top-right-radius:6px;border-right:0}
-.c-table tbody td{height:72px;padding:16px 18px;border-bottom:1px solid #E5E7EB;font-size:12px;color:#111827;text-align:center;vertical-align:middle}
+.c-table tbody td{height:72px;padding:16px 18px;border-bottom:1px solid #E5E7EB;font-size:12px;color:#111827;text-align:center;vertical-align:middle;line-height:1.35}
 .c-table tbody tr:last-child td{border-bottom:0}
 .c-table tbody tr:hover{background:#F8FAFC}
 
@@ -103,8 +109,17 @@
 .ref-number{font-weight:600;color:#111827;font-size:12px}
 .deficiency{font-size:10px;color:#DC2626;font-weight:600}
 .muted{color:#111827}
-td[data-label="Import Type"].muted{font-size:11px;text-align:left}
-.c-table th:nth-child(2),.c-table td:nth-child(2){padding-left:10px;padding-right:10px}
+td[data-label="Shipment Type"].muted{text-align:left}
+.c-table th:nth-child(1),.c-table td:nth-child(1){width:180px}
+.c-table th:nth-child(2),.c-table td:nth-child(2){width:120px;padding-left:10px;padding-right:10px}
+.c-table th:nth-child(3),.c-table td:nth-child(3){width:120px}
+.c-table th:nth-child(4),.c-table td:nth-child(4){width:120px}
+.c-table th:nth-child(5),.c-table td:nth-child(5){width:180px}
+.c-table th:nth-child(6),.c-table td:nth-child(6){width:120px}
+.c-table th:nth-child(7),.c-table td:nth-child(7){width:150px}
+.c-table th:nth-child(8),.c-table td:nth-child(8){width:130px}
+.c-table th:nth-child(9),.c-table td:nth-child(9){width:130px}
+.c-table th:nth-child(10),.c-table td:nth-child(10){width:80px}
 
 .sbadge{
     display:inline-flex;
@@ -134,7 +149,8 @@ td[data-label="Import Type"].muted{font-size:11px;text-align:left}
 .s-flagged{background:#FEE2E2;color:#B91C1C}
 .s-default{background:#E5E7EB;color:#374151}
 
-.meta-time{white-space:nowrap}
+.meta-time,
+td[data-label="ETA"]{white-space:nowrap}
 .meta-primary{color:#374151;font-size:12.5px}
 .meta-secondary{color:#9CA3AF;font-size:11px}
 
@@ -158,8 +174,6 @@ td[data-label="Import Type"].muted{font-size:11px;text-align:left}
 
 .inline-form{margin:0;display:inline-block}
 .inline-status-note{display:block;margin:3px 0 0;color:#6B7280;font-size:9px;line-height:1.2}
-.flagged-card .c-table th:nth-child(2),.flagged-card .c-table td:nth-child(2){width:18%;padding-left:14px;padding-right:14px}
-.flagged-card .c-table th:nth-child(4),.flagged-card .c-table td:nth-child(4){width:11%;padding-left:8px;padding-right:8px}
 .flagged-card td[data-label="Status"]{text-align:center}
 .flagged-card .s-flagged{background:transparent;color:#B91C1C;padding:0;min-height:0;border-radius:0;font-size:12px;font-weight:700}
 
