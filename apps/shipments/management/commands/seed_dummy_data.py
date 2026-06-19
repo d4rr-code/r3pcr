@@ -298,12 +298,19 @@ class Command(BaseCommand):
             if submitted_at > now:
                 submitted_at = now - timedelta(hours=1)
 
-            # 'incoming' shipments are freshly submitted and not yet processed.
-            # Keep them recent so they are never flagged overdue (the declarant
-            # queue emails an alert for any incoming shipment past its deadline).
+            # Active operational statuses should look like current work, not
+            # months-old historical records. Keep history spread on released /
+            # billed shipments, and keep active queues recent enough that
+            # intelligence metrics do not imply unrealistic 100+ day workflow
+            # averages in demo data.
             if final == 'incoming':
                 submitted_at = now - timedelta(
                     days=random.randint(0, 2),
+                    hours=random.randint(0, 9), minutes=random.randint(0, 59),
+                )
+            elif final not in ('released', 'billed'):
+                submitted_at = now - timedelta(
+                    days=random.randint(1, min(max(len(path) * 2, 3), 10)),
                     hours=random.randint(0, 9), minutes=random.randint(0, 59),
                 )
 

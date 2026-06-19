@@ -136,10 +136,26 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertTemplateUsed(response, 'supervisor/intelligence.html')
         self.assertContains(response, 'Pre-Clearance Intelligence')
         self.assertTrue(response.context['stage_rows'])
+        self.assertNotIn('computed', {row['status'] for row in response.context['stage_rows']})
         self.assertGreaterEqual(response.context['risk_distribution']['high'], 1)
         self.assertEqual(response.context['hs_review']['historical_count'], 1)
         self.assertContains(response, '8471.60.90')
         self.assertContains(response, 'wireless computer mouse')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + '?format=xlsx')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + '?format=pdf')
+
+    def test_intelligence_exports_xlsx_and_pdf(self):
+        self._shipment('R3PCR-INTEL-EXPORT', 'billed')
+
+        xlsx = self.client.get(reverse('supervisor:intelligence_export'), {'format': 'xlsx'})
+        self.assertEqual(xlsx.status_code, 200)
+        self.assertIn('spreadsheet', xlsx['Content-Type'])
+        self.assertTrue(xlsx.content.startswith(b'PK'))
+
+        pdf = self.client.get(reverse('supervisor:intelligence_export'), {'format': 'pdf'})
+        self.assertEqual(pdf.status_code, 200)
+        self.assertEqual(pdf['Content-Type'], 'application/pdf')
+        self.assertTrue(pdf.content.startswith(b'%PDF'))
 
 
 class WmcdaAhpTests(TestCase):

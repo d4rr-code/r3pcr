@@ -10,7 +10,17 @@
 .intel-hero{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:20px 22px;box-shadow:0 8px 24px rgba(31,43,62,.08)}
 .intel-hero h2{color:#1B3358;font-size:22px;font-weight:900;margin:0 0 6px}
 .intel-hero p{color:#64748B;font-size:13px;margin:0;max-width:820px;line-height:1.5}
+.intel-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.intel-actions{display:flex;gap:8px;flex-wrap:wrap}
+.intel-btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:8px 13px;border-radius:7px;background:#1B3358;color:#fff;text-decoration:none;font-size:11px;font-weight:900}
+.intel-btn.secondary{background:#fff;color:#1B3358;border:1px solid #DCE5EF}
 .intel-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.intel-chart-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}
+.intel-chart-card{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(31,43,62,.08);min-height:260px}
+.intel-chart-card h3{color:#1B3358;font-size:15px;font-weight:900;margin:0 0 4px}
+.intel-chart-card p{color:#64748B;font-size:11px;margin:0 0 12px}
+.intel-chart-frame{position:relative;height:205px}
+.intel-chart-frame canvas{position:relative}
 .intel-card{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(31,43,62,.08);min-height:104px}
 .intel-label{color:#64748B;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px}
 .intel-value{color:#111827;font-size:28px;font-weight:900;line-height:1;margin:0}
@@ -32,18 +42,26 @@
 .code-chip{display:inline-flex;margin:0 5px 5px 0;padding:4px 7px;border-radius:6px;background:#EFF6FF;color:#1D4ED8;font-size:11px;font-weight:800}
 .muted{color:#64748B}
 .empty-intel{padding:22px;color:#64748B;text-align:center;font-size:13px}
-@media(max-width:1100px){.intel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:640px){.intel-grid{grid-template-columns:1fr}.intel-head{flex-direction:column}}
+@media(max-width:1100px){.intel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.intel-chart-grid{grid-template-columns:1fr}}
+@media(max-width:640px){.intel-grid{grid-template-columns:1fr}.intel-head,.intel-hero-top{flex-direction:column}.intel-actions{width:100%}.intel-btn{flex:1}}
 </style>
 
 <div class="intel-page">
     <section class="intel-hero">
-        <h2>Pre-Clearance Intelligence</h2>
-        <p>
-            Diagnostic and predictive analytics for workflow bottlenecks, delay risk, and HS code review.
-            The risk model is intentionally explainable: it scores shipments from current status age, KPI timing,
-            document completeness, deficiency flags, and urgency.
-        </p>
+        <div class="intel-hero-top">
+            <div>
+                <h2>Pre-Clearance Intelligence</h2>
+                <p>
+                    Diagnostic and predictive analytics for workflow bottlenecks, delay risk, and HS code review.
+                    The risk model is intentionally explainable: it scores shipments from current status age, KPI timing,
+                    document completeness, deficiency flags, and urgency.
+                </p>
+            </div>
+            <div class="intel-actions">
+                <a class="intel-btn secondary" href="{% url 'supervisor:intelligence_export' %}?format=xlsx">Excel</a>
+                <a class="intel-btn" href="{% url 'supervisor:intelligence_export' %}?format=pdf">PDF</a>
+            </div>
+        </div>
     </section>
 
     <section class="intel-grid">
@@ -66,6 +84,24 @@
             <p class="intel-label">High Risk Shipments</p>
             <p class="intel-value">{{ risk_distribution.high }}</p>
             <p class="intel-note">{{ risk_distribution.medium }} medium, {{ risk_distribution.low }} low risk.</p>
+        </div>
+    </section>
+
+    <section class="intel-chart-grid">
+        <div class="intel-chart-card">
+            <h3>Average Duration by Stage</h3>
+            <p>Shows which workflow stages consume the most processing time.</p>
+            <div class="intel-chart-frame"><canvas id="stageDurationChart"></canvas></div>
+        </div>
+        <div class="intel-chart-card">
+            <h3>Risk Distribution</h3>
+            <p>Current active shipments grouped by explainable delay risk level.</p>
+            <div class="intel-chart-frame"><canvas id="riskDistributionChart"></canvas></div>
+        </div>
+        <div class="intel-chart-card" style="grid-column:1 / -1;">
+            <h3>Most Confirmed HS Codes</h3>
+            <p>Historical HS classifications used to strengthen future recommendations.</p>
+            <div class="intel-chart-frame"><canvas id="hsHistoryChart"></canvas></div>
         </div>
     </section>
 
@@ -225,4 +261,81 @@
         {% endif %}
     </section>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+    var stageData = {{ stage_chart_json|safe }};
+    var riskData = {{ risk_chart_json|safe }};
+    var hsData = {{ hs_chart_json|safe }};
+
+    function total(values) {
+        return values.reduce(function(sum, value){ return sum + Number(value || 0); }, 0);
+    }
+
+    if (window.Chart && stageData.labels.length) {
+        new Chart(document.getElementById('stageDurationChart'), {
+            type: 'bar',
+            data: {
+                labels: stageData.labels,
+                datasets: [{
+                    label: 'Average days',
+                    data: stageData.values,
+                    backgroundColor: '#1B3358',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+    }
+
+    if (window.Chart && total(riskData.values) > 0) {
+        new Chart(document.getElementById('riskDistributionChart'), {
+            type: 'doughnut',
+            data: {
+                labels: riskData.labels,
+                datasets: [{
+                    data: riskData.values,
+                    backgroundColor: ['#EF4444', '#F59E0B', '#22C55E'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+                cutout: '64%'
+            }
+        });
+    }
+
+    if (window.Chart && hsData.labels.length) {
+        new Chart(document.getElementById('hsHistoryChart'), {
+            type: 'bar',
+            data: {
+                labels: hsData.labels,
+                datasets: [{
+                    label: 'Confirmed uses',
+                    data: hsData.values,
+                    backgroundColor: '#3B82F6',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+    }
+})();
+</script>
 {% endblock %}
