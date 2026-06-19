@@ -158,6 +158,7 @@
     </div>
     <!-- Server-side dropdowns -->
     <form method="GET" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
         <div style="min-width:140px;">
             <label style="color:#64748b; font-size:11px; display:block; margin-bottom:4px;">Urgency</label>
             <select name="urgency" class="form-input" style="padding:7px 12px; font-size:13px;"
@@ -181,7 +182,7 @@
                 <option value="5"  {% if due_filter == '5'  %}selected{% endif %}>Due in 5 days</option>
             </select>
         </div>
-        {% if urgency_filter or due_filter %}
+        {% if urgency_filter or due_filter or status_filter %}
         <a href="{% url 'declarant:queue' %}"
            class="btn btn-secondary" style="font-size:12px; padding:8px 14px; align-self:flex-end;">
             Clear
@@ -191,7 +192,7 @@
 </div>
 
 <!-- ─── Pending Queue ─────────────────────────────────────────────────────── -->
-<div class="card" style="margin-bottom:24px; padding:0; overflow:hidden;">
+<div id="pending-queue" class="card" style="margin-bottom:24px; padding:0; overflow:hidden;">
     <div style="padding:16px 20px; background:#F8FAFC; border-bottom:1px solid #E5E7EB;
                 display:flex; align-items:center; justify-content:space-between;">
         <p class="card-title" style="margin:0;">Pending Queue</p>
@@ -366,7 +367,7 @@
     {% else %}
     <div style="padding:32px; text-align:center; color:#64748b;">
         <p>No pending shipments match the current filters.</p>
-        {% if urgency_filter or due_filter %}
+        {% if urgency_filter or due_filter or status_filter %}
         <a href="{% url 'declarant:queue' %}" class="btn btn-secondary" style="font-size:12px; margin-top:8px;">
            Clear Filters
         </a>
@@ -376,7 +377,7 @@
 </div>
 
 <!-- ─── In Review(My Shipments) ─────────────────────────────────────────── -->
-<div class="card" style="padding:0; overflow:hidden;">
+<div id="in-review" class="card" style="padding:0; overflow:hidden;">
     <div style="padding:16px 20px; background:#F8FAFC; border-bottom:1px solid #E5E7EB;
                 display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
         <p class="card-title" style="margin:0;">My In-Review Shipments
@@ -643,7 +644,7 @@
 </div>
 
 <!-- History (My Processed Shipments) -->
-<div class="card" style="margin-top:24px; padding:0; overflow:hidden;">
+<div id="history" class="card" style="margin-top:24px; padding:0; overflow:hidden;">
     <div style="padding:16px 20px; background:#F8FAFC; border-bottom:1px solid #E5E7EB;
                 display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
         <p class="card-title" style="margin:0;">My Processed Shipments

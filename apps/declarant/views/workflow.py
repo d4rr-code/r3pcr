@@ -80,6 +80,10 @@ def shipment_preview(request, shipment_id):
 @declarant_required
 def queue_manager(request):
     today = timezone.localdate()
+    status_filter = request.GET.get('status', '').strip()
+    valid_dashboard_filters = {'incoming', 'in_progress', 'approved', 'billed'}
+    if status_filter not in valid_dashboard_filters:
+        status_filter = ''
 
     def page_url(param_name, page_number):
         params = request.GET.copy()
@@ -88,6 +92,8 @@ def queue_manager(request):
 
     # Incoming queue with optional filters
     pending_qs = Shipment.objects.filter(status='incoming').select_related('consignee')
+    if status_filter and status_filter != 'incoming':
+        pending_qs = pending_qs.none()
 
     urgency_filter = request.GET.get('urgency', '')
     if urgency_filter in ('standard', 'priority', 'urgent', 'rush', 'normal'):
@@ -120,10 +126,20 @@ def queue_manager(request):
     pending_page = paginator.get_page(page_number)
 
     # In-review: all active shipments from arrived through released
+    in_review_statuses = [
+        'arrived', 'computed', 'approved', 'rejected', 'for_revision',
+        'lodgement', 'ongoing', 'assessed', 'paid', 'released',
+    ]
+    if status_filter == 'in_progress':
+        in_review_statuses = ['arrived', 'computed', 'for_revision', 'lodgement', 'ongoing', 'assessed']
+    elif status_filter == 'approved':
+        in_review_statuses = ['approved']
+    elif status_filter in {'incoming', 'billed'}:
+        in_review_statuses = []
+
     in_review_qs = Shipment.objects.filter(
         declarant=request.user,
-        status__in=['arrived', 'computed', 'approved', 'rejected', 'for_revision',
-                    'lodgement', 'ongoing', 'assessed', 'paid', 'released'],
+        status__in=in_review_statuses,
     ).select_related('consignee').prefetch_related('computation').order_by('-updated_at')
     in_review = Paginator(in_review_qs, 10).get_page(request.GET.get('review_page', 1))
 
@@ -132,6 +148,8 @@ def queue_manager(request):
         declarant=request.user,
         status='billed',
     ).select_related('consignee').order_by('-updated_at')
+    if status_filter and status_filter != 'billed':
+        history_qs = history_qs.none()
     history = Paginator(history_qs, 10).get_page(request.GET.get('history_page', 1))
 
     context = {
@@ -145,6 +163,7 @@ def queue_manager(request):
         'history_next_url': page_url('history_page', history.next_page_number()) if history.has_next() else '',
         'urgency_filter': urgency_filter,
         'due_filter':     due_filter,
+        'status_filter':  status_filter,
     }
     return render(request, 'declarant/queue.html', context)
 

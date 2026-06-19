@@ -287,7 +287,7 @@ a.compact-row:hover { background: #f1f5f9; }
 <!-- ─── KPI Cards ─────────────────────────────────────────────────────────── -->
 <!-- ─── Pending Queue ─────────────────────────────────────────────────────── -->
 <div class="d-kpi-grid">
-    <a class="d-kpi-card is-blue" href="{% url 'declarant:queue' %}">
+    <a class="d-kpi-card is-blue" href="{% url 'declarant:queue' %}?status=incoming#pending-queue">
         <div class="d-kpi-top">
             <p class="d-kpi-label">Incoming</p>
             <span class="d-kpi-icon">
@@ -296,7 +296,7 @@ a.compact-row:hover { background: #f1f5f9; }
         </div>
         <p class="d-kpi-value">{{ queue }}</p>
     </a>
-    <a class="d-kpi-card is-yellow" href="{% url 'declarant:queue' %}#in-review">
+    <a class="d-kpi-card is-yellow" href="{% url 'declarant:queue' %}?status=in_progress#in-review">
         <div class="d-kpi-top">
             <p class="d-kpi-label">In Progress</p>
             <span class="d-kpi-icon">
@@ -305,7 +305,7 @@ a.compact-row:hover { background: #f1f5f9; }
         </div>
         <p class="d-kpi-value">{{ in_progress }}</p>
     </a>
-    <a class="d-kpi-card is-green" href="{% url 'declarant:queue' %}#history">
+    <a class="d-kpi-card is-green" href="{% url 'declarant:queue' %}?status=approved#in-review">
         <div class="d-kpi-top">
             <p class="d-kpi-label">Approved</p>
             <span class="d-kpi-icon">
@@ -314,7 +314,7 @@ a.compact-row:hover { background: #f1f5f9; }
         </div>
         <p class="d-kpi-value">{{ ecdt_approved }}</p>
     </a>
-    <a class="d-kpi-card is-teal" style="--accent:#14B8A6;" href="{% url 'declarant:queue' %}#history">
+    <a class="d-kpi-card is-teal" style="--accent:#14B8A6;" href="{% url 'declarant:queue' %}?status=billed#history">
         <div class="d-kpi-top">
             <p class="d-kpi-label">Billed</p>
             <span class="d-kpi-icon">

@@ -123,6 +123,23 @@ class QueueManagerTests(TestCase):
         self.assertContains(resp, 'SRJJJ2511001234')
         self.assertNotContains(resp, '<th style="padding:10px 16px; text-align:left; font-size:12px;">Type</th>', html=False)
 
+    def test_queue_status_filter_targets_dashboard_kpi_sections(self):
+        approved = self._shipment(101, 'approved')
+        billed = self._shipment(102, 'billed')
+        self._shipment(103, 'arrived')
+
+        resp = self.client.get(self.url, {'status': 'approved'})
+
+        self.assertEqual(resp.context['status_filter'], 'approved')
+        self.assertEqual(list(resp.context['in_review'].object_list), [approved])
+        self.assertEqual(resp.context['history'].paginator.count, 0)
+
+        resp = self.client.get(self.url, {'status': 'billed'})
+
+        self.assertEqual(resp.context['status_filter'], 'billed')
+        self.assertEqual(resp.context['in_review'].paginator.count, 0)
+        self.assertEqual(list(resp.context['history'].object_list), [billed])
+
 
 class ProcessShipmentTests(TestCase):
     def setUp(self):
@@ -362,6 +379,16 @@ class DeclarantDashboardTests(TestCase):
             resp,
             f'{reverse("declarant:process", args=[shipment.id])}?doc_status=assessed',
         )
+
+    def test_dashboard_kpis_link_to_filtered_queue_sections(self):
+        queue_url = reverse('declarant:queue')
+
+        resp = self.client.get(reverse('declarant:dashboard'))
+
+        self.assertContains(resp, f'{queue_url}?status=incoming#pending-queue')
+        self.assertContains(resp, f'{queue_url}?status=in_progress#in-review')
+        self.assertContains(resp, f'{queue_url}?status=approved#in-review')
+        self.assertContains(resp, f'{queue_url}?status=billed#history')
 
     def test_supervisor_cannot_open_declarant_dashboard_by_url(self):
         supervisor = User.objects.create_user(
