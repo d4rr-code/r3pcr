@@ -97,7 +97,17 @@
         .d-nav-item:hover { background: #F4F6F9; color: #1B3358; font-weight: 600; }
         .d-nav-item.active { background: #1B3358; color: #fff; font-weight: 600; box-shadow: 0 3px 8px rgba(27, 51, 88, 0.22); }
         .d-sidebar:not(.expanded) .d-nav-item.active { background: transparent; color: #1B3358; box-shadow: none; }
-        .d-sidebar.expanded .d-nav-item { justify-content: flex-start; width: 100%; min-height: 32px; padding: 0 14px; border-radius: 4px; }
+        .d-sidebar.expanded .d-nav-item {
+            display: grid;
+            grid-template-columns: 18px minmax(0, 1fr) auto;
+            align-items: center;
+            column-gap: 10px;
+            justify-content: initial;
+            width: 100%;
+            min-height: 32px;
+            padding: 0 14px;
+            border-radius: 4px;
+        }
         .d-nav-label {
             opacity: 0;
             max-width: 0;
@@ -106,7 +116,15 @@
             font-size: 13px;
         }
         .d-sidebar.expanded .d-nav-label { opacity: 1; max-width: 160px; }
-        .d-nav-icon { width: 18px; height: 18px; flex-shrink: 0; display: block; }
+        .d-nav-icon {
+            width: 18px;
+            height: 18px;
+            flex: 0 0 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            object-fit: contain;
+        }
         .d-nav-icon-img {
             object-fit: contain;
             filter: brightness(0) saturate(100%) invert(53%) sepia(0%) saturate(0%) hue-rotate(154deg) brightness(93%) contrast(88%);
