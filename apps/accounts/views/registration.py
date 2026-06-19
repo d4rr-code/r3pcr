@@ -116,7 +116,7 @@ def register_view(request):
     if request.method == 'POST':
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
-        email = request.POST.get('email', '').strip()
+        email = request.POST.get('email', '').strip().lower()
         password = request.POST.get('password', '')
         password2 = request.POST.get('password2', '')
         company_name = request.POST.get('company_name', '').strip()
@@ -126,7 +126,7 @@ def register_view(request):
         errors.extend(_validate_password_strength(password))
         if password != password2:
             errors.append('Passwords do not match.')
-        if email and User.objects.filter(email=email).exists():
+        if email and User.objects.filter(email__iexact=email).exists():
             errors.append('Email already registered.')
 
         if errors:

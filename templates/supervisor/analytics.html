@@ -92,8 +92,8 @@
 }
 .metric-total {
     grid-column: span 2;
-    min-height: 130px;
-    padding: clamp(16px, 2vw, 20px);
+    min-height: 104px;
+    padding: 14px 18px;
     background: var(--ink);
     color: #fff;
     display: flex;
@@ -104,15 +104,15 @@
 .metric-side  { grid-column: span 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 18px; }
 .mini-card {
     position: relative;
-    padding: clamp(14px, 2vw, 16px) clamp(14px, 2vw, 18px);
-    min-height: 76px;
+    padding: 14px 18px;
+    min-height: 104px;
 }
 .mini-card::before {
     content: "";
     position: absolute;
     left: 0;
-    top: 14px;
-    bottom: 14px;
+    top: 12px;
+    bottom: 12px;
     width: 4px;
     border-radius: 0 999px 999px 0;
     opacity: .9;
@@ -132,6 +132,8 @@
     background: var(--ink);
     border-style: solid;
     border-color: var(--ink);
+    min-height: 104px;
+    padding: 14px 18px;
 }
 .metric-side .mini-card:first-child::before { background: #5EE2A2; }
 .metric-side .metric-icon { background: #9DAFBC !important; }
@@ -160,21 +162,22 @@
     color: #324056;
     font-size: 15px;
     font-weight: 700;
-    margin: 0 0 11px;
+    margin: 0 0 8px;
     line-height: 1.25;
     white-space: normal;
     overflow-wrap: anywhere;
 }
 .metric-value {
     color: #111827;
-    font-size: clamp(30px, 3vw, 42px);
+    font-size: clamp(28px, 2.45vw, 38px);
     line-height: 1;
     font-weight: 800;
     margin: 0;
     overflow-wrap: anywhere;
 }
 .metric-total .metric-label { color: #DCE6F3; display: block; }
-.metric-total .metric-value { color: #fff; font-size: clamp(42px, 3.4vw, 56px); margin-top: 8px; }
+.metric-total .metric-value { color: #fff; font-size: clamp(32px, 2.7vw, 42px); margin-top: 4px; }
+.metric-side .mini-card:first-child .metric-value { font-size: clamp(28px, 2.45vw, 38px); }
 .metric-delta { color: #5EE2A2; font-size: clamp(14px, 1.4vw, 20px); font-weight: 800; margin-left: 10px; }
 .panel { padding: clamp(16px, 1.7vw, 20px) clamp(16px, 1.9vw, 22px); }
 .panel-title {

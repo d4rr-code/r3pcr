@@ -51,11 +51,33 @@ class ValidatorTests(TestCase):
             [],
         )
 
+    def test_validate_profile_fields_rejects_non_latin_name_scripts(self):
+        samples = [
+            ('Ψψ', 'Santos'),
+            ('Juan', 'Ωmega'),
+            ('大鹿', 'Santos'),
+        ]
+
+        for first_name, last_name in samples:
+            with self.subTest(first_name=first_name, last_name=last_name):
+                errors = _validate_profile_fields(first_name, last_name, 'juan@example.com')
+                self.assertTrue(any('may only contain letters' in e for e in errors))
+
     def test_validate_profile_fields_errors(self):
         errors = _validate_profile_fields('', 'X', 'not-an-email')
         self.assertTrue(any('First name' in e for e in errors))
         self.assertTrue(any('at least 2' in e for e in errors))   # last name too short
         self.assertTrue(any('valid email' in e for e in errors))
+
+    def test_validate_profile_fields_rejects_email_alias_symbols(self):
+        errors = _validate_profile_fields('Juan', 'Dela Cruz', 'juan+1@example.com')
+
+        self.assertTrue(any('letters, numbers, dots, underscores, and hyphens' in e for e in errors))
+
+    def test_validate_profile_fields_rejects_non_latin_company_text(self):
+        errors = _validate_profile_fields('Juan', 'Dela Cruz', 'juan@example.com', company='大鹿 Trading')
+
+        self.assertTrue(any('Company name may only contain' in e for e in errors))
 
     def test_validate_password_strength(self):
         self.assertEqual(_validate_password_strength('Str0ng!Pass'), [])
@@ -269,6 +291,27 @@ class RegistrationTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(User.objects.filter(email='mismatch@example.com').exists())
 
+    def test_register_rejects_email_alias_symbols(self):
+        resp = self.client.post(reverse('accounts:register'), {
+            'first_name': 'Juan', 'last_name': 'Dela Cruz',
+            'email': 'hansmlbbacc1+1@gmail.com', 'password': 'Str0ng!Pass',
+            'password2': 'Str0ng!Pass',
+        })
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(User.objects.filter(email='hansmlbbacc1+1@gmail.com').exists())
+        self.assertNotIn('pending_registration_user_id', self.client.session)
+
+    def test_register_rejects_non_latin_name_scripts(self):
+        resp = self.client.post(reverse('accounts:register'), {
+            'first_name': '大鹿', 'last_name': 'Dela Cruz',
+            'email': 'nonlatin@example.com', 'password': 'Str0ng!Pass',
+            'password2': 'Str0ng!Pass',
+        })
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(User.objects.filter(email='nonlatin@example.com').exists())
+
     def test_register_duplicate_email(self):
         User.objects.create_user(username='existing', password='x',
                                  email='dupe@example.com')
@@ -279,6 +322,18 @@ class RegistrationTests(TestCase):
         })
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(User.objects.filter(email='dupe@example.com').count(), 1)
+
+    def test_register_duplicate_email_is_case_insensitive(self):
+        User.objects.create_user(username='existing_case', password='x',
+                                 email='dupecase@example.com')
+        resp = self.client.post(reverse('accounts:register'), {
+            'first_name': 'Juan', 'last_name': 'Dela Cruz',
+            'email': 'DupeCase@Example.com', 'password': 'Str0ng!Pass',
+            'password2': 'Str0ng!Pass',
+        })
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(User.objects.filter(email__iexact='dupecase@example.com').count(), 1)
 
 
 # ─── Password / username recovery ─────────────────────────────────────────────
@@ -333,6 +388,20 @@ class AccountSettingsTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.first_name, 'New')
         self.assertEqual(self.user.company_name, 'NewCo')
+
+    def test_settings_rejects_duplicate_email_case_insensitive(self):
+        User.objects.create_user(username='settings_other', password='x',
+                                 email='other@test.local', is_active=True)
+        self.client.force_login(self.user)
+
+        self.client.post(reverse('accounts:settings'), {
+            'action': 'profile', 'first_name': 'Old', 'last_name': 'Name',
+            'email': 'Other@Test.Local', 'phone_number': '',
+            'company_name': '',
+        })
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, 'su@test.local')
 
     def test_settings_password_change_wrong_old(self):
         self.client.force_login(self.user)
