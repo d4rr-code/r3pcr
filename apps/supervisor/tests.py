@@ -139,14 +139,16 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertNotIn('computed', {row['status'] for row in response.context['stage_rows']})
         self.assertGreaterEqual(response.context['risk_distribution']['high'], 1)
         self.assertEqual(response.context['delay_model']['source'], 'Fallback rules')
-        self.assertIn('projected_next_7_days', response.context['workload_forecast'])
+        self.assertIn('projected_period_total', response.context['workload_forecast'])
+        self.assertEqual(response.context['risk_filter'], 'high')
         self.assertEqual(response.context['hs_review']['historical_count'], 1)
         self.assertContains(response, '8471.60.90')
         self.assertContains(response, 'wireless computer mouse')
         self.assertContains(response, 'Projected Workload')
         self.assertContains(response, 'Delay Model Weights')
-        self.assertContains(response, reverse('supervisor:intelligence_export') + '?format=xlsx')
-        self.assertContains(response, reverse('supervisor:intelligence_export') + '?format=pdf')
+        self.assertContains(response, '?risk=all&forecast_months=1#delay-risk')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + '?format=xlsx&risk=high&forecast_months=1')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + '?format=pdf&risk=high&forecast_months=1')
 
     def test_intelligence_trains_delay_model_from_completed_shipments(self):
         today = timezone.localdate()
@@ -168,6 +170,19 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertEqual(response.context['delay_model']['sample_count'], 8)
         self.assertGreater(response.context['delay_model']['weights']['deficiency'], 0)
 
+    def test_intelligence_filters_delay_risk_rows(self):
+        medium = self._shipment('R3PCR-RISK-MEDIUM', 'incoming')
+        low = self._shipment('R3PCR-RISK-LOW', 'incoming')
+        Shipment.objects.filter(pk=medium.pk).update(submitted_at=timezone.now() - timedelta(days=3))
+
+        response = self.client.get(reverse('supervisor:intelligence'), {'risk': 'medium'})
+
+        self.assertEqual(response.context['risk_filter'], 'medium')
+        self.assertTrue(response.context['risk_rows'])
+        self.assertTrue(all(row['label'] == 'Medium' for row in response.context['risk_rows']))
+        self.assertContains(response, 'R3PCR-RISK-MEDIUM')
+        self.assertNotContains(response, 'R3PCR-RISK-LOW')
+
     def test_intelligence_forecasts_workload_from_recent_incoming_trend(self):
         now = timezone.now()
         for index in range(4):
@@ -175,16 +190,27 @@ class SupervisorIntelligenceTests(TestCase):
             Shipment.objects.filter(pk=shipment.pk).update(submitted_at=now - timedelta(days=index))
         for index in range(2):
             shipment = self._shipment(f'R3PCR-FORECAST-PREV-{index}', 'incoming')
-            Shipment.objects.filter(pk=shipment.pk).update(submitted_at=now - timedelta(days=8 + index))
+            Shipment.objects.filter(pk=shipment.pk).update(submitted_at=now - timedelta(days=35 + index))
         older = self._shipment('R3PCR-FORECAST-OLD', 'incoming')
-        Shipment.objects.filter(pk=older.pk).update(submitted_at=now - timedelta(days=16))
+        Shipment.objects.filter(pk=older.pk).update(submitted_at=now - timedelta(days=65))
 
         response = self.client.get(reverse('supervisor:intelligence'))
 
         forecast = response.context['workload_forecast']
-        self.assertEqual(forecast['projected_next_7_days'], 3)
-        self.assertEqual(forecast['chart']['values'], [1, 2, 4, 3])
-        self.assertContains(response, 'Projected Workload Interpretation')
+        self.assertEqual(forecast['forecast_months'], 1)
+        self.assertEqual(forecast['projected_period_total'], 3)
+        self.assertEqual(len(forecast['chart']['labels']), 13)
+        self.assertEqual(forecast['chart']['historical_values'][-4:], [1, 2, 4, None])
+        self.assertEqual(forecast['chart']['forecast_values'][-2:], [4, 3])
+        self.assertEqual(forecast['confidence'], 'Low')
+        self.assertEqual(len(forecast['period_rows']), 7)
+        self.assertContains(response, '1 month')
+        self.assertContains(response, '3 months')
+        self.assertContains(response, 'Expected Range')
+
+        three_month = self.client.get(reverse('supervisor:intelligence'), {'forecast_months': '3'})
+        self.assertEqual(three_month.context['workload_forecast']['forecast_months'], 3)
+        self.assertEqual(three_month.context['workload_forecast']['projected_period_total'], 9)
 
     def test_intelligence_exports_xlsx_and_pdf(self):
         self._shipment('R3PCR-INTEL-EXPORT', 'billed')

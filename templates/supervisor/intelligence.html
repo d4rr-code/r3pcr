@@ -21,6 +21,27 @@
 .intel-chart-card p{color:#64748B;font-size:11px;margin:0 0 12px}
 .intel-chart-frame{position:relative;height:220px}
 .intel-chart-frame canvas{position:relative}
+.forecast-card{grid-column:1/-1}
+.forecast-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.95fr);gap:18px;align-items:stretch}
+.forecast-card .intel-chart-frame{height:280px}
+.forecast-summary{display:grid;gap:12px;align-content:start}
+.forecast-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.forecast-metric{border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#F8FAFC}
+.forecast-metric span{display:block;color:#64748B;font-size:9px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px}
+.forecast-metric strong{display:block;color:#111827;font-size:20px;font-weight:900;line-height:1.05}
+.forecast-copy{color:#475569;font-size:12px;line-height:1.5;margin:0}
+.forecast-table{width:100%;border-collapse:collapse;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden}
+.forecast-table th{background:#1B3358;color:#fff;font-size:9px;text-transform:uppercase;text-align:left;padding:9px}
+.forecast-table td{border-top:1px solid #EEF2F6;color:#111827;font-size:11px;padding:9px}
+.forecast-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.forecast-controls{display:flex;gap:8px;flex-wrap:wrap}
+.forecast-toggle{display:inline-flex;align-items:center;justify-content:center;border:1px solid #DCE5EF;border-radius:999px;background:#fff;color:#1B3358;text-decoration:none;font-size:11px;font-weight:900;padding:8px 12px;white-space:nowrap}
+.forecast-toggle.active{background:#1B3358;color:#fff;border-color:#1B3358}
+.risk-tabs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.risk-tab{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #DCE5EF;border-radius:999px;background:#fff;color:#1B3358;text-decoration:none;font-size:11px;font-weight:900;padding:8px 12px}
+.risk-tab.active{background:#1B3358;color:#fff;border-color:#1B3358}
+.risk-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;border-radius:999px;background:#EFF6FF;color:#1D4ED8;font-size:10px}
+.risk-tab.active .risk-count{background:rgba(255,255,255,.18);color:#fff}
 .intel-card{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(31,43,62,.08);min-height:104px;min-width:0}
 .intel-label{color:#64748B;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px}
 .intel-value{color:#111827;font-size:28px;font-weight:900;line-height:1;margin:0}
@@ -44,7 +65,7 @@
 .empty-intel{padding:22px;color:#64748B;text-align:center;font-size:13px}
 @media(max-width:1200px){.intel-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1100px){.intel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:900px){.intel-chart-grid{grid-template-columns:1fr}}
+@media(max-width:900px){.intel-chart-grid,.forecast-layout{grid-template-columns:1fr}.forecast-card .intel-chart-frame{height:240px}}
 @media(max-width:640px){.intel-grid{grid-template-columns:1fr}.intel-head,.intel-hero-top{flex-direction:column}.intel-actions{width:100%}.intel-btn{flex:1}}
 </style>
 
@@ -61,8 +82,8 @@
                 </p>
             </div>
             <div class="intel-actions">
-                <a class="intel-btn secondary" href="{% url 'supervisor:intelligence_export' %}?format=xlsx">Excel</a>
-                <a class="intel-btn" href="{% url 'supervisor:intelligence_export' %}?format=pdf">PDF</a>
+                <a class="intel-btn secondary" href="{% url 'supervisor:intelligence_export' %}?format=xlsx&risk={{ risk_filter }}&forecast_months={{ workload_forecast.forecast_months }}">Excel</a>
+                <a class="intel-btn" href="{% url 'supervisor:intelligence_export' %}?format=pdf&risk={{ risk_filter }}&forecast_months={{ workload_forecast.forecast_months }}">PDF</a>
             </div>
         </div>
     </section>
@@ -90,16 +111,72 @@
         </div>
         <div class="intel-card">
             <p class="intel-label">Projected Workload</p>
-            <p class="intel-value">{{ workload_forecast.projected_next_7_days }}</p>
-            <p class="intel-note">{{ workload_forecast.level }} next 7 days, {{ workload_forecast.trend_pct }}% trend.</p>
+            <p class="intel-value">{{ workload_forecast.projected_period_total }}</p>
+            <p class="intel-note">{{ workload_forecast.level }} {{ workload_forecast.forecast_label|lower }}, {{ workload_forecast.trend_pct }}% trend.</p>
         </div>
     </section>
 
     <section class="intel-chart-grid">
-        <div class="intel-chart-card">
-            <h3>Projected Incoming Workload</h3>
-            <p>Weighted forecast from recent incoming shipment trends.</p>
-            <div class="intel-chart-frame"><canvas id="workloadForecastChart"></canvas></div>
+        <div class="intel-chart-card forecast-card">
+            <div class="forecast-title-row">
+                <div>
+                    <h3>Projected Incoming Workload</h3>
+                    <p>Line forecast using the last 12 months of incoming shipments.</p>
+                </div>
+                <div class="forecast-controls" aria-label="Forecast horizon">
+                    {% for months in forecast_options %}
+                    <a class="forecast-toggle {% if workload_forecast.forecast_months == months %}active{% endif %}" href="?risk={{ risk_filter }}&forecast_months={{ months }}#workload-forecast">
+                        {{ months }} month{{ months|pluralize }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="forecast-layout">
+                <div class="intel-chart-frame" id="workload-forecast"><canvas id="workloadForecastChart"></canvas></div>
+                <div class="forecast-summary">
+                    <div class="forecast-metrics">
+                        <div class="forecast-metric">
+                            <span>Forecast</span>
+                            <strong>{{ workload_forecast.projected_period_total }}</strong>
+                        </div>
+                        <div class="forecast-metric">
+                            <span>Expected Range</span>
+                            <strong>{{ workload_forecast.projected_low }}-{{ workload_forecast.projected_high }}</strong>
+                        </div>
+                        <div class="forecast-metric">
+                            <span>Active Backlog</span>
+                            <strong>{{ workload_forecast.active_backlog }}</strong>
+                        </div>
+                        <div class="forecast-metric">
+                            <span>Confidence</span>
+                        <strong>{{ workload_forecast.confidence }}</strong>
+                        </div>
+                    </div>
+                    <p class="forecast-copy">
+                        {{ workload_forecast.interpretation }} Trend versus the previous month is
+                        <strong>{{ workload_forecast.trend_pct }}%</strong>. Recommended action:
+                        {{ workload_forecast.action }}
+                    </p>
+                    <table class="forecast-table">
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th>Type</th>
+                                <th>Incoming</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for period in workload_forecast.period_rows %}
+                            <tr>
+                                <td>{{ period.label }}</td>
+                                <td>{{ period.date_range }}</td>
+                                <td><strong>{{ period.count }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
         <div class="intel-chart-card">
             <h3>Average Duration by Stage</h3>
@@ -174,11 +251,18 @@
             <div>
                 <h3>Pre-Clearance Delay Risk Prediction</h3>
                 <p>{{ delay_model.summary }}</p>
-                <p>Current model source: <strong>{{ delay_model.source }}</strong>. Historical delayed rate: {{ delay_model.delayed_rate }}%.</p>
+                <p>Current model source: <strong>{{ delay_model.source }}</strong>. Training samples: <strong>{{ delay_model.sample_count }}</strong>. Historical delayed rate: {{ delay_model.delayed_rate }}%.</p>
+            </div>
+            <div class="risk-tabs" aria-label="Delay risk filters">
+                {% for item in risk_filters %}
+                <a class="risk-tab {% if risk_filter == item.key %}active{% endif %}" href="?risk={{ item.key }}&forecast_months={{ workload_forecast.forecast_months }}#delay-risk">
+                    {{ item.label }} <span class="risk-count">{{ item.count }}</span>
+                </a>
+                {% endfor %}
             </div>
         </div>
         {% if risk_rows %}
-        <div class="intel-table-wrap">
+        <div class="intel-table-wrap" id="delay-risk">
             <table class="intel-table">
                 <thead>
                     <tr>
@@ -212,25 +296,8 @@
             </table>
         </div>
         {% else %}
-        <div class="empty-intel">No active shipments to score.</div>
+        <div class="empty-intel">No shipments found for this risk filter.</div>
         {% endif %}
-    </section>
-
-    <section class="intel-section">
-        <div class="intel-head">
-            <div>
-                <h3>Projected Workload Interpretation</h3>
-                <p>{{ workload_forecast.interpretation }}</p>
-            </div>
-            <span class="risk-pill {% if workload_forecast.level == 'Heavy' %}risk-high{% elif workload_forecast.level == 'Light' %}risk-low{% else %}risk-medium{% endif %}">{{ workload_forecast.level }}</span>
-        </div>
-        <div class="intel-body">
-            <p class="muted" style="font-size:13px;margin:0;">
-                The next 7 days are projected at <strong>{{ workload_forecast.projected_next_7_days }}</strong>
-                incoming shipment{{ workload_forecast.projected_next_7_days|pluralize }} against a recent average of
-                <strong>{{ workload_forecast.recent_average }}</strong>. Recommended action: {{ workload_forecast.action }}
-            </p>
-        </div>
     </section>
 
     <section class="intel-section">
@@ -319,19 +386,31 @@
             data: {
                 labels: workloadData.labels,
                 datasets: [{
-                    label: 'Incoming shipments',
-                    data: workloadData.values,
+                    label: 'Last 12 months',
+                    data: workloadData.historical_values,
                     borderColor: '#1B3358',
-                    backgroundColor: 'rgba(27,51,88,.14)',
+                    backgroundColor: 'rgba(27,51,88,.12)',
                     fill: true,
-                    tension: 0.25,
-                    pointRadius: 4
+                    tension: 0.28,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }, {
+                    label: 'Forecast',
+                    data: workloadData.forecast_values,
+                    borderColor: '#14B8A6',
+                    backgroundColor: 'rgba(20,184,166,.14)',
+                    borderDash: [6, 5],
+                    fill: false,
+                    tension: 0.28,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    spanGaps: true
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: { legend: { position: 'bottom' } },
                 scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
             }
         });

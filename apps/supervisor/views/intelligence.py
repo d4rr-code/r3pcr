@@ -1,5 +1,4 @@
 from collections import defaultdict
-from datetime import timedelta
 from io import BytesIO
 import json
 
@@ -294,7 +293,7 @@ def _risk_for_shipment(shipment, model):
     }
 
 
-def _risk_rows(shipments):
+def _risk_rows(shipments, risk_filter='high'):
     active_shipments = [
         shipment for shipment in shipments
         if shipment.status not in TERMINAL_STATUSES
@@ -307,60 +306,137 @@ def _risk_rows(shipments):
         'medium': sum(1 for row in rows if row['label'] == 'Medium'),
         'low': sum(1 for row in rows if row['label'] == 'Low'),
     }
-    return rows[:12], distribution, model
+    visible_rows = rows
+    if risk_filter in {'high', 'medium', 'low'}:
+        visible_rows = [
+            row for row in rows
+            if row['label'].lower() == risk_filter
+        ]
+    return visible_rows[:12], distribution, model
 
 
-def _count_submitted_between(shipments, start_date, end_date):
+def _add_months(date_value, months):
+    month = date_value.month - 1 + months
+    year = date_value.year + month // 12
+    month = month % 12 + 1
+    return date_value.replace(year=year, month=month, day=1)
+
+
+def _month_start(date_value):
+    return date_value.replace(day=1)
+
+
+def _month_count(shipments, month_start):
+    next_month = _add_months(month_start, 1)
     return sum(
         1 for shipment in shipments
-        if shipment.submitted_at and start_date <= timezone.localtime(shipment.submitted_at).date() <= end_date
+        if shipment.submitted_at and month_start <= timezone.localtime(shipment.submitted_at).date() < next_month
     )
 
 
-def _workload_forecast(shipments):
+def _forecast_next_months(monthly_counts, months):
+    history = list(monthly_counts)
+    forecasts = []
+    for _index in range(months):
+        recent = history[-3:] if len(history) >= 3 else history
+        if len(recent) >= 3:
+            projected = round((recent[-1] * 0.5) + (recent[-2] * 0.3) + (recent[-3] * 0.2))
+        elif recent:
+            projected = round(sum(recent) / len(recent))
+        else:
+            projected = 0
+        forecasts.append(projected)
+        history.append(projected)
+    return forecasts
+
+
+def _workload_forecast(shipments, forecast_months=1):
+    forecast_months = 3 if str(forecast_months) == '3' else 1
     today = timezone.localdate()
-    windows = [
-        ('21-15 days ago', today - timedelta(days=21), today - timedelta(days=15)),
-        ('14-8 days ago', today - timedelta(days=14), today - timedelta(days=8)),
-        ('Last 7 days', today - timedelta(days=6), today),
+    first_month = _add_months(_month_start(today), -11)
+    months = [_add_months(first_month, index) for index in range(12)]
+    counts = [_month_count(shipments, month) for month in months]
+    sample_total = sum(counts)
+    forecasts = _forecast_next_months(counts, forecast_months)
+    projected = sum(forecasts)
+    recent_counts = counts[-3:] if len(counts) >= 3 else counts
+    recent_average = sum(recent_counts) / len(recent_counts) if recent_counts else 0
+    previous = counts[-1] if counts else 0
+    active_backlog = sum(1 for shipment in shipments if shipment.status not in TERMINAL_STATUSES)
+    monthly_projection = projected / forecast_months if forecast_months else projected
+    confidence_margin = max(1, round(max(recent_average, monthly_projection, 1) * 0.2)) * forecast_months
+    projected_low = max(0, projected - confidence_margin)
+    projected_high = projected + confidence_margin
+    period_rows = [
+        {
+            'label': month.strftime('%b %Y'),
+            'date_range': 'Actual',
+            'count': count,
+        }
+        for month, count in zip(months, counts)
     ]
-    counts = [
-        _count_submitted_between(shipments, start, end)
-        for _label, start, end in windows
+    future_months = [_add_months(_month_start(today), index + 1) for index in range(forecast_months)]
+    forecast_rows = [
+        {
+            'label': month.strftime('%b %Y'),
+            'date_range': 'Forecast',
+            'count': count,
+        }
+        for month, count in zip(future_months, forecasts)
     ]
-    projected = round((counts[-1] * 0.5) + (counts[-2] * 0.3) + (counts[-3] * 0.2))
-    recent_average = sum(counts) / len(counts) if counts else 0
-    previous = counts[-2] if len(counts) > 1 else 0
     if previous:
-        trend_pct = round(((projected - previous) / previous) * 100, 1)
-    elif projected:
+        trend_pct = round(((monthly_projection - previous) / previous) * 100, 1)
+    elif monthly_projection:
         trend_pct = 100
     else:
         trend_pct = 0
 
-    if recent_average and projected >= recent_average * 1.25:
+    if recent_average and monthly_projection >= recent_average * 1.25:
         level = 'Heavy'
-        interpretation = 'Incoming workload is projected above the recent baseline.'
+        interpretation = 'Incoming workload is projected above the recent monthly baseline.'
         action = 'Prepare extra declarant capacity and monitor incoming queue assignments.'
-    elif recent_average and projected <= recent_average * 0.75:
+        confidence = 'Moderate'
+    elif recent_average and monthly_projection <= recent_average * 0.75:
         level = 'Light'
-        interpretation = 'Incoming workload is projected below the recent baseline.'
+        interpretation = 'Incoming workload is projected below the recent monthly baseline.'
         action = 'Use available time for HS review, document checks, and backlog cleanup.'
+        confidence = 'Moderate'
     else:
         level = 'Normal'
-        interpretation = 'Incoming workload is close to the recent baseline.'
+        interpretation = 'Incoming workload is close to the recent monthly baseline.'
         action = 'Maintain current declarant assignment and continue daily monitoring.'
+        confidence = 'High' if sample_total >= 24 else 'Moderate'
+    if sample_total < 10:
+        confidence = 'Low'
+        interpretation = 'The 12-month volume is limited, so this forecast should be treated as an indicative estimate.'
+        action = 'Use this as a directional signal and keep monitoring monthly incoming volume.'
+
+    labels = [month.strftime('%b') for month in months] + [month.strftime('%b') for month in future_months]
+    historical_values = counts + [None] * forecast_months
+    forecast_values = [None] * (len(counts) - 1) + [counts[-1]] + forecasts
 
     return {
+        'forecast_months': forecast_months,
+        'forecast_label': f'Next {forecast_months} month{"s" if forecast_months != 1 else ""}',
+        'history_label': 'Last 12 months',
         'projected_next_7_days': projected,
+        'projected_period_total': projected,
+        'projected_low': projected_low,
+        'projected_high': projected_high,
         'recent_average': round(recent_average, 1),
         'trend_pct': trend_pct,
         'level': level,
+        'confidence': confidence,
+        'sample_total': sample_total,
+        'active_backlog': active_backlog,
+        'pressure_total': active_backlog + projected,
         'interpretation': interpretation,
         'action': action,
+        'period_rows': period_rows[-6:] + forecast_rows,
         'chart': {
-            'labels': [label for label, _start, _end in windows] + ['Next 7 days'],
-            'values': counts + [projected],
+            'labels': labels,
+            'historical_values': historical_values,
+            'forecast_values': forecast_values,
         },
     }
 
@@ -411,7 +487,7 @@ def _hs_review_rows():
     }
 
 
-def _intelligence_context():
+def _intelligence_context(risk_filter='high', forecast_months=1):
     shipments = (
         Shipment.objects
         .select_related('consignee', 'declarant')
@@ -421,9 +497,10 @@ def _intelligence_context():
     shipments_list = list(shipments[:500])
 
     stage_rows, bottleneck, avg_total_days, median_total_days = _stage_metrics(shipments_list)
-    risk_rows, risk_distribution, delay_model = _risk_rows(shipments_list)
+    risk_filter = risk_filter if risk_filter in {'high', 'medium', 'low', 'all'} else 'high'
+    risk_rows, risk_distribution, delay_model = _risk_rows(shipments_list, risk_filter)
     hs_review = _hs_review_rows()
-    workload_forecast = _workload_forecast(shipments_list)
+    workload_forecast = _workload_forecast(shipments_list, forecast_months)
     delayed_count = sum(1 for shipment in shipments_list if getattr(shipment, 'kpi_timing_status', '') == 'delayed')
     on_time_count = sum(1 for shipment in shipments_list if getattr(shipment, 'kpi_timing_status', '') in {'on_track', 'complete'})
     measurable = delayed_count + on_time_count
@@ -463,8 +540,16 @@ def _intelligence_context():
         'median_total_days': median_total_days,
         'risk_rows': risk_rows,
         'risk_distribution': risk_distribution,
+        'risk_filter': risk_filter,
+        'risk_filters': [
+            {'key': 'high', 'label': 'High', 'count': risk_distribution['high']},
+            {'key': 'medium', 'label': 'Medium', 'count': risk_distribution['medium']},
+            {'key': 'low', 'label': 'Low', 'count': risk_distribution['low']},
+            {'key': 'all', 'label': 'All', 'count': sum(risk_distribution.values())},
+        ],
         'delay_model': delay_model,
         'workload_forecast': workload_forecast,
+        'forecast_options': [1, 3],
         'hs_review': hs_review,
         'delayed_count': delayed_count,
         'on_time_rate': on_time_rate,
@@ -479,7 +564,14 @@ def _intelligence_context():
 
 @supervisor_required
 def intelligence(request):
-    return render(request, 'supervisor/intelligence.html', _intelligence_context())
+    return render(
+        request,
+        'supervisor/intelligence.html',
+        _intelligence_context(
+            request.GET.get('risk', 'high'),
+            request.GET.get('forecast_months', 1),
+        ),
+    )
 
 
 def _export_rows(context):
@@ -491,8 +583,11 @@ def _export_rows(context):
         ['Medium Risk Shipments', context['risk_distribution']['medium']],
         ['Low Risk Shipments', context['risk_distribution']['low']],
         ['Delayed Shipments', context['delayed_count']],
-        ['Projected Incoming Next 7 Days', context['workload_forecast']['projected_next_7_days']],
+        [f"Projected Incoming {context['workload_forecast']['forecast_label']}", context['workload_forecast']['projected_period_total']],
+        ['Projected Workload Range', f"{context['workload_forecast']['projected_low']} - {context['workload_forecast']['projected_high']}"],
         ['Projected Workload Level', context['workload_forecast']['level']],
+        ['Forecast Confidence', context['workload_forecast']['confidence']],
+        ['Active Backlog', context['workload_forecast']['active_backlog']],
         ['Forecast Interpretation', context['workload_forecast']['interpretation']],
         ['Delay Model Source', context['delay_model']['source']],
         ['Delay Model Training Samples', context['delay_model']['sample_count']],
@@ -530,7 +625,10 @@ def _export_rows(context):
 @supervisor_required
 def intelligence_export(request):
     fmt = (request.GET.get('format') or 'xlsx').lower()
-    context = _intelligence_context()
+    context = _intelligence_context(
+        request.GET.get('risk', 'high'),
+        request.GET.get('forecast_months', 1),
+    )
     summary, stages, risks, hs_rows = _export_rows(context)
     filename_date = timezone.localtime().strftime('%Y%m%d')
 
