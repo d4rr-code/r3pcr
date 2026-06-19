@@ -4,6 +4,10 @@ import re
 from ..models import User
 
 
+STRICT_EMAIL_RE = re.compile(r'^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+COMPANY_NAME_RE = re.compile(r"^[a-zA-ZÀ-ÿ0-9\s\-'.]+$")
+
+
 def _normalize_phone_number(phone):
     """Reduce any PH mobile entry to the canonical 11-digit 09xxxxxxxxx form.
     Accepts +63/63 prefixes and stray spaces/dashes; returns '' if unusable."""
@@ -52,6 +56,8 @@ def _validate_profile_fields(first_name, last_name, email, phone='', company='')
     if not email:
         errors.append('Email address is required.')
     else:
+        if not STRICT_EMAIL_RE.fullmatch(email):
+            errors.append('Email may only contain letters, numbers, dots, underscores, and hyphens.')
         from django.core.validators import validate_email as _dj_validate_email
         from django.core.exceptions import ValidationError as _DjVErr
         try:
@@ -68,6 +74,8 @@ def _validate_profile_fields(first_name, last_name, email, phone='', company='')
     # Company (optional)
     if company and len(company) > 100:
         errors.append('Company name cannot exceed 100 characters.')
+    elif company and not COMPANY_NAME_RE.fullmatch(company):
+        errors.append('Company name may only contain letters, numbers, spaces, hyphens, dots, and apostrophes.')
 
     return errors
 

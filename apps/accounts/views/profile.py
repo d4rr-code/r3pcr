@@ -17,7 +17,7 @@ def account_settings(request):
         if action == 'profile':
             first_name = request.POST.get('first_name', '').strip()
             last_name  = request.POST.get('last_name',  '').strip()
-            email      = request.POST.get('email', '').strip()
+            email      = request.POST.get('email', '').strip().lower()
             phone      = request.POST.get('phone_number', '').strip()
             company    = request.POST.get('company_name', '').strip()
 
@@ -27,8 +27,8 @@ def account_settings(request):
                     messages.error(request, e)
                 return redirect('accounts:settings')
 
-            if email != user.email:
-                if User.objects.filter(email=email).exclude(pk=user.pk).exists():
+            if email.lower() != (user.email or '').lower():
+                if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
                     messages.error(request, 'Email already in use by another account.')
                     return redirect('accounts:settings')
                 user.email = email
