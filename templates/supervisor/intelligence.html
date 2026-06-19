@@ -6,7 +6,7 @@
 
 {% block content %}
 <style>
-.intel-page{display:grid;gap:18px}
+.intel-page{display:grid;gap:18px;width:100%;max-width:1480px;margin:0 auto}
 .intel-hero{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:20px 22px;box-shadow:0 8px 24px rgba(31,43,62,.08)}
 .intel-hero h2{color:#1B3358;font-size:22px;font-weight:900;margin:0 0 6px}
 .intel-hero p{color:#64748B;font-size:13px;margin:0;max-width:820px;line-height:1.5}
@@ -15,13 +15,13 @@
 .intel-btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:8px 13px;border-radius:7px;background:#1B3358;color:#fff;text-decoration:none;font-size:11px;font-weight:900}
 .intel-btn.secondary{background:#fff;color:#1B3358;border:1px solid #DCE5EF}
 .intel-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.intel-chart-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}
-.intel-chart-card{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(31,43,62,.08);min-height:260px}
+.intel-chart-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.intel-chart-card{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(31,43,62,.08);min-height:280px;min-width:0}
 .intel-chart-card h3{color:#1B3358;font-size:15px;font-weight:900;margin:0 0 4px}
 .intel-chart-card p{color:#64748B;font-size:11px;margin:0 0 12px}
-.intel-chart-frame{position:relative;height:205px}
+.intel-chart-frame{position:relative;height:220px}
 .intel-chart-frame canvas{position:relative}
-.intel-card{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(31,43,62,.08);min-height:104px}
+.intel-card{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(31,43,62,.08);min-height:104px;min-width:0}
 .intel-label{color:#64748B;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px}
 .intel-value{color:#111827;font-size:28px;font-weight:900;line-height:1;margin:0}
 .intel-note{color:#94A3B8;font-size:11px;margin:8px 0 0;line-height:1.35}
@@ -42,7 +42,9 @@
 .code-chip{display:inline-flex;margin:0 5px 5px 0;padding:4px 7px;border-radius:6px;background:#EFF6FF;color:#1D4ED8;font-size:11px;font-weight:800}
 .muted{color:#64748B}
 .empty-intel{padding:22px;color:#64748B;text-align:center;font-size:13px}
-@media(max-width:1100px){.intel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.intel-chart-grid{grid-template-columns:1fr}}
+@media(max-width:1200px){.intel-chart-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:1100px){.intel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){.intel-chart-grid{grid-template-columns:1fr}}
 @media(max-width:640px){.intel-grid{grid-template-columns:1fr}.intel-head,.intel-hero-top{flex-direction:column}.intel-actions{width:100%}.intel-btn{flex:1}}
 </style>
 
@@ -98,7 +100,7 @@
             <p>Current active shipments grouped by explainable delay risk level.</p>
             <div class="intel-chart-frame"><canvas id="riskDistributionChart"></canvas></div>
         </div>
-        <div class="intel-chart-card" style="grid-column:1 / -1;">
+        <div class="intel-chart-card">
             <h3>Most Confirmed HS Codes</h3>
             <p>Historical HS classifications used to strengthen future recommendations.</p>
             <div class="intel-chart-frame"><canvas id="hsHistoryChart"></canvas></div>
