@@ -8,7 +8,7 @@ _chapter_num` in declarant) keep working unchanged.
 """
 from .common import supervisor_required, _HS_SECTIONS, _chapter_num
 from .analytics import dashboard, analytics, analytics_export, analytics_status_counts
-from .intelligence import intelligence
+from .intelligence import intelligence, intelligence_export
 from .users import (
     user_management, approve_registration, reject_registration,
     add_user, edit_user, toggle_user,

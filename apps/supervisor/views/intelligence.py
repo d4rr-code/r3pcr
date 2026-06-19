@@ -1,6 +1,9 @@
 from collections import defaultdict
+from io import BytesIO
+import json
 
 from django.db.models import Avg, Count
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -43,8 +46,6 @@ def _stage_metrics(shipments):
 
     stage_totals = defaultdict(lambda: {'days': 0.0, 'count': 0})
     completed_totals = []
-    now = timezone.now()
-
     for shipment in shipments:
         logs = logs_by_shipment.get(shipment.id, [])
         if logs:
@@ -57,13 +58,23 @@ def _stage_metrics(shipments):
 
             for index, log in enumerate(logs):
                 next_at = logs[index + 1].changed_at if index + 1 < len(logs) else None
-                end_at = next_at or (shipment.updated_at if shipment.status in TERMINAL_STATUSES else now)
+                if next_at:
+                    end_at = next_at
+                elif shipment.status in TERMINAL_STATUSES:
+                    end_at = shipment.updated_at
+                else:
+                    # Open/current stage age belongs in delay-risk scoring, not
+                    # historical bottleneck averages. Including it makes old
+                    # active revisions look like a 100+ day process average.
+                    continue
                 days = _duration_days(log.changed_at, end_at)
                 if days:
                     stage_totals[log.new_status]['days'] += days
                     stage_totals[log.new_status]['count'] += 1
         else:
-            end_at = shipment.updated_at if shipment.status in TERMINAL_STATUSES else now
+            if shipment.status not in TERMINAL_STATUSES:
+                continue
+            end_at = shipment.updated_at
             days = _duration_days(shipment.submitted_at, end_at)
             if days:
                 stage_totals[shipment.status]['days'] += days
@@ -240,8 +251,7 @@ def _hs_review_rows():
     }
 
 
-@supervisor_required
-def intelligence(request):
+def _intelligence_context():
     shipments = (
         Shipment.objects
         .select_related('consignee', 'declarant')
@@ -258,7 +268,24 @@ def intelligence(request):
     measurable = delayed_count + on_time_count
     on_time_rate = round(on_time_count / measurable * 100, 1) if measurable else 0
 
-    return render(request, 'supervisor/intelligence.html', {
+    stage_chart = {
+        'labels': [row['label'] for row in stage_rows[:6]],
+        'values': [row['avg_days'] for row in stage_rows[:6]],
+    }
+    risk_chart = {
+        'labels': ['High', 'Medium', 'Low'],
+        'values': [
+            risk_distribution['high'],
+            risk_distribution['medium'],
+            risk_distribution['low'],
+        ],
+    }
+    hs_chart = {
+        'labels': [row['hs_code__code'] for row in hs_review['top_hs_codes']],
+        'values': [row['count'] for row in hs_review['top_hs_codes']],
+    }
+
+    return {
         'stage_rows': stage_rows,
         'bottleneck': bottleneck,
         'avg_total_days': avg_total_days,
@@ -268,4 +295,148 @@ def intelligence(request):
         'hs_review': hs_review,
         'delayed_count': delayed_count,
         'on_time_rate': on_time_rate,
-    })
+        'stage_chart_json': json.dumps(stage_chart),
+        'risk_chart_json': json.dumps(risk_chart),
+        'hs_chart_json': json.dumps(hs_chart),
+        'generated_at': timezone.localtime(),
+    }
+
+
+@supervisor_required
+def intelligence(request):
+    return render(request, 'supervisor/intelligence.html', _intelligence_context())
+
+
+def _export_rows(context):
+    summary = [
+        ['Average Processing Time', f"{context['avg_total_days']} days"],
+        ['Median Processing Time', f"{context['median_total_days']} days"],
+        ['On-Time Rate', f"{context['on_time_rate']}%"],
+        ['High Risk Shipments', context['risk_distribution']['high']],
+        ['Medium Risk Shipments', context['risk_distribution']['medium']],
+        ['Low Risk Shipments', context['risk_distribution']['low']],
+        ['Delayed Shipments', context['delayed_count']],
+        ['HS Records Confirmed', context['hs_review']['historical_count']],
+        ['HS Items Needing Review', context['hs_review']['review_count']],
+    ]
+    stages = [
+        [row['label'], row['avg_days'], row['count'], row['total_days']]
+        for row in context['stage_rows']
+    ]
+    risks = [
+        [
+            row['shipment'].hawb_number,
+            row['shipment'].get_status_display(),
+            row['label'],
+            row['score'],
+            '; '.join(row['reasons']),
+            row['action'],
+        ]
+        for row in context['risk_rows']
+    ]
+    hs_rows = [
+        [
+            row['item'].description,
+            row['item'].hs_code.code if row['item'].hs_code else 'No code selected',
+            f"{row['confidence_pct']}%",
+            ', '.join(hs.code for hs in row['suggestions']) or 'No suggestion found',
+            row['item'].shipment.hawb_number,
+        ]
+        for row in context['hs_review']['rows']
+    ]
+    return summary, stages, risks, hs_rows
+
+
+@supervisor_required
+def intelligence_export(request):
+    fmt = (request.GET.get('format') or 'xlsx').lower()
+    context = _intelligence_context()
+    summary, stages, risks, hs_rows = _export_rows(context)
+    filename_date = timezone.localtime().strftime('%Y%m%d')
+
+    if fmt == 'pdf':
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(A4),
+            rightMargin=24,
+            leftMargin=24,
+            topMargin=24,
+            bottomMargin=24,
+        )
+        styles = getSampleStyleSheet()
+        cell_style = ParagraphStyle('cell', fontName='Helvetica', fontSize=8, leading=10)
+        story = [
+            Paragraph('R3-PCR Pre-Clearance Intelligence Report', styles['Title']),
+            Paragraph(f"Generated: {context['generated_at'].strftime('%b %d, %Y %I:%M %p')}", styles['Normal']),
+            Spacer(1, 12),
+        ]
+        tables = [
+            ('Executive Summary', ['Metric', 'Value'], summary),
+            ('Processing Bottlenecks', ['Stage', 'Avg Days', 'Transitions', 'Total Days'], stages),
+            ('Delay Risk', ['Shipment', 'Status', 'Risk', 'Score', 'Reasons', 'Action'], risks),
+            ('HS Code Review', ['Description', 'Current HS', 'Confidence', 'Suggestions', 'Shipment'], hs_rows),
+        ]
+        for title, headers, rows in tables:
+            story.append(Paragraph(title, styles['Heading2']))
+            body = rows or [['No data'] + [''] * (len(headers) - 1)]
+            table_data = [headers] + [
+                [Paragraph(str(cell), cell_style) for cell in row]
+                for row in body
+            ]
+            table = Table(table_data, repeatRows=1, hAlign='LEFT')
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1B3358')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#DCE5EF')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ]))
+            story.extend([table, Spacer(1, 12)])
+        doc.build(story)
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="R3PCR_Pre_Clearance_Intelligence_{filename_date}.pdf"'
+        return response
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    wb = Workbook()
+    header_fill = PatternFill('solid', fgColor='1B3358')
+    header_font = Font(color='FFFFFF', bold=True)
+
+    sheets = [
+        ('Summary', ['Metric', 'Value'], summary),
+        ('Bottlenecks', ['Stage', 'Average Days', 'Transitions', 'Total Days'], stages),
+        ('Delay Risk', ['Shipment', 'Status', 'Risk', 'Score', 'Reasons', 'Action'], risks),
+        ('HS Review', ['Description', 'Current HS', 'Confidence', 'Suggestions', 'Shipment'], hs_rows),
+    ]
+    for index, (title, headers, rows) in enumerate(sheets):
+        sheet = wb.active if index == 0 else wb.create_sheet(title)
+        sheet.title = title
+        sheet.append(headers)
+        for cell in sheet[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        for row in rows:
+            sheet.append(row)
+        for col in sheet.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            sheet.column_dimensions[col[0].column_letter].width = min(max(max_len + 2, 12), 55)
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="R3PCR_Pre_Clearance_Intelligence_{filename_date}.xlsx"'
+    return response
