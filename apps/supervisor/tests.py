@@ -138,11 +138,53 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertTrue(response.context['stage_rows'])
         self.assertNotIn('computed', {row['status'] for row in response.context['stage_rows']})
         self.assertGreaterEqual(response.context['risk_distribution']['high'], 1)
+        self.assertEqual(response.context['delay_model']['source'], 'Fallback rules')
+        self.assertIn('projected_next_7_days', response.context['workload_forecast'])
         self.assertEqual(response.context['hs_review']['historical_count'], 1)
         self.assertContains(response, '8471.60.90')
         self.assertContains(response, 'wireless computer mouse')
+        self.assertContains(response, 'Projected Workload')
+        self.assertContains(response, 'Delay Model Weights')
         self.assertContains(response, reverse('supervisor:intelligence_export') + '?format=xlsx')
         self.assertContains(response, reverse('supervisor:intelligence_export') + '?format=pdf')
+
+    def test_intelligence_trains_delay_model_from_completed_shipments(self):
+        today = timezone.localdate()
+        for index in range(8):
+            shipment = self._shipment(f'R3PCR-TRAIN-{index}', 'billed')
+            submitted_at = timezone.now() - timedelta(days=8 + index)
+            completed_at = submitted_at + timedelta(days=7 if index < 5 else 3)
+            Shipment.objects.filter(pk=shipment.pk).update(
+                submitted_at=submitted_at,
+                updated_at=completed_at,
+                has_deficiency=index < 5,
+                estimated_arrival_date=today - timedelta(days=8 + index),
+            )
+
+        response = self.client.get(reverse('supervisor:intelligence'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['delay_model']['source'], 'Historical training')
+        self.assertEqual(response.context['delay_model']['sample_count'], 8)
+        self.assertGreater(response.context['delay_model']['weights']['deficiency'], 0)
+
+    def test_intelligence_forecasts_workload_from_recent_incoming_trend(self):
+        now = timezone.now()
+        for index in range(4):
+            shipment = self._shipment(f'R3PCR-FORECAST-RECENT-{index}', 'incoming')
+            Shipment.objects.filter(pk=shipment.pk).update(submitted_at=now - timedelta(days=index))
+        for index in range(2):
+            shipment = self._shipment(f'R3PCR-FORECAST-PREV-{index}', 'incoming')
+            Shipment.objects.filter(pk=shipment.pk).update(submitted_at=now - timedelta(days=8 + index))
+        older = self._shipment('R3PCR-FORECAST-OLD', 'incoming')
+        Shipment.objects.filter(pk=older.pk).update(submitted_at=now - timedelta(days=16))
+
+        response = self.client.get(reverse('supervisor:intelligence'))
+
+        forecast = response.context['workload_forecast']
+        self.assertEqual(forecast['projected_next_7_days'], 3)
+        self.assertEqual(forecast['chart']['values'], [1, 2, 4, 3])
+        self.assertContains(response, 'Projected Workload Interpretation')
 
     def test_intelligence_exports_xlsx_and_pdf(self):
         self._shipment('R3PCR-INTEL-EXPORT', 'billed')

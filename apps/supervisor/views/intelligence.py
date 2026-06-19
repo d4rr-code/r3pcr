@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import timedelta
 from io import BytesIO
 import json
 
@@ -17,6 +18,19 @@ from .common import supervisor_required
 TERMINAL_STATUSES = {'released', 'billed'}
 REQUIRED_DOCUMENTS = {'invoice', 'packing_list', 'airway_bill'}
 IN_PROGRESS_STATUSES = {'arrived', 'computed', 'for_revision', 'lodgement', 'ongoing', 'assessed'}
+DEFAULT_RISK_WEIGHTS = {
+    'status_age_high': 25,
+    'status_age_medium': 15,
+    'kpi_delayed': 30,
+    'kpi_due_soon': 10,
+    'deficiency': 25,
+    'for_revision': 20,
+    'missing_doc': 10,
+    'missing_docs_cap': 25,
+    'urgent': 10,
+    'priority': 5,
+    'waiting_action': 8,
+}
 
 
 def _status_label(status):
@@ -121,54 +135,144 @@ def _current_status_age_days(shipment):
     return _duration_days(start, timezone.now())
 
 
-def _risk_for_shipment(shipment):
+def _risk_factor(shipment):
+    uploaded = set(shipment.documents.values_list('document_type', flat=True))
+    missing_docs = len(REQUIRED_DOCUMENTS - uploaded)
+    if shipment.has_deficiency:
+        return 'deficiency'
+    if shipment.status == 'for_revision':
+        return 'for_revision'
+    if missing_docs:
+        return 'missing_docs'
+    if shipment.urgency in {'urgent', 'rush'}:
+        return 'urgent'
+    if shipment.urgency == 'priority':
+        return 'priority'
+    if shipment.status in {'computed', 'approved'}:
+        return 'waiting_action'
+    return 'baseline'
+
+
+def _shipment_total_days(shipment):
+    return _duration_days(shipment.submitted_at, shipment.updated_at)
+
+
+def _trained_delay_model(shipments):
+    completed = [
+        shipment for shipment in shipments
+        if shipment.status in TERMINAL_STATUSES and shipment.submitted_at and shipment.updated_at
+    ]
+    weights = DEFAULT_RISK_WEIGHTS.copy()
+    factor_counts = defaultdict(int)
+    delayed_counts = defaultdict(int)
+    delayed_total = 0
+
+    for shipment in completed:
+        target = shipment.kpi_target_days
+        if not target:
+            continue
+        total_days = _shipment_total_days(shipment)
+        if not total_days:
+            continue
+        factor = _risk_factor(shipment)
+        is_delayed = total_days > target[1]
+        factor_counts[factor] += 1
+        delayed_counts[factor] += int(is_delayed)
+        delayed_total += int(is_delayed)
+
+    sample_count = sum(factor_counts.values())
+    if sample_count < 8:
+        return {
+            'weights': weights,
+            'sample_count': sample_count,
+            'delayed_rate': 0,
+            'source': 'Fallback rules',
+            'summary': 'Using expert-defined weights until more completed shipments are available for training.',
+        }
+
+    baseline_rate = delayed_total / sample_count if sample_count else 0
+    trained_map = {
+        'deficiency': ('deficiency', 25),
+        'for_revision': ('for_revision', 20),
+        'missing_docs': ('missing_doc', 10),
+        'urgent': ('urgent', 10),
+        'priority': ('priority', 5),
+        'waiting_action': ('waiting_action', 8),
+    }
+    for factor, (weight_key, fallback) in trained_map.items():
+        count = factor_counts[factor]
+        if count < 3:
+            weights[weight_key] = fallback
+            continue
+        factor_rate = delayed_counts[factor] / count
+        lift = factor_rate - baseline_rate
+        learned_weight = fallback + round(lift * 40)
+        weights[weight_key] = max(4, min(35, learned_weight))
+
+    weights['kpi_delayed'] = max(weights['kpi_delayed'], 30)
+    weights['status_age_high'] = max(18, min(30, weights['status_age_high'] + round(baseline_rate * 8)))
+
+    return {
+        'weights': weights,
+        'sample_count': sample_count,
+        'delayed_rate': round(baseline_rate * 100, 1),
+        'source': 'Historical training',
+        'summary': (
+            'Weights are adjusted from completed shipment history by comparing each risk factor '
+            'against the historical delayed-completion rate.'
+        ),
+    }
+
+
+def _risk_for_shipment(shipment, model):
     score = 0
     reasons = []
     actions = []
     age_days = _current_status_age_days(shipment)
+    weights = model['weights']
 
     if age_days >= 5:
-        score += 25
+        score += weights['status_age_high']
         reasons.append(f'{round(age_days, 1)} days in {_status_label(shipment.status)}')
         actions.append('Review current workflow stage for delay.')
     elif age_days >= 3:
-        score += 15
+        score += weights['status_age_medium']
         reasons.append(f'{round(age_days, 1)} days in current status')
 
     timing_status = getattr(shipment, 'kpi_timing_status', '')
     if timing_status == 'delayed':
-        score += 30
+        score += weights['kpi_delayed']
         reasons.append('Past KPI target')
         actions.append('Escalate KPI-delayed shipment.')
     elif timing_status == 'due_soon':
-        score += 10
+        score += weights['kpi_due_soon']
         reasons.append('KPI window ending soon')
 
     if shipment.has_deficiency:
-        score += 25
+        score += weights['deficiency']
         reasons.append('Document deficiency flagged')
         actions.append('Request or review revised documents.')
     if shipment.status == 'for_revision':
-        score += 20
+        score += weights['for_revision']
         reasons.append('Waiting for consignee revision')
         actions.append('Follow up document resubmission.')
 
     uploaded = set(shipment.documents.values_list('document_type', flat=True))
     missing = sorted(REQUIRED_DOCUMENTS - uploaded)
     if missing:
-        score += min(len(missing) * 10, 25)
+        score += min(len(missing) * weights['missing_doc'], weights['missing_docs_cap'])
         reasons.append('Missing ' + ', '.join(label.replace('_', ' ') for label in missing))
         actions.append('Verify required pre-clearance documents.')
 
     if shipment.urgency in {'urgent', 'rush'}:
-        score += 10
+        score += weights['urgent']
         reasons.append(f'{shipment.get_urgency_display()} urgency')
     elif shipment.urgency == 'priority':
-        score += 5
+        score += weights['priority']
         reasons.append('Priority shipment')
 
     if shipment.status in {'computed', 'approved'}:
-        score += 8
+        score += weights['waiting_action']
         reasons.append('Awaiting next clearance action')
         actions.append('Move shipment to the next filing step if verified.')
 
@@ -195,14 +299,70 @@ def _risk_rows(shipments):
         shipment for shipment in shipments
         if shipment.status not in TERMINAL_STATUSES
     ]
-    rows = [_risk_for_shipment(shipment) for shipment in active_shipments]
+    model = _trained_delay_model(shipments)
+    rows = [_risk_for_shipment(shipment, model) for shipment in active_shipments]
     rows.sort(key=lambda row: row['score'], reverse=True)
     distribution = {
         'high': sum(1 for row in rows if row['label'] == 'High'),
         'medium': sum(1 for row in rows if row['label'] == 'Medium'),
         'low': sum(1 for row in rows if row['label'] == 'Low'),
     }
-    return rows[:12], distribution
+    return rows[:12], distribution, model
+
+
+def _count_submitted_between(shipments, start_date, end_date):
+    return sum(
+        1 for shipment in shipments
+        if shipment.submitted_at and start_date <= timezone.localtime(shipment.submitted_at).date() <= end_date
+    )
+
+
+def _workload_forecast(shipments):
+    today = timezone.localdate()
+    windows = [
+        ('21-15 days ago', today - timedelta(days=21), today - timedelta(days=15)),
+        ('14-8 days ago', today - timedelta(days=14), today - timedelta(days=8)),
+        ('Last 7 days', today - timedelta(days=6), today),
+    ]
+    counts = [
+        _count_submitted_between(shipments, start, end)
+        for _label, start, end in windows
+    ]
+    projected = round((counts[-1] * 0.5) + (counts[-2] * 0.3) + (counts[-3] * 0.2))
+    recent_average = sum(counts) / len(counts) if counts else 0
+    previous = counts[-2] if len(counts) > 1 else 0
+    if previous:
+        trend_pct = round(((projected - previous) / previous) * 100, 1)
+    elif projected:
+        trend_pct = 100
+    else:
+        trend_pct = 0
+
+    if recent_average and projected >= recent_average * 1.25:
+        level = 'Heavy'
+        interpretation = 'Incoming workload is projected above the recent baseline.'
+        action = 'Prepare extra declarant capacity and monitor incoming queue assignments.'
+    elif recent_average and projected <= recent_average * 0.75:
+        level = 'Light'
+        interpretation = 'Incoming workload is projected below the recent baseline.'
+        action = 'Use available time for HS review, document checks, and backlog cleanup.'
+    else:
+        level = 'Normal'
+        interpretation = 'Incoming workload is close to the recent baseline.'
+        action = 'Maintain current declarant assignment and continue daily monitoring.'
+
+    return {
+        'projected_next_7_days': projected,
+        'recent_average': round(recent_average, 1),
+        'trend_pct': trend_pct,
+        'level': level,
+        'interpretation': interpretation,
+        'action': action,
+        'chart': {
+            'labels': [label for label, _start, _end in windows] + ['Next 7 days'],
+            'values': counts + [projected],
+        },
+    }
 
 
 def _hs_review_rows():
@@ -261,8 +421,9 @@ def _intelligence_context():
     shipments_list = list(shipments[:500])
 
     stage_rows, bottleneck, avg_total_days, median_total_days = _stage_metrics(shipments_list)
-    risk_rows, risk_distribution = _risk_rows(shipments_list)
+    risk_rows, risk_distribution, delay_model = _risk_rows(shipments_list)
     hs_review = _hs_review_rows()
+    workload_forecast = _workload_forecast(shipments_list)
     delayed_count = sum(1 for shipment in shipments_list if getattr(shipment, 'kpi_timing_status', '') == 'delayed')
     on_time_count = sum(1 for shipment in shipments_list if getattr(shipment, 'kpi_timing_status', '') in {'on_track', 'complete'})
     measurable = delayed_count + on_time_count
@@ -284,6 +445,16 @@ def _intelligence_context():
         'labels': [row['hs_code__code'] for row in hs_review['top_hs_codes']],
         'values': [row['count'] for row in hs_review['top_hs_codes']],
     }
+    model_chart = {
+        'labels': ['Status age', 'KPI delayed', 'Deficiency', 'Missing docs', 'Urgency'],
+        'values': [
+            delay_model['weights']['status_age_high'],
+            delay_model['weights']['kpi_delayed'],
+            delay_model['weights']['deficiency'],
+            delay_model['weights']['missing_doc'],
+            delay_model['weights']['urgent'],
+        ],
+    }
 
     return {
         'stage_rows': stage_rows,
@@ -292,12 +463,16 @@ def _intelligence_context():
         'median_total_days': median_total_days,
         'risk_rows': risk_rows,
         'risk_distribution': risk_distribution,
+        'delay_model': delay_model,
+        'workload_forecast': workload_forecast,
         'hs_review': hs_review,
         'delayed_count': delayed_count,
         'on_time_rate': on_time_rate,
         'stage_chart_json': json.dumps(stage_chart),
         'risk_chart_json': json.dumps(risk_chart),
         'hs_chart_json': json.dumps(hs_chart),
+        'model_chart_json': json.dumps(model_chart),
+        'workload_chart_json': json.dumps(workload_forecast['chart']),
         'generated_at': timezone.localtime(),
     }
 
@@ -316,6 +491,11 @@ def _export_rows(context):
         ['Medium Risk Shipments', context['risk_distribution']['medium']],
         ['Low Risk Shipments', context['risk_distribution']['low']],
         ['Delayed Shipments', context['delayed_count']],
+        ['Projected Incoming Next 7 Days', context['workload_forecast']['projected_next_7_days']],
+        ['Projected Workload Level', context['workload_forecast']['level']],
+        ['Forecast Interpretation', context['workload_forecast']['interpretation']],
+        ['Delay Model Source', context['delay_model']['source']],
+        ['Delay Model Training Samples', context['delay_model']['sample_count']],
         ['HS Records Confirmed', context['hs_review']['historical_count']],
         ['HS Items Needing Review', context['hs_review']['review_count']],
     ]

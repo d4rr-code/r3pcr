@@ -14,8 +14,8 @@
 .intel-actions{display:flex;gap:8px;flex-wrap:wrap}
 .intel-btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:8px 13px;border-radius:7px;background:#1B3358;color:#fff;text-decoration:none;font-size:11px;font-weight:900}
 .intel-btn.secondary{background:#fff;color:#1B3358;border:1px solid #DCE5EF}
-.intel-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.intel-chart-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.intel-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+.intel-chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .intel-chart-card{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(31,43,62,.08);min-height:280px;min-width:0}
 .intel-chart-card h3{color:#1B3358;font-size:15px;font-weight:900;margin:0 0 4px}
 .intel-chart-card p{color:#64748B;font-size:11px;margin:0 0 12px}
@@ -42,7 +42,7 @@
 .code-chip{display:inline-flex;margin:0 5px 5px 0;padding:4px 7px;border-radius:6px;background:#EFF6FF;color:#1D4ED8;font-size:11px;font-weight:800}
 .muted{color:#64748B}
 .empty-intel{padding:22px;color:#64748B;text-align:center;font-size:13px}
-@media(max-width:1200px){.intel-chart-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:1200px){.intel-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1100px){.intel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:900px){.intel-chart-grid{grid-template-columns:1fr}}
 @media(max-width:640px){.intel-grid{grid-template-columns:1fr}.intel-head,.intel-hero-top{flex-direction:column}.intel-actions{width:100%}.intel-btn{flex:1}}
@@ -55,8 +55,9 @@
                 <h2>Pre-Clearance Intelligence</h2>
                 <p>
                     Diagnostic and predictive analytics for workflow bottlenecks, delay risk, and HS code review.
-                    The risk model is intentionally explainable: it scores shipments from current status age, KPI timing,
-                    document completeness, deficiency flags, and urgency.
+                    The risk model is intentionally explainable: it learns from completed shipment history when enough
+                    records exist, then scores active shipments from status age, KPI timing, document completeness,
+                    deficiency flags, and urgency.
                 </p>
             </div>
             <div class="intel-actions">
@@ -87,9 +88,19 @@
             <p class="intel-value">{{ risk_distribution.high }}</p>
             <p class="intel-note">{{ risk_distribution.medium }} medium, {{ risk_distribution.low }} low risk.</p>
         </div>
+        <div class="intel-card">
+            <p class="intel-label">Projected Workload</p>
+            <p class="intel-value">{{ workload_forecast.projected_next_7_days }}</p>
+            <p class="intel-note">{{ workload_forecast.level }} next 7 days, {{ workload_forecast.trend_pct }}% trend.</p>
+        </div>
     </section>
 
     <section class="intel-chart-grid">
+        <div class="intel-chart-card">
+            <h3>Projected Incoming Workload</h3>
+            <p>Weighted forecast from recent incoming shipment trends.</p>
+            <div class="intel-chart-frame"><canvas id="workloadForecastChart"></canvas></div>
+        </div>
         <div class="intel-chart-card">
             <h3>Average Duration by Stage</h3>
             <p>Shows which workflow stages consume the most processing time.</p>
@@ -99,6 +110,11 @@
             <h3>Risk Distribution</h3>
             <p>Current active shipments grouped by explainable delay risk level.</p>
             <div class="intel-chart-frame"><canvas id="riskDistributionChart"></canvas></div>
+        </div>
+        <div class="intel-chart-card">
+            <h3>Delay Model Weights</h3>
+            <p>{{ delay_model.source }} from {{ delay_model.sample_count }} completed shipment samples.</p>
+            <div class="intel-chart-frame"><canvas id="delayModelChart"></canvas></div>
         </div>
         <div class="intel-chart-card">
             <h3>Most Confirmed HS Codes</h3>
@@ -157,7 +173,8 @@
         <div class="intel-head">
             <div>
                 <h3>Pre-Clearance Delay Risk Prediction</h3>
-                <p>Rule-based risk scoring for active shipments that may need intervention.</p>
+                <p>{{ delay_model.summary }}</p>
+                <p>Current model source: <strong>{{ delay_model.source }}</strong>. Historical delayed rate: {{ delay_model.delayed_rate }}%.</p>
             </div>
         </div>
         {% if risk_rows %}
@@ -197,6 +214,23 @@
         {% else %}
         <div class="empty-intel">No active shipments to score.</div>
         {% endif %}
+    </section>
+
+    <section class="intel-section">
+        <div class="intel-head">
+            <div>
+                <h3>Projected Workload Interpretation</h3>
+                <p>{{ workload_forecast.interpretation }}</p>
+            </div>
+            <span class="risk-pill {% if workload_forecast.level == 'Heavy' %}risk-high{% elif workload_forecast.level == 'Light' %}risk-low{% else %}risk-medium{% endif %}">{{ workload_forecast.level }}</span>
+        </div>
+        <div class="intel-body">
+            <p class="muted" style="font-size:13px;margin:0;">
+                The next 7 days are projected at <strong>{{ workload_forecast.projected_next_7_days }}</strong>
+                incoming shipment{{ workload_forecast.projected_next_7_days|pluralize }} against a recent average of
+                <strong>{{ workload_forecast.recent_average }}</strong>. Recommended action: {{ workload_forecast.action }}
+            </p>
+        </div>
     </section>
 
     <section class="intel-section">
@@ -272,9 +306,35 @@
     var stageData = {{ stage_chart_json|safe }};
     var riskData = {{ risk_chart_json|safe }};
     var hsData = {{ hs_chart_json|safe }};
+    var modelData = {{ model_chart_json|safe }};
+    var workloadData = {{ workload_chart_json|safe }};
 
     function total(values) {
         return values.reduce(function(sum, value){ return sum + Number(value || 0); }, 0);
+    }
+
+    if (window.Chart && workloadData.labels.length) {
+        new Chart(document.getElementById('workloadForecastChart'), {
+            type: 'line',
+            data: {
+                labels: workloadData.labels,
+                datasets: [{
+                    label: 'Incoming shipments',
+                    data: workloadData.values,
+                    borderColor: '#1B3358',
+                    backgroundColor: 'rgba(27,51,88,.14)',
+                    fill: true,
+                    tension: 0.25,
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
     }
 
     if (window.Chart && stageData.labels.length) {
@@ -335,6 +395,28 @@
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+    }
+
+    if (window.Chart && modelData.labels.length) {
+        new Chart(document.getElementById('delayModelChart'), {
+            type: 'bar',
+            data: {
+                labels: modelData.labels,
+                datasets: [{
+                    label: 'Risk weight',
+                    data: modelData.values,
+                    backgroundColor: '#14B8A6',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, max: 40, ticks: { precision: 0 } } }
             }
         });
     }
