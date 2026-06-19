@@ -160,6 +160,36 @@
 }
 .compact-row strong { color:#1B3358; font-size:13px; }
 .perf-record-title { color:#1B3358; font-size:18px; font-weight:900; margin:28px 0 14px; padding-top:18px; border-top:1px solid #DCE5EF; }
+.record-filter-form {
+    display:flex;
+    align-items:flex-end;
+    gap:10px;
+    flex-wrap:wrap;
+    margin:0 0 14px;
+}
+.record-filter-field {
+    display:grid;
+    gap:5px;
+    min-width:150px;
+}
+.record-filter-field.search { flex:1 1 220px; }
+.record-filter-field label {
+    color:#64748B;
+    font-size:10px;
+    font-weight:900;
+    text-transform:uppercase;
+}
+.record-filter-field input,
+.record-filter-field select {
+    min-height:34px;
+    border:1px solid #DCE5EF;
+    border-radius:6px;
+    background:#fff;
+    color:#111827;
+    font-size:12px;
+    padding:7px 9px;
+}
+.record-filter-actions { display:flex; gap:8px; align-items:center; }
 .perf-table-card { background:#fff; border:1px solid #E6ECF2; border-radius:8px; box-shadow:0 8px 24px rgba(31,43,62,.08); overflow:hidden; }
 .perf-scroll { overflow-x:auto; }
 .perf-table { width:100%; min-width:980px; border-collapse:collapse; }
@@ -225,6 +255,7 @@ a.compact-row:hover { background: #f1f5f9; }
     .filter-pill { flex-basis: 100%; }
     .perf-card-head { align-items:flex-start; flex-direction:column; }
     .perf-table th, .perf-table td { padding: 14px 12px; }
+    .record-filter-field, .record-filter-actions, .record-filter-actions .btn { width:100%; }
 }
 </style>
 {% endblock %}
@@ -489,6 +520,44 @@ a.compact-row:hover { background: #f1f5f9; }
 </div>
 
 <h2 class="perf-record-title">Handled Shipments</h2>
+<form class="record-filter-form" method="GET">
+    <div class="record-filter-field search">
+        <label for="record-q">Search</label>
+        <input id="record-q" type="text" name="q" value="{{ record_filters.q }}" placeholder="HAWB, job number, consignee">
+    </div>
+    <div class="record-filter-field">
+        <label for="record-status">Status</label>
+        <select id="record-status" name="status">
+            <option value="">All Statuses</option>
+            {% for key, label in record_status_choices %}
+            <option value="{{ key }}" {% if record_filters.status == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="record-filter-field">
+        <label for="record-urgency">Urgency</label>
+        <select id="record-urgency" name="urgency">
+            <option value="">All Urgency</option>
+            {% for key, label in record_urgency_choices %}
+            <option value="{{ key }}" {% if record_filters.urgency == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="record-filter-field">
+        <label for="record-date-from">Date From</label>
+        <input id="record-date-from" type="date" name="date_from" value="{{ record_filters.date_from }}">
+    </div>
+    <div class="record-filter-field">
+        <label for="record-date-to">Date To</label>
+        <input id="record-date-to" type="date" name="date_to" value="{{ record_filters.date_to }}">
+    </div>
+    <div class="record-filter-actions">
+        <button type="submit" class="btn btn-primary" style="font-size:12px;">Filter</button>
+        {% if record_filters.q or record_filters.status or record_filters.urgency or record_filters.date_from or record_filters.date_to %}
+        <a href="{% url 'declarant:dashboard' %}" class="btn btn-secondary" style="font-size:12px;">Clear</a>
+        {% endif %}
+    </div>
+</form>
 <div class="perf-table-card">
     {% if my_records %}
     <div class="perf-scroll">

@@ -249,6 +249,13 @@ class AnalyticsDashboardContextTests(TestCase):
         self.assertEqual(resp.context['feedback_summary']['total'], 1)
         self.assertEqual(resp.context['feedback_summary']['avg_rating'], 5.0)
 
+    def test_date_filter_controls_render_range_presets(self):
+        resp = self.client.get(self.url)
+
+        self.assertContains(resp, 'This Month')
+        self.assertContains(resp, 'Last 30 Days')
+        self.assertContains(resp, 'Custom Range')
+
     def test_live_status_counts_respect_date_and_declarant_filters(self):
         today = timezone.localdate()
         old = timezone.now() - timedelta(days=7)

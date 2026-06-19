@@ -49,7 +49,7 @@
     </section>
 
     {% if shipment.has_deficiency %}
-    <section class="detail-card" style="margin-bottom:30px;">
+    <section id="resubmit-documents" class="detail-card" style="margin-bottom:30px;">
         <div class="card-head">
             <h3 class="section-title">Document Deficiency Flagged</h3>
             <p class="section-subtitle">{{ shipment.deficiency_notes }}</p>

@@ -192,7 +192,33 @@ def dashboard(request):
         else:
             due_buckets['over_five'] += 1
 
-    my_records = list(my_shipments.order_by('-submitted_at')[:6])
+    record_q = request.GET.get('q', '').strip()
+    record_status = request.GET.get('status', '').strip()
+    record_urgency = request.GET.get('urgency', '').strip()
+    record_date_from = request.GET.get('date_from', '').strip()
+    record_date_to = request.GET.get('date_to', '').strip()
+
+    records_qs = my_shipments.order_by('-submitted_at')
+    if record_q:
+        records_qs = records_qs.filter(
+            Q(hawb_number__icontains=record_q)
+            | Q(job_order_reference__icontains=record_q)
+            | Q(consignee__first_name__icontains=record_q)
+            | Q(consignee__last_name__icontains=record_q)
+            | Q(consignee__username__icontains=record_q)
+        )
+    valid_statuses = {key for key, _label in Shipment.STATUS_CHOICES}
+    if record_status in valid_statuses:
+        records_qs = records_qs.filter(status=record_status)
+    valid_urgencies = {key for key, _label in Shipment.URGENCY_CHOICES}
+    if record_urgency in valid_urgencies:
+        records_qs = records_qs.filter(urgency=record_urgency)
+    if record_date_from:
+        records_qs = records_qs.filter(submitted_at__date__gte=record_date_from)
+    if record_date_to:
+        records_qs = records_qs.filter(submitted_at__date__lte=record_date_to)
+
+    my_records = list(records_qs[:20])
 
     context = {
         'queue':               incoming_count,
@@ -218,6 +244,15 @@ def dashboard(request):
         'due_chart_data':      json.dumps([due_buckets['one_day'], due_buckets['three_days'], due_buckets['five_days'], due_buckets['over_five']]),
         'due_chart_colors':    json.dumps(['#dc0000', '#f75b5b', '#f9a1a1', '#ffd6d6']),
         'my_records':          my_records,
+        'record_filters': {
+            'q': record_q,
+            'status': record_status if record_status in valid_statuses else '',
+            'urgency': record_urgency if record_urgency in valid_urgencies else '',
+            'date_from': record_date_from,
+            'date_to': record_date_to,
+        },
+        'record_status_choices': Shipment.STATUS_CHOICES,
+        'record_urgency_choices': Shipment.URGENCY_CHOICES,
     }
     return render(request, 'declarant/dashboard.html', context)
 

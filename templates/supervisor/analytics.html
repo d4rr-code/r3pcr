@@ -612,6 +612,9 @@ canvas { cursor: pointer; }
             {% if status_f %}<input type="hidden" name="status_f" value="{{ status_f }}">{% endif %}
             <input type="date" name="date_from" value="{{ date_from }}" class="form-input" title="From date">
             <input type="date" name="date_to" value="{{ date_to }}" class="form-input" title="To date">
+            <button class="dash-btn" type="button" data-range-preset="month">This Month</button>
+            <button class="dash-btn" type="button" data-range-preset="30d">Last 30 Days</button>
+            <button class="dash-btn {% if date_from or date_to %}is-active{% endif %}" type="submit">Custom Range</button>
             <select name="declarant" class="form-input" title="Declarant">
                 <option value="">All Declarants</option>
                 {% for d in declarants %}
@@ -987,6 +990,35 @@ canvas { cursor: pointer; }
             if (setMonthRange(params, input.value)) {
                 window.location.search = params.toString();
             }
+        });
+    });
+
+    function isoDate(date) {
+        var y = date.getFullYear();
+        var m = String(date.getMonth() + 1).padStart(2, '0');
+        var d = String(date.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + d;
+    }
+
+    document.querySelectorAll('[data-range-preset]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var form = button.closest('form');
+            if (!form) return;
+            var from = form.querySelector('input[name="date_from"]');
+            var to = form.querySelector('input[name="date_to"]');
+            if (!from || !to) return;
+
+            var today = new Date();
+            if (button.dataset.rangePreset === 'month') {
+                from.value = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
+                to.value = isoDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+            } else if (button.dataset.rangePreset === '30d') {
+                var start = new Date(today);
+                start.setDate(today.getDate() - 29);
+                from.value = isoDate(start);
+                to.value = isoDate(today);
+            }
+            form.submit();
         });
     });
 

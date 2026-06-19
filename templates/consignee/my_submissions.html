@@ -40,20 +40,18 @@
     <form method="GET" class="filter-form">
         {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
         {% if active_status_filter %}<input type="hidden" name="active_status" value="{{ active_status_filter }}">{% endif %}
-        {% if active_import_type_filter %}<input type="hidden" name="active_import_type" value="{{ active_import_type_filter }}">{% endif %}
         {% if active_urgency_filter %}<input type="hidden" name="active_urgency" value="{{ active_urgency_filter }}">{% endif %}
         {% if active_shipment_type_filter %}<input type="hidden" name="active_shipment_type" value="{{ active_shipment_type_filter }}">{% endif %}
         {% if flagged_status_filter %}<input type="hidden" name="flagged_status" value="{{ flagged_status_filter }}">{% endif %}
-        {% if flagged_import_type_filter %}<input type="hidden" name="flagged_import_type" value="{{ flagged_import_type_filter }}">{% endif %}
         {% if flagged_urgency_filter %}<input type="hidden" name="flagged_urgency" value="{{ flagged_urgency_filter }}">{% endif %}
         {% if flagged_shipment_type_filter %}<input type="hidden" name="flagged_shipment_type" value="{{ flagged_shipment_type_filter }}">{% endif %}
         {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
 
         <div class="search-field">
-            <label class="c-label">Shipment Reference No.</label>
+            <label class="c-label">Search Shipment</label>
             <div class="input-with-icon">
-                <input type="text" name="q" value="{{ q }}" class="c-input input-icon" placeholder="e.g. R3PCR-2026-XXXXXX">
-                <button type="submit" class="search-submit" aria-label="Search shipment reference">
+                <input type="text" name="q" value="{{ q }}" class="c-input input-icon" placeholder="Ref no, job no, container">
+                <button type="submit" class="search-submit" aria-label="Search shipment">
                     <svg viewBox="0 0 20 20" aria-hidden="true">
                         <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clip-rule="evenodd"/>
                     </svg>
@@ -95,7 +93,7 @@
         <table class="c-table">
             <thead>
                 <tr>
-                    {% include 'consignee/partials/submissions_table_headers.html' with filter_prefix='active' local_status_filter=active_status_filter local_import_type_filter=active_import_type_filter local_urgency_filter=active_urgency_filter local_shipment_type_filter=active_shipment_type_filter %}
+                    {% include 'consignee/partials/submissions_table_headers.html' with filter_prefix='active' local_status_filter=active_status_filter local_urgency_filter=active_urgency_filter local_shipment_type_filter=active_shipment_type_filter %}
                 </tr>
             </thead>
             <tbody>
@@ -109,7 +107,7 @@
                         {% endif %}
                     </td>
 
-                    <td data-label="Import Type" class="muted">{{ shipment.get_import_type_display|default:"-" }}</td>
+                    <td data-label="Job Number" class="muted">{{ shipment.job_order_reference|default:"-" }}</td>
 
                     <td data-label="Urgency">
                         {% if shipment.urgency == 'standard' or shipment.urgency == 'normal' %}
@@ -157,6 +155,18 @@
 
                     <td data-label="Shipment Type" class="muted">{{ shipment.get_shipment_type_display|default:"-" }}</td>
 
+                    <td data-label="Container" class="muted">{{ shipment.container_number|default:"-" }}</td>
+
+                    <td data-label="ETA" class="muted">
+                        {% if shipment.kpi_eta_start and shipment.kpi_eta_end %}
+                            <span class="meta-primary">{{ shipment.kpi_eta_start|date:"M d" }}-{{ shipment.kpi_eta_end|date:"M d, Y" }}</span>
+                            <br>
+                            <span class="meta-secondary">KPI {{ shipment.kpi_target_label }}</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+
                     <td data-label="Submitted" class="meta-time">
                         <span class="meta-primary">{{ shipment.submitted_at|date:"M d, Y" }}</span>
                         <br>
@@ -177,7 +187,7 @@
                                     <path d="M16.86 3.86a2.1 2.1 0 0 1 2.97 2.97L9.72 16.94l-4.14 1.48 1.48-4.14L16.86 3.86Zm1.56 1.41a.1.1 0 0 0-.15 0L8.84 14.7l-.38 1.06 1.06-.38 9.43-9.43a.1.1 0 0 0 0-.15l-.53-.53Z"/>
                                 </svg>
                             </a>
-                            <form method="POST" action="{% url 'consignee:cancel' shipment.id %}" onsubmit="return confirm('Cancel shipment {{ shipment.hawb_number }}? This cannot be undone.');" class="inline-form">
+                            <form method="POST" action="{% url 'consignee:cancel' shipment.id %}" onsubmit="return confirm('Delete shipment {{ shipment.hawb_number }}? This cannot be undone.');" class="inline-form">
                                 {% csrf_token %}
                                 <button type="submit" class="row-action delete-action" aria-label="Delete {{ shipment.hawb_number }}" title="Delete shipment">
                                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -229,13 +239,13 @@
         <div class="empty-state-huge">No items</div>
         <p class="empty-title">No submissions found</p>
         <p class="empty-desc">
-            {% if q or status_filter or active_status_filter or active_import_type_filter or active_urgency_filter or active_shipment_type_filter or flagged_status_filter or flagged_import_type_filter or flagged_urgency_filter or flagged_shipment_type_filter or date_from or date_to %}
+            {% if q or status_filter or active_status_filter or active_urgency_filter or active_shipment_type_filter or flagged_status_filter or flagged_urgency_filter or flagged_shipment_type_filter or date_from or date_to %}
                 No shipments match your current filters. Try adjusting your search.
             {% else %}
                 You haven't submitted any shipments yet. Get started by submitting your first one.
             {% endif %}
         </p>
-        {% if q or status_filter or active_status_filter or active_import_type_filter or active_urgency_filter or active_shipment_type_filter or flagged_status_filter or flagged_import_type_filter or flagged_urgency_filter or flagged_shipment_type_filter or date_from or date_to %}
+        {% if q or status_filter or active_status_filter or active_urgency_filter or active_shipment_type_filter or flagged_status_filter or flagged_urgency_filter or flagged_shipment_type_filter or date_from or date_to %}
         <a href="{% url 'consignee:my_submissions' %}" class="c-btn c-btn-outline">Clear Filters</a>
         {% else %}
         <a href="{% url 'consignee:submit' %}" class="c-btn c-btn-primary">Submit Your First Shipment</a>
@@ -260,7 +270,7 @@
         <table class="c-table">
             <thead>
                 <tr>
-                    {% include 'consignee/partials/submissions_table_headers.html' with filter_prefix='flagged' local_status_filter=flagged_status_filter local_import_type_filter=flagged_import_type_filter local_urgency_filter=flagged_urgency_filter local_shipment_type_filter=flagged_shipment_type_filter %}
+                    {% include 'consignee/partials/submissions_table_headers.html' with filter_prefix='flagged' local_status_filter=flagged_status_filter local_urgency_filter=flagged_urgency_filter local_shipment_type_filter=flagged_shipment_type_filter %}
                 </tr>
             </thead>
             <tbody>
@@ -269,7 +279,7 @@
                     <td data-label="Shipment Ref No.">
                         <span class="ref-number">{{ shipment.hawb_number }}</span>
                     </td>
-                    <td data-label="Import Type" class="muted">{{ shipment.get_import_type_display|default:"-" }}</td>
+                    <td data-label="Job Number" class="muted">{{ shipment.job_order_reference|default:"-" }}</td>
                     <td data-label="Urgency">
                         {% if shipment.urgency == 'standard' or shipment.urgency == 'normal' %}
                             <span class="c-badge badge-standard">Standard</span>
@@ -288,6 +298,16 @@
                         <span class="inline-status-note">{{ shipment.deficiency_notes|default:"Documents need revision" }}</span>
                     </td>
                     <td data-label="Shipment Type" class="muted">{{ shipment.get_shipment_type_display|default:"-" }}</td>
+                    <td data-label="Container" class="muted">{{ shipment.container_number|default:"-" }}</td>
+                    <td data-label="ETA" class="muted">
+                        {% if shipment.kpi_eta_start and shipment.kpi_eta_end %}
+                            <span class="meta-primary">{{ shipment.kpi_eta_start|date:"M d" }}-{{ shipment.kpi_eta_end|date:"M d, Y" }}</span>
+                            <br>
+                            <span class="meta-secondary">KPI {{ shipment.kpi_target_label }}</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                     <td data-label="Submitted" class="meta-time">
                         <span class="meta-primary">{{ shipment.submitted_at|date:"M d, Y" }}</span>
                         <br>
@@ -299,7 +319,7 @@
                         <span class="meta-secondary">{{ shipment.updated_at|date:"g:i A" }}</span>
                     </td>
                     <td data-label="Actions" class="text-center">
-                        <a href="{% url 'consignee:shipment_detail' shipment.id %}" class="row-action view-action" aria-label="View {{ shipment.hawb_number }}" title="View shipment">
+                        <a href="{% url 'consignee:shipment_detail' shipment.id %}#resubmit-documents" class="row-action view-action" aria-label="Resubmit Documents for {{ shipment.hawb_number }}" title="Resubmit Documents">
                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                 <path d="M7.75 4A3.75 3.75 0 0 0 4 7.75v8.5A3.75 3.75 0 0 0 7.75 20h8.5A3.75 3.75 0 0 0 20 16.25V13a1 1 0 1 0-2 0v3.25c0 .97-.78 1.75-1.75 1.75h-8.5C6.78 18 6 17.22 6 16.25v-8.5C6 6.78 6.78 6 7.75 6H11a1 1 0 1 0 0-2H7.75Zm6.5 0a1 1 0 1 0 0 2h2.34l-6.3 6.29a1 1 0 1 0 1.42 1.42L18 7.41v2.34a1 1 0 1 0 2 0V5a1 1 0 0 0-1-1h-4.75Z"/>
                             </svg>

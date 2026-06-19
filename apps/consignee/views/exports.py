@@ -2,10 +2,12 @@ import logging
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
 from apps.shipments.models import Shipment
+from .common import consignee_required
 
 logger = logging.getLogger('r3pcr.consignee')
 
 @login_required
+@consignee_required
 def download_computation(request, shipment_id):
     """Download ECDT + WMCDA results as PDF (default) or Excel (.xlsx).
     Use ?fmt=xlsx for Excel, ?fmt=pdf (or omit) for PDF."""

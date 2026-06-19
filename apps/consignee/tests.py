@@ -221,6 +221,17 @@ class ConsigneeDashboardChartTests(TestCase):
         self.assertContains(response, 'class="sc-count flags-count">2</span>')
         self.assertContains(response, reverse('consignee:my_submissions') + '#flagged-shipments')
 
+    def test_supervisor_cannot_open_consignee_dashboard_by_url(self):
+        supervisor = User.objects.create_user(
+            username='sup_no_consignee', password='x', role='supervisor',
+            email='sup_no_consignee@test.local',
+        )
+        self.client.force_login(supervisor)
+
+        response = self.client.get(reverse('consignee:dashboard'))
+
+        self.assertRedirects(response, reverse('supervisor:dashboard'), fetch_redirect_response=False)
+
 
 class ConsigneeMySubmissionsTests(TestCase):
     def setUp(self):
@@ -300,9 +311,83 @@ class ConsigneeMySubmissionsTests(TestCase):
         response = self.client.get(reverse('consignee:my_submissions'))
 
         self.assertContains(response, '<th>Job Number</th>', html=False)
-        self.assertNotContains(response, '<th>Import Type</th>', html=False)
+        self.assertContains(response, '<th>Container</th>', html=False)
+        self.assertContains(response, '<th>ETA</th>', html=False)
+        self.assertNotContains(response, 'Import Type', html=False)
         self.assertContains(response, 'SRJJJ2511001234')
         self.assertContains(response, 'TGHU1234567')
+
+    def test_my_submissions_filters_by_tracking_urgency_and_shipment_type(self):
+        matched = self._shipment(
+            410,
+            status='paid',
+            shipment_type='fcl',
+            urgency='urgent',
+            job_order_reference='JO-FILTER-1',
+            container_number='TGHU1234567',
+        )
+        self._shipment(
+            411,
+            status='paid',
+            shipment_type='lcl',
+            urgency='urgent',
+            job_order_reference='JO-FILTER-2',
+            container_number='TGHU7654321',
+        )
+        self._shipment(
+            412,
+            status='paid',
+            shipment_type='fcl',
+            urgency='standard',
+            job_order_reference='JO-FILTER-3',
+            container_number='TGHU9999999',
+        )
+
+        response = self.client.get(reverse('consignee:my_submissions'), {
+            'q': 'TGHU1234567',
+            'status': 'paid',
+            'active_urgency': 'urgent',
+            'active_shipment_type': 'fcl',
+        })
+
+        self.assertEqual(list(response.context['shipments']), [matched])
+        self.assertEqual(response.context['total_shipments'], 1)
+        self.assertEqual(response.context['active_urgency_filter'], 'urgent')
+        self.assertEqual(response.context['active_shipment_type_filter'], 'fcl')
+        self.assertContains(response, 'TGHU1234567')
+        self.assertNotContains(response, 'TGHU7654321')
+        self.assertNotContains(response, 'TGHU9999999')
+
+    def test_incoming_submission_action_uses_delete_language(self):
+        self._shipment(402)
+
+        response = self.client.get(reverse('consignee:my_submissions'))
+
+        self.assertContains(response, 'Delete')
+        self.assertNotContains(response, '>Cancel<', html=False)
+
+    def test_flagged_submission_action_points_to_resubmit_documents(self):
+        shipment = self._shipment(
+            403,
+            has_deficiency=True,
+            deficiency_notes='Missing invoice',
+        )
+
+        response = self.client.get(reverse('consignee:my_submissions'))
+
+        self.assertContains(response, f'{reverse("consignee:shipment_detail", args=[shipment.id])}#resubmit-documents')
+        self.assertContains(response, 'Resubmit Documents')
+
+    def test_declarant_cannot_open_consignee_submissions_by_url(self):
+        declarant = User.objects.create_user(
+            username='dec_no_consignee', password='x', role='declarant',
+            email='dec_no_consignee@test.local',
+        )
+        self.client.force_login(declarant)
+
+        response = self.client.get(reverse('consignee:my_submissions'))
+
+        self.assertRedirects(response, reverse('declarant:dashboard'), fetch_redirect_response=False)
 
     def test_consignee_detail_shows_tracking_values_read_only(self):
         shipment = self._shipment(401)

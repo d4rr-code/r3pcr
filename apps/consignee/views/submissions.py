@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
@@ -14,9 +15,10 @@ from apps.notifications.utils import create_notification, notify_incoming_shipme
 from ..models import Feedback
 
 logger = logging.getLogger('r3pcr.consignee')
-from .common import generate_hawb
+from .common import consignee_required, generate_hawb
 
 @login_required
+@consignee_required
 def submit_shipment(request):
     if request.method == 'POST':
         import_type   = request.POST.get('import_type')
@@ -116,6 +118,7 @@ def submit_shipment(request):
 
 
 @login_required
+@consignee_required
 def edit_submission(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
     if shipment.status != 'incoming':
@@ -175,6 +178,7 @@ def edit_submission(request, shipment_id):
 # ─── My Submissions ───────────────────────────────────────────────────────────
 
 @login_required
+@consignee_required
 def my_submissions(request):
     shipments = Shipment.objects.filter(consignee=request.user)
 
@@ -192,10 +196,20 @@ def my_submissions(request):
     date_to       = request.GET.get('date_to', '').strip()
     sort          = request.GET.get('sort', '').strip()
 
-    if status_filter:
+    valid_statuses = {key for key, _label in Shipment.STATUS_CHOICES}
+    valid_urgencies = {key for key, _label in Shipment.URGENCY_CHOICES}
+    valid_shipment_types = {key for key, _label in Shipment.SHIPMENT_TYPE_CHOICES}
+
+    if status_filter in valid_statuses:
         shipments = shipments.filter(status=status_filter)
+    else:
+        status_filter = ''
     if q:
-        shipments = shipments.filter(hawb_number__icontains=q)
+        shipments = shipments.filter(
+            Q(hawb_number__icontains=q)
+            | Q(job_order_reference__icontains=q)
+            | Q(container_number__icontains=q)
+        )
     if date_from:
         shipments = shipments.filter(submitted_at__date__gte=date_from)
     if date_to:
@@ -291,6 +305,7 @@ def my_submissions(request):
 # ─── Shipment Detail ──────────────────────────────────────────────────────────
 
 @login_required
+@consignee_required
 def shipment_detail(request, shipment_id):
     """Consignee-facing detail page: status, advisory results, computation summary."""
     shipment    = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
@@ -403,6 +418,7 @@ def shipment_detail(request, shipment_id):
 # ─── Upload Payment Receipt ──────────────────────────────────────────────────
 
 @login_required
+@consignee_required
 def upload_receipt(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
 
@@ -446,6 +462,7 @@ def upload_receipt(request, shipment_id):
 # ─── Feedback ─────────────────────────────────────────────────────────────────
 
 @login_required
+@consignee_required
 def submit_feedback(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
 
@@ -482,6 +499,7 @@ def submit_feedback(request, shipment_id):
 # ─── Approve / Revise / Reject Computation ───────────────────────────────────
 
 @login_required
+@consignee_required
 def approve_computation(request, shipment_id):
     """Consignee approves the ECDT+WMCDA computation, advancing status to approved."""
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
@@ -512,6 +530,7 @@ def approve_computation(request, shipment_id):
 
 
 @login_required
+@consignee_required
 def revise_computation(request, shipment_id):
     """Consignee requests revision — sends status back to for_revision."""
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
@@ -544,6 +563,7 @@ def revise_computation(request, shipment_id):
 
 
 @login_required
+@consignee_required
 def reject_computation(request, shipment_id):
     """Consignee rejects the computation entirely."""
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
@@ -579,15 +599,16 @@ def reject_computation(request, shipment_id):
 
 
 @login_required
+@consignee_required
 def cancel_submission(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
 
     if request.method == 'POST':
         if shipment.status != 'incoming':
-            messages.error(request, 'Cannot cancel - this shipment is already being processed.')
+            messages.error(request, 'Cannot delete - this shipment is already being processed.')
         else:
             shipment.delete()
-            messages.success(request, 'Shipment cancelled and removed.')
+            messages.success(request, 'Shipment deleted.')
             return redirect('consignee:my_submissions')
 
     return redirect('consignee:my_submissions')
@@ -596,6 +617,7 @@ def cancel_submission(request, shipment_id):
 # ─── Resubmit Documents (after deficiency flag) ───────────────────────────────
 
 @login_required
+@consignee_required
 def resubmit_documents(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
 

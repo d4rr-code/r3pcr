@@ -177,35 +177,21 @@ class ProcessShipmentTests(TestCase):
         self.assertEqual(self.shipment.job_order_reference, 'SRJJJ2511001234')
         self.assertIsNone(self.shipment.container_number)
 
-    def test_assigned_declarant_can_update_container_number_in_later_stage(self):
-        self.shipment.status = 'paid'
-        self.shipment.save(update_fields=['status'])
+    def test_assigned_declarant_can_update_container_number_from_process_stage(self):
         self.client.force_login(self.declarant)
 
         response = self.client.post(
             reverse('declarant:update_tracking_fields', args=[self.shipment.id]),
             {
+                'job_order_reference': 'SRJJJ2511001234',
                 'container_number': 'TGHU1234567',
             },
         )
 
         self.assertEqual(response.status_code, 302)
         self.shipment.refresh_from_db()
+        self.assertEqual(self.shipment.job_order_reference, 'SRJJJ2511001234')
         self.assertEqual(self.shipment.container_number, 'TGHU1234567')
-
-    def test_container_number_cannot_be_updated_before_later_stage(self):
-        self.client.force_login(self.declarant)
-
-        response = self.client.post(
-            reverse('declarant:update_tracking_fields', args=[self.shipment.id]),
-            {
-                'container_number': 'TGHU1234567',
-            },
-        )
-
-        self.assertEqual(response.status_code, 302)
-        self.shipment.refresh_from_db()
-        self.assertIsNone(self.shipment.container_number)
 
     def test_unassigned_declarant_cannot_update_tracking_fields(self):
         other = User.objects.create_user(
@@ -237,16 +223,15 @@ class ProcessShipmentTests(TestCase):
         self.assertContains(response, 'SRJJJ2511001234')
         self.assertContains(response, 'TGHU1234567')
 
-    def test_process_page_shows_container_form_only_in_later_stage(self):
+    def test_process_page_shows_job_and_container_in_same_tracking_form(self):
         self.client.force_login(self.declarant)
 
-        early = self.client.get(self.url)
-        self.assertNotContains(early, 'Save Container')
+        response = self.client.get(self.url)
 
-        self.shipment.status = 'paid'
-        self.shipment.save(update_fields=['status'])
-        later = self.client.get(self.url)
-        self.assertContains(later, 'Save Container')
+        self.assertContains(response, 'Job Number')
+        self.assertContains(response, 'Container Number')
+        self.assertContains(response, 'Save Tracking Details')
+        self.assertNotContains(response, 'Save Container')
 
     def test_document_with_ocr_text_is_processed(self):
         # A document that has run OCR is fed through the extraction pipeline;
@@ -377,3 +362,60 @@ class DeclarantDashboardTests(TestCase):
             resp,
             f'{reverse("declarant:process", args=[shipment.id])}?doc_status=assessed',
         )
+
+    def test_supervisor_cannot_open_declarant_dashboard_by_url(self):
+        supervisor = User.objects.create_user(
+            username='sup_no_declarant', password='x', role='supervisor',
+            email='sup_no_declarant@test.local',
+        )
+        self.client.force_login(supervisor)
+
+        resp = self.client.get(reverse('declarant:dashboard'))
+
+        self.assertRedirects(resp, reverse('supervisor:dashboard'), fetch_redirect_response=False)
+
+    def test_dashboard_filters_handled_shipments_by_search_status_urgency_and_dates(self):
+        today = timezone.now()
+        matched = Shipment.objects.create(
+            hawb_number='R3PCR-DASH-FILTER-1',
+            consignee=self.consignee,
+            declarant=self.declarant,
+            status='assessed',
+            shipment_type='lcl',
+            urgency='urgent',
+            job_order_reference='JO-FILTER-1',
+        )
+        wrong_status = Shipment.objects.create(
+            hawb_number='R3PCR-DASH-FILTER-2',
+            consignee=self.consignee,
+            declarant=self.declarant,
+            status='paid',
+            shipment_type='lcl',
+            urgency='urgent',
+            job_order_reference='JO-FILTER-2',
+        )
+        wrong_urgency = Shipment.objects.create(
+            hawb_number='R3PCR-DASH-FILTER-3',
+            consignee=self.consignee,
+            declarant=self.declarant,
+            status='assessed',
+            shipment_type='lcl',
+            urgency='standard',
+            job_order_reference='JO-FILTER-3',
+        )
+        Shipment.objects.filter(pk__in=[matched.pk, wrong_status.pk, wrong_urgency.pk]).update(submitted_at=today)
+
+        resp = self.client.get(reverse('declarant:dashboard'), {
+            'q': 'JO-FILTER',
+            'status': 'assessed',
+            'urgency': 'urgent',
+            'date_from': timezone.localdate().isoformat(),
+            'date_to': timezone.localdate().isoformat(),
+        })
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(list(resp.context['my_records']), [matched])
+        self.assertEqual(resp.context['record_filters']['status'], 'assessed')
+        self.assertContains(resp, 'JO-FILTER-1')
+        self.assertNotContains(resp, 'JO-FILTER-2')
+        self.assertNotContains(resp, 'JO-FILTER-3')

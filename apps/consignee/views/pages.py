@@ -148,6 +148,7 @@ def _monthly_shipment_series(shipments, months=12):
 
 
 @login_required
+@consignee_required
 def dashboard(request):
     shipments = Shipment.objects.filter(consignee=request.user)
     total = shipments.count()
@@ -361,6 +362,7 @@ def system_wmcda(request):
 
 
 @login_required
+@consignee_required
 def chart_data(request):
     today = timezone.localdate()
     shipments = Shipment.objects.filter(consignee=request.user)
