@@ -1,0 +1,228 @@
+{% extends 'supervisor/base_supervisor.html' %}
+
+{% block title %}Pre-Clearance Intelligence{% endblock %}
+{% block page_title %}Pre-Clearance Intelligence{% endblock %}
+{% block nav_intelligence %}active{% endblock %}
+
+{% block content %}
+<style>
+.intel-page{display:grid;gap:18px}
+.intel-hero{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:20px 22px;box-shadow:0 8px 24px rgba(31,43,62,.08)}
+.intel-hero h2{color:#1B3358;font-size:22px;font-weight:900;margin:0 0 6px}
+.intel-hero p{color:#64748B;font-size:13px;margin:0;max-width:820px;line-height:1.5}
+.intel-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.intel-card{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(31,43,62,.08);min-height:104px}
+.intel-label{color:#64748B;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px}
+.intel-value{color:#111827;font-size:28px;font-weight:900;line-height:1;margin:0}
+.intel-note{color:#94A3B8;font-size:11px;margin:8px 0 0;line-height:1.35}
+.intel-section{background:#fff;border:1px solid #E5E7EB;border-radius:10px;box-shadow:0 8px 24px rgba(31,43,62,.08);overflow:hidden}
+.intel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 20px;background:#F8FAFC;border-bottom:1px solid #E5E7EB}
+.intel-head h3{color:#1B3358;font-size:17px;font-weight:900;margin:0}
+.intel-head p{color:#64748B;font-size:12px;margin:4px 0 0}
+.intel-body{padding:18px 20px}
+.intel-table-wrap{overflow-x:auto}
+.intel-table{width:100%;min-width:860px;border-collapse:collapse}
+.intel-table th{background:#1B3358;color:#fff;font-size:10px;font-weight:900;text-transform:uppercase;text-align:left;padding:12px 14px}
+.intel-table td{border-top:1px solid #EEF2F6;color:#111827;font-size:12px;padding:14px;vertical-align:top}
+.intel-table tbody tr:hover{background:#F8FAFC}
+.risk-pill{display:inline-flex;min-width:62px;align-items:center;justify-content:center;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:900}
+.risk-high{background:#FEE2E2;color:#B91C1C}
+.risk-medium{background:#FEF3C7;color:#92400E}
+.risk-low{background:#DCFCE7;color:#15803D}
+.code-chip{display:inline-flex;margin:0 5px 5px 0;padding:4px 7px;border-radius:6px;background:#EFF6FF;color:#1D4ED8;font-size:11px;font-weight:800}
+.muted{color:#64748B}
+.empty-intel{padding:22px;color:#64748B;text-align:center;font-size:13px}
+@media(max-width:1100px){.intel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.intel-grid{grid-template-columns:1fr}.intel-head{flex-direction:column}}
+</style>
+
+<div class="intel-page">
+    <section class="intel-hero">
+        <h2>Pre-Clearance Intelligence</h2>
+        <p>
+            Diagnostic and predictive analytics for workflow bottlenecks, delay risk, and HS code review.
+            The risk model is intentionally explainable: it scores shipments from current status age, KPI timing,
+            document completeness, deficiency flags, and urgency.
+        </p>
+    </section>
+
+    <section class="intel-grid">
+        <div class="intel-card">
+            <p class="intel-label">Average Processing Time</p>
+            <p class="intel-value">{{ avg_total_days }}d</p>
+            <p class="intel-note">Released or billed shipments only.</p>
+        </div>
+        <div class="intel-card">
+            <p class="intel-label">Median Processing Time</p>
+            <p class="intel-value">{{ median_total_days }}d</p>
+            <p class="intel-note">Useful when outliers distort average time.</p>
+        </div>
+        <div class="intel-card">
+            <p class="intel-label">On-Time Rate</p>
+            <p class="intel-value">{{ on_time_rate }}%</p>
+            <p class="intel-note">{{ delayed_count }} shipment{{ delayed_count|pluralize }} currently past KPI target.</p>
+        </div>
+        <div class="intel-card">
+            <p class="intel-label">High Risk Shipments</p>
+            <p class="intel-value">{{ risk_distribution.high }}</p>
+            <p class="intel-note">{{ risk_distribution.medium }} medium, {{ risk_distribution.low }} low risk.</p>
+        </div>
+    </section>
+
+    <section class="intel-section">
+        <div class="intel-head">
+            <div>
+                <h3>Processing Time and Bottleneck Analytics</h3>
+                <p>Average days spent per workflow status, computed from shipment status logs.</p>
+            </div>
+            {% if bottleneck %}
+            <span class="risk-pill risk-medium">Slowest: {{ bottleneck.label }}</span>
+            {% endif %}
+        </div>
+        {% if stage_rows %}
+        <div class="intel-table-wrap">
+            <table class="intel-table">
+                <thead>
+                    <tr>
+                        <th>Stage</th>
+                        <th>Average Days</th>
+                        <th>Observed Transitions</th>
+                        <th>Total Days</th>
+                        <th>Interpretation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in stage_rows %}
+                    <tr>
+                        <td><strong>{{ row.label }}</strong></td>
+                        <td>{{ row.avg_days }}d</td>
+                        <td>{{ row.count }}</td>
+                        <td>{{ row.total_days }}d</td>
+                        <td class="muted">
+                            {% if forloop.first %}
+                            Current bottleneck candidate based on average time.
+                            {% else %}
+                            Monitor if this rises above KPI expectations.
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-intel">No status-log duration data available yet.</div>
+        {% endif %}
+    </section>
+
+    <section class="intel-section">
+        <div class="intel-head">
+            <div>
+                <h3>Pre-Clearance Delay Risk Prediction</h3>
+                <p>Rule-based risk scoring for active shipments that may need intervention.</p>
+            </div>
+        </div>
+        {% if risk_rows %}
+        <div class="intel-table-wrap">
+            <table class="intel-table">
+                <thead>
+                    <tr>
+                        <th>Shipment</th>
+                        <th>Status</th>
+                        <th>Risk</th>
+                        <th>Score</th>
+                        <th>Key Reasons</th>
+                        <th>Recommended Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in risk_rows %}
+                    <tr>
+                        <td>
+                            <strong>{{ row.shipment.hawb_number }}</strong><br>
+                            <span class="muted">{{ row.shipment.consignee.get_full_name|default:row.shipment.consignee.username }}</span>
+                        </td>
+                        <td>{{ row.shipment.get_status_display }}<br><span class="muted">{{ row.age_days }}d in status</span></td>
+                        <td><span class="risk-pill risk-{{ row.label|lower }}">{{ row.label }}</span></td>
+                        <td><strong>{{ row.score }}/100</strong></td>
+                        <td>
+                            {% for reason in row.reasons %}
+                            <div>{{ reason }}</div>
+                            {% endfor %}
+                        </td>
+                        <td class="muted">{{ row.action }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-intel">No active shipments to score.</div>
+        {% endif %}
+    </section>
+
+    <section class="intel-section">
+        <div class="intel-head">
+            <div>
+                <h3>HS Code Recommendation Review</h3>
+                <p>Uses the existing hybrid rule-based and historical HS matching engine to surface items needing manual review.</p>
+            </div>
+            <span class="risk-pill risk-low">{{ hs_review.historical_count }} confirmed records</span>
+        </div>
+        <div class="intel-grid" style="padding:18px 20px 0;">
+            <div class="intel-card">
+                <p class="intel-label">Avg Item Confidence</p>
+                <p class="intel-value">{{ hs_review.avg_confidence_pct }}%</p>
+                <p class="intel-note">From saved line-item confidence values.</p>
+            </div>
+            <div class="intel-card">
+                <p class="intel-label">Needs Review</p>
+                <p class="intel-value">{{ hs_review.review_count }}</p>
+                <p class="intel-note">Recent items with low confidence or no HS code.</p>
+            </div>
+            <div class="intel-card" style="grid-column:span 2;">
+                <p class="intel-label">Most Confirmed HS Codes</p>
+                {% for hs in hs_review.top_hs_codes %}
+                <span class="code-chip">{{ hs.hs_code__code }} ({{ hs.count }})</span>
+                {% empty %}
+                <p class="intel-note">No confirmed HS code history yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+        {% if hs_review.rows %}
+        <div class="intel-table-wrap" style="padding:18px 20px 20px;">
+            <table class="intel-table">
+                <thead>
+                    <tr>
+                        <th>Item Description</th>
+                        <th>Current HS</th>
+                        <th>Confidence</th>
+                        <th>Suggested Codes</th>
+                        <th>Shipment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in hs_review.rows %}
+                    <tr>
+                        <td>{{ row.item.description|truncatechars:120 }}</td>
+                        <td>{% if row.item.hs_code %}{{ row.item.hs_code.code }}{% else %}<span class="muted">No code selected</span>{% endif %}</td>
+                        <td>{{ row.confidence_pct }}%</td>
+                        <td>
+                            {% for hs in row.suggestions %}
+                            <span class="code-chip" title="{{ hs.description }}">{{ hs.code }}</span>
+                            {% empty %}
+                            <span class="muted">No suggestion found</span>
+                            {% endfor %}
+                        </td>
+                        <td>{{ row.item.shipment.hawb_number }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-intel">No low-confidence or uncoded line items found.</div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

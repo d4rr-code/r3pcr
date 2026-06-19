@@ -17,8 +17,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.shipments.models import Shipment, StatusLog
-from apps.computation.models import DutyComputation, ShippingAdvisory
+from apps.shipments.models import HSCode, Shipment, ShipmentHSCode, StatusLog
+from apps.computation.models import DutyComputation, ShipmentLineItem, ShippingAdvisory
 from apps.computation.wmcda import calculate_ahp_weights
 from apps.consignee.models import Feedback
 from apps.supervisor.models import SystemConfig
@@ -63,6 +63,83 @@ class SupervisorShipmentTrackingDisplayTests(TestCase):
         self.assertContains(response, 'Job Number')
         self.assertContains(response, 'SRJJJ2511001234')
         self.assertContains(response, 'TGHU1234567')
+
+
+class SupervisorIntelligenceTests(TestCase):
+    def setUp(self):
+        self.supervisor = User.objects.create_user(
+            username='sup_intel', password='x', role='supervisor',
+            email='sup_intel@test.local', is_pending_approval=False,
+        )
+        self.declarant = User.objects.create_user(
+            username='dec_intel', password='x', role='declarant',
+            email='dec_intel@test.local', is_pending_approval=False,
+        )
+        self.consignee = User.objects.create_user(
+            username='con_intel', password='x', role='consignee',
+            email='con_intel@test.local', is_pending_approval=False,
+        )
+        self.client.force_login(self.supervisor)
+
+    def _shipment(self, hawb, status):
+        return Shipment.objects.create(
+            hawb_number=hawb,
+            consignee=self.consignee,
+            declarant=self.declarant,
+            status=status,
+            shipment_type='lcl',
+        )
+
+    def test_intelligence_page_reports_bottlenecks_risk_and_hs_review(self):
+        base = timezone.now() - timedelta(days=6)
+        shipment = self._shipment('R3PCR-INTEL-RISK', 'computed')
+        Shipment.objects.filter(pk=shipment.pk).update(submitted_at=base)
+        shipment.refresh_from_db()
+        arrived = StatusLog.objects.create(
+            shipment=shipment,
+            changed_by=self.declarant,
+            old_status='incoming',
+            new_status='arrived',
+        )
+        computed = StatusLog.objects.create(
+            shipment=shipment,
+            changed_by=self.declarant,
+            old_status='arrived',
+            new_status='computed',
+        )
+        StatusLog.objects.filter(pk=arrived.pk).update(changed_at=base + timedelta(days=1))
+        StatusLog.objects.filter(pk=computed.pk).update(changed_at=base + timedelta(days=2))
+
+        completed = self._shipment('R3PCR-INTEL-DONE', 'billed')
+        Shipment.objects.filter(pk=completed.pk).update(
+            submitted_at=base,
+            updated_at=base + timedelta(days=4),
+        )
+
+        hs = HSCode.objects.create(
+            code='8471.60.90',
+            description='Computer mouse and input units',
+            duty_rate='1.00',
+            chapter='84',
+        )
+        ShipmentHSCode.objects.create(shipment=shipment, hs_code=hs, is_confirmed=True)
+        ShipmentLineItem.objects.create(
+            shipment=shipment,
+            description='wireless computer mouse',
+            confidence='0.2000',
+            source='ocr',
+        )
+
+        response = self.client.get(reverse('supervisor:intelligence'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'supervisor/intelligence.html')
+        self.assertContains(response, 'Pre-Clearance Intelligence')
+        self.assertTrue(response.context['stage_rows'])
+        self.assertGreaterEqual(response.context['risk_distribution']['high'], 1)
+        self.assertEqual(response.context['hs_review']['historical_count'], 1)
+        self.assertContains(response, '8471.60.90')
+        self.assertContains(response, 'wireless computer mouse')
 
 
 class WmcdaAhpTests(TestCase):

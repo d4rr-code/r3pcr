@@ -12,6 +12,7 @@ urlpatterns = [
     path('users/approve/<int:user_id>/',        views.approve_registration,  name='approve_registration'),
     path('users/reject/<int:user_id>/',         views.reject_registration,   name='reject_registration'),
     path('analytics/',                            views.analytics,              name='analytics'),
+    path('intelligence/',                         views.intelligence,           name='intelligence'),
     path('analytics/export/',                     views.analytics_export,       name='analytics_export'),
     path('analytics/status-counts/',             views.analytics_status_counts, name='analytics_status_counts'),
 
