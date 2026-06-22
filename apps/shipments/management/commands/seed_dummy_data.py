@@ -1,12 +1,14 @@
 """
-Seed command: python manage.py seed_dummy_data [--count 100] [--months 12] [--clear]
+Seed command: python manage.py seed_dummy_data [--count 240] [--months 48] [--clear]
 
 Generates realistic, historically-spread demo shipments so the analytics
 dashboards show genuine trends and patterns (not a single flat bucket).
 
 Key behaviours:
-  * Shipments are spread across the last N months (default 12) with a mild
-    upward trend toward the present, so monthly charts have a real shape.
+  * Shipments are spread across the last N months (default 48) with trend and
+    seasonality, so ARIMA forecasts have usable demo history.
+  * Completed historical shipments are guaranteed for 2022 and 2023 by default,
+    so yearly forecast charts do not start with empty early-year buckets.
   * Every status in Shipment.STATUS_CHOICES is represented and randomised.
   * Each shipment gets a backdated status-log timeline (incoming -> ... -> final)
     so processing-time analytics have data to measure.
@@ -25,8 +27,8 @@ from django.utils import timezone
 from django.db import transaction
 
 from apps.accounts.models import User
-from apps.shipments.models import Shipment, HSCode, StatusLog
-from apps.computation.models import DutyComputation, ShippingAdvisory
+from apps.shipments.models import Shipment, ShipmentDocument, HSCode, ShipmentHSCode, StatusLog
+from apps.computation.models import DutyComputation, ShippingAdvisory, ShipmentLineItem
 from apps.consignee.models import Feedback
 from apps.notifications.models import Notification
 
@@ -131,6 +133,7 @@ FINAL_WEIGHTS = {
 # sentinel note on its status logs — a string real shipments never produce —
 # so --clear can target them safely without a schema change.
 SEED_NOTE = '[seed:r3pcr-demo]'
+DEFAULT_HISTORICAL_YEARS = (2022, 2023)
 
 
 def _seed_ids():
@@ -178,14 +181,40 @@ def _build_path(final):
     return PIPELINE[:PIPELINE.index(final) + 1]
 
 
+def _add_months(value, months):
+    month_index = value.month - 1 + months
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    return value.replace(year=year, month=month, day=1)
+
+
+def _parse_years(value):
+    years = []
+    for part in str(value or '').split(','):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            year = int(part)
+        except ValueError:
+            continue
+        if 2000 <= year <= 2100 and year not in years:
+            years.append(year)
+    return years
+
+
 class Command(BaseCommand):
     help = 'Seed historically-spread demo shipments for analytics dashboards'
 
     def add_arguments(self, parser):
-        parser.add_argument('--count',  type=int, default=100,
-                            help='Number of shipments to create (default 100)')
-        parser.add_argument('--months', type=int, default=12,
-                            help='Spread submissions across the last N months (default 12)')
+        parser.add_argument('--count',  type=int, default=240,
+                            help='Number of shipments to create (default 240)')
+        parser.add_argument('--months', type=int, default=48,
+                            help='Spread submissions across the last N months (default 48)')
+        parser.add_argument('--historical-years', default=','.join(str(y) for y in DEFAULT_HISTORICAL_YEARS),
+                            help='Comma-separated years that must receive completed demo shipments (default 2022,2023)')
+        parser.add_argument('--historical-year-count', type=int, default=24,
+                            help='Minimum completed demo shipments to reserve for each historical year (default 24)')
         parser.add_argument('--clear',  action='store_true',
                             help='Delete previously-seeded DEMO shipments first (keeps users)')
 
@@ -194,6 +223,8 @@ class Command(BaseCommand):
         count  = max(1, options['count'])
         months = max(1, options['months'])
         now    = timezone.now()
+        historical_years = [year for year in _parse_years(options['historical_years']) if year <= now.year]
+        historical_year_count = max(0, options['historical_year_count'])
 
         # ── Optional clear (sentinel-tagged demo shipments only — never users) ─
         if options['clear']:
@@ -202,8 +233,11 @@ class Command(BaseCommand):
             Feedback.objects.filter(shipment_id__in=demo_ids).delete()
             Notification.objects.filter(shipment_id__in=demo_ids).delete()
             StatusLog.objects.filter(shipment_id__in=demo_ids).delete()
+            ShipmentLineItem.objects.filter(shipment_id__in=demo_ids).delete()
+            ShipmentHSCode.objects.filter(shipment_id__in=demo_ids).delete()
             DutyComputation.objects.filter(shipment_id__in=demo_ids).delete()
             ShippingAdvisory.objects.filter(shipment_id__in=demo_ids).delete()
+            ShipmentDocument.objects.filter(shipment_id__in=demo_ids).delete()
             Shipment.objects.filter(id__in=demo_ids).delete()
             self.stdout.write(self.style.WARNING(f'Cleared {n} existing demo shipments.'))
 
@@ -253,6 +287,25 @@ class Command(BaseCommand):
             plan[i] = other_statuses[i % len(other_statuses)]
         random.shuffle(plan)
 
+        historical_overrides = []
+        for year in historical_years:
+            for _ in range(historical_year_count):
+                submitted_at = now.replace(
+                    year=year,
+                    month=random.randint(1, 12),
+                    day=random.randint(1, 28),
+                    hour=random.randint(8, 17),
+                    minute=random.randint(0, 59),
+                    second=0,
+                    microsecond=0,
+                )
+                if submitted_at <= now:
+                    historical_overrides.append(submitted_at)
+        random.shuffle(historical_overrides)
+        historical_overrides = historical_overrides[:count]
+        for i in range(len(historical_overrides)):
+            plan[i] = random.choice(['released', 'billed'])
+
         # Per-year HAWB counters continuing seamlessly from the highest existing
         # genuine sequence, so demo references look just like real ones.
         year_counters = {}
@@ -287,16 +340,28 @@ class Command(BaseCommand):
             reached_computed = 'computed' in path
             declarant = random.choice(declarants) if final != 'incoming' else None
 
-            # ── Backdated submission date: month bucket with recency trend ────
-            month_offset = random.choices(
-                range(months), weights=[months - m for m in range(months)]
-            )[0]
+            # Backdated submission date: trend + realistic import seasonality.
+            month_weights = []
+            for m in range(months):
+                period = _add_months(now.date().replace(day=1), -m)
+                trend = months - m
+                seasonal = 1.0
+                if period.month in (3, 5, 6, 10, 11):
+                    seasonal += 0.45
+                if period.month in (1, 2):
+                    seasonal -= 0.20
+                if period.month == 12:
+                    seasonal += 0.25
+                month_weights.append(max(1, int(trend * seasonal)))
+            month_offset = random.choices(range(months), weights=month_weights)[0]
             days_ago = month_offset * 30 + random.randint(0, 29)
             submitted_at = now - timedelta(
                 days=days_ago, hours=random.randint(0, 9), minutes=random.randint(0, 59)
             )
             if submitted_at > now:
                 submitted_at = now - timedelta(hours=1)
+            if i < len(historical_overrides):
+                submitted_at = historical_overrides[i]
 
             # Active operational statuses should look like current work, not
             # months-old historical records. Keep history spread on released /
@@ -329,7 +394,31 @@ class Command(BaseCommand):
                 status=final, description=desc, quantity=qty, gross_weight=weight,
                 invoice_currency=currency, declared_value=exw_usd,
                 freight_cost=freight, insurance_cost=insurance,
+                estimated_arrival_date=(submitted_at + timedelta(days=random.randint(0, 2))).date(),
+                container_number=f'DEMO{random.randint(1000000, 9999999)}' if stype == 'fcl' else '',
+                job_order_reference=f'DEMO-JO-{year}-{seq:05d}',
             )
+
+            doc_types = ['invoice', 'packing_list', 'airway_bill']
+            if random.random() < 0.10 and final not in ('released', 'billed'):
+                doc_types.pop(random.randrange(len(doc_types)))
+                shipment.has_deficiency = True
+                shipment.deficiency_type = 'missing_document'
+                shipment.deficiency_notes = 'Demo scenario: one required pre-clearance document is missing.'
+                shipment.deficiency_flagged_at = submitted_at + timedelta(days=1)
+                shipment.save(update_fields=[
+                    'has_deficiency', 'deficiency_type', 'deficiency_notes',
+                    'deficiency_flagged_at',
+                ])
+            for doc_type in doc_types:
+                ShipmentDocument.objects.create(
+                    shipment=shipment,
+                    document_type=doc_type,
+                    file=f'demo/{hawb}_{doc_type}.pdf',
+                    ocr_quality=random.choice(['good', 'good', 'fair']),
+                    ocr_text=f'{desc}\nHS CODE {random.choice(hs_list).code if hs_list else ""}',
+                    ocr_ran_at=submitted_at + timedelta(hours=2),
+                )
 
             # ── Backdated status-log timeline ─────────────────────────────────
             ts = submitted_at
@@ -390,6 +479,27 @@ class Command(BaseCommand):
                 if computed_ts:
                     DutyComputation.objects.filter(pk=comp.pk).update(
                         computed_at=computed_ts, updated_at=computed_ts)
+
+                ShipmentLineItem.objects.create(
+                    shipment=shipment,
+                    description=desc,
+                    quantity=qty,
+                    unit='PCS',
+                    unit_price=round(exw_usd / qty, 4) if qty else exw_usd,
+                    total_val_usd=exw_usd,
+                    hs_code=hs,
+                    is_confirmed=random.random() > 0.18,
+                    source=random.choice(['ocr', 'manual']),
+                    confidence=Decimal(str(round(random.uniform(0.55, 0.96), 4))),
+                    row_order=1,
+                    duty_rate=duty_rate,
+                    gross_weight=weight,
+                )
+                ShipmentHSCode.objects.get_or_create(
+                    shipment=shipment,
+                    hs_code=hs,
+                    defaults={'is_suggested': True, 'is_confirmed': True},
+                )
 
                 # Real WMCDA scoring so recommended_type is authentic and may
                 # differ from the consignee's chosen mode.

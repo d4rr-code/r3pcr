@@ -22,10 +22,10 @@
 .intel-chart-frame{position:relative;height:220px}
 .intel-chart-frame canvas{position:relative}
 .forecast-card{grid-column:1/-1}
-.forecast-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.95fr);gap:18px;align-items:stretch}
-.forecast-card .intel-chart-frame{height:280px}
+.forecast-layout{display:grid;grid-template-columns:1fr;gap:16px}
+.forecast-card .intel-chart-frame{height:260px}
 .forecast-summary{display:grid;gap:12px;align-content:start}
-.forecast-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.forecast-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .forecast-metric{border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#F8FAFC}
 .forecast-metric span{display:block;color:#64748B;font-size:9px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px}
 .forecast-metric strong{display:block;color:#111827;font-size:20px;font-weight:900;line-height:1.05}
@@ -51,6 +51,17 @@
 .intel-head h3{color:#1B3358;font-size:17px;font-weight:900;margin:0}
 .intel-head p{color:#64748B;font-size:12px;margin:4px 0 0}
 .intel-body{padding:18px 20px}
+.intel-section-toggle{background:#fff;border:1px solid #E5E7EB;border-radius:10px;box-shadow:0 8px 24px rgba(31,43,62,.08);overflow:hidden}
+.intel-section-toggle summary{list-style:none;cursor:pointer}
+.intel-section-toggle summary::-webkit-details-marker{display:none}
+.intel-section-toggle .intel-head{border-bottom:0}
+.intel-section-toggle[open] .intel-head{border-bottom:1px solid #E5E7EB}
+.intel-toggle-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.intel-toggle-chip{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;border:1px solid #DCE5EF;background:#fff;color:#1B3358;font-size:10px;font-weight:900;padding:7px 10px;white-space:nowrap}
+.intel-toggle-label::before{content:"View details"}
+.intel-section-toggle[open] .intel-toggle-label::before{content:"Hide details"}
+.intel-toggle-caret{width:28px;height:28px;border-radius:999px;background:#1B3358;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;transition:transform .18s ease}
+.intel-section-toggle[open] .intel-toggle-caret{transform:rotate(180deg)}
 .intel-table-wrap{overflow-x:auto}
 .intel-table{width:100%;min-width:860px;border-collapse:collapse}
 .intel-table th{background:#1B3358;color:#fff;font-size:10px;font-weight:900;text-transform:uppercase;text-align:left;padding:12px 14px}
@@ -65,7 +76,7 @@
 .empty-intel{padding:22px;color:#64748B;text-align:center;font-size:13px}
 @media(max-width:1200px){.intel-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1100px){.intel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:900px){.intel-chart-grid,.forecast-layout{grid-template-columns:1fr}.forecast-card .intel-chart-frame{height:240px}}
+@media(max-width:900px){.intel-chart-grid,.forecast-layout{grid-template-columns:1fr}.forecast-card .intel-chart-frame{height:220px}.forecast-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.intel-grid{grid-template-columns:1fr}.intel-head,.intel-hero-top{flex-direction:column}.intel-actions{width:100%}.intel-btn{flex:1}}
 </style>
 
@@ -82,8 +93,8 @@
                 </p>
             </div>
             <div class="intel-actions">
-                <a class="intel-btn secondary" href="{% url 'supervisor:intelligence_export' %}?format=xlsx&risk={{ risk_filter }}&forecast_months={{ workload_forecast.forecast_months }}">Excel</a>
-                <a class="intel-btn" href="{% url 'supervisor:intelligence_export' %}?format=pdf&risk={{ risk_filter }}&forecast_months={{ workload_forecast.forecast_months }}">PDF</a>
+                <a class="intel-btn secondary" href="{% url 'supervisor:intelligence_export' %}?format=xlsx&risk={{ risk_filter }}&forecast_unit={{ workload_forecast.forecast_unit }}&forecast_year={{ workload_forecast.forecast_year }}">Excel</a>
+                <a class="intel-btn" href="{% url 'supervisor:intelligence_export' %}?format=pdf&risk={{ risk_filter }}&forecast_unit={{ workload_forecast.forecast_unit }}&forecast_year={{ workload_forecast.forecast_year }}">PDF</a>
             </div>
         </div>
     </section>
@@ -121,15 +132,19 @@
             <div class="forecast-title-row">
                 <div>
                     <h3>Projected Incoming Workload</h3>
-                    <p>Line forecast using the last 12 months of incoming shipments.</p>
+                    <p>Recent workload chart with ARIMA forecasting when enough history is available.</p>
                 </div>
-                <div class="forecast-controls" aria-label="Forecast horizon">
-                    {% for months in forecast_options %}
-                    <a class="forecast-toggle {% if workload_forecast.forecast_months == months %}active{% endif %}" href="?risk={{ risk_filter }}&forecast_months={{ months }}#workload-forecast">
-                        {{ months }} month{{ months|pluralize }}
-                    </a>
-                    {% endfor %}
-                </div>
+                <form class="forecast-controls" method="GET" aria-label="Forecast controls">
+                    <input type="hidden" name="risk" value="{{ risk_filter }}">
+                    <button class="forecast-toggle {% if workload_forecast.forecast_unit == 'month' %}active{% endif %}" type="submit" name="forecast_unit" value="month">Monthly</button>
+                    <button class="forecast-toggle {% if workload_forecast.forecast_unit == 'year' %}active{% endif %}" type="submit" name="forecast_unit" value="year">Yearly</button>
+                    <select class="forecast-toggle" name="forecast_year" onchange="this.form.submit()" title="Forecast base year">
+                        {% for year in forecast_year_options %}
+                        <option value="{{ year }}" {% if workload_forecast.forecast_year == year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="forecast_months" value="3">
+                </form>
             </div>
             <div class="forecast-layout">
                 <div class="intel-chart-frame" id="workload-forecast"><canvas id="workloadForecastChart"></canvas></div>
@@ -153,7 +168,7 @@
                         </div>
                     </div>
                     <p class="forecast-copy">
-                        {{ workload_forecast.interpretation }} Trend versus the previous month is
+                        {{ workload_forecast.interpretation }} {{ workload_forecast.model_source }}. Trend versus the previous period is
                         <strong>{{ workload_forecast.trend_pct }}%</strong>. Recommended action:
                         {{ workload_forecast.action }}
                     </p>
@@ -200,16 +215,23 @@
         </div>
     </section>
 
-    <section class="intel-section">
-        <div class="intel-head">
-            <div>
-                <h3>Processing Time and Bottleneck Analytics</h3>
-                <p>Average days spent per workflow status, computed from shipment status logs.</p>
+    <details class="intel-section-toggle">
+        <summary>
+            <div class="intel-head">
+                <div>
+                    <h3>Processing Time and Bottleneck Analytics</h3>
+                    <p>Average days spent per workflow status, computed from shipment status logs.</p>
+                </div>
+                <div class="intel-toggle-actions">
+                    {% if bottleneck %}
+                    <span class="risk-pill risk-medium">Slowest: {{ bottleneck.label }}</span>
+                    {% endif %}
+                    <span class="intel-toggle-chip">{{ stage_rows|length }} stage{{ stage_rows|length|pluralize }}</span>
+                    <span class="intel-toggle-chip intel-toggle-label"></span>
+                    <span class="intel-toggle-caret">v</span>
+                </div>
             </div>
-            {% if bottleneck %}
-            <span class="risk-pill risk-medium">Slowest: {{ bottleneck.label }}</span>
-            {% endif %}
-        </div>
+        </summary>
         {% if stage_rows %}
         <div class="intel-table-wrap">
             <table class="intel-table">
@@ -244,25 +266,31 @@
         {% else %}
         <div class="empty-intel">No status-log duration data available yet.</div>
         {% endif %}
-    </section>
+    </details>
 
-    <section class="intel-section">
-        <div class="intel-head">
-            <div>
-                <h3>Pre-Clearance Delay Risk Prediction</h3>
-                <p>{{ delay_model.summary }}</p>
-                <p>Current model source: <strong>{{ delay_model.source }}</strong>. Training samples: <strong>{{ delay_model.sample_count }}</strong>. Historical delayed rate: {{ delay_model.delayed_rate }}%.</p>
+    <details class="intel-section-toggle" id="delay-risk">
+        <summary>
+            <div class="intel-head">
+                <div>
+                    <h3>Pre-Clearance Delay Risk Prediction</h3>
+                    <p>{{ delay_model.summary }}</p>
+                    <p>Model source: <strong>{{ delay_model.source }}</strong>. Samples: <strong>{{ delay_model.sample_count }}</strong>. Historical delayed rate: {{ delay_model.delayed_rate }}%.</p>
+                </div>
+                <div class="intel-toggle-actions">
+                    <div class="risk-tabs" aria-label="Delay risk filters">
+                        {% for item in risk_filters %}
+                        <a class="risk-tab {% if risk_filter == item.key %}active{% endif %}" href="?risk={{ item.key }}&forecast_unit={{ workload_forecast.forecast_unit }}&forecast_year={{ workload_forecast.forecast_year }}&forecast_months=3#delay-risk">
+                            {{ item.label }} <span class="risk-count">{{ item.count }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    <span class="intel-toggle-chip intel-toggle-label"></span>
+                    <span class="intel-toggle-caret">v</span>
+                </div>
             </div>
-            <div class="risk-tabs" aria-label="Delay risk filters">
-                {% for item in risk_filters %}
-                <a class="risk-tab {% if risk_filter == item.key %}active{% endif %}" href="?risk={{ item.key }}&forecast_months={{ workload_forecast.forecast_months }}#delay-risk">
-                    {{ item.label }} <span class="risk-count">{{ item.count }}</span>
-                </a>
-                {% endfor %}
-            </div>
-        </div>
+        </summary>
         {% if risk_rows %}
-        <div class="intel-table-wrap" id="delay-risk">
+        <div class="intel-table-wrap">
             <table class="intel-table">
                 <thead>
                     <tr>
@@ -298,16 +326,23 @@
         {% else %}
         <div class="empty-intel">No shipments found for this risk filter.</div>
         {% endif %}
-    </section>
+    </details>
 
-    <section class="intel-section">
-        <div class="intel-head">
-            <div>
-                <h3>HS Code Recommendation Review</h3>
-                <p>Uses the existing hybrid rule-based and historical HS matching engine to surface items needing manual review.</p>
+    <details class="intel-section-toggle">
+        <summary>
+            <div class="intel-head">
+                <div>
+                    <h3>HS Code Recommendation Review</h3>
+                    <p>Uses the existing hybrid rule-based and historical HS matching engine to surface items needing manual review.</p>
+                </div>
+                <div class="intel-toggle-actions">
+                    <span class="risk-pill risk-low">{{ hs_review.historical_count }} confirmed records</span>
+                    <span class="intel-toggle-chip">{{ hs_review.review_count }} item{{ hs_review.review_count|pluralize }} to review</span>
+                    <span class="intel-toggle-chip intel-toggle-label"></span>
+                    <span class="intel-toggle-caret">v</span>
+                </div>
             </div>
-            <span class="risk-pill risk-low">{{ hs_review.historical_count }} confirmed records</span>
-        </div>
+        </summary>
         <div class="intel-grid" style="padding:18px 20px 0;">
             <div class="intel-card">
                 <p class="intel-label">Avg Item Confidence</p>
@@ -362,7 +397,7 @@
         {% else %}
         <div class="empty-intel">No low-confidence or uncoded line items found.</div>
         {% endif %}
-    </section>
+    </details>
 </div>
 {% endblock %}
 

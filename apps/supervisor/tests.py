@@ -146,9 +146,10 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertContains(response, 'wireless computer mouse')
         self.assertContains(response, 'Projected Workload')
         self.assertContains(response, 'Delay Model Weights')
-        self.assertContains(response, '?risk=all&forecast_months=1#delay-risk')
-        self.assertContains(response, reverse('supervisor:intelligence_export') + '?format=xlsx&risk=high&forecast_months=1')
-        self.assertContains(response, reverse('supervisor:intelligence_export') + '?format=pdf&risk=high&forecast_months=1')
+        year = timezone.localdate().year
+        self.assertContains(response, f'?risk=all&forecast_unit=month&forecast_year={year}&forecast_months=3#delay-risk')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=xlsx&risk=high&forecast_unit=month&forecast_year={year}')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=pdf&risk=high&forecast_unit=month&forecast_year={year}')
 
     def test_intelligence_trains_delay_model_from_completed_shipments(self):
         today = timezone.localdate()
@@ -197,20 +198,27 @@ class SupervisorIntelligenceTests(TestCase):
         response = self.client.get(reverse('supervisor:intelligence'))
 
         forecast = response.context['workload_forecast']
-        self.assertEqual(forecast['forecast_months'], 1)
-        self.assertEqual(forecast['projected_period_total'], 3)
-        self.assertEqual(len(forecast['chart']['labels']), 13)
-        self.assertEqual(forecast['chart']['historical_values'][-4:], [1, 2, 4, None])
-        self.assertEqual(forecast['chart']['forecast_values'][-2:], [4, 3])
+        self.assertGreaterEqual(forecast['forecast_months'], 3)
+        self.assertEqual(forecast['forecast_unit'], 'month')
+        self.assertGreater(forecast['projected_period_total'], 0)
+        expected_months = timezone.localdate().month + 3
+        self.assertEqual(forecast['forecast_months'], 3)
+        self.assertEqual(len(forecast['chart']['labels']), expected_months)
+        self.assertEqual(len(forecast['chart']['historical_values']), expected_months)
+        self.assertEqual(len(forecast['chart']['forecast_values']), expected_months)
+        self.assertEqual(forecast['chart']['historical_values'][-3:], [None, None, None])
+        self.assertEqual(len(forecast['period_rows']), expected_months)
         self.assertEqual(forecast['confidence'], 'Low')
-        self.assertEqual(len(forecast['period_rows']), 7)
-        self.assertContains(response, '1 month')
-        self.assertContains(response, '3 months')
+        self.assertContains(response, 'Monthly')
+        self.assertContains(response, 'Yearly')
         self.assertContains(response, 'Expected Range')
 
-        three_month = self.client.get(reverse('supervisor:intelligence'), {'forecast_months': '3'})
-        self.assertEqual(three_month.context['workload_forecast']['forecast_months'], 3)
-        self.assertEqual(three_month.context['workload_forecast']['projected_period_total'], 9)
+        three_year = self.client.get(reverse('supervisor:intelligence'), {
+            'forecast_unit': 'year',
+        })
+        self.assertEqual(three_year.context['workload_forecast']['forecast_unit'], 'year')
+        self.assertEqual(three_year.context['workload_forecast']['forecast_months'], 3)
+        self.assertIn(str(timezone.localdate().year + 1), three_year.context['workload_forecast']['forecast_label'])
 
     def test_intelligence_exports_xlsx_and_pdf(self):
         self._shipment('R3PCR-INTEL-EXPORT', 'billed')

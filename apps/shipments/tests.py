@@ -1,11 +1,12 @@
 from datetime import date, datetime
 from unittest.mock import patch
 
+from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.shipments.models import Shipment
+from apps.shipments.models import Shipment, StatusLog
 
 
 class ShipmentKpiEtaTests(TestCase):
@@ -119,3 +120,65 @@ class ShipmentKpiEtaTests(TestCase):
         with patch('apps.shipments.models.timezone.localdate', return_value=date(2026, 6, 30)):
             self.assertEqual(released.kpi_timing_status, 'complete')
             self.assertEqual(billed.kpi_timing_status, 'complete')
+
+
+class ResolveDemoOverduesCommandTests(TestCase):
+    def setUp(self):
+        self.consignee = User.objects.create_user(
+            username='overdue_consignee',
+            password='x',
+            role='consignee',
+            email='overdue_consignee@test.local',
+        )
+        self.declarant = User.objects.create_user(
+            username='overdue_declarant',
+            password='x',
+            role='declarant',
+            email='overdue_declarant@test.local',
+        )
+
+    def _shipment(self, hawb_number, *, seeded=False, status='assessed'):
+        shipment = Shipment.objects.create(
+            hawb_number=hawb_number,
+            consignee=self.consignee,
+            declarant=self.declarant,
+            shipment_type='air',
+            status=status,
+            estimated_arrival_date=date(2026, 6, 18),
+        )
+        if seeded:
+            StatusLog.objects.create(
+                shipment=shipment,
+                changed_by=self.declarant,
+                old_status='incoming',
+                new_status=status,
+                notes='[seed:r3pcr-demo]',
+            )
+        return shipment
+
+    def test_resolves_only_seeded_overdue_shipments(self):
+        seeded = self._shipment('R3PCR-DEMO-OVERDUE', seeded=True)
+        real = self._shipment('R3PCR-REAL-OVERDUE', seeded=False)
+
+        with patch('apps.shipments.models.timezone.localdate', return_value=date(2026, 6, 30)):
+            call_command('resolve_demo_overdues', '--apply')
+
+        seeded.refresh_from_db()
+        real.refresh_from_db()
+        self.assertEqual(seeded.status, 'released')
+        self.assertEqual(seeded.kpi_timing_status, 'complete')
+        self.assertEqual(real.status, 'assessed')
+        self.assertEqual(real.kpi_timing_status, 'delayed')
+        self.assertTrue(
+            seeded.status_logs.filter(notes='[seed:r3pcr-demo:resolve-overdue]').exists()
+        )
+
+    def test_dry_run_does_not_change_demo_overdue(self):
+        seeded = self._shipment('R3PCR-DEMO-DRY-RUN', seeded=True)
+
+        with patch('apps.shipments.models.timezone.localdate', return_value=date(2026, 6, 30)):
+            call_command('resolve_demo_overdues')
+
+        seeded.refresh_from_db()
+        self.assertEqual(seeded.status, 'assessed')
+        self.assertEqual(seeded.kpi_timing_status, 'delayed')
