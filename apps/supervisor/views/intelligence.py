@@ -2,6 +2,7 @@ from collections import defaultdict
 from io import BytesIO
 import json
 
+from django.core.cache import cache
 from django.db.models import Avg, Count
 from django.http import HttpResponse
 from django.shortcuts import render
@@ -353,12 +354,17 @@ def _arima_forecast(period_counts, periods, unit='month'):
     min_points = 18 if unit == 'month' else 5
     if len(counts) < min_points or sum(counts) < min_points:
         return None, 'Moving average fallback'
+    cache_key = f"supervisor:arima:{unit}:{periods}:{','.join(str(value) for value in counts)}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached, 'ARIMA forecast'
     try:
         from statsmodels.tsa.arima.model import ARIMA
         model = ARIMA(counts, order=(1, 1, 1))
         fit = model.fit()
         raw = fit.forecast(steps=periods)
         forecasts = [max(0, int(round(float(value)))) for value in raw]
+        cache.set(cache_key, forecasts, 60 * 15)
         return forecasts, 'ARIMA forecast'
     except Exception:
         return None, 'Moving average fallback'
@@ -426,22 +432,21 @@ def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', for
         periods = [selected_start.replace(month=index) for index in range(1, 13)]
         if selected_year < today.year:
             actual_periods = periods
-            future_periods = [_add_months(selected_start, 12 + index) for index in range(3)]
         elif selected_year == today.year:
             actual_periods = periods[:today.month]
-            future_periods = periods[today.month:] + [_add_months(selected_start, 12 + index) for index in range(3)]
         else:
             actual_periods = []
-            future_periods = periods + [_add_months(selected_start, 12 + index) for index in range(3)]
-        model_end = actual_periods[-1] if actual_periods else _add_months(selected_start, -1)
+        forecast_anchor = actual_periods[-1] if actual_periods else _add_months(selected_start, -1)
+        future_periods = [_add_months(forecast_anchor, index + 1) for index in range(3)]
+        model_end = forecast_anchor
         model_start = _add_months(model_end, -35)
         model_periods = [_add_months(model_start, index) for index in range(36)]
         model_counts = [_month_count(shipments, period) for period in model_periods]
-        forecast_periods = len(future_periods)
+        forecast_periods = 3
         counts = [_month_count(shipments, period) for period in actual_periods]
-        period_labels = [period.strftime('%b') for period in periods]
-        future_labels = [_add_months(selected_start, 12 + index).strftime('%b') for index in range(3)]
-        forecast_label = f'{selected_year} plus next 3 months'
+        period_labels = [period.strftime('%b') for period in actual_periods]
+        future_labels = [period.strftime('%b') for period in future_periods]
+        forecast_label = 'Next 3 months'
         history_label = 'Last 36 months'
         recent_label = 'monthly'
 
@@ -503,11 +508,9 @@ def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', for
         action = 'Use this as a directional signal and keep monitoring incoming volume.'
 
     if forecast_unit == 'month':
-        next_year_periods = [_add_months(selected_start, 12 + index) for index in range(3)]
         labels = period_labels + future_labels
-        display_periods = periods + next_year_periods
         actual_count_map = {period: count for period, count in zip(actual_periods, counts)}
-        historical_values = [actual_count_map.get(period) for period in display_periods]
+        historical_values = [actual_count_map.get(period) for period in actual_periods] + [None] * forecast_periods
         if actual_periods:
             forecast_values = [None] * (len(actual_periods) - 1) + [counts[-1]] + forecasts
         else:
