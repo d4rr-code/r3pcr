@@ -206,6 +206,7 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertEqual(len(forecast['chart']['labels']), expected_months)
         self.assertEqual(len(forecast['chart']['historical_values']), expected_months)
         self.assertEqual(len(forecast['chart']['forecast_values']), expected_months)
+        self.assertEqual(forecast['chart']['historical_label'], 'Historical monthly volume')
         self.assertEqual(forecast['chart']['historical_values'][-3:], [None, None, None])
         self.assertEqual(len(forecast['period_rows']), expected_months)
         self.assertEqual(forecast['confidence'], 'Low')
@@ -218,6 +219,10 @@ class SupervisorIntelligenceTests(TestCase):
         })
         self.assertEqual(three_year.context['workload_forecast']['forecast_unit'], 'year')
         self.assertEqual(three_year.context['workload_forecast']['forecast_months'], 3)
+        self.assertEqual(
+            three_year.context['workload_forecast']['chart']['historical_label'],
+            'Historical yearly volume',
+        )
         self.assertIn(str(timezone.localdate().year + 1), three_year.context['workload_forecast']['forecast_label'])
 
     def test_intelligence_exports_xlsx_and_pdf(self):

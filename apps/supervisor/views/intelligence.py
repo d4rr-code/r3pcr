@@ -426,6 +426,7 @@ def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', for
         future_labels = [period.strftime('%Y') for period in future_periods]
         forecast_label = f'{selected_year + 1}-{selected_year + forecast_periods}'
         history_label = 'Last 6 years'
+        chart_history_label = 'Historical yearly volume'
         recent_label = 'yearly'
     else:
         selected_start = today.replace(year=selected_year, month=1, day=1)
@@ -448,6 +449,7 @@ def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', for
         future_labels = [period.strftime('%b') for period in future_periods]
         forecast_label = 'Next 3 months'
         history_label = 'Last 36 months'
+        chart_history_label = 'Historical monthly volume'
         recent_label = 'monthly'
 
     sample_total = sum(model_counts)
@@ -545,6 +547,7 @@ def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', for
         'period_rows': period_rows[-6:] + forecast_rows,
         'chart': {
             'labels': labels,
+            'historical_label': chart_history_label,
             'historical_values': historical_values,
             'forecast_values': forecast_values,
         },

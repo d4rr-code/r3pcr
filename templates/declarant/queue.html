@@ -32,6 +32,12 @@
 </div>
 <style>
 @keyframes q-spin { to { transform: rotate(360deg); } }
+.doc-stack{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.doc-stack-count{color:#64748b;font-size:12px;line-height:18px}
+.doc-stack-icons{display:inline-flex;align-items:center;gap:3px;min-width:0}
+.doc-link{display:inline-flex;align-items:center;justify-content:center;width:16px;height:18px;color:#2563eb;text-decoration:none;flex:0 0 auto}
+.doc-link .d-icon{width:14px;height:14px;display:block}
+.doc-link:hover{color:#1d4ed8}
 </style>
 
 <!-- ─── PreviewModal ─────────────────────────────────────────────────────── -->
@@ -253,16 +259,20 @@
                 </td>
                 <td style="padding:12px 16px; font-size:13px;">
                     {% with docs=s.documents.all %}
-                    <span style="color:#64748b; font-size:12px;">{{ docs.count }}/3</span>
-                    {% for doc in docs %}
-                    <a href="{{ doc.file.url }}" target="_blank"
-                       style="color:#3b82f6; text-decoration:none; font-size:13px; margin-left:4px;"
-                       title="{{ doc.get_document_type_display }}">
-                        <svg class="d-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
-                        </svg>
-                    </a>
-                    {% endfor %}
+                    <span class="doc-stack">
+                        <span class="doc-stack-count">{{ docs.count }}/3</span>
+                        <span class="doc-stack-icons">
+                            {% for doc in docs %}
+                            <a href="{{ doc.file.url }}" target="_blank"
+                               class="doc-link"
+                               title="{{ doc.get_document_type_display }}">
+                                <svg class="d-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
+                                </svg>
+                            </a>
+                            {% endfor %}
+                        </span>
+                    </span>
                     {% endwith %}
                 </td>
                 <td style="padding:12px 16px; color:#374151; font-size:12px;">
@@ -443,16 +453,20 @@
                 </td>
                 <td style="padding:12px 16px; font-size:13px;">
                     {% with docs=s.documents.all %}
-                    <span style="color:#64748b; font-size:12px;">{{ docs.count }} file{{ docs.count|pluralize }}</span>
-                    {% for doc in docs %}
-                    <a href="{{ doc.file.url }}" target="_blank"
-                       style="color:#3b82f6; text-decoration:none; font-size:12px; margin-left:4px;"
-                       title="{{ doc.get_document_type_display }}">
-                        <svg class="d-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
-                        </svg>
-                    </a>
-                    {% endfor %}
+                    <span class="doc-stack">
+                        <span class="doc-stack-count">{{ docs.count }} file{{ docs.count|pluralize }}</span>
+                        <span class="doc-stack-icons">
+                            {% for doc in docs %}
+                            <a href="{{ doc.file.url }}" target="_blank"
+                               class="doc-link"
+                               title="{{ doc.get_document_type_display }}">
+                                <svg class="d-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
+                                </svg>
+                            </a>
+                            {% endfor %}
+                        </span>
+                    </span>
                     {% endwith %}
                 </td>
                 <td style="padding:12px 16px; color:#374151; font-size:12px;">
