@@ -57,7 +57,7 @@ def _coerce_weight(value, default):
 
 
 def load_wmcda_weights(getter):
-    """Return configured WMCDA weights as percentage and decimal mappings."""
+    """Return configured MCDA weights as percentage and decimal mappings."""
     weights_pct = {}
     for item in WMCDA_CRITERIA:
         raw = getter(item['config_key'], str(item['default']))

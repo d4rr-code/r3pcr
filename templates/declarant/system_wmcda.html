@@ -1,6 +1,6 @@
 {% extends 'declarant/base_declarant.html' %}
-{% block title %}WMCDA Criteria{% endblock %}
-{% block page_title %}WMCDA Criteria{% endblock %}
+{% block title %}MCDA Criteria{% endblock %}
+{% block page_title %}MCDA Criteria{% endblock %}
 {% block nav_system_ref %}active{% endblock %}
 
 {% block extra_css %}
@@ -49,7 +49,7 @@
 </a>
 
 <div class="card" style="margin-bottom: 24px;">
-    <h2 style="color: #1B3358; margin: 0 0 8px; font-size: 18px; font-weight: 700;">Weighted Mode Combination Decision Analysis (WMCDA)</h2>
+    <h2 style="color: #1B3358; margin: 0 0 8px; font-size: 18px; font-weight: 700;">Multi-Criteria Decision Analysis (MCDA)</h2>
     <p style="color: #6B7280; margin: 0; font-size: 13px;">
         Scoring weights used to recommend optimal shipping mode (FCL/LCL/Air)
         {% if wmcda_method == 'saaty_ahp' %}
@@ -77,7 +77,7 @@
 </div>
 
 <div class="card" style="background: #F8FAFC; border: 1px solid #E5E7EB;">
-    <h3 style="color: #1B3358; margin: 0 0 12px; font-size: 15px; font-weight: 700;">How WMCDA Works</h3>
+    <h3 style="color: #1B3358; margin: 0 0 12px; font-size: 15px; font-weight: 700;">How MCDA Works</h3>
     <ul style="color: #6B7280; margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8;">
         <li><strong>Cost</strong> — Weighs total landed cost (freight + duties + fees); higher weight favors the most cost-efficient shipping mode</li>
         <li><strong>Time</strong> — Weighs urgency level (Rush/Urgent/Normal); higher weight favors faster modes like Air</li>
@@ -87,7 +87,7 @@
 </div>
 
 <div style="margin-top: 20px; padding: 14px 16px; background: #EFF6FF; border: 1px solid #93C5FD; border-radius: 8px; font-size: 13px; color: #1D4ED8;">
-    <strong>ℹ️ Note:</strong> The WMCDA recommendation appears on your computation advisory page for each shipment. Contact the supervisor to adjust these weights.
+    <strong>ℹ️ Note:</strong> The MCDA recommendation appears on your computation advisory page for each shipment. Contact the supervisor to adjust these weights.
 </div>
 
 <div style="margin-top: 12px; padding: 14px 16px; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 13px; color: #374151;">

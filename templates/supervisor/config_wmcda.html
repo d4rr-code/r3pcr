@@ -1,6 +1,6 @@
 {% extends 'supervisor/base_supervisor.html' %}
-{% block title %}WMCDA Criterion Weights{% endblock %}
-{% block page_title %}WMCDA Criterion Weights{% endblock %}
+{% block title %}MCDA{% endblock %}
+{% block page_title %}MCDA{% endblock %}
 {% block nav_config %}active{% endblock %}
 {% block content %}
 
@@ -17,7 +17,7 @@
 <p style="color:#9CA3AF; font-size:13px; margin-bottom:24px;">
     <a href="{% url 'supervisor:config' %}" style="color:#8b5cf6; text-decoration:none;">System Config</a>
     <span style="margin:0 8px;"></span>
-    <span style="color:#6B7280;">WMCDA Criterion Weights</span>
+    <span style="color:#6B7280;">MCDA</span>
 </p>
 
 <div>
@@ -167,7 +167,7 @@
         </h3>
         <p style="color:#6B7280; font-size:13px; margin:0 0 22px; line-height:1.6;">
             Compare each pair of criteria using Saaty's scale. The system converts the pairwise
-            judgments into criterion weights, saves them to WMCDA, and records the consistency ratio.
+            judgments into criterion weights, saves them to MCDA, and records the consistency ratio.
         </p>
 
         <form method="POST">
@@ -189,7 +189,7 @@
             </div>
 
             <div style="background:#F8FAFC; border:1px solid #E5E7EB; border-radius:8px; padding:14px 18px; margin-bottom:18px;">
-                <p style="color:#1A1A2E; font-size:13px; font-weight:700; margin:0 0 6px;">Current WMCDA weights</p>
+                <p style="color:#1A1A2E; font-size:13px; font-weight:700; margin:0 0 6px;">Current MCDA weights</p>
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                     {% for item in wmcda_weights %}
                     <span style="background:#fff; border:1px solid #E5E7EB; border-radius:999px; padding:6px 12px; color:#374151; font-size:12px; font-weight:600;">

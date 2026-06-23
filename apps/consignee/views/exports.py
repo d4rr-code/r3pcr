@@ -9,7 +9,7 @@ logger = logging.getLogger('r3pcr.consignee')
 @login_required
 @consignee_required
 def download_computation(request, shipment_id):
-    """Download ECDT + WMCDA results as PDF (default) or Excel (.xlsx).
+    """Download ECDT + MCDA results as PDF (default) or Excel (.xlsx).
     Use ?fmt=xlsx for Excel, ?fmt=pdf (or omit) for PDF."""
     shipment    = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
     computation = getattr(shipment, 'computation', None)
@@ -72,7 +72,7 @@ def _ecdt_fee_rows(computation):
 
 
 def _ecdt_mode_scores(advisory):
-    """WMCDA mode rows (label, key, score) in fixed Air/LCL/FCL order, shared by
+    """MCDA mode rows (label, key, score) in fixed Air/LCL/FCL order, shared by
     both generators (each sorts by score and applies its own styling)."""
     return [
         ('Air Freight',               'air',  advisory.air_score),
@@ -142,7 +142,7 @@ def _ecdt_xlsx(request, shipment, computation, advisory):
     ws.row_dimensions[r].height = 30
     r += 1
     ws.merge_cells(f'A{r}:H{r}')
-    xcell(ws, r, 1, 'ECDT & WMCDA Computation Sheet',
+    xcell(ws, r, 1, 'ECDT & MCDA Computation Sheet',
           bold=True, color=NAVY, bg=WHITE, align=al_c, size=11)
     ws.row_dimensions[r].height = 18
     r += 1
@@ -254,8 +254,8 @@ def _ecdt_xlsx(request, shipment, computation, advisory):
         xcell(ws, r, 1, 'No computation on file for this shipment.',
               color=MGRAY, bg=WHITE, align=al_c, size=10)
 
-    # ══ Sheet 2 — WMCDA ═══════════════════════════════════════════════════════
-    ws2 = wb.create_sheet('WMCDA Advisory')
+    # ══ Sheet 2 — MCDA ═══════════════════════════════════════════════════════
+    ws2 = wb.create_sheet('MCDA Advisory')
     ws2.sheet_view.showGridLines = False
     for ci, w in enumerate([32, 14, 18], start=1):
         ws2.column_dimensions[get_column_letter(ci)].width = w
@@ -267,7 +267,7 @@ def _ecdt_xlsx(request, shipment, computation, advisory):
     ws2.row_dimensions[r2].height = 30
     r2 += 1
     ws2.merge_cells(f'A{r2}:C{r2}')
-    xcell(ws2, r2, 1, 'WMCDA — Shipping Mode Advisory',
+    xcell(ws2, r2, 1, 'MCDA — Shipping Mode Advisory',
           bold=True, color=NAVY, bg=WHITE, align=al_c, size=11)
     ws2.row_dimensions[r2].height = 18
     r2 += 2
@@ -324,13 +324,13 @@ def _ecdt_xlsx(request, shipment, computation, advisory):
             ws2.row_dimensions[r2].height = 36
     else:
         ws2.merge_cells('A5:C5')
-        xcell(ws2, 5, 1, 'No WMCDA advisory on file.',
+        xcell(ws2, 5, 1, 'No MCDA advisory on file.',
               color=MGRAY, bg=WHITE, align=al_c, size=10)
 
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-    filename = f"R3PCR_{shipment.hawb_number}_ECDT_WMCDA.xlsx"
+    filename = f"R3PCR_{shipment.hawb_number}_ECDT_MCDA.xlsx"
     response = HttpResponse(
         buf.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -404,7 +404,7 @@ def _ecdt_pdf(request, shipment, computation, advisory):
 
     # header
     story.append(Paragraph('RTripleJ Customs Brokerage', p_company))
-    story.append(Paragraph('ECDT &amp; WMCDA Computation Sheet', p_subtitle))
+    story.append(Paragraph('ECDT &amp; MCDA Computation Sheet', p_subtitle))
     story.append(HRFlowable(width='100%', thickness=2, color=NAVY,
                              spaceAfter=6, spaceBefore=0))
 
@@ -562,9 +562,9 @@ def _ecdt_pdf(request, shipment, computation, advisory):
         story.append(fee_tbl)
         story.append(Spacer(1, 12))
 
-    # ── WMCDA ─────────────────────────────────────────────────────────────────
+    # ── MCDA ─────────────────────────────────────────────────────────────────
     if advisory:
-        story.append(Paragraph('WMCDA — SHIPPING MODE ADVISORY', p_section))
+        story.append(Paragraph('MCDA — SHIPPING MODE ADVISORY', p_section))
         story.append(Spacer(1, 1))
 
         mode_scores = _ecdt_mode_scores(advisory)
@@ -633,7 +633,7 @@ def _ecdt_pdf(request, shipment, computation, advisory):
 
     doc.build(story)
     buf.seek(0)
-    filename = f"R3PCR_{shipment.hawb_number}_ECDT_WMCDA.pdf"
+    filename = f"R3PCR_{shipment.hawb_number}_ECDT_MCDA.pdf"
     response = HttpResponse(buf.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response

@@ -198,7 +198,7 @@ def _status_breakdown(chart_ids, chart_total):
 
 
 def _wmcda_scoreboard(advisory_qs):
-    """WMCDA recommendation scoreboard (counts, %, avg score, rank)."""
+    """MCDA recommendation scoreboard (counts, %, avg score, rank)."""
     wmcda_meta = [
         ('air',  'Air Freight',  '#f59e0b', 'AIR'),
         ('lcl',  'LCL Sea',      '#38bdf8', 'LCL'),
@@ -236,7 +236,7 @@ def _wmcda_scoreboard(advisory_qs):
 
 
 def _wmcda_comparison(advisory_qs):
-    """Declared shipment type vs WMCDA recommendation agreement matrix."""
+    """Declared shipment type vs MCDA recommendation agreement matrix."""
     cmp_meta = [('air', 'Air Freight'), ('lcl', 'LCL Sea'), ('fcl', 'FCL Sea')]
     cmp_keys = [k for k, _ in cmp_meta]
     cmp_cross = {d: {r: 0 for r in cmp_keys} for d in cmp_keys}
@@ -442,7 +442,7 @@ def _due_date_buckets(chart_qs):
 
 
 def _wmcda_bar_chart(wmcda_scoreboard):
-    """Vertical WMCDA bar chart data in fixed LCL / Air / FCL order."""
+    """Vertical MCDA bar chart data in fixed LCL / Air / FCL order."""
     bar_order = [
         ('lcl',  'LCL Sea',      '#38bdf8'),
         ('air',  'Air Freight',  '#f59e0b'),

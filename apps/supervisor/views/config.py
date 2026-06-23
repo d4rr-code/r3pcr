@@ -306,10 +306,10 @@ def config_wmcda(request):
                 try:
                     posted[key] = int(val)
                 except (TypeError, ValueError):
-                    messages.error(request, 'WMCDA weights must be whole-number percentages.')
+                    messages.error(request, 'MCDA weights must be whole-number percentages.')
                     return redirect('supervisor:config_wmcda')
             if sum(posted.values()) != 100:
-                messages.error(request, 'WMCDA weights must add up to exactly 100%.')
+                messages.error(request, 'MCDA weights must add up to exactly 100%.')
                 return redirect('supervisor:config_wmcda')
             for key, val in posted.items():
                 SystemConfig.objects.update_or_create(
@@ -319,7 +319,7 @@ def config_wmcda(request):
                 key='wmcda_weight_method',
                 defaults={'value': 'manual', 'updated_by': request.user},
             )
-            messages.success(request, 'Manual WMCDA weights saved.')
+            messages.success(request, 'Manual MCDA weights saved.')
         return redirect('supervisor:config_wmcda')
     return render(request, 'supervisor/config_wmcda.html', {
         'config': config,

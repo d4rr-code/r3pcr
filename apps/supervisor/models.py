@@ -89,7 +89,7 @@ class IssueReport(models.Model):
         ('document_upload', 'Document Upload'),
         ('ocr_extraction', 'OCR / Extraction'),
         ('duty_computation', 'Duty Computation'),
-        ('wmcda_advisory', 'WMCDA Advisory'),
+        ('wmcda_advisory', 'MCDA Advisory'),
         ('notifications_email', 'Notifications or Email'),
         ('dashboard_analytics', 'Dashboard / Analytics'),
         ('page_display_ui', 'Page Display / UI'),
@@ -157,7 +157,7 @@ class IssueReport(models.Model):
         return f'{self.get_category_display()} - {self.title}'
 
     # Locations a reporter may file against, scoped to their role's own pages.
-    # Categories (OCR, Duty Computation, WMCDA, etc.) stay shared across roles.
+    # Categories (OCR, Duty Computation, MCDA, etc.) stay shared across roles.
     ROLE_LOCATIONS = {
         'consignee': ['dashboard', 'new_submission', 'my_submissions',
                       'notifications', 'system_reference', 'other'],

@@ -158,7 +158,7 @@ def _analytics_report_data(request):
             ['Active Users', User.objects.filter(role__in=['consignee', 'declarant'], is_active=True, is_pending_approval=False).count()],
             ['Consignees', User.objects.filter(role='consignee', is_active=True, is_pending_approval=False).count()],
             ['Declarants', User.objects.filter(role='declarant', is_active=True, is_pending_approval=False).count()],
-            ['WMCDA Advisories', wmcda_total],
+            ['MCDA Advisories', wmcda_total],
             ['Feedback Count', feedback_total],
             ['Average Feedback Rating', round(float(feedback_avg or 0), 1)],
             ['Positive Feedback %', f'{round(feedback_positive / feedback_total * 100, 1) if feedback_total else 0}%'],
@@ -167,7 +167,7 @@ def _analytics_report_data(request):
             ('Status Pipeline', ['Status', 'Count', 'Share'], status_rows),
             ('Shipment Types', ['Type', 'Count', 'Share'], type_rows),
             ('Urgency Distribution', ['Urgency', 'Count', 'Share'], urgency_rows),
-            ('WMCDA Recommendations', ['Mode', 'Recommended Count', 'Share', 'Average Score'], wmcda_rows),
+            ('MCDA Recommendations', ['Mode', 'Recommended Count', 'Share', 'Average Score'], wmcda_rows),
             ('Currency Usage', ['Currency', 'Count', 'Share'], currency_rows),
             ('Landed Cost By Mode', ['Mode', 'Computations', 'Average PHP', 'Total PHP', 'Min PHP', 'Max PHP'], cost_rows),
             ('Declarant Performance', ['Declarant', 'Assigned', 'Computed+', 'Billed', 'Revision/Rejected', 'Completion %'], declarant_rows),
@@ -399,7 +399,7 @@ def _analytics_context_response(request):
     total_consignee_approved = _kpi['total_consignee_approved']
     consignee_approval_rate  = _kpi['consignee_approval_rate']
 
-    # Materialise chart_qs IDs once — reused for status, WMCDA and declarant sections
+    # Materialise chart_qs IDs once — reused for status, MCDA and declarant sections
     _chart_ids_qs = chart_qs.values_list('id', flat=True)
 
     # Status breakdown bar chart (respects chart filters)
@@ -407,7 +407,7 @@ def _analytics_context_response(request):
     pipeline_rows      = _status['pipeline_rows']
     status_rows_sorted = _status['status_rows_sorted']
 
-    # WMCDA scoreboard + declared-vs-recommended agreement matrix
+    # MCDA scoreboard + declared-vs-recommended agreement matrix
     advisory_qs = ShippingAdvisory.objects.filter(shipment_id__in=_chart_ids_qs)
     _sb = _wmcda_scoreboard(advisory_qs)
     wmcda_scoreboard = _sb['wmcda_scoreboard']
@@ -448,7 +448,7 @@ def _analytics_context_response(request):
     due_date_chart_labels = _due['due_date_chart_labels']
     due_date_chart_colors = _due['due_date_chart_colors']
 
-    # WMCDA vertical bar chart (fixed LCL / Air / FCL order)
+    # MCDA vertical bar chart (fixed LCL / Air / FCL order)
     _bar = _wmcda_bar_chart(wmcda_scoreboard)
     wmcda_bar_labels = _bar['wmcda_bar_labels']
     wmcda_bar_data   = _bar['wmcda_bar_data']

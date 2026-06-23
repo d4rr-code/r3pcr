@@ -313,7 +313,7 @@ def shipment_detail(request, shipment_id):
     computation = getattr(shipment, 'computation', None)
     status_logs = shipment.status_logs.order_by('-changed_at')
 
-    # Rebuild full WMCDA data from saved advisory
+    # Rebuild full MCDA data from saved advisory
     explanation       = None
     wmcda_scores      = None
     wmcda_breakdown   = None
@@ -369,11 +369,11 @@ def shipment_detail(request, shipment_id):
                 advisory_matches_declared = recommended_type == shipment.shipment_type
                 if advisory_matches_declared:
                     advisory_summary = (
-                        'Your selected shipping type matches the WMCDA recommendation for this shipment profile.'
+                        'Your selected shipping type matches the MCDA recommendation for this shipment profile.'
                     )
                 else:
                     advisory_summary = (
-                        f'For similar future shipments, WMCDA suggests {recommendation_label} '
+                        f'For similar future shipments, MCDA suggests {recommendation_label} '
                         f'instead of {declared_label} based on cost, time, cargo size, and distance.'
                     )
         except Exception as e:
@@ -501,7 +501,7 @@ def submit_feedback(request, shipment_id):
 @login_required
 @consignee_required
 def approve_computation(request, shipment_id):
-    """Consignee approves the ECDT+WMCDA computation, advancing status to approved."""
+    """Consignee approves the ECDT+MCDA computation, advancing status to approved."""
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
 
     if request.method == 'POST':

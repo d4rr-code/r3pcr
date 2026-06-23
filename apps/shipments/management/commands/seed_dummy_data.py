@@ -12,7 +12,7 @@ Key behaviours:
   * Every status in Shipment.STATUS_CHOICES is represented and randomised.
   * Each shipment gets a backdated status-log timeline (incoming -> ... -> final)
     so processing-time analytics have data to measure.
-  * Computed+ shipments get a DutyComputation and a real WMCDA ShippingAdvisory.
+  * Computed+ shipments get a DutyComputation and a real MCDA ShippingAdvisory.
   * Billed shipments get consignee Feedback (mostly positive, some approved).
   * --clear removes only previously-seeded DEMO shipments. It never deletes
     user accounts or real shipments.
@@ -271,7 +271,7 @@ class Command(BaseCommand):
                 'Computations/advisories will be skipped.'
             ))
 
-        # Real WMCDA scorer (lazy import; fall back to random if unavailable).
+        # Real MCDA scorer (lazy import; fall back to random if unavailable).
         try:
             from apps.computation.views import compute_wmcda
         except Exception:
@@ -501,7 +501,7 @@ class Command(BaseCommand):
                     defaults={'is_suggested': True, 'is_confirmed': True},
                 )
 
-                # Real WMCDA scoring so recommended_type is authentic and may
+                # Real MCDA scoring so recommended_type is authentic and may
                 # differ from the consignee's chosen mode.
                 if compute_wmcda:
                     try:
