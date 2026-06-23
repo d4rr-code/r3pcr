@@ -423,7 +423,7 @@
             data: {
                 labels: workloadData.labels,
                 datasets: [{
-                    label: 'Last 12 months',
+                    label: workloadData.historical_label || 'Historical volume',
                     data: workloadData.historical_values,
                     borderColor: '#1B3358',
                     backgroundColor: 'rgba(27,51,88,.12)',
