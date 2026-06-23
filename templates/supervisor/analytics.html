@@ -847,8 +847,8 @@ canvas { cursor: pointer; }
 
         <section class="dash-card panel wmcda-panel">
             <div class="panel-title">
-                <h2>WMCDA Shipping Advisory</h2>
-                <input class="calendar-chip js-month-filter" type="month" value="{{ selected_month }}" aria-label="Filter WMCDA advisory by month">
+                <h2>MCDA Shipping Advisory</h2>
+                <input class="calendar-chip js-month-filter" type="month" value="{{ selected_month }}" aria-label="Filter MCDA advisory by month">
             </div>
             <div class="wmcda-content">
                 <div class="chart-fixed" style="height:190px;">
@@ -914,7 +914,7 @@ canvas { cursor: pointer; }
         <section class="dash-card panel comparison-panel">
             <div class="panel-title">
                 <div>
-                    <h2>Declared Type vs WMCDA Advisory</h2>
+                    <h2>Declared Type vs MCDA Advisory</h2>
                     <p>How consignee-declared shipment types compare with the system's recommended mode</p>
                 </div>
                 <span class="cmp-agreement">{{ wmcda_comparison_agreement }}% overall agreement &middot; {{ wmcda_comparison_total }} advisories</span>
@@ -956,7 +956,7 @@ canvas { cursor: pointer; }
                     {% endif %}
                 </table>
                 <p style="color:#6b7280;font-size:11px;margin:10px 2px 0;">
-                    Green cells are agreements (consignee's declared mode matched the WMCDA recommendation).
+                    Green cells are agreements (consignee's declared mode matched the MCDA recommendation).
                     Off-diagonal values show where the advisory suggested a different mode.
                 </p>
             </div>

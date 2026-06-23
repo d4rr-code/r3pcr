@@ -401,7 +401,7 @@ def system_fees(request):
 @login_required
 @declarant_required
 def system_wmcda(request):
-    """View WMCDA criteria weights and configuration."""
+    """View MCDA criteria weights and configuration."""
     from apps.supervisor.models import SystemConfig
 
     criteria_meta = [

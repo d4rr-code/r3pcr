@@ -177,10 +177,10 @@ a.card:hover {
         {% endif %}
     </div>
 
-    <!-- WMCDA Scoreboard -->
+    <!-- MCDA Scoreboard -->
     <div class="card" style="padding:24px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
-            <p class="card-title" style="margin:0;">WMCDA Shipping Advisory</p>
+            <p class="card-title" style="margin:0;">MCDA Shipping Advisory</p>
             {% if wmcda_total %}
             <span style="color:#6B7280; font-size:12px;">{{ wmcda_total }} computed</span>
             {% endif %}
@@ -438,7 +438,7 @@ a.card:hover {
 </div>
 
 <script>
-/* Fix WMCDA bar widths using data-count / data-max (avoids Django templatefilter division) */
+/* Fix MCDA bar widths using data-count / data-max (avoids Django templatefilter division) */
 document.querySelectorAll('.wmcda-bar').forEach(function(bar) {
     var count = parseFloat(bar.dataset.count) || 0;
     var max   = parseFloat(bar.dataset.max)   || 1;

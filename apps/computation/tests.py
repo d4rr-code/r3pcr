@@ -246,7 +246,7 @@ class ComputeShipmentPostTests(TestCase):
     def test_post_without_distance_still_runs_wmcda(self):
         """Regression: a POST omitting distance_km used to hit a NameError on
         the undefined prefill_distance, which the broad except swallowed and so
-        WMCDA was silently skipped (no ShippingAdvisory). It must now run with
+        MCDA was silently skipped (no ShippingAdvisory). It must now run with
         the 2600 km default and persist the advisory."""
         data = self._post_data()
         data.pop('distance_km')

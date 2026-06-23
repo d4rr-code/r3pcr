@@ -47,7 +47,7 @@
 <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
     <div>
         <h2 style="color:#f1f5f9; font-size:18px; margin:0;">{{ shipment.hawb_number }}</h2>
-        <p style="color:#64748b; font-size:13px; margin:4px 0 0;">WMCDA Shipping Mode Recommendation</p>
+        <p style="color:#64748b; font-size:13px; margin:4px 0 0;">MCDA Shipping Mode Recommendation</p>
     </div>
     <a href="{% url 'declarant:process' shipment.id %}"
        class="btn btn-secondary" style="margin-left:auto; font-size:12px;">
@@ -427,7 +427,7 @@
             <p style="font-size:14px; margin:0 0 6px; color:#374151; font-weight:600;">No result yet</p>
             <p style="font-size:13px; margin:0 0 4px;">Fill in the parameters and click <strong>Compute Recommendation</strong>.</p>
             <p style="font-size:12px; margin:0; color:#9CA3AF;">
-                WMCDA scores LCL, FCL, and Air Freight across cost, time, weight/volume, and distance criteria.
+                MCDA scores LCL, FCL, and Air Freight across cost, time, weight/volume, and distance criteria.
             </p>
         </div>
         {% endif %}
@@ -486,7 +486,7 @@
         <div class="card" style="margin-top:20px;">
             <p class="card-title" style="margin-bottom:4px;">Your Advisory to Consignee</p>
             <p style="color:#64748b; font-size:12px; margin-bottom:18px;">
-                WMCDA recommends <strong style="color:#f1f5f9;">{{ existing.recommended_type|upper }}</strong>.
+                MCDA recommends <strong style="color:#f1f5f9;">{{ existing.recommended_type|upper }}</strong>.
                 You may confirm this or pick a different mode based on your judgment.
             </p>
 

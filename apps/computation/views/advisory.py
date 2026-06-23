@@ -151,7 +151,7 @@ def shipping_advisory(request, shipment_id):
                 auto_weight, auto_volume, auto_value, auto_urgency, auto_distance
             )
         except Exception as e:
-            logger.debug('WMCDA breakdown re-derive failed: %s', e)
+            logger.debug('MCDA breakdown re-derive failed: %s', e)
     else:
         # Pull weight from shipment model field
         auto_weight = float(shipment.gross_weight) if shipment.gross_weight else 0.0
@@ -228,7 +228,7 @@ def shipping_advisory(request, shipment_id):
                     notification_type='status_update',
                     title=f'Shipping Advisory Ready — {shipment.hawb_number}',
                     message=(
-                        f'WMCDA Recommendation: {label_map.get(recommended, recommended.upper())}. '
+                        f'MCDA Recommendation: {label_map.get(recommended, recommended.upper())}. '
                         f'{explanation[:120] if explanation else ""}'
                     ),
                 )
@@ -300,7 +300,7 @@ def save_declarant_advisory(request, shipment_id):
 
     advisory = ShippingAdvisory.objects.filter(shipment=shipment).first()
     if not advisory:
-        messages.error(request, 'Run the WMCDA computation first before saving an advisory.')
+        messages.error(request, 'Run the MCDA computation first before saving an advisory.')
         return redirect('computation:advisory', shipment_id=shipment_id)
 
     recommendation = request.POST.get('declarant_recommendation', '').strip()

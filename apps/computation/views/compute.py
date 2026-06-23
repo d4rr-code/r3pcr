@@ -24,7 +24,7 @@ from ..wmcda import wmcda_weight_rows
 from apps.supervisor.models import SystemConfig
 
 def _wmcda_history(shipment):
-    """Most-common historical WMCDA recommendation for this shipment's type.
+    """Most-common historical MCDA recommendation for this shipment's type.
 
     Returns a summary dict (total, top_mode, top_pct, mode_label, ship_type) or
     None when the shipment has no type or there is no prior advisory history.
@@ -54,9 +54,9 @@ def _wmcda_history(shipment):
 
 
 def _run_wmcda_and_advisory(request, shipment, total_exw):
-    """Compute the WMCDA scores for this POST and upsert the ShippingAdvisory.
+    """Compute the MCDA scores for this POST and upsert the ShippingAdvisory.
 
-    Best-effort: any failure is caught so a WMCDA problem never blocks the
+    Best-effort: any failure is caught so an MCDA problem never blocks the
     (already-saved) ECDT computation. On a POST the result is only persisted —
     the page redirects, so the scores are not rendered here.
     """
@@ -87,7 +87,7 @@ def _run_wmcda_and_advisory(request, shipment, total_exw):
             }
         )
     except Exception as wmcda_err:
-        logger.warning('WMCDA auto-compute error: %s', wmcda_err)
+        logger.warning('MCDA auto-compute error: %s', wmcda_err)
 
 
 def _apply_port_fee_defaults(shipment, container_type, arrastre, wharfage,
@@ -341,7 +341,7 @@ def _load_items_for_get(request, shipment, existing, shipment_id):
 
 
 def _resolve_prefill_distance_volume(shipment, advisory_ex, ocr_fields):
-    """Resolve WMCDA distance and volume defaults for the compute form."""
+    """Resolve MCDA distance and volume defaults for the compute form."""
     def _ocr_field_value(fields, key):
         raw = (fields or {}).get(key, '')
         if isinstance(raw, dict):
@@ -589,7 +589,7 @@ def compute_shipment(request, shipment_id):
                     )
                 )
 
-            # ── Auto-run WMCDA alongside ECDT (best-effort; persisted only) ────
+            # ── Auto-run MCDA alongside ECDT (best-effort; persisted only) ────
             _run_wmcda_and_advisory(request, shipment, total_exw)
 
             # Consignee notification is sent by notify_shipment_status_change above
@@ -624,7 +624,7 @@ def compute_shipment(request, shipment_id):
                     float(advisory_ex.distance_km),
                 )
             except Exception as e:
-                logger.debug('WMCDA breakdown re-derive (GET) failed: %s', e)
+                logger.debug('MCDA breakdown re-derive (GET) failed: %s', e)
 
         # Historical on load
         wmcda_history = _wmcda_history(shipment)
