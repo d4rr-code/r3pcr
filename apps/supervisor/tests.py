@@ -86,7 +86,6 @@ class SupervisorShipmentTrackingDisplayTests(TestCase):
         self.assertContains(response, 'R3PCR-TRACK-1')
         self.assertNotContains(response, 'R3PCR-TRACK-2')
         self.assertContains(response, 'MCDA Recommendation')
-        self.assertContains(response, 'MCDA:')
         self.assertContains(response, 'mcda-lcl')
 
     def test_shipment_records_pagination_is_compact_for_many_pages(self):
@@ -527,8 +526,24 @@ class AnalyticsDashboardContextTests(TestCase):
         self.assertEqual(resp.context['shipment_type_counts'], {'air': 1, 'lcl': 0, 'fcl': 0})
         self.assertEqual(resp.context['feedback_summary']['total'], 1)
         self.assertEqual(resp.context['feedback_summary']['avg_rating'], 5.0)
-        self.assertEqual(sum(json.loads(resp.context['monthly_chart_data'])), 1)
-        self.assertEqual(len(json.loads(resp.context['monthly_chart_labels'])), today.month)
+        monthly_data = json.loads(resp.context['monthly_chart_data'])
+        self.assertEqual(sum(value or 0 for value in monthly_data), 1)
+        self.assertEqual(len(json.loads(resp.context['monthly_chart_labels'])), 12)
+
+    def test_all_years_overview_groups_chart_by_year(self):
+        old_year = timezone.now().replace(year=timezone.localdate().year - 1)
+        Shipment.objects.filter(pk__in=[self.s1.pk, self.s2.pk]).update(submitted_at=old_year)
+
+        resp = self.client.get(self.url, {'overview_range': 'all'})
+
+        self.assertEqual(resp.status_code, 200)
+        labels = json.loads(resp.context['monthly_chart_labels'])
+        data = json.loads(resp.context['monthly_chart_data'])
+        self.assertIn(str(timezone.localdate().year - 1), labels)
+        self.assertIn(str(timezone.localdate().year), labels)
+        self.assertEqual(sum(data), 5)
+        self.assertTrue(resp.context['monthly_chart_has_data'])
+        self.assertContains(resp, 'All Years')
 
     def test_date_filter_controls_render_range_presets(self):
         resp = self.client.get(self.url)

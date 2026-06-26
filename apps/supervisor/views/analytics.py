@@ -318,7 +318,7 @@ def _analytics_filters(request, all_shipments):
     date_to          = request.GET.get('date_to', '').strip()
     declarant_filter = request.GET.get('declarant', '').strip()
     overview_range   = request.GET.get('overview_range', 'year').strip().lower()
-    if overview_range not in {'year', '6m'}:
+    if overview_range not in {'all', 'year', '6m'}:
         overview_range = 'year'
 
     chart_qs = all_shipments
@@ -440,6 +440,8 @@ def _analytics_context_response(request):
     _overview = _monthly_overview(chart_qs, overview_range)
     monthly_chart_labels = _overview['monthly_chart_labels']
     monthly_chart_data   = _overview['monthly_chart_data']
+    monthly_chart_has_data = _overview['monthly_chart_has_data']
+    monthly_chart_caption = _overview['monthly_chart_caption']
 
     # Pre-clearance SLA countdown buckets
     _due = _due_date_buckets(chart_qs)
@@ -472,6 +474,7 @@ def _analytics_context_response(request):
     cost_bar_labels = _cost['cost_bar_labels']
     cost_bar_data   = _cost['cost_bar_data']
     cost_bar_colors = _cost['cost_bar_colors']
+    cost_bar_keys   = _cost['cost_bar_keys']
 
     # Feedback summary respects the active analytics filters.
     feedback_summary = _feedback_summary(_chart_ids_qs)
@@ -525,6 +528,8 @@ def _analytics_context_response(request):
         'due_date_chart_colors': due_date_chart_colors,
         'monthly_chart_labels':  monthly_chart_labels,
         'monthly_chart_data':    monthly_chart_data,
+        'monthly_chart_has_data': monthly_chart_has_data,
+        'monthly_chart_caption': monthly_chart_caption,
         'top_declarant':         top_declarant,
         'feedback_summary':      feedback_summary,
         'selected_month':        selected_month,
@@ -537,6 +542,7 @@ def _analytics_context_response(request):
         'cost_bar_labels':       cost_bar_labels,
         'cost_bar_data':         cost_bar_data,
         'cost_bar_colors':       cost_bar_colors,
+        'cost_bar_keys':         cost_bar_keys,
         # currency analytics
         'currency_breakdown':      currency_breakdown,
         'currency_total':          currency_total,

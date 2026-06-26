@@ -108,9 +108,9 @@ def _cost_by_type(date_from, date_to, declarant_filter):
         cost_qs = cost_qs.filter(shipment__declarant__username=declarant_filter)
 
     cost_type_meta = [
-        ('air',  'Air',  '#F59E0B'),
-        ('lcl',  'LCL',  '#38BDF8'),
-        ('fcl',  'FCL',  '#8B5CF6'),
+        ('air',  'Air Freight',                 '#F59E0B'),
+        ('lcl',  'LCL - Less Container Load',   '#38BDF8'),
+        ('fcl',  'FCL - Full Container Load',   '#8B5CF6'),
     ]
     cost_by_type = []
     for code, label, color in cost_type_meta:
@@ -134,6 +134,7 @@ def _cost_by_type(date_from, date_to, declarant_filter):
         'cost_bar_labels': json.dumps([r['label'] for r in cost_by_type]),
         'cost_bar_data':   json.dumps([r['avg'] for r in cost_by_type]),
         'cost_bar_colors': json.dumps([r['color'] for r in cost_by_type]),
+        'cost_bar_keys':   json.dumps([r['code'] for r in cost_by_type]),
     }
 
 
@@ -374,17 +375,36 @@ def _monthly_overview(chart_qs, overview_range):
     def _period_date(value):
         return value.date() if hasattr(value, 'date') else value
 
+    if overview_range == 'all':
+        rows = list(
+            chart_qs
+            .filter(submitted_at__isnull=False)
+            .annotate(period=TruncYear('submitted_at'))
+            .values('period')
+            .annotate(count=Count('id'))
+            .order_by('period')
+        )
+        labels = [str(_period_date(row['period']).year) for row in rows if row['period']]
+        data = [row['count'] for row in rows if row['period']]
+        return {
+            'monthly_chart_labels': json.dumps(labels),
+            'monthly_chart_data':   json.dumps(data),
+            'monthly_chart_has_data': any(data),
+            'monthly_chart_caption': 'Yearly shipment volume across all available records',
+        }
+
     today = timezone.localdate()
     if overview_range == '6m':
         start = _add_months(today.replace(day=1), -5)
-        end = _add_months(today.replace(day=1), 1) - timedelta(days=1)
+        display_end = _add_months(today.replace(day=1), 1) - timedelta(days=1)
     else:
         start = today.replace(month=1, day=1)
-        end = today
+        display_end = today.replace(month=12, day=31)
+    data_end = min(display_end, today)
 
     rows = list(
         chart_qs
-        .filter(submitted_at__date__gte=start, submitted_at__date__lte=end)
+        .filter(submitted_at__date__gte=start, submitted_at__date__lte=data_end)
         .annotate(period=TruncMonth('submitted_at'))
         .values('period')
         .annotate(count=Count('id'))
@@ -396,13 +416,16 @@ def _monthly_overview(chart_qs, overview_range):
     }
     labels, data = [], []
     cursor = start.replace(day=1)
-    while cursor <= end:
+    future_start = _add_months(today.replace(day=1), 1)
+    while cursor <= display_end:
         labels.append(cursor.strftime('%b %Y'))
-        data.append(period_map.get(cursor, 0))
+        data.append(None if cursor >= future_start else period_map.get(cursor, 0))
         cursor = _add_months(cursor, 1)
     return {
         'monthly_chart_labels': json.dumps(labels),
         'monthly_chart_data':   json.dumps(data),
+        'monthly_chart_has_data': any(value for value in data if value is not None),
+        'monthly_chart_caption': 'Monthly shipment volume trends',
     }
 
 

@@ -509,7 +509,7 @@
             {% if advisory and recommendation_label %}
             <div class="advisory-body">
                 <div class="future-advisory">
-                    <p class="label">MCDA Recommendation For Similar Future Shipments</p>
+                    <p class="label">Shipping Type Advisory (Multi-Criteria Decision Analysis)</p>
                     <p class="mode">{{ recommendation_label }}</p>
                     {% if recommendation_score is not None %}
                     <p class="advisory-summary{% if advisory_matches_declared %} match{% endif %}">
@@ -520,7 +520,7 @@
 
                 <div class="advisory-compare">
                     <div class="compare-tile">
-                        <span>MCDA Recommended Type</span>
+                        <span>Recommended Shipment Type</span>
                         <strong>{{ recommendation_label }}</strong>
                         {% if recommendation_score is not None %}<em>Fit score: {% widthratio recommendation_score 1 100 %}%</em>{% endif %}
                     </div>
@@ -563,7 +563,7 @@
                 </div>
                 {% endif %}
                 <p class="advisory-foot" style="margin-top:12px;">
-                    MCDA weights:
+                    Multi-Criteria Decision Analysis weights:
                     {% if wmcda_method == 'saaty_ahp' %}
                         derived using Saaty AHP{% if wmcda_consistency_ratio %} · CR {{ wmcda_consistency_ratio }}{% endif %}
                     {% else %}
