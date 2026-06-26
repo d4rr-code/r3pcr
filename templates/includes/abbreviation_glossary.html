@@ -1,0 +1,158 @@
+<section class="abbr-card" aria-labelledby="abbr-glossary-title">
+    <div class="abbr-head">
+        <div>
+            <h2 id="abbr-glossary-title">Abbreviation Guide</h2>
+            <p>Common terms used throughout R3-PCR.</p>
+        </div>
+    </div>
+
+    <div class="abbr-grid">
+        <div class="abbr-group">
+            <h3>Shipping and Customs</h3>
+            <dl>
+                <div><dt>LCL</dt><dd>Less Container Load</dd></div>
+                <div><dt>FCL</dt><dd>Full Container Load</dd></div>
+                <div><dt>BOC</dt><dd>Bureau of Customs</dd></div>
+                <div><dt>HS</dt><dd>Harmonized System code</dd></div>
+                <div><dt>AHTN</dt><dd>ASEAN Harmonized Tariff Nomenclature</dd></div>
+                <div><dt>MFN</dt><dd>Most Favored Nation tariff rate</dd></div>
+                <div><dt>HAWB</dt><dd>House Air Waybill</dd></div>
+                <div><dt>AWB</dt><dd>Air Waybill</dd></div>
+                <div><dt>BOL</dt><dd>Bill of Lading</dd></div>
+                <div><dt>SAD</dt><dd>Single Administrative Document</dd></div>
+                <div><dt>FAN</dt><dd>Final Assessment Notice</dd></div>
+                <div><dt>ETA</dt><dd>Estimated Time of Arrival</dd></div>
+                <div><dt>ETD</dt><dd>Estimated Time of Departure</dd></div>
+            </dl>
+        </div>
+
+        <div class="abbr-group">
+            <h3>Decision Support and Analytics</h3>
+            <dl>
+                <div><dt>MCDA</dt><dd>Multi-Criteria Decision Analysis</dd></div>
+                <div><dt>WMCDA</dt><dd>Weighted Multi-Criteria Decision Analysis</dd></div>
+                <div><dt>AHP</dt><dd>Analytic Hierarchy Process</dd></div>
+                <div><dt>CR</dt><dd>Consistency Ratio</dd></div>
+                <div><dt>KPI</dt><dd>Key Performance Indicator</dd></div>
+                <div><dt>ARIMA</dt><dd>AutoRegressive Integrated Moving Average</dd></div>
+                <div><dt>MAE</dt><dd>Mean Absolute Error</dd></div>
+                <div><dt>AI</dt><dd>Artificial Intelligence</dd></div>
+                <div><dt>ML</dt><dd>Machine Learning</dd></div>
+                <div><dt>TOPSIS</dt><dd>Technique for Order Preference by Similarity to Ideal Solution</dd></div>
+            </dl>
+        </div>
+
+        <div class="abbr-group">
+            <h3>Computation and Fees</h3>
+            <dl>
+                <div><dt>ECDT</dt><dd>Estimated Customs Duties and Taxes</dd></div>
+                <div><dt>CDT</dt><dd>Customs Duties and Taxes</dd></div>
+                <div><dt>VAT</dt><dd>Value Added Tax</dd></div>
+                <div><dt>CUD</dt><dd>Customs Duty</dd></div>
+                <div><dt>IPF</dt><dd>Import Processing Fee</dd></div>
+                <div><dt>CDS</dt><dd>Customs Documentary Stamp</dd></div>
+                <div><dt>CSF</dt><dd>Container Security Fee</dd></div>
+                <div><dt>BF</dt><dd>Brokerage Fee</dd></div>
+                <div><dt>EXW</dt><dd>Ex Works</dd></div>
+                <div><dt>DV / D/V</dt><dd>Dutiable Value</dd></div>
+                <div><dt>TLC</dt><dd>Total Landed Cost</dd></div>
+            </dl>
+        </div>
+
+        <div class="abbr-group">
+            <h3>Documents, System, and Currency</h3>
+            <dl>
+                <div><dt>OCR</dt><dd>Optical Character Recognition</dd></div>
+                <div><dt>PDF</dt><dd>Portable Document Format</dd></div>
+                <div><dt>XLSX</dt><dd>Excel spreadsheet format</dd></div>
+                <div><dt>CSV</dt><dd>Comma-Separated Values</dd></div>
+                <div><dt>OTP</dt><dd>One-Time Password</dd></div>
+                <div><dt>DB</dt><dd>Database</dd></div>
+                <div><dt>API</dt><dd>Application Programming Interface</dd></div>
+                <div><dt>PHP</dt><dd>Philippine Peso</dd></div>
+                <div><dt>USD</dt><dd>United States Dollar</dd></div>
+                <div><dt>EUR</dt><dd>Euro</dd></div>
+                <div><dt>JPY</dt><dd>Japanese Yen</dd></div>
+                <div><dt>CNY</dt><dd>Chinese Yuan</dd></div>
+                <div><dt>HKD</dt><dd>Hong Kong Dollar</dd></div>
+                <div><dt>GBP</dt><dd>British Pound</dd></div>
+                <div><dt>SGD</dt><dd>Singapore Dollar</dd></div>
+            </dl>
+        </div>
+    </div>
+</section>
+
+<style>
+.abbr-card {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(31, 43, 62, .08);
+    margin-top: 24px;
+    padding: 24px;
+}
+.abbr-head {
+    border-bottom: 1px solid #E5E7EB;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+}
+.abbr-head h2 {
+    color: #1B3358;
+    font-size: 20px;
+    font-weight: 900;
+    margin: 0 0 4px;
+}
+.abbr-head p {
+    color: #6B7280;
+    font-size: 13px;
+    margin: 0;
+}
+.abbr-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+.abbr-group {
+    min-width: 0;
+}
+.abbr-group h3 {
+    color: #111827;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: .04em;
+    margin: 0 0 10px;
+    text-transform: uppercase;
+}
+.abbr-group dl {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+}
+.abbr-group dl > div {
+    display: grid;
+    grid-template-columns: minmax(58px, .34fr) 1fr;
+    gap: 10px;
+    align-items: start;
+    border-bottom: 1px solid #F1F5F9;
+    padding-bottom: 8px;
+}
+.abbr-group dt {
+    color: #1B3358;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.3;
+}
+.abbr-group dd {
+    color: #374151;
+    font-size: 12px;
+    line-height: 1.35;
+    margin: 0;
+}
+@media (max-width: 900px) {
+    .abbr-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+    .abbr-card { padding: 18px; }
+    .abbr-group dl > div { grid-template-columns: 1fr; gap: 3px; }
+}
+</style>
