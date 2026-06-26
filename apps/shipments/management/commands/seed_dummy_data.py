@@ -1,14 +1,14 @@
 """
-Seed command: python manage.py seed_dummy_data [--count 240] [--months 48] [--clear]
+Seed command: python manage.py seed_dummy_data [--count 420] [--months 96] [--clear]
 
 Generates realistic, historically-spread demo shipments so the analytics
 dashboards show genuine trends and patterns (not a single flat bucket).
 
 Key behaviours:
-  * Shipments are spread across the last N months (default 48) with trend and
+  * Shipments are spread across the last N months (default 96) with trend and
     seasonality, so ARIMA forecasts have usable demo history.
-  * Completed historical shipments are guaranteed for 2022 and 2023 by default,
-    so yearly forecast charts do not start with empty early-year buckets.
+  * Completed historical shipments are guaranteed for recent historical years
+    by default, so yearly forecast charts have enough points for model comparison.
   * Every status in Shipment.STATUS_CHOICES is represented and randomised.
   * Each shipment gets a backdated status-log timeline (incoming -> ... -> final)
     so processing-time analytics have data to measure.
@@ -24,7 +24,7 @@ from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from django.db import transaction
+from django.db import connection, transaction
 
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, ShipmentDocument, HSCode, ShipmentHSCode, StatusLog
@@ -133,7 +133,7 @@ FINAL_WEIGHTS = {
 # sentinel note on its status logs — a string real shipments never produce —
 # so --clear can target them safely without a schema change.
 SEED_NOTE = '[seed:r3pcr-demo]'
-DEFAULT_HISTORICAL_YEARS = (2022, 2023)
+DEFAULT_HISTORICAL_YEARS = (2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025)
 
 
 def _seed_ids():
@@ -207,19 +207,23 @@ class Command(BaseCommand):
     help = 'Seed historically-spread demo shipments for analytics dashboards'
 
     def add_arguments(self, parser):
-        parser.add_argument('--count',  type=int, default=240,
-                            help='Number of shipments to create (default 240)')
-        parser.add_argument('--months', type=int, default=48,
-                            help='Spread submissions across the last N months (default 48)')
+        parser.add_argument('--count',  type=int, default=420,
+                            help='Number of shipments to create (default 420)')
+        parser.add_argument('--months', type=int, default=96,
+                            help='Spread submissions across the last N months (default 96)')
         parser.add_argument('--historical-years', default=','.join(str(y) for y in DEFAULT_HISTORICAL_YEARS),
                             help='Comma-separated years that must receive completed demo shipments (default 2022,2023)')
-        parser.add_argument('--historical-year-count', type=int, default=24,
-                            help='Minimum completed demo shipments to reserve for each historical year (default 24)')
+        parser.add_argument('--historical-year-count', type=int, default=30,
+                            help='Minimum completed demo shipments to reserve for each historical year (default 30)')
         parser.add_argument('--clear',  action='store_true',
                             help='Delete previously-seeded DEMO shipments first (keeps users)')
 
     @transaction.atomic
     def handle(self, *args, **options):
+        if connection.vendor == 'postgresql':
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL statement_timeout = '10min'")
+
         count  = max(1, options['count'])
         months = max(1, options['months'])
         now    = timezone.now()

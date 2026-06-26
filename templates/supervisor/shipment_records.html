@@ -221,6 +221,28 @@
     display: block;
     font-weight: 700;
 }
+.sr-shipment-type {
+    display: block;
+    font-weight: 700;
+}
+.sr-mcda-line {
+    align-items: center;
+    display: flex !important;
+    gap: 5px;
+    margin-top: 5px !important;
+}
+.sr-mcda-badge {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .03em;
+    line-height: 1;
+    padding: 3px 7px;
+}
+.mcda-air { background: #FEF3C7; color: #92400E; }
+.mcda-lcl { background: #E0F2FE; color: #075985; }
+.mcda-fcl { background: #EDE9FE; color: #5B21B6; }
 .sr-table small {
     color: #111827;
     display: block;
@@ -380,6 +402,8 @@
     gap: 8px;
     min-height: 64px;
     font-size: 14px;
+    padding: 12px 16px;
+    flex-wrap: wrap;
 }
 .sr-page-btn {
     min-width: 34px;
@@ -404,6 +428,15 @@
     color: #9CA3AF;
     background: #F3F4F6;
     cursor: not-allowed;
+}
+.sr-page-ellipsis {
+    color: #6B7280;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 34px;
+    font-weight: 800;
 }
 .sr-empty {
     color: #111827;
@@ -496,7 +529,7 @@
             </div>
         </div>
 
-        <!-- Row 2: Shipment Type | Date From | Date To -->
+        <!-- Row 2: Shipment Type | MCDA Recommendation | Date From -->
         <div class="sr-filters">
             <div class="sr-field">
                 <label>Shipment Type</label>
@@ -508,16 +541,29 @@
                 </select>
             </div>
             <div class="sr-field">
+                <label>MCDA Recommendation</label>
+                <select class="sr-input" name="mcda_rec" onchange="this.form.submit()">
+                    <option value="">— All Recommendations —</option>
+                    {% for val, label in TYPE_CHOICES %}
+                    <option value="{{ val }}" {% if mcda_rec_f == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="sr-field">
                 <label>Date From</label>
                 <input class="sr-input" type="date" name="date_from" value="{{ date_from }}" onchange="this.form.submit()">
             </div>
+        </div>
+
+        <!-- Row 3: Date To -->
+        <div class="sr-filters">
             <div class="sr-field">
                 <label>Date To</label>
                 <input class="sr-input" type="date" name="date_to" value="{{ date_to }}" onchange="this.form.submit()">
             </div>
         </div>
 
-        {% if q or status_f or import_type_f or stype_f or date_from or date_to %}
+        {% if q or status_f or import_type_f or stype_f or mcda_rec_f or date_from or date_to %}
         <div style="margin-bottom:16px;">
             <a href="{% url 'supervisor:shipment_records' %}"
                style="font-size:12px; color:#ef4444; font-weight:700; text-decoration:none;">
@@ -528,6 +574,7 @@
                 {% if status_f %}· Status: <strong>{{ status_f }}</strong>{% endif %}
                 {% if import_type_f %}· Import Type: <strong>{{ import_type_f }}</strong>{% endif %}
                 {% if stype_f %}· Shipment Type: <strong>{{ stype_f }}</strong>{% endif %}
+                {% if mcda_rec_f %}· MCDA Recommendation: <strong>{{ mcda_rec_f }}</strong>{% endif %}
             </span>
         </div>
         {% endif %}

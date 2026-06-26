@@ -69,10 +69,11 @@
 .dd-action { text-align:center; }
 .dd-action a { color:#34485F; display:inline-flex; width:24px; height:24px; align-items:center; justify-content:center; }
 .dd-action svg { width:16px; height:16px; }
-.dd-pages { min-height:64px; display:flex; justify-content:center; align-items:center; gap:8px; color:#111827; font-size:13px; }
+.dd-pages { min-height:64px; display:flex; justify-content:center; align-items:center; gap:8px; color:#111827; font-size:13px; padding:12px 16px; flex-wrap:wrap; }
 .dd-page-btn { min-width:24px; height:24px; border-radius:4px; color:#111827; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; font-weight:800; }
 .dd-page-btn.current { color:#1B3358; }
 .dd-page-btn.disabled { color:#B8C2CF; }
+.dd-page-ellipsis { color:#6B7280; display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:24px; font-weight:800; }
 .dd-empty { color:#111827; padding:44px; text-align:center; }
 @media (max-width:1000px) {
     .dd-grid { grid-template-columns:1fr; }
@@ -256,7 +257,9 @@
             <span class="dd-page-btn disabled">&lt;</span>
             {% endif %}
             {% for link in shipments_page.page_links %}
-                {% if link.current %}
+                {% if link.ellipsis %}
+                <span class="dd-page-ellipsis" aria-hidden="true">&hellip;</span>
+                {% elif link.current %}
                 <strong class="dd-page-btn current">{{ link.number }}</strong>
                 {% else %}
                 <a class="dd-page-btn" href="{{ link.url }}">{{ link.number }}</a>

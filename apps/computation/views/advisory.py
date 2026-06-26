@@ -104,7 +104,7 @@ def compute_wmcda(weight, volume, value, urgency, distance):
             f'{"Sea transit may conflict with " + urgency_label + " urgency." if is_time_critical else "Suitable transit time for this urgency level."}'
         ),
         'fcl': (
-            f'FCL is optimal for large or heavy cargo. '
+            f'FCL is recommended for large or heavy cargo. '
             f'{"Volume of " + vol_label + " justifies a dedicated container. " if volume > 10 else ""}'
             f'{"Cargo of " + cargo_desc + " and value of " + value_label + " justify the container cost." if value > 10000 or weight > 500 else "May underutilize a full container for this cargo size."}'
             f'{" Sea transit may be too slow for " + urgency_label + " urgency." if is_time_critical else ""}'

@@ -363,8 +363,8 @@ def _urgency_distribution(chart_qs):
     }
 
 
-def _monthly_overview(all_shipments, declarant_filter, overview_range):
-    """Monthly submission counts for the overview line chart (full year or 6m)."""
+def _monthly_overview(chart_qs, overview_range):
+    """Monthly submission counts for the overview line chart using dashboard filters."""
     def _add_months(value, months):
         month_index = value.month - 1 + months
         year = value.year + month_index // 12
@@ -375,19 +375,15 @@ def _monthly_overview(all_shipments, declarant_filter, overview_range):
         return value.date() if hasattr(value, 'date') else value
 
     today = timezone.localdate()
-    overview_qs = all_shipments
-    if declarant_filter:
-        overview_qs = overview_qs.filter(declarant__username=declarant_filter)
-
     if overview_range == '6m':
         start = _add_months(today.replace(day=1), -5)
         end = _add_months(today.replace(day=1), 1) - timedelta(days=1)
     else:
         start = today.replace(month=1, day=1)
-        end = today.replace(month=12, day=31)
+        end = today
 
     rows = list(
-        overview_qs
+        chart_qs
         .filter(submitted_at__date__gte=start, submitted_at__date__lte=end)
         .annotate(period=TruncMonth('submitted_at'))
         .values('period')

@@ -21,6 +21,34 @@ logger = logging.getLogger(__name__)
 
 from .common import *  # noqa: F401,F403
 
+
+def compact_page_links(page_obj, page_url, *, edge_count=1, window=2):
+    """Build compact pagination links with ellipsis gaps for long page ranges."""
+    total_pages = page_obj.paginator.num_pages
+    if total_pages <= 1:
+        return []
+
+    current = page_obj.number
+    visible_pages = set()
+    visible_pages.update(range(1, min(edge_count, total_pages) + 1))
+    visible_pages.update(range(max(total_pages - edge_count + 1, 1), total_pages + 1))
+    visible_pages.update(range(max(current - window, 1), min(current + window, total_pages) + 1))
+
+    links = []
+    previous = 0
+    for number in sorted(visible_pages):
+        if previous and number - previous > 1:
+            links.append({'ellipsis': True})
+        links.append({
+            'number': number,
+            'url': page_url(number),
+            'current': number == current,
+            'ellipsis': False,
+        })
+        previous = number
+    return links
+
+
 @login_required
 @supervisor_required
 def shipment_detail(request, shipment_id):
@@ -293,11 +321,13 @@ def shipment_records(request):
     q              = request.GET.get('q', '').strip()
     status_f       = request.GET.get('status_f', '').strip()
     stype_f        = request.GET.get('stype', '').strip()
+    mcda_rec_f     = request.GET.get('mcda_rec', '').strip()
     import_type_f  = request.GET.get('import_type', '').strip()
     date_from      = request.GET.get('date_from', '').strip()
     date_to        = request.GET.get('date_to', '').strip()
+    valid_shipment_types = {key for key, _label in Shipment.SHIPMENT_TYPE_CHOICES}
 
-    all_shipments = Shipment.objects.select_related('consignee', 'declarant')
+    all_shipments = Shipment.objects.select_related('consignee', 'declarant', 'shipping_advisory')
     qs = all_shipments.order_by('-submitted_at')
     if q:
         qs = (
@@ -309,7 +339,15 @@ def shipment_records(request):
     if status_f:
         qs = qs.filter(status=status_f)
     if stype_f:
-        qs = qs.filter(shipment_type=stype_f)
+        if stype_f in valid_shipment_types:
+            qs = qs.filter(shipment_type=stype_f)
+        else:
+            stype_f = ''
+    if mcda_rec_f:
+        if mcda_rec_f in valid_shipment_types:
+            qs = qs.filter(shipping_advisory__recommended_type=mcda_rec_f)
+        else:
+            mcda_rec_f = ''
     if import_type_f:
         qs = qs.filter(import_type=import_type_f)
     if date_from:
@@ -367,14 +405,7 @@ def shipment_records(request):
             query[param_name] = page_number
             return f'?{query.urlencode()}'
 
-        page_links = [
-            {
-                'number': number,
-                'url': page_url(number),
-                'current': number == page_obj.number,
-            }
-            for number in paginator.page_range
-        ]
+        page_links = compact_page_links(page_obj, page_url)
         return {
             'records': page_obj.object_list,
             'page_obj': page_obj,
@@ -420,6 +451,7 @@ def shipment_records(request):
         'q':                   q,
         'status_f':            status_f,
         'stype_f':             stype_f,
+        'mcda_rec_f':          mcda_rec_f,
         'import_type_f':       import_type_f,
         'date_from':           date_from,
         'date_to':             date_to,
@@ -478,7 +510,7 @@ def consignee_detail(request, user_id):
     shipments_qs = (
         Shipment.objects
         .filter(consignee=consignee)
-        .select_related('consignee', 'declarant')
+        .select_related('consignee', 'declarant', 'shipping_advisory')
         .order_by('-submitted_at')
     )
     if q:
@@ -505,14 +537,7 @@ def consignee_detail(request, user_id):
         query['page'] = page_number
         return f'?{query.urlencode()}'
 
-    page_links = [
-        {
-            'number': number,
-            'url': page_url(number),
-            'current': number == page_obj.number,
-        }
-        for number in paginator.page_range
-    ]
+    page_links = compact_page_links(page_obj, page_url)
     shipments_page = {
         'records': page_obj.object_list,
         'page_obj': page_obj,
@@ -769,10 +794,7 @@ def declarant_detail(request, user_id):
         query['page'] = page_number
         return f'?{query.urlencode()}'
 
-    page_links = [
-        {'number': number, 'url': page_url(number), 'current': number == page_obj.number}
-        for number in paginator.page_range
-    ]
+    page_links = compact_page_links(page_obj, page_url)
     shipments_page = {
         'records': page_obj.object_list,
         'page_obj': page_obj,

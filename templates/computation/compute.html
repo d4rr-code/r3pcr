@@ -2159,6 +2159,9 @@ document.body.classList.add('light-mode');
                           {% else %}#ef4444{% endif %};">
                     {% widthratio declared_score 1 100 %}%
                 </p>
+                <p style="color:#94a3b8; font-size:9px; font-weight:700; margin:0; text-transform:uppercase; letter-spacing:0.4px;">
+                    MCDA Score
+                </p>
                 <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;
                     color:{% if declared_rating == 'Excellent' %}#22c55e{% elif declared_rating == 'Good' %}#93c5fd{% elif declared_rating == 'Fair' %}#fbbf24{% else %}#fca5a5{% endif %};
                     background:{% if declared_rating == 'Excellent' %}#052e16{% elif declared_rating == 'Good' %}#172554{% elif declared_rating == 'Fair' %}#422006{% else %}#450a0a{% endif %};
@@ -2218,7 +2221,7 @@ document.body.classList.add('light-mode');
                     padding:8px 12px; display:flex; align-items:center; gap:8px;">
             <span style="color:#22c55e; font-size:16px;">&#10003;</span>
             <p style="color:#86efac; font-size:12px; font-weight:600; margin:0;">
-                Good choice &mdash; this is the optimal mode for this shipment's profile.
+                Good choice &mdash; this is the recommended mode for this shipment's profile.
             </p>
         </div>
         {% else %}
@@ -2226,9 +2229,9 @@ document.body.classList.add('light-mode');
                     padding:8px 12px; display:flex; align-items:center; gap:8px;">
             <span style="color:#fcd34d; font-size:16px;">!</span>
             <p style="color:#fde68a; font-size:12px; font-weight:600; margin:0;">
-                Not the optimal mode for this shipment. Consider
+                Not the recommended mode for this shipment. Consider
                 <strong>{% if wmcda_recommended == 'air' %}Air Freight{% elif wmcda_recommended == 'lcl' %}LCL{% else %}FCL{% endif %}</strong>
-                for future shipments.
+                for this shipment profile.
             </p>
         </div>
         {% endif %}
@@ -2245,7 +2248,7 @@ document.body.classList.add('light-mode');
             <p style="margin:0; font-size:13px; font-weight:700;
                 color:{% if wmcda_recommended == 'air' %}#22c55e{% elif shipment.shipment_type == 'air' %}#3b82f6{% else %}#94a3b8{% endif %};">
                 {{ sa|floatformat:3 }}</p>
-            {% if wmcda_recommended == 'air' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">* BEST</p>
+            {% if wmcda_recommended == 'air' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">RECOMMENDED</p>
             {% elif shipment.shipment_type == 'air' %}<p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>{% endif %}
         </div>
         {% endwith %}
@@ -2257,7 +2260,7 @@ document.body.classList.add('light-mode');
             <p style="margin:0; font-size:13px; font-weight:700;
                 color:{% if wmcda_recommended == 'lcl' %}#22c55e{% elif shipment.shipment_type == 'lcl' %}#3b82f6{% else %}#94a3b8{% endif %};">
                 {{ sl|floatformat:3 }}</p>
-            {% if wmcda_recommended == 'lcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">* BEST</p>
+            {% if wmcda_recommended == 'lcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">RECOMMENDED</p>
             {% elif shipment.shipment_type == 'lcl' %}<p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>{% endif %}
         </div>
         {% endwith %}
@@ -2269,7 +2272,7 @@ document.body.classList.add('light-mode');
             <p style="margin:0; font-size:13px; font-weight:700;
                 color:{% if wmcda_recommended == 'fcl' %}#22c55e{% elif shipment.shipment_type == 'fcl' %}#3b82f6{% else %}#94a3b8{% endif %};">
                 {{ sf|floatformat:3 }}</p>
-            {% if wmcda_recommended == 'fcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">* BEST</p>
+            {% if wmcda_recommended == 'fcl' %}<p style="color:#22c55e; font-size:9px; font-weight:700; margin:2px 0 0;">RECOMMENDED</p>
             {% elif shipment.shipment_type == 'fcl' %}<p style="color:#3b82f6; font-size:9px; font-weight:600; margin:2px 0 0;">declared</p>{% endif %}
         </div>
         {% endwith %}
@@ -2280,7 +2283,7 @@ document.body.classList.add('light-mode');
                 padding:12px 14px; margin-bottom:10px;">
         <p style="color:#22c55e; font-size:11px; font-weight:700; margin:0 0 4px;
                   text-transform:uppercase; letter-spacing:0.5px;">
-             Recommended for Future Shipments
+             Recommended Shipping Mode
         </p>
         <div style="display:flex; align-items:center; gap:10px;">
             <span style="font-size:22px;">
@@ -2303,25 +2306,6 @@ document.body.classList.add('light-mode');
                 {% elif wmcda_recommended == 'lcl' %}{{ wmcda_scores.lcl|floatformat:3 }}
                 {% else %}{{ wmcda_scores.fcl|floatformat:3 }}{% endif %}
             </span>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if wmcda_history %}
-    <div style="background:#1e293b; border:1px solid #334155; border-radius:8px;
-                padding:10px 14px; display:flex; align-items:center; gap:10px;">
-        <span style="font-size:18px;"></span>
-        <div>
-            <p style="color:#94a3b8; font-size:11px; margin:0; font-weight:600;
-                      text-transform:uppercase; letter-spacing:0.5px;">
-                Historical Pattern &mdash; {{ wmcda_history.ship_type }}
-            </p>
-            <p style="color:#f1f5f9; font-size:12px; margin:3px 0 0;">
-                In <strong style="color:#3b82f6;">{{ wmcda_history.total }}</strong> previous
-                {{ wmcda_history.ship_type }} shipments,
-                <strong style="color:#22c55e;">{{ wmcda_history.mode_label }}</strong>
-                was recommended <strong>{{ wmcda_history.top_pct }}%</strong> of the time.
-            </p>
         </div>
     </div>
     {% endif %}

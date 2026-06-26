@@ -855,17 +855,19 @@ canvas { cursor: pointer; }
                     <canvas id="wmcdaChart"></canvas>
                 </div>
                 <div class="wmcda-list">
+                    {% if wmcda_total %}
                     {% for row in wmcda_scoreboard %}
-                    <a class="wmcda-list-row" href="{% url 'supervisor:shipment_records' %}?stype={{ row.key }}">
+                    <a class="wmcda-list-row" href="{% url 'supervisor:shipment_records' %}?mcda_rec={{ row.key }}">
                         <div>
                             <p>{{ row.label }}</p>
                             <span>Avg Weighted score</span>
                         </div>
                         <strong>{{ row.pct }}% of total<br>{{ row.avg_score }}%</strong>
                     </a>
-                    {% empty %}
-                    <p style="color:#111827;font-size:14px;">No advisory data yet.</p>
                     {% endfor %}
+                    {% else %}
+                    <p style="color:#111827;font-size:14px;">No advisory data yet.</p>
+                    {% endif %}
                 </div>
             </div>
         </section>
@@ -1227,8 +1229,8 @@ canvas { cursor: pointer; }
                 onClick: function(event, elements) {
                     if (!elements.length) return;
                     var idx = elements[0].index;
-                    var stype = wmcdaKeys.length ? wmcdaKeys[idx] : this.data.labels[idx].toLowerCase();
-                    window.location.href = '{% url "supervisor:shipment_records" %}?stype=' + stype;
+                    var rec = wmcdaKeys.length ? wmcdaKeys[idx] : this.data.labels[idx].toLowerCase();
+                    window.location.href = '{% url "supervisor:shipment_records" %}?mcda_rec=' + rec;
                 },
                 plugins: { legend: { display: false } },
                 scales: {

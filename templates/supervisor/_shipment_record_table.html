@@ -53,7 +53,19 @@
                         <small>Awaits revised invoice</small>
                         {% endif %}
                     </td>
-                    <td>{{ s.get_shipment_type_display|default:"-" }}</td>
+                    <td>
+                        <span class="sr-shipment-type">{{ s.get_shipment_type_display|default:"-" }}</span>
+                        {% if s.shipping_advisory.recommended_type %}
+                        <small class="sr-mcda-line">
+                            MCDA:
+                            <span class="sr-mcda-badge mcda-{{ s.shipping_advisory.recommended_type }}">
+                                {{ s.shipping_advisory.recommended_type|upper }}
+                            </span>
+                        </small>
+                        {% else %}
+                        <small class="sr-mcda-line">MCDA: -</small>
+                        {% endif %}
+                    </td>
                     <td>{{ s.container_number|default:"-" }}</td>
                     <td>
                         {% if s.kpi_eta_start and s.kpi_eta_end %}
@@ -97,7 +109,9 @@
         {% endif %}
 
         {% for link in page_links %}
-            {% if link.current %}
+            {% if link.ellipsis %}
+            <span class="sr-page-ellipsis" aria-hidden="true">&hellip;</span>
+            {% elif link.current %}
             <strong class="sr-page-btn current">{{ link.number }}</strong>
             {% else %}
             <a class="sr-page-btn" href="{{ link.url }}">{{ link.number }}</a>
