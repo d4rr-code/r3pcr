@@ -274,6 +274,19 @@
     pointer-events: none;
 }
 .overview-chart-frame canvas { position: relative; }
+.chart-empty-note {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748B;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    padding: 20px;
+    z-index: 2;
+}
 .status-panel { grid-column: span 8; }
 .urgency-panel { grid-column: span 4; }
 .status-grid {
@@ -648,11 +661,11 @@ canvas { cursor: pointer; }
                 <p class="metric-value">{{ shipment_type_counts.air }}</p>
             </a>
             <a class="dash-card mini-card" href="{% url 'supervisor:shipment_records' %}?stype=lcl">
-                <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--lcl);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M2 13h16l-2 4H5l-3-4zm2-8h12v7H4V5zm2 2v3h8V7H6z"/></svg></span>LCL</p>
+                <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--lcl);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M2 13h16l-2 4H5l-3-4zm2-8h12v7H4V5zm2 2v3h8V7H6z"/></svg></span>LCL - Less Container Load</p>
                 <p class="metric-value">{{ shipment_type_counts.lcl }}</p>
             </a>
             <a class="dash-card mini-card" href="{% url 'supervisor:shipment_records' %}?stype=fcl">
-                <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--fcl);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4h14v12H3V4zm2 2v8h10V6H5zm2 2h2v2H7V8zm4 0h2v2h-2V8z"/></svg></span>FCL</p>
+                <p class="metric-label"><span class="metric-icon" style="width:22px;height:18px;margin:0;background:var(--fcl);"><svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4h14v12H3V4zm2 2v8h10V6H5zm2 2h2v2H7V8zm4 0h2v2h-2V8z"/></svg></span>FCL - Full Container Load</p>
                 <p class="metric-value">{{ shipment_type_counts.fcl }}</p>
             </a>
         </div>
@@ -750,7 +763,7 @@ canvas { cursor: pointer; }
             <div class="panel-title">
                 <div>
                     <h2>Shipment Overview</h2>
-                    <p>Monthly shipment volume trends</p>
+                    <p>{{ monthly_chart_caption }}</p>
                 </div>
                 <form class="overview-controls" method="GET">
                     {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
@@ -758,12 +771,16 @@ canvas { cursor: pointer; }
                     {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
                     {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
                     {% if declarant_filter %}<input type="hidden" name="declarant" value="{{ declarant_filter }}">{% endif %}
+                    <button class="dash-btn {% if overview_range == 'all' %}is-active{% endif %}" type="submit" name="overview_range" value="all">All Years</button>
                     <button class="dash-btn {% if overview_range == 'year' %}is-active{% endif %}" type="submit" name="overview_range" value="year">Year</button>
                     <button class="dash-btn {% if overview_range == '6m' %}is-active{% endif %}" type="submit" name="overview_range" value="6m">Last 6 Months</button>
                 </form>
             </div>
             <div class="chart-fixed compact-chart overview-chart-frame">
                 <canvas id="monthlyChart"></canvas>
+                {% if not monthly_chart_has_data %}
+                <div class="chart-empty-note">No shipment records for the selected period.</div>
+                {% endif %}
             </div>
         </section>
 
@@ -772,7 +789,7 @@ canvas { cursor: pointer; }
             <div class="panel-title">
                 <div>
                     <h2>Total Landed Cost by Shipment Type</h2>
-                    <p>Average computed total landed cost per mode (PHP)</p>
+                    <p>Average computed total landed cost per shipment type (Philippine Peso/PHP)</p>
                 </div>
             </div>
             <div class="chart-fixed compact-bars">
@@ -784,7 +801,7 @@ canvas { cursor: pointer; }
             <div class="panel-title">
                 <div>
                     <h2>Cost Summary</h2>
-                    <p>Breakdown per shipment mode</p>
+                    <p>Breakdown per shipment type</p>
                 </div>
             </div>
             <table style="width:100%; border-collapse:collapse; font-size:12px;">
@@ -1069,13 +1086,14 @@ canvas { cursor: pointer; }
     var monthlyLabels = {{ monthly_chart_labels|safe }};
     var monthlyData = {{ monthly_chart_data|safe }};
     var monthlyEl = document.getElementById('monthlyChart');
-    if (window.Chart && monthlyEl && monthlyLabels.length) {
+    var monthlyHasData = {{ monthly_chart_has_data|yesno:"true,false" }};
+    if (window.Chart && monthlyEl && monthlyLabels.length && monthlyHasData) {
         var monthlyCtx = monthlyEl.getContext('2d');
         var overviewGradient = monthlyCtx.createLinearGradient(0, 0, 0, monthlyEl.offsetHeight || 260);
         overviewGradient.addColorStop(0, 'rgba(37, 70, 111, .30)');
         overviewGradient.addColorStop(.62, 'rgba(56, 189, 248, .12)');
         overviewGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        var maxMonthly = Math.max.apply(null, monthlyData.map(function (item) { return Number(item || 0); }));
+        var maxMonthly = Math.max.apply(null, monthlyData.map(function (item) { return item === null ? 0 : Number(item || 0); }));
         var hasSingleOverviewPoint = monthlyLabels.length === 1;
         new Chart(monthlyEl, {
             type: 'line',
@@ -1088,6 +1106,7 @@ canvas { cursor: pointer; }
                     backgroundColor: overviewGradient,
                     fill: true,
                     tension: .36,
+                    spanGaps: false,
                     borderWidth: hasSingleOverviewPoint ? 0 : 3,
                     pointRadius: hasSingleOverviewPoint ? 7 : 4.5,
                     pointHoverRadius: hasSingleOverviewPoint ? 9 : 7,
@@ -1104,8 +1123,14 @@ canvas { cursor: pointer; }
                 interaction: { mode: 'index', intersect: false },
                 onClick: function(event, elements) {
                     if (!elements.length) return;
-                    var label = this.data.labels[elements[0].index];
+                    var idx = elements[0].index;
+                    if (this.data.datasets[0].data[idx] === null) return;
+                    var label = this.data.labels[idx];
                     var base = '{% url "supervisor:shipment_records" %}';
+                    if (/^\d{4}$/.test(label)) {
+                        window.location.href = base + '?date_from=' + label + '-01-01&date_to=' + label + '-12-31';
+                        return;
+                    }
                     // Parse "Mon YYYY" (default monthly view e.g. "Jan 2026")
                     var parsed = new Date(label + ' 01');
                     if (!isNaN(parsed.getTime())) {
@@ -1129,6 +1154,7 @@ canvas { cursor: pointer; }
                         cornerRadius: 6,
                         callbacks: {
                             label: function (context) {
+                                if (context.parsed.y === null) return 'No recorded data';
                                 return 'Shipments: ' + context.parsed.y;
                             }
                         }
@@ -1155,6 +1181,7 @@ canvas { cursor: pointer; }
 
     var costTypeEl = document.getElementById('costTypeChart');
     if (window.Chart && costTypeEl) {
+        var costTypeKeys = {{ cost_bar_keys|default:"[]"|safe }};
         new Chart(costTypeEl, {
             type: 'bar',
             data: {
@@ -1172,8 +1199,8 @@ canvas { cursor: pointer; }
                 maintainAspectRatio: false,
                 onClick: function(event, elements) {
                     if (!elements.length) return;
-                    var label = this.data.labels[elements[0].index];
-                    window.location.href = '{% url "supervisor:shipment_records" %}?stype=' + label.toLowerCase();
+                    var key = costTypeKeys[elements[0].index] || '';
+                    window.location.href = '{% url "supervisor:shipment_records" %}?stype=' + key;
                 },
                 plugins: {
                     legend: { display: false },

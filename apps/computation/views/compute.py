@@ -23,6 +23,41 @@ from .hs_codes import suggest_hs_codes
 from ..wmcda import wmcda_weight_rows
 from apps.supervisor.models import SystemConfig
 
+
+def _decimal_or_zero(value):
+    try:
+        return Decimal(str(value or '0'))
+    except Exception:
+        return Decimal('0')
+
+
+def _posted_gross_weight(request, shipment):
+    """Gross weight used by ECDT transport charges and MCDA advisory."""
+    explicit_weight = _decimal_or_zero(request.POST.get('gross_weight_kg'))
+    if explicit_weight > 0:
+        return explicit_weight
+
+    row_total = sum(_decimal_or_zero(value) for value in request.POST.getlist('gw[]'))
+    if row_total > 0:
+        return row_total
+
+    return _decimal_or_zero(shipment.gross_weight)
+
+
+def _prefill_gross_weight(shipment, advisory_ex, items):
+    if advisory_ex and advisory_ex.gross_weight:
+        return advisory_ex.gross_weight, 'saved advisory'
+    if shipment.gross_weight:
+        return shipment.gross_weight, 'shipment record'
+
+    row_total = Decimal('0')
+    for item in items or []:
+        row_total += _decimal_or_zero(item.get('gw'))
+    if row_total > 0:
+        return row_total, 'sum of ECDT GW rows'
+    return Decimal('0'), 'manual'
+
+
 def _wmcda_history(shipment):
     """Most-common historical MCDA recommendation for this shipment's type.
 
@@ -61,7 +96,7 @@ def _run_wmcda_and_advisory(request, shipment, total_exw):
     the page redirects, so the scores are not rendered here.
     """
     try:
-        wmcda_weight   = float(shipment.gross_weight or 0)
+        wmcda_weight   = float(_posted_gross_weight(request, shipment))
         wmcda_volume   = float(request.POST.get('cargo_volume', 0) or 0)
         wmcda_value    = float(total_exw)
         wmcda_urgency  = shipment.urgency or 'normal'
@@ -497,7 +532,7 @@ def compute_shipment(request, shipment_id):
             container_type  = (request.POST.get('container_type', '') or '').strip()
             charge_mode     = normalize_charge_mode(request.POST.get('charge_mode'), shipment.shipment_type)
             cargo_volume    = Decimal(request.POST.get('cargo_volume', '0') or '0')
-            gross_weight    = Decimal(str(shipment.gross_weight or 0))
+            gross_weight    = _posted_gross_weight(request, shipment)
             arrastre, wharfage, revenue_ton = apply_transport_charges(
                 charge_mode, arrastre, wharfage,
                 gross_weight=gross_weight,
@@ -516,6 +551,10 @@ def compute_shipment(request, shipment_id):
                 raise ValueError('no items')
 
             _distribute_freight_insurance(items_data, request)
+
+            if gross_weight > 0 and shipment.gross_weight != gross_weight:
+                shipment.gross_weight = gross_weight
+                shipment.save(update_fields=['gross_weight'])
 
             items, summary = compute_ecdt(
                 items_data, exchange_rate, usd_exchange_rate=usd_exchange_rate,
@@ -640,6 +679,7 @@ def compute_shipment(request, shipment_id):
     country_distance_map = prefill_context['country_distance_map']
     prefill_volume = prefill_context['prefill_volume']
     prefill_volume_src = prefill_context['prefill_volume_src']
+    prefill_gross_weight, prefill_gross_weight_src = _prefill_gross_weight(shipment, advisory_ex, items)
 
     hs_suggestions = _collect_hs_suggestions(shipment, ocr_items, existing)
 
@@ -712,6 +752,8 @@ def compute_shipment(request, shipment_id):
         'prefill_insurance':      prefill_insurance,
         'prefill_volume':         prefill_volume,
         'prefill_volume_src':     prefill_volume_src,
+        'prefill_gross_weight':   prefill_gross_weight,
+        'prefill_gross_weight_src': prefill_gross_weight_src,
         'prefill_distance':       prefill_distance,
         'prefill_distance_src':   prefill_distance_src,
         'prefill_origin_country': prefill_origin_country,

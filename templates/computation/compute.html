@@ -1407,6 +1407,23 @@ document.body.classList.add('light-mode');
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">
+                Gross Weight (kg)
+                <span style="color:#6B7280; font-weight:400; font-size:10px;">&mdash; used by MCDA advisory</span>
+            </label>
+            <input type="number" name="gross_weight_kg" id="gross_weight_kg" class="form-input"
+                   style="padding:6px 8px; font-size:12px;" step="0.01" min="0" placeholder="0.00"
+                   value="{{ prefill_gross_weight|default:'0' }}" data-auto-weight="{% if prefill_gross_weight_src == 'manual' or prefill_gross_weight_src == 'sum of ECDT GW rows' %}1{% else %}0{% endif %}"
+                   oninput="this.dataset.autoWeight='0'; recalcAll()">
+            <p id="gross-weight-hint" style="font-size:10px; margin:3px 0 0; color:#64748b;">
+                {% if prefill_gross_weight_src == 'manual' %}
+                    Auto-fills from total GW rows if available.
+                {% else %}
+                    Source: {{ prefill_gross_weight_src }}.
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <label class="form-label" style="font-size:11px;">
                 Origin Country
                 <span style="color:#6B7280; font-weight:400; font-size:10px;"> &mdash; estimates distance</span>
             </label>
@@ -1635,19 +1652,19 @@ document.body.classList.add('light-mode');
                 <tr>
                     <th style="text-align:left;">#</th>
                     <th style="text-align:left;">Description</th>
-                    <th>EXW/FOB&#10;(<span class="cur-code-lbl">{{ invoice_currency }}</span>)</th>
+                    <th title="Ex Works / Free on Board value">EXW/FOB&#10;(<span class="cur-code-lbl">{{ invoice_currency }}</span>)</th>
                     <th>Freight&#10;(USD)</th>
                     <th>Ins.&#10;(USD)</th>
-                    <th>D/V&#10;(USD equiv.)</th>
-                    <th>D/V&#10;(&#8369;)</th>
+                    <th title="Dutiable Value in USD equivalent">D/V&#10;(USD equiv.)</th>
+                    <th title="Dutiable Value in Philippine Peso">D/V&#10;(&#8369;)</th>
                     <th style="text-align:left;">HS Code</th>
                     <th>Rate&#10;%</th>
-                    <th>CUD&#10;(&#8369;)</th>
-                    <th>GW</th>
-                    <th>NW</th>
-                    <th>QTY</th>
+                    <th title="Customs Duty in Philippine Peso">CUD&#10;(&#8369;)</th>
+                    <th title="Gross Weight in kilograms">GW</th>
+                    <th title="Net Weight in kilograms">NW</th>
+                    <th title="Quantity">QTY</th>
                     <th>Unit</th>
-                    <th>PKGS</th>
+                    <th title="Packages">PKGS</th>
                     <th></th>
                 </tr>
             </thead>
@@ -1701,7 +1718,8 @@ document.body.classList.add('light-mode');
                     <td class="calc cud" data-field="cud">{% if item.cud %}{{ item.cud|floatformat:2 }}{% else %}&mdash;{% endif %}</td>
                     <td>
                         <input class="ecdt-input measure-input" type="number" name="gw[]"
-                               step="0.01" value="{{ item.gw|default:'' }}" placeholder="0">
+                               step="0.01" value="{{ item.gw|default:'' }}" placeholder="0"
+                               oninput="syncGrossWeightFromRows(false); recalcAll()">
                     </td>
                     <td>
                         <input class="ecdt-input measure-input" type="number" name="nw[]"
@@ -1748,7 +1766,7 @@ document.body.classList.add('light-mode');
                     </td>
                     <td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" step="0.01" placeholder="0" oninput="recalcAll()"></td>
                     <td class="calc cud" data-field="cud">&mdash;</td>
-                    <td><input class="ecdt-input measure-input" type="number" name="gw[]" step="0.01" placeholder="0"></td>
+                    <td><input class="ecdt-input measure-input" type="number" name="gw[]" step="0.01" placeholder="0" oninput="syncGrossWeightFromRows(false); recalcAll()"></td>
                     <td><input class="ecdt-input measure-input" type="number" name="nw[]" step="0.01" placeholder="0"></td>
                     <td><input class="ecdt-input qty-input" type="number" name="quantity[]" step="1" placeholder="0"></td>
                     <td><input class="ecdt-input unit-input" type="text" name="unit[]" placeholder="PCS"></td>
@@ -2638,7 +2656,7 @@ function _makeRow(n, desc, exw, qty) {
         '<td><input class="ecdt-input rate-input" type="number" name="item_duty_rate[]" ' +
              'step="0.01" placeholder="0" oninput="recalcAll()"></td>' +
         '<td class="calc cud" data-field="cud">&mdash;</td>' +
-        '<td><input class="ecdt-input measure-input" type="number" name="gw[]" step="0.01" placeholder="0"></td>' +
+        '<td><input class="ecdt-input measure-input" type="number" name="gw[]" step="0.01" placeholder="0" oninput="syncGrossWeightFromRows(false); recalcAll()"></td>' +
         '<td><input class="ecdt-input measure-input" type="number" name="nw[]" step="0.01" placeholder="0"></td>' +
         '<td><input class="ecdt-input qty-input" type="number" name="quantity[]" step="1" value="' + (qty||'') + '" placeholder="0"></td>' +
         '<td><input class="ecdt-input unit-input" type="text" name="unit[]" placeholder="PCS"></td>' +
@@ -2718,6 +2736,30 @@ function onCurrencyChange(code) {
     document.querySelectorAll('.cur-code-lbl').forEach(function(el) { el.textContent = code; });
 }
 
+function sumGrossWeightRows() {
+    var total = 0;
+    document.querySelectorAll('[name="gw[]"]').forEach(function(input) {
+        total += parseFloat(input.value || 0) || 0;
+    });
+    return total;
+}
+
+function syncGrossWeightFromRows(force) {
+    var weightEl = document.getElementById('gross_weight_kg');
+    if (!weightEl) return 0;
+    var rowWeight = sumGrossWeightRows();
+    var current = parseFloat(weightEl.value || 0) || 0;
+    var shouldAutoFill = force || weightEl.dataset.autoWeight === '1' || current <= 0;
+    if (shouldAutoFill && rowWeight > 0) {
+        weightEl.value = rowWeight.toFixed(2);
+        weightEl.dataset.autoWeight = '1';
+        var hint = document.getElementById('gross-weight-hint');
+        if (hint) hint.textContent = 'Auto-filled from total GW rows.';
+        return rowWeight;
+    }
+    return current || rowWeight;
+}
+
 // ── Live recalculation ────────────────────────────────────────────────────────
 // EXW uses invoice currency; freight/insurance use USD.
 // TLC = D/V + Bank Charges + CUD + BF + CDS + IPF + Arrastre + Wharfage + CSF
@@ -2740,7 +2782,7 @@ function recalcAll() {
     var csfPhp   = csfUsd * usdRate;
     var chargeMode  = (document.getElementById('charge_mode') || {}).value || '';
     var cargoVolume = parseFloat((document.getElementById('cargo_volume') || {}).value) || 0;
-    var grossWeight = parseFloat('{{ shipment.gross_weight|default:"0" }}') || 0;
+    var grossWeight = syncGrossWeightFromRows(false);
     var revenueTon  = Math.max(cargoVolume, grossWeight / 1000);
     // Arrastre/wharfage are flat total amounts — no per-ton multiplication.
     // (Verified from RTripleJ CDT Excel: declarant enters the actual terminal charge.)
@@ -3482,12 +3524,13 @@ initAllHsPickers();
             csf_usd:         (document.getElementById('csf_usd')        || {}).value || '',
             container_type:  ct ? ct.value : '',
             cargo_volume:    (document.getElementById('cargo_volume')    || {}).value || '',
+            gross_weight_kg: (document.getElementById('gross_weight_kg') || {}).value || '',
             distance_km:     (document.getElementById('distance_km')     || {}).value || '',
         };
     }
 
     var globalIds = ['exchange_rate', 'total_freight', 'total_insurance', 'bank_charges',
-                     'arrastre', 'wharfage', 'csf_usd', 'cargo_volume', 'distance_km'];
+                     'arrastre', 'wharfage', 'csf_usd', 'cargo_volume', 'gross_weight_kg', 'distance_km'];
     globalIds.forEach(function(id) {
         var el = document.getElementById(id);
         if (!el) return;

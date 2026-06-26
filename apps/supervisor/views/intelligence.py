@@ -4,12 +4,12 @@ import json
 import warnings
 
 from django.core.cache import cache
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, F
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
-from apps.computation.models import ShipmentLineItem
+from apps.computation.models import ShipmentLineItem, ShippingAdvisory
 from apps.computation.views.hs_codes import suggest_hs_codes
 from apps.shipments.models import Shipment, ShipmentHSCode, StatusLog
 
@@ -844,6 +844,42 @@ def _hs_review_rows():
     }
 
 
+def _shipping_advisory_support(shipments):
+    shipment_ids = [shipment.id for shipment in shipments]
+    advisory_qs = ShippingAdvisory.objects.filter(
+        shipment_id__in=shipment_ids,
+        recommended_type__in=['air', 'lcl', 'fcl'],
+    ).select_related('shipment')
+    labels = {
+        'air': 'Air Freight',
+        'lcl': 'LCL - Less Container Load',
+        'fcl': 'FCL - Full Container Load',
+    }
+    rows = []
+    total = advisory_qs.count()
+    for key in ['air', 'lcl', 'fcl']:
+        count = advisory_qs.filter(recommended_type=key).count()
+        rows.append([
+            labels[key],
+            count,
+            f'{round(count / total * 100, 1) if total else 0}%',
+        ])
+    agreement_total = advisory_qs.exclude(shipment__shipment_type__isnull=True).exclude(
+        shipment__shipment_type=''
+    ).count()
+    agreement_count = advisory_qs.filter(
+        shipment__shipment_type__isnull=False,
+        shipment__shipment_type__in=['air', 'lcl', 'fcl'],
+        recommended_type=F('shipment__shipment_type'),
+    ).count()
+    return {
+        'total': total,
+        'rows': rows,
+        'agreement_total': agreement_total,
+        'agreement_rate': round(agreement_count / agreement_total * 100, 1) if agreement_total else 0,
+    }
+
+
 def _intelligence_context(risk_filter='high', forecast_periods=1, forecast_unit='month', forecast_year=None, forecast_model='all'):
     shipments = (
         Shipment.objects
@@ -858,6 +894,7 @@ def _intelligence_context(risk_filter='high', forecast_periods=1, forecast_unit=
     risk_rows, risk_distribution, delay_model = _risk_rows(shipments_list, risk_filter)
     hs_review = _hs_review_rows()
     workload_forecast = _workload_forecast(shipments_list, forecast_periods, forecast_unit, forecast_year, forecast_model)
+    shipping_advisory_support = _shipping_advisory_support(shipments_list)
     delayed_count = sum(
         1 for shipment in shipments_list
         if shipment.status not in TERMINAL_STATUSES
@@ -915,6 +952,7 @@ def _intelligence_context(risk_filter='high', forecast_periods=1, forecast_unit=
         ],
         'forecast_year_options': list(range(timezone.localdate().year - 5, timezone.localdate().year + 4)),
         'hs_review': hs_review,
+        'shipping_advisory_support': shipping_advisory_support,
         'delayed_count': delayed_count,
         'on_time_rate': on_time_rate,
         'completed_kpi_total': completed_kpi['total'],
@@ -945,6 +983,27 @@ def intelligence(request):
 
 
 def _export_rows(context):
+    decision_support = [
+        ['Purpose', 'Supports supervisor and declarant decisions during pre-clearance; it does not replace licensed customs-broker judgment.'],
+        ['Projected Incoming Workload', 'Forecasts expected workload so supervisors can plan declarant capacity and monitor queues.'],
+        ['Delay Risk', 'Ranks active shipments that may need attention based on status age, KPI timing, deficiencies, missing documents, and urgency.'],
+        ['HS Code Review', 'Highlights line items that may require Harmonized System code review before final computation.'],
+        ['Shipping Type Advisory', 'Uses Weighted Multi-Criteria Decision Analysis to recommend Air Freight, LCL, or FCL based on shipment profile.'],
+    ]
+    ecdt_explanation = [
+        ['Input', 'Line-item EXW/FOB value, freight, insurance, HS code duty rate, fees, and exchange rates.'],
+        ['Dutiable Value', 'EXW/FOB value plus freight and insurance, converted to PHP.'],
+        ['Customs Duty', 'Dutiable value multiplied by the selected HS code duty rate.'],
+        ['Total Landed Cost', 'Dutiable value plus customs duty, brokerage fee, IPF, CDS, arrastre, wharfage, and bank charges.'],
+        ['BOC Payable', 'Customs duty plus VAT, IPF, CDS, and FCL container security fee when applicable.'],
+    ]
+    mcda_explanation = [
+        ['Alternatives', 'Air Freight, LCL - Less Container Load, and FCL - Full Container Load.'],
+        ['Criteria', 'Cost, transit time/urgency, gross weight or cargo size, and origin distance.'],
+        ['Weights', 'Supervisor-configured weights, optionally derived using Saaty AHP and checked with Consistency Ratio.'],
+        ['Output', 'A recommended shipment type with comparative scores for each alternative.'],
+        ['Scope', 'The result is advisory and may be overridden when operational factors outside the model apply.'],
+    ]
     summary = [
         ['Average Processing Time', f"{context['avg_total_days']} days"],
         ['Median Processing Time', f"{context['median_total_days']} days"],
@@ -967,7 +1026,10 @@ def _export_rows(context):
         ['Delay Model Training Samples', context['delay_model']['sample_count']],
         ['HS Records Confirmed', context['hs_review']['historical_count']],
         ['HS Items Needing Review', context['hs_review']['review_count']],
+        ['Shipping Advisory Samples', context['shipping_advisory_support']['total']],
+        ['Declared vs Recommended Agreement', f"{context['shipping_advisory_support']['agreement_rate']}%"],
     ]
+    advisory_rows = context['shipping_advisory_support']['rows']
     stages = [
         [row['label'], row['avg_days'], row['count'], row['total_days']]
         for row in context['stage_rows']
@@ -993,7 +1055,7 @@ def _export_rows(context):
         ]
         for row in context['hs_review']['rows']
     ]
-    return summary, stages, risks, hs_rows
+    return summary, decision_support, ecdt_explanation, mcda_explanation, advisory_rows, stages, risks, hs_rows
 
 
 @supervisor_required
@@ -1006,7 +1068,7 @@ def intelligence_export(request):
         request.GET.get('forecast_year'),
         request.GET.get('forecast_model', 'all'),
     )
-    summary, stages, risks, hs_rows = _export_rows(context)
+    summary, decision_support, ecdt_explanation, mcda_explanation, advisory_rows, stages, risks, hs_rows = _export_rows(context)
     filename_date = timezone.localtime().strftime('%Y%m%d')
 
     if fmt == 'pdf':
@@ -1033,6 +1095,10 @@ def intelligence_export(request):
         ]
         tables = [
             ('Executive Summary', ['Metric', 'Value'], summary),
+            ('Decision Support Scope', ['Area', 'Explanation'], decision_support),
+            ('ECDT Computation Basis', ['Step', 'Explanation'], ecdt_explanation),
+            ('Shipping Type Advisory - MCDA Basis', ['Area', 'Explanation'], mcda_explanation),
+            ('Shipping Advisory Recommendation Mix', ['Recommended Type', 'Count', 'Share'], advisory_rows),
             ('Processing Bottlenecks', ['Stage', 'Avg Days', 'Transitions', 'Total Days'], stages),
             ('Delay Risk', ['Shipment', 'Status', 'Risk', 'Score', 'Reasons', 'Action'], risks),
             ('HS Code Review', ['Description', 'Current HS', 'Confidence', 'Suggestions', 'Shipment'], hs_rows),
@@ -1069,6 +1135,10 @@ def intelligence_export(request):
 
     sheets = [
         ('Summary', ['Metric', 'Value'], summary),
+        ('Decision Support', ['Area', 'Explanation'], decision_support),
+        ('ECDT Basis', ['Step', 'Explanation'], ecdt_explanation),
+        ('MCDA Advisory', ['Area', 'Explanation'], mcda_explanation),
+        ('Advisory Mix', ['Recommended Type', 'Count', 'Share'], advisory_rows),
         ('Bottlenecks', ['Stage', 'Average Days', 'Transitions', 'Total Days'], stages),
         ('Delay Risk', ['Shipment', 'Status', 'Risk', 'Score', 'Reasons', 'Action'], risks),
         ('HS Review', ['Description', 'Current HS', 'Confidence', 'Suggestions', 'Shipment'], hs_rows),

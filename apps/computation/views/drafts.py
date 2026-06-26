@@ -119,13 +119,29 @@ def draft_globals(request, shipment_id):
         }
     )
 
-    # Save cargo_volume and distance_km to ShippingAdvisory if provided
+    # Save MCDA advisory pre-fill inputs when provided.
     cargo_volume = data.get('cargo_volume')
     distance_km  = data.get('distance_km')
-    if cargo_volume is not None or distance_km is not None:
+    gross_weight = data.get('gross_weight_kg')
+    if cargo_volume is not None or distance_km is not None or gross_weight is not None:
         try:
             gross_w = Decimal(str(shipment.gross_weight or 0))
-            advisory_defaults = {}
+            if gross_weight is not None:
+                try:
+                    posted_weight = Decimal(str(gross_weight or 0))
+                    if posted_weight > 0:
+                        gross_w = posted_weight
+                        if shipment.gross_weight != posted_weight:
+                            shipment.gross_weight = posted_weight
+                            shipment.save(update_fields=['gross_weight'])
+                except (InvalidOperation, ValueError, TypeError):
+                    pass
+            existing_advisory = getattr(shipment, 'shipping_advisory', None)
+            advisory_defaults = {
+                'gross_weight': gross_w,
+                'cargo_volume': existing_advisory.cargo_volume if existing_advisory else Decimal('0'),
+                'distance_km': existing_advisory.distance_km if existing_advisory else Decimal('2600'),
+            }
             if cargo_volume is not None:
                 try:
                     advisory_defaults['cargo_volume'] = Decimal(str(cargo_volume or 0))
@@ -140,7 +156,6 @@ def draft_globals(request, shipment_id):
                 ShippingAdvisory.objects.update_or_create(
                     shipment=shipment,
                     defaults={
-                        'gross_weight':   gross_w,
                         'declared_value': Decimal('0'),
                         'urgency_level':  shipment.urgency or 'normal',
                         **advisory_defaults,
@@ -153,4 +168,3 @@ def draft_globals(request, shipment_id):
 
 
 # ─── Computation ──────────────────────────────────────────────────────────────
-

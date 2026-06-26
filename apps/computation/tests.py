@@ -255,6 +255,22 @@ class ComputeShipmentPostTests(TestCase):
         self.assertIsNotNone(advisory)
         self.assertEqual(advisory.distance_km, 2600)
 
+    def test_wmcda_uses_posted_gross_weight_or_row_gw(self):
+        """The ECDT workspace row GW values feed the MCDA advisory when the
+        shipment-level gross weight is not already set."""
+        self.shipment.gross_weight = None
+        self.shipment.save(update_fields=['gross_weight'])
+        data = self._post_data()
+        data.pop('gross_weight_kg', None)
+        data['gw[]'] = '275.50'
+
+        self.client.post(self.url, data)
+
+        advisory = ShippingAdvisory.objects.get(shipment=self.shipment)
+        self.shipment.refresh_from_db()
+        self.assertEqual(advisory.gross_weight, Decimal('275.50'))
+        self.assertEqual(self.shipment.gross_weight, Decimal('275.50'))
+
     def test_lcl_port_fee_defaults_applied_when_left_zero(self):
         """When the declarant leaves both arrastre and wharfage at 0 on an LCL
         shipment, the server fills the standard defaults (₱5,496 / ₱519.35)."""
