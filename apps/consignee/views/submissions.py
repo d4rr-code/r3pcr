@@ -373,7 +373,7 @@ def shipment_detail(request, shipment_id):
                     )
                 else:
                     advisory_summary = (
-                        f'For similar future shipments, MCDA suggests {recommendation_label} '
+                        f'For this shipment profile, MCDA suggests {recommendation_label} '
                         f'instead of {declared_label} based on cost, time, cargo size, and distance.'
                     )
         except Exception as e:

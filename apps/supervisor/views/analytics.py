@@ -437,7 +437,7 @@ def _analytics_context_response(request):
     selected_month = (date_from[:7] if date_from else timezone.now().strftime('%Y-%m'))
 
     # Monthly submission overview line chart
-    _overview = _monthly_overview(all_shipments, declarant_filter, overview_range)
+    _overview = _monthly_overview(chart_qs, overview_range)
     monthly_chart_labels = _overview['monthly_chart_labels']
     monthly_chart_data   = _overview['monthly_chart_data']
 

@@ -211,7 +211,7 @@
                     {{ scores.lcl|floatformat:3 }}
                 </p>
                 <p style="color:#9CA3AF; font-size:11px; margin:4px 0;">weighted score</p>
-                {% if result == 'lcl' %}<span style="color:#1D4ED8; font-size:11px; font-weight:700;">BEST</span>{% endif %}
+                {% if result == 'lcl' %}<span style="color:#1D4ED8; font-size:11px; font-weight:700;">RECOMMENDED</span>{% endif %}
             </div>
 
             <div style="border-radius:8px; padding:16px; text-align:center;
@@ -223,7 +223,7 @@
                     {{ scores.fcl|floatformat:3 }}
                 </p>
                 <p style="color:#9CA3AF; font-size:11px; margin:4px 0;">weighted score</p>
-                {% if result == 'fcl' %}<span style="color:#1D4ED8; font-size:11px; font-weight:700;">BEST</span>{% endif %}
+                {% if result == 'fcl' %}<span style="color:#1D4ED8; font-size:11px; font-weight:700;">RECOMMENDED</span>{% endif %}
             </div>
 
             <div style="border-radius:8px; padding:16px; text-align:center;
@@ -235,7 +235,7 @@
                     {{ scores.air|floatformat:3 }}
                 </p>
                 <p style="color:#9CA3AF; font-size:11px; margin:4px 0;">weighted score</p>
-                {% if result == 'air' %}<span style="color:#1D4ED8; font-size:11px; font-weight:700;">BEST</span>{% endif %}
+                {% if result == 'air' %}<span style="color:#1D4ED8; font-size:11px; font-weight:700;">RECOMMENDED</span>{% endif %}
             </div>
 
         </div>
@@ -294,13 +294,13 @@
                             <td style="padding:12px 14px; color:#111827; font-weight:700;">Weighted Total</td>
                             <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:11px;">100%</td>
                             <td style="padding:12px 14px; text-align:center; font-size:18px; font-weight:700; color:{% if result == 'lcl' %}#1D4ED8{% else %}#9CA3AF{% endif %};">
-                                {{ scores.lcl|floatformat:3 }}{% if result == 'lcl' %}<br><span style="font-size:10px;">BEST</span>{% endif %}
+                                {{ scores.lcl|floatformat:3 }}{% if result == 'lcl' %}<br><span style="font-size:10px;">RECOMMENDED</span>{% endif %}
                             </td>
                             <td style="padding:12px 14px; text-align:center; font-size:18px; font-weight:700; color:{% if result == 'fcl' %}#1D4ED8{% else %}#9CA3AF{% endif %};">
-                                {{ scores.fcl|floatformat:3 }}{% if result == 'fcl' %}<br><span style="font-size:10px;">BEST</span>{% endif %}
+                                {{ scores.fcl|floatformat:3 }}{% if result == 'fcl' %}<br><span style="font-size:10px;">RECOMMENDED</span>{% endif %}
                             </td>
                             <td style="padding:12px 14px; text-align:center; font-size:18px; font-weight:700; color:{% if result == 'air' %}#1D4ED8{% else %}#9CA3AF{% endif %};">
-                                {{ scores.air|floatformat:3 }}{% if result == 'air' %}<br><span style="font-size:10px;">BEST</span>{% endif %}
+                                {{ scores.air|floatformat:3 }}{% if result == 'air' %}<br><span style="font-size:10px;">RECOMMENDED</span>{% endif %}
                             </td>
                         </tr>
                     </tbody>
@@ -402,13 +402,13 @@
                             <td style="padding:12px 14px; color:#111827; font-weight:700;">Weighted Total</td>
                             <td style="padding:12px 14px; text-align:center; color:#6B7280; font-size:11px;">100%</td>
                             <td style="padding:12px 14px; text-align:center; font-size:16px; font-weight:700; color:{% if existing.recommended_type == 'lcl' %}#1D4ED8{% else %}#9CA3AF{% endif %};">
-                                {{ existing.lcl_score|floatformat:3 }}{% if existing.recommended_type == 'lcl' %}<br><span style="font-size:10px;">BEST</span>{% endif %}
+                                {{ existing.lcl_score|floatformat:3 }}{% if existing.recommended_type == 'lcl' %}<br><span style="font-size:10px;">RECOMMENDED</span>{% endif %}
                             </td>
                             <td style="padding:12px 14px; text-align:center; font-size:16px; font-weight:700; color:{% if existing.recommended_type == 'fcl' %}#1D4ED8{% else %}#9CA3AF{% endif %};">
-                                {{ existing.fcl_score|floatformat:3 }}{% if existing.recommended_type == 'fcl' %}<br><span style="font-size:10px;">BEST</span>{% endif %}
+                                {{ existing.fcl_score|floatformat:3 }}{% if existing.recommended_type == 'fcl' %}<br><span style="font-size:10px;">RECOMMENDED</span>{% endif %}
                             </td>
                             <td style="padding:12px 14px; text-align:center; font-size:16px; font-weight:700; color:{% if existing.recommended_type == 'air' %}#1D4ED8{% else %}#9CA3AF{% endif %};">
-                                {{ existing.air_score|floatformat:3 }}{% if existing.recommended_type == 'air' %}<br><span style="font-size:10px;">BEST</span>{% endif %}
+                                {{ existing.air_score|floatformat:3 }}{% if existing.recommended_type == 'air' %}<br><span style="font-size:10px;">RECOMMENDED</span>{% endif %}
                             </td>
                         </tr>
                     </tbody>
@@ -429,55 +429,6 @@
             <p style="font-size:12px; margin:0; color:#9CA3AF;">
                 MCDA scores LCL, FCL, and Air Freight across cost, time, weight/volume, and distance criteria.
             </p>
-        </div>
-        {% endif %}
-
-        {% if wmcda_history %}
-        <!-- ── Historical Advisory Pattern ─────────────────────────────────── -->
-        <div class="card" style="margin-top:16px;">
-            <p class="card-title">Historical Pattern - {{ wmcda_history.ship_type }}</p>
-            <p style="color:#374151; font-size:13px; margin:0 0 16px;">
-                In <strong style="color:#111827;">{{ wmcda_history.total }}</strong>
-                previous {{ wmcda_history.ship_type }} shipment{{ wmcda_history.total|pluralize }},
-                <strong style="color:#15803D;">{{ wmcda_history.mode_label }}</strong>
-                was the top recommendation
-                <strong style="color:#111827;">{{ wmcda_history.top_pct }}%</strong> of the time.
-            </p>
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <div style="border-radius:8px; padding:12px; text-align:center;
-                            {% if wmcda_history.top_mode == 'air' %}background:#EFF6FF; border:2px solid #1D4ED8;
-                            {% else %}background:#F8FAFC; border:1px solid #E5E7EB;{% endif %}">
-                    <p style="font-size:13px; font-weight:700; margin:0 0 4px; color:#111827;">Air</p>
-                    <p style="color:#6B7280; font-size:11px; margin:0 0 4px;">Air Freight</p>
-                    <p style="font-size:20px; font-weight:700; margin:0;
-                              color:{% if wmcda_history.top_mode == 'air' %}#1D4ED8{% else %}#374151{% endif %};">
-                        {{ wmcda_history.counts.air }}
-                    </p>
-                    <p style="color:#9CA3AF; font-size:10px; margin:2px 0 0;">times</p>
-                </div>
-                <div style="border-radius:8px; padding:12px; text-align:center;
-                            {% if wmcda_history.top_mode == 'lcl' %}background:#EFF6FF; border:2px solid #1D4ED8;
-                            {% else %}background:#F8FAFC; border:1px solid #E5E7EB;{% endif %}">
-                    <p style="font-size:13px; font-weight:700; margin:0 0 4px; color:#111827;">LCL</p>
-                    <p style="color:#6B7280; font-size:11px; margin:0 0 4px;">LCL Sea</p>
-                    <p style="font-size:20px; font-weight:700; margin:0;
-                              color:{% if wmcda_history.top_mode == 'lcl' %}#1D4ED8{% else %}#374151{% endif %};">
-                        {{ wmcda_history.counts.lcl }}
-                    </p>
-                    <p style="color:#9CA3AF; font-size:10px; margin:2px 0 0;">times</p>
-                </div>
-                <div style="border-radius:8px; padding:12px; text-align:center;
-                            {% if wmcda_history.top_mode == 'fcl' %}background:#EFF6FF; border:2px solid #1D4ED8;
-                            {% else %}background:#F8FAFC; border:1px solid #E5E7EB;{% endif %}">
-                    <p style="font-size:13px; font-weight:700; margin:0 0 4px; color:#111827;">FCL</p>
-                    <p style="color:#6B7280; font-size:11px; margin:0 0 4px;">FCL Sea</p>
-                    <p style="font-size:20px; font-weight:700; margin:0;
-                              color:{% if wmcda_history.top_mode == 'fcl' %}#1D4ED8{% else %}#374151{% endif %};">
-                        {{ wmcda_history.counts.fcl }}
-                    </p>
-                    <p style="color:#9CA3AF; font-size:10px; margin:2px 0 0;">times</p>
-                </div>
-            </div>
         </div>
         {% endif %}
 

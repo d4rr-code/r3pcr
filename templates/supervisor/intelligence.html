@@ -21,6 +21,13 @@
 .intel-chart-card p{color:#64748B;font-size:11px;margin:0 0 12px}
 .intel-chart-frame{position:relative;height:220px;min-width:0;overflow:hidden}
 .intel-chart-frame canvas{position:relative;max-width:100% !important}
+.fallback-chart{width:100%;height:calc(100% - 26px);display:block}
+.fallback-chart text{font-family:Inter,sans-serif;font-size:10px;fill:#64748B}
+.fallback-chart .axis{stroke:#CBD5E1;stroke-width:1}
+.fallback-chart .grid{stroke:#E5E7EB;stroke-width:1}
+.fallback-legend{display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:6px;color:#64748B;font-size:11px}
+.fallback-legend span{display:inline-flex;align-items:center;gap:5px}
+.fallback-legend i{display:inline-block;width:18px;height:3px;border-radius:999px}
 .forecast-card{grid-column:1/-1}
 .forecast-layout{display:grid;grid-template-columns:1fr;gap:12px;min-width:0}
 .forecast-card{padding:14px}
@@ -34,6 +41,10 @@
 .forecast-table{width:100%;border-collapse:collapse;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden}
 .forecast-table th{background:#1B3358;color:#fff;font-size:9px;text-transform:uppercase;text-align:left;padding:9px}
 .forecast-table td{border-top:1px solid #EEF2F6;color:#111827;font-size:11px;padding:9px}
+.forecast-model-table th{background:#0F766E}
+.forecast-status{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:900;background:#EEF2FF;color:#3730A3;white-space:nowrap}
+.forecast-status.recommended{background:#DCFCE7;color:#15803D}
+.forecast-status.unavailable{background:#F1F5F9;color:#64748B}
 .forecast-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
 .forecast-controls{display:flex;gap:8px;flex-wrap:wrap}
 .forecast-toggle{display:inline-flex;align-items:center;justify-content:center;border:1px solid #DCE5EF;border-radius:999px;background:#fff;color:#1B3358;text-decoration:none;font-size:11px;font-weight:900;padding:7px 11px;white-space:nowrap}
@@ -95,8 +106,8 @@
                 </p>
             </div>
             <div class="intel-actions">
-                <a class="intel-btn secondary" href="{% url 'supervisor:intelligence_export' %}?format=xlsx&risk={{ risk_filter }}&forecast_unit={{ workload_forecast.forecast_unit }}&forecast_year={{ workload_forecast.forecast_year }}">Excel</a>
-                <a class="intel-btn" href="{% url 'supervisor:intelligence_export' %}?format=pdf&risk={{ risk_filter }}&forecast_unit={{ workload_forecast.forecast_unit }}&forecast_year={{ workload_forecast.forecast_year }}">PDF</a>
+                <a class="intel-btn secondary" href="{% url 'supervisor:intelligence_export' %}?format=xlsx&risk={{ risk_filter }}&forecast_unit={{ workload_forecast.forecast_unit }}&forecast_year={{ workload_forecast.forecast_year }}&forecast_model={{ workload_forecast.forecast_model }}">Excel</a>
+                <a class="intel-btn" href="{% url 'supervisor:intelligence_export' %}?format=pdf&risk={{ risk_filter }}&forecast_unit={{ workload_forecast.forecast_unit }}&forecast_year={{ workload_forecast.forecast_year }}&forecast_model={{ workload_forecast.forecast_model }}">PDF</a>
             </div>
         </div>
     </section>
@@ -115,7 +126,7 @@
         <div class="intel-card">
             <p class="intel-label">On-Time Rate</p>
             <p class="intel-value">{{ on_time_rate }}%</p>
-            <p class="intel-note">{{ delayed_count }} shipment{{ delayed_count|pluralize }} currently past KPI target.</p>
+            <p class="intel-note">{{ completed_kpi_on_time }}/{{ completed_kpi_total }} completed on time. {{ delayed_count }} active past KPI target.</p>
         </div>
         <div class="intel-card">
             <p class="intel-label">High Risk Shipments</p>
@@ -134,10 +145,15 @@
             <div class="forecast-title-row">
                 <div>
                     <h3>Projected Incoming Workload</h3>
-                    <p>Recent workload chart with ARIMA forecasting when enough history is available.</p>
+                    <p>Recent workload chart using the best available model after comparing forecast error.</p>
                 </div>
                 <form class="forecast-controls" method="GET" aria-label="Forecast controls">
                     <input type="hidden" name="risk" value="{{ risk_filter }}">
+                    <select class="forecast-toggle" name="forecast_model" onchange="this.form.submit()" title="Forecast model">
+                        {% for model in forecast_model_options %}
+                        <option value="{{ model.key }}" {% if workload_forecast.forecast_model == model.key %}selected{% endif %}>{{ model.label }}</option>
+                        {% endfor %}
+                    </select>
                     <button class="forecast-toggle {% if workload_forecast.forecast_unit == 'month' %}active{% endif %}" type="submit" name="forecast_unit" value="month">Monthly</button>
                     <button class="forecast-toggle {% if workload_forecast.forecast_unit == 'year' %}active{% endif %}" type="submit" name="forecast_unit" value="year">Yearly</button>
                     <select class="forecast-toggle" name="forecast_year" onchange="this.form.submit()" title="Forecast base year">
@@ -161,8 +177,8 @@
                             <strong>{{ workload_forecast.projected_low }}-{{ workload_forecast.projected_high }}</strong>
                         </div>
                         <div class="forecast-metric">
-                            <span>Active Backlog</span>
-                            <strong>{{ workload_forecast.active_backlog }}</strong>
+                            <span>{% if workload_forecast.forecast_model == 'all' %}Recommended Model{% else %}Selected Model{% endif %}</span>
+                            <strong>{{ workload_forecast.displayed_model.label }}</strong>
                         </div>
                         <div class="forecast-metric">
                             <span>Confidence</span>
@@ -170,10 +186,37 @@
                         </div>
                     </div>
                     <p class="forecast-copy">
-                        {{ workload_forecast.interpretation }} {{ workload_forecast.model_source }}. Trend versus the previous period is
+                        {{ workload_forecast.interpretation }} {{ workload_forecast.model_source }}. Recommended model: <strong>{{ workload_forecast.recommended_model.label }}</strong>. Trend versus the previous period is
                         <strong>{{ workload_forecast.trend_pct }}%</strong>. Recommended action:
                         {{ workload_forecast.action }}
                     </p>
+                    <table class="forecast-table forecast-model-table">
+                        <thead>
+                            <tr>
+                                <th>Model</th>
+                                <th>Forecast</th>
+                                <th>Backtest Error</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for model in workload_forecast.model_comparison %}
+                            <tr>
+                                <td>
+                                    <strong>{{ model.label }}</strong><br>
+                                    <span class="muted">{{ model.description }}</span>
+                                </td>
+                                <td><strong>{{ model.total }}</strong></td>
+                                <td>{{ model.mae_label }}</td>
+                                <td>
+                                    <span class="forecast-status {% if model.status == 'Recommended' %}recommended{% elif not model.available %}unavailable{% endif %}">
+                                        {{ model.status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                     <table class="forecast-table">
                         <thead>
                             <tr>
@@ -281,7 +324,7 @@
                 <div class="intel-toggle-actions">
                     <div class="risk-tabs" aria-label="Delay risk filters">
                         {% for item in risk_filters %}
-                        <a class="risk-tab {% if risk_filter == item.key %}active{% endif %}" href="?risk={{ item.key }}&forecast_unit={{ workload_forecast.forecast_unit }}&forecast_year={{ workload_forecast.forecast_year }}&forecast_months=3#delay-risk">
+                        <a class="risk-tab {% if risk_filter == item.key %}active{% endif %}" href="?risk={{ item.key }}&forecast_unit={{ workload_forecast.forecast_unit }}&forecast_year={{ workload_forecast.forecast_year }}&forecast_model={{ workload_forecast.forecast_model }}&forecast_months=3#delay-risk">
                             {{ item.label }} <span class="risk-count">{{ item.count }}</span>
                         </a>
                         {% endfor %}
@@ -417,6 +460,95 @@
         return values.reduce(function(sum, value){ return sum + Number(value || 0); }, 0);
     }
 
+    function fallbackLineChart(frameId, data) {
+        var frame = document.getElementById(frameId);
+        if (!frame || !data.labels.length) return;
+        var canvas = frame.querySelector('canvas');
+        if (canvas) canvas.style.display = 'none';
+        var svgNS = 'http://www.w3.org/2000/svg';
+        var width = 1000;
+        var height = 220;
+        var pad = { left: 34, right: 18, top: 12, bottom: 34 };
+        var datasets = [{
+            label: data.historical_label || 'Historical volume',
+            values: data.historical_values,
+            color: '#1B3358',
+            width: 3
+        }].concat((data.forecast_datasets || []).map(function(model){
+            return {
+                label: model.label + (model.recommended ? ' (recommended)' : ''),
+                values: model.values,
+                color: model.color || '#14B8A6',
+                width: model.selected ? 3 : 2,
+                dashed: true
+            };
+        }));
+        var allValues = [];
+        datasets.forEach(function(ds){
+            ds.values.forEach(function(value){
+                if (value !== null && value !== undefined) allValues.push(Number(value || 0));
+            });
+        });
+        var maxValue = Math.max(1, Math.ceil(Math.max.apply(null, allValues) / 10) * 10);
+        var plotW = width - pad.left - pad.right;
+        var plotH = height - pad.top - pad.bottom;
+        function x(index) {
+            return pad.left + (data.labels.length === 1 ? 0 : (index / (data.labels.length - 1)) * plotW);
+        }
+        function y(value) {
+            return pad.top + plotH - (Number(value || 0) / maxValue) * plotH;
+        }
+        function el(name, attrs) {
+            var node = document.createElementNS(svgNS, name);
+            Object.keys(attrs || {}).forEach(function(key){ node.setAttribute(key, attrs[key]); });
+            return node;
+        }
+        frame.querySelectorAll('.fallback-chart,.fallback-legend').forEach(function(node){ node.remove(); });
+        var svg = el('svg', { class: 'fallback-chart', viewBox: '0 0 ' + width + ' ' + height, preserveAspectRatio: 'none' });
+        for (var tick = 0; tick <= 4; tick += 1) {
+            var tickValue = Math.round((maxValue / 4) * tick);
+            var gy = y(tickValue);
+            svg.appendChild(el('line', { class: 'grid', x1: pad.left, y1: gy, x2: width - pad.right, y2: gy }));
+            var label = el('text', { x: 4, y: gy + 3 });
+            label.textContent = tickValue;
+            svg.appendChild(label);
+        }
+        svg.appendChild(el('line', { class: 'axis', x1: pad.left, y1: height - pad.bottom, x2: width - pad.right, y2: height - pad.bottom }));
+        data.labels.forEach(function(labelText, index){
+            var label = el('text', { x: x(index), y: height - 8, 'text-anchor': 'middle' });
+            label.textContent = labelText;
+            svg.appendChild(label);
+        });
+        datasets.forEach(function(ds){
+            var points = [];
+            ds.values.forEach(function(value, index){
+                if (value !== null && value !== undefined) points.push(x(index).toFixed(1) + ',' + y(value).toFixed(1));
+            });
+            if (points.length < 2) return;
+            svg.appendChild(el('polyline', {
+                points: points.join(' '),
+                fill: 'none',
+                stroke: ds.color,
+                'stroke-width': ds.width,
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-dasharray': ds.dashed ? '8 6' : ''
+            }));
+        });
+        frame.appendChild(svg);
+        var legend = document.createElement('div');
+        legend.className = 'fallback-legend';
+        datasets.forEach(function(ds){
+            var item = document.createElement('span');
+            var mark = document.createElement('i');
+            mark.style.background = ds.color;
+            item.appendChild(mark);
+            item.appendChild(document.createTextNode(ds.label));
+            legend.appendChild(item);
+        });
+        frame.appendChild(legend);
+    }
+
     if (window.Chart && workloadData.labels.length) {
         new Chart(document.getElementById('workloadForecastChart'), {
             type: 'line',
@@ -431,18 +563,26 @@
                     tension: 0.28,
                     pointRadius: 3,
                     pointHoverRadius: 5
-                }, {
+                }].concat((workloadData.forecast_datasets || [{
                     label: 'Forecast',
-                    data: workloadData.forecast_values,
-                    borderColor: '#14B8A6',
-                    backgroundColor: 'rgba(20,184,166,.14)',
-                    borderDash: [6, 5],
-                    fill: false,
-                    tension: 0.28,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    spanGaps: true
-                }]
+                    values: workloadData.forecast_values,
+                    color: '#14B8A6',
+                    recommended: true
+                }]).map(function(model){
+                    return {
+                        label: model.label + (model.recommended ? ' (recommended)' : ''),
+                        data: model.values,
+                        borderColor: model.color || '#14B8A6',
+                        backgroundColor: 'rgba(20,184,166,.08)',
+                        borderDash: model.recommended ? [6, 5] : [3, 4],
+                        borderWidth: model.selected ? 3 : 2,
+                        fill: false,
+                        tension: 0.28,
+                        pointRadius: model.selected ? 5 : 3,
+                        pointHoverRadius: 6,
+                        spanGaps: true
+                    };
+                }))
             },
             options: {
                 responsive: true,
@@ -451,6 +591,8 @@
                 scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
             }
         });
+    } else if (workloadData.labels.length) {
+        fallbackLineChart('workload-forecast', workloadData);
     }
 
     if (window.Chart && stageData.labels.length) {

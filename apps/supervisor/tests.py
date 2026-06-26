@@ -11,6 +11,7 @@ Run:  python manage.py test apps.supervisor --settings=config.settings_test
 """
 from datetime import timedelta
 from decimal import Decimal
+import json
 
 from django.test import TestCase
 from django.urls import reverse
@@ -56,6 +57,58 @@ class SupervisorShipmentTrackingDisplayTests(TestCase):
         self.assertNotContains(response, '<th>Import Type</th>', html=False)
         self.assertContains(response, 'SRJJJ2511001234')
         self.assertContains(response, 'TGHU1234567')
+
+    def test_shipment_records_can_filter_by_mcda_recommendation(self):
+        other = Shipment.objects.create(
+            hawb_number='R3PCR-TRACK-2',
+            consignee=self.consignee,
+            declarant=self.declarant,
+            status='paid',
+            shipment_type='air',
+        )
+        ShippingAdvisory.objects.create(
+            shipment=self.shipment, gross_weight=Decimal('1'),
+            cargo_volume=Decimal('1'), declared_value=Decimal('1'),
+            urgency_level='standard', distance_km=Decimal('2600'),
+            lcl_score=Decimal('0.9'), fcl_score=Decimal('0.5'),
+            air_score=Decimal('0.3'), recommended_type='lcl',
+        )
+        ShippingAdvisory.objects.create(
+            shipment=other, gross_weight=Decimal('1'),
+            cargo_volume=Decimal('1'), declared_value=Decimal('1'),
+            urgency_level='standard', distance_km=Decimal('2600'),
+            lcl_score=Decimal('0.3'), fcl_score=Decimal('0.5'),
+            air_score=Decimal('0.9'), recommended_type='air',
+        )
+
+        response = self.client.get(reverse('supervisor:shipment_records'), {'mcda_rec': 'lcl'})
+
+        self.assertContains(response, 'R3PCR-TRACK-1')
+        self.assertNotContains(response, 'R3PCR-TRACK-2')
+        self.assertContains(response, 'MCDA Recommendation')
+        self.assertContains(response, 'MCDA:')
+        self.assertContains(response, 'mcda-lcl')
+
+    def test_shipment_records_pagination_is_compact_for_many_pages(self):
+        shipments = [
+            Shipment(
+                hawb_number=f'R3PCR-TRACK-PAGE-{idx:03d}',
+                consignee=self.consignee,
+                declarant=self.declarant,
+                status='paid',
+                shipment_type='lcl',
+            )
+            for idx in range(70)
+        ]
+        Shipment.objects.bulk_create(shipments)
+
+        response = self.client.get(reverse('supervisor:shipment_records'), {'shipments_page': 8})
+        links = response.context['shipments_page']['page_links']
+        visible_numbers = [link['number'] for link in links if not link.get('ellipsis')]
+
+        self.assertLess(len(links), response.context['shipments_page']['page_obj'].paginator.num_pages)
+        self.assertIn({'ellipsis': True}, links)
+        self.assertEqual(visible_numbers, [1, 6, 7, 8, 9, 10, 12])
 
     def test_supervisor_detail_shows_tracking_values_read_only(self):
         response = self.client.get(reverse('supervisor:shipment_detail', args=[self.shipment.id]))
@@ -147,9 +200,9 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertContains(response, 'Projected Workload')
         self.assertContains(response, 'Delay Model Weights')
         year = timezone.localdate().year
-        self.assertContains(response, f'?risk=all&forecast_unit=month&forecast_year={year}&forecast_months=3#delay-risk')
-        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=xlsx&risk=high&forecast_unit=month&forecast_year={year}')
-        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=pdf&risk=high&forecast_unit=month&forecast_year={year}')
+        self.assertContains(response, f'?risk=all&forecast_unit=month&forecast_year={year}&forecast_model=all&forecast_months=3#delay-risk')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=xlsx&risk=high&forecast_unit=month&forecast_year={year}&forecast_model=all')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=pdf&risk=high&forecast_unit=month&forecast_year={year}&forecast_model=all')
 
     def test_intelligence_trains_delay_model_from_completed_shipments(self):
         today = timezone.localdate()
@@ -170,6 +223,28 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertEqual(response.context['delay_model']['source'], 'Historical training')
         self.assertEqual(response.context['delay_model']['sample_count'], 8)
         self.assertGreater(response.context['delay_model']['weights']['deficiency'], 0)
+
+    def test_intelligence_on_time_rate_uses_completed_kpi_result(self):
+        submitted_at = timezone.now() - timedelta(days=20)
+        on_time = self._shipment('R3PCR-KPI-ONTIME', 'billed')
+        late = self._shipment('R3PCR-KPI-LATE', 'billed')
+        Shipment.objects.filter(pk=on_time.pk).update(
+            submitted_at=submitted_at,
+            updated_at=submitted_at + timedelta(days=5),
+        )
+        Shipment.objects.filter(pk=late.pk).update(
+            submitted_at=submitted_at,
+            updated_at=submitted_at + timedelta(days=7),
+        )
+
+        response = self.client.get(reverse('supervisor:intelligence'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['completed_kpi_total'], 2)
+        self.assertEqual(response.context['completed_kpi_on_time'], 1)
+        self.assertEqual(response.context['completed_kpi_late'], 1)
+        self.assertEqual(response.context['on_time_rate'], 50.0)
+        self.assertContains(response, '1/2 completed on time')
 
     def test_intelligence_filters_delay_risk_rows(self):
         medium = self._shipment('R3PCR-RISK-MEDIUM', 'incoming')
@@ -201,6 +276,18 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertGreaterEqual(forecast['forecast_months'], 3)
         self.assertEqual(forecast['forecast_unit'], 'month')
         self.assertGreater(forecast['projected_period_total'], 0)
+        self.assertEqual(forecast['recommended_model']['key'], 'moving_average')
+        self.assertEqual(forecast['model_source'], 'Moving average forecast')
+        self.assertEqual(
+            {row['key'] for row in forecast['model_comparison']},
+            {'arima', 'holt_winters', 'seasonal_naive', 'moving_average'},
+        )
+        self.assertEqual(forecast['forecast_model'], 'all')
+        self.assertEqual(forecast['displayed_model']['key'], 'moving_average')
+        self.assertEqual(
+            {row['key'] for row in forecast['chart']['forecast_datasets']},
+            {'seasonal_naive', 'moving_average'},
+        )
         expected_months = timezone.localdate().month + 3
         self.assertEqual(forecast['forecast_months'], 3)
         self.assertEqual(len(forecast['chart']['labels']), expected_months)
@@ -213,6 +300,22 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertContains(response, 'Monthly')
         self.assertContains(response, 'Yearly')
         self.assertContains(response, 'Expected Range')
+        self.assertContains(response, 'Recommended Model')
+        self.assertContains(response, 'Holt-Winters')
+        self.assertContains(response, 'Seasonal Naive')
+        self.assertContains(response, 'Weighted Moving Average')
+        self.assertContains(response, 'fallbackLineChart')
+
+        seasonal = self.client.get(reverse('supervisor:intelligence'), {
+            'forecast_model': 'seasonal_naive',
+        })
+        seasonal_forecast = seasonal.context['workload_forecast']
+        self.assertEqual(seasonal_forecast['forecast_model'], 'seasonal_naive')
+        self.assertEqual(seasonal_forecast['displayed_model']['key'], 'seasonal_naive')
+        self.assertEqual(
+            {row['key'] for row in seasonal_forecast['chart']['forecast_datasets']},
+            {'seasonal_naive'},
+        )
 
         three_year = self.client.get(reverse('supervisor:intelligence'), {
             'forecast_unit': 'year',
@@ -223,6 +326,8 @@ class SupervisorIntelligenceTests(TestCase):
             three_year.context['workload_forecast']['chart']['historical_label'],
             'Historical yearly volume',
         )
+        self.assertEqual(three_year.context['workload_forecast']['history_label'], 'Last 10 years')
+        self.assertEqual(len(three_year.context['workload_forecast']['chart']['labels']), 13)
         self.assertIn(str(timezone.localdate().year + 1), three_year.context['workload_forecast']['forecast_label'])
 
     def test_intelligence_exports_xlsx_and_pdf(self):
@@ -422,6 +527,8 @@ class AnalyticsDashboardContextTests(TestCase):
         self.assertEqual(resp.context['shipment_type_counts'], {'air': 1, 'lcl': 0, 'fcl': 0})
         self.assertEqual(resp.context['feedback_summary']['total'], 1)
         self.assertEqual(resp.context['feedback_summary']['avg_rating'], 5.0)
+        self.assertEqual(sum(json.loads(resp.context['monthly_chart_data'])), 1)
+        self.assertEqual(len(json.loads(resp.context['monthly_chart_labels'])), today.month)
 
     def test_date_filter_controls_render_range_presets(self):
         resp = self.client.get(self.url)
@@ -469,6 +576,19 @@ class AnalyticsDashboardContextTests(TestCase):
         self.assertEqual(board['fcl'], 0)
         # all three declared==recommended -> 100% agreement
         self.assertEqual(ctx['wmcda_comparison_agreement'], 100)
+
+    def test_wmcda_drilldown_links_filter_by_recommendation(self):
+        ShippingAdvisory.objects.create(
+            shipment=self.s2, gross_weight=Decimal('1'),
+            cargo_volume=Decimal('1'), declared_value=Decimal('1'),
+            urgency_level='standard', distance_km=Decimal('2600'),
+            lcl_score=Decimal('0.9'), fcl_score=Decimal('0.5'),
+            air_score=Decimal('0.3'), recommended_type='lcl',
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, '?mcda_rec=lcl')
 
     def test_declarant_performance_speed_and_volume(self):
         base = timezone.now().replace(microsecond=0)

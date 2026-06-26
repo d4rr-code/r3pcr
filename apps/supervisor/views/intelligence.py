@@ -1,6 +1,7 @@
 from collections import defaultdict
 from io import BytesIO
 import json
+import warnings
 
 from django.core.cache import cache
 from django.db.models import Avg, Count
@@ -18,6 +19,7 @@ from .common import supervisor_required
 TERMINAL_STATUSES = {'released', 'billed'}
 REQUIRED_DOCUMENTS = {'invoice', 'packing_list', 'airway_bill'}
 IN_PROGRESS_STATUSES = {'arrived', 'computed', 'for_revision', 'lodgement', 'ongoing', 'assessed'}
+YEARLY_FORECAST_HISTORY_YEARS = 10
 DEFAULT_RISK_WEIGHTS = {
     'status_age_high': 25,
     'status_age_medium': 15,
@@ -30,6 +32,12 @@ DEFAULT_RISK_WEIGHTS = {
     'urgent': 10,
     'priority': 5,
     'waiting_action': 8,
+}
+FORECAST_MODEL_COLORS = {
+    'arima': '#F97316',
+    'holt_winters': '#8B5CF6',
+    'seasonal_naive': '#0EA5E9',
+    'moving_average': '#14B8A6',
 }
 
 
@@ -155,6 +163,30 @@ def _risk_factor(shipment):
 
 def _shipment_total_days(shipment):
     return _duration_days(shipment.submitted_at, shipment.updated_at)
+
+
+def _completed_kpi_performance(shipments):
+    total = 0
+    on_time = 0
+    late = 0
+    for shipment in shipments:
+        if shipment.status not in TERMINAL_STATUSES or not shipment.updated_at:
+            continue
+        eta_end = shipment.kpi_eta_end
+        if not eta_end:
+            continue
+        total += 1
+        completed_date = timezone.localtime(shipment.updated_at).date()
+        if completed_date <= eta_end:
+            on_time += 1
+        else:
+            late += 1
+    return {
+        'total': total,
+        'on_time': on_time,
+        'late': late,
+        'rate': round(on_time / total * 100, 1) if total else 0,
+    }
 
 
 def _trained_delay_model(shipments):
@@ -343,6 +375,46 @@ def _forecast_next_periods(period_counts, periods):
     return forecasts
 
 
+def _seasonal_naive_forecast(period_counts, periods, unit='month'):
+    counts = [int(value or 0) for value in period_counts]
+    season_length = 12 if unit == 'month' else 1
+    if len(counts) < season_length:
+        return None, 'Needs at least one full seasonal cycle.'
+    forecasts = []
+    for index in range(periods):
+        source_index = len(counts) - season_length + (index % season_length)
+        forecasts.append(max(0, counts[source_index]))
+    return forecasts, 'Uses the same period from the previous cycle.'
+
+
+def _holt_winters_forecast(period_counts, periods, unit='month'):
+    counts = [int(value or 0) for value in period_counts]
+    if unit == 'month':
+        if len(counts) < 24 or sum(counts) < 12:
+            return None, 'Needs at least 24 monthly points for seasonality.'
+        model_kwargs = {'trend': 'add', 'seasonal': 'add', 'seasonal_periods': 12}
+    else:
+        if len(counts) < 5 or sum(counts) < 5:
+            return None, 'Needs at least 5 yearly points.'
+        model_kwargs = {'trend': 'add', 'seasonal': None}
+    cache_key = f"supervisor:holt_winters:{unit}:{periods}:{','.join(str(value) for value in counts)}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached, 'Exponential smoothing with trend and seasonality.'
+    try:
+        from statsmodels.tsa.holtwinters import ExponentialSmoothing
+        model = ExponentialSmoothing(counts, initialization_method='estimated', **model_kwargs)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            fit = model.fit(optimized=True)
+        raw = fit.forecast(periods)
+        forecasts = [max(0, int(round(float(value)))) for value in raw]
+        cache.set(cache_key, forecasts, 60 * 15)
+        return forecasts, 'Exponential smoothing with trend and seasonality.'
+    except Exception:
+        return None, 'Model could not fit the available history.'
+
+
 def _arima_forecast(period_counts, periods, unit='month'):
     """Forecast counts with ARIMA when enough history exists.
 
@@ -361,13 +433,126 @@ def _arima_forecast(period_counts, periods, unit='month'):
     try:
         from statsmodels.tsa.arima.model import ARIMA
         model = ARIMA(counts, order=(1, 1, 1))
-        fit = model.fit()
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            fit = model.fit()
         raw = fit.forecast(steps=periods)
         forecasts = [max(0, int(round(float(value)))) for value in raw]
         cache.set(cache_key, forecasts, 60 * 15)
         return forecasts, 'ARIMA forecast'
     except Exception:
         return None, 'Moving average fallback'
+
+
+FORECAST_MODELS = [
+    {
+        'key': 'arima',
+        'label': 'ARIMA',
+        'source': 'ARIMA forecast',
+        'method': _arima_forecast,
+        'description': 'Trend-based time-series model.',
+    },
+    {
+        'key': 'holt_winters',
+        'label': 'Holt-Winters',
+        'source': 'Holt-Winters forecast',
+        'method': _holt_winters_forecast,
+        'description': 'Exponential smoothing with trend and seasonality.',
+    },
+    {
+        'key': 'seasonal_naive',
+        'label': 'Seasonal Naive',
+        'source': 'Seasonal naive forecast',
+        'method': _seasonal_naive_forecast,
+        'description': 'Uses the same period from the previous cycle.',
+    },
+    {
+        'key': 'moving_average',
+        'label': 'Weighted Moving Average',
+        'source': 'Moving average forecast',
+        'method': lambda counts, periods, unit='month': (
+            _forecast_next_periods(counts, periods),
+            'Weighted recent-period baseline.',
+        ),
+        'description': 'Weighted recent-period baseline.',
+    },
+]
+
+
+def _backtest_forecast_model(method, period_counts, unit):
+    counts = [int(value or 0) for value in period_counts]
+    if len(counts) < 6:
+        return None
+    folds = min(3, max(1, len(counts) // 4))
+    errors = []
+    for index in range(len(counts) - folds, len(counts)):
+        training = counts[:index]
+        if not training:
+            continue
+        predicted, _note = method(training, 1, unit)
+        if not predicted:
+            continue
+        errors.append(abs(counts[index] - predicted[0]))
+    if not errors:
+        return None
+    return round(sum(errors) / len(errors), 1)
+
+
+def _forecast_model_comparison(period_counts, periods, unit='month'):
+    rows = []
+    for model in FORECAST_MODELS:
+        forecasts, note = model['method'](period_counts, periods, unit)
+        available = bool(forecasts)
+        mae = _backtest_forecast_model(model['method'], period_counts, unit) if available else None
+        rows.append({
+            'key': model['key'],
+            'label': model['label'],
+            'source': model['source'],
+            'description': model['description'],
+            'forecasts': forecasts or [],
+            'total': sum(forecasts or []),
+            'mae': mae,
+            'mae_label': f'{mae} MAE' if mae is not None else 'Not enough data',
+            'available': available,
+            'note': note,
+            'status': 'Compared' if available else 'Unavailable',
+        })
+
+    sample_total = sum(int(value or 0) for value in period_counts)
+    moving_average_row = next((row for row in rows if row['key'] == 'moving_average' and row['available']), None)
+    compared = [row for row in rows if row['available'] and row['mae'] is not None]
+    if sample_total < 10 and moving_average_row:
+        recommended = moving_average_row
+    elif compared:
+        recommended = min(compared, key=lambda row: (row['mae'], row['key'] != 'arima'))
+    else:
+        available_rows = [row for row in rows if row['available']]
+        recommended = next((row for row in available_rows if row['key'] == 'arima'), None)
+        recommended = recommended or moving_average_row
+        recommended = recommended or (available_rows[0] if available_rows else None)
+
+    if recommended:
+        for row in rows:
+            if row['key'] == recommended['key']:
+                row['status'] = 'Recommended'
+        recommended_model = {
+            'key': recommended['key'],
+            'label': recommended['label'],
+            'source': recommended['source'],
+            'mae': recommended['mae'],
+        }
+        forecasts = recommended['forecasts']
+        model_source = recommended['source']
+    else:
+        forecasts = _forecast_next_periods(period_counts, periods)
+        model_source = 'Moving average forecast'
+        recommended_model = {
+            'key': 'moving_average',
+            'label': 'Weighted Moving Average',
+            'source': model_source,
+            'mae': None,
+        }
+    return forecasts, model_source, recommended_model, rows
 
 
 def _coerce_forecast_year(value, default_year):
@@ -390,6 +575,12 @@ def _coerce_forecast_window(forecast_unit='month', forecast_periods=1):
     return unit, periods
 
 
+def _coerce_forecast_model(value):
+    allowed = {'all'} | {model['key'] for model in FORECAST_MODELS}
+    value = str(value or 'all').lower()
+    return value if value in allowed else 'all'
+
+
 def _month_count(shipments, month_start):
     next_month = _add_months(month_start, 1)
     return sum(
@@ -406,8 +597,9 @@ def _year_count(shipments, year_start):
     )
 
 
-def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', forecast_year=None):
+def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', forecast_year=None, forecast_model='all'):
     forecast_unit = 'year' if str(forecast_unit).lower() == 'year' else 'month'
+    forecast_model = _coerce_forecast_model(forecast_model)
     today = timezone.localdate()
     latest_data_year = None
     for shipment in shipments:
@@ -417,15 +609,22 @@ def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', for
     selected_year = _coerce_forecast_year(forecast_year, latest_data_year or today.year)
     if forecast_unit == 'year':
         forecast_periods = 3
-        history_start = today.replace(year=selected_year - 5, month=1, day=1)
-        periods = [history_start.replace(year=history_start.year + index) for index in range(6)]
+        history_start = today.replace(
+            year=selected_year - YEARLY_FORECAST_HISTORY_YEARS + 1,
+            month=1,
+            day=1,
+        )
+        periods = [
+            history_start.replace(year=history_start.year + index)
+            for index in range(YEARLY_FORECAST_HISTORY_YEARS)
+        ]
         counts = [_year_count(shipments, period) for period in periods]
         model_counts = counts
         future_periods = [today.replace(year=selected_year + index + 1, month=1, day=1) for index in range(forecast_periods)]
         period_labels = [period.strftime('%Y') for period in periods]
         future_labels = [period.strftime('%Y') for period in future_periods]
         forecast_label = f'{selected_year + 1}-{selected_year + forecast_periods}'
-        history_label = 'Last 6 years'
+        history_label = f'Last {YEARLY_FORECAST_HISTORY_YEARS} years'
         chart_history_label = 'Historical yearly volume'
         recent_label = 'yearly'
     else:
@@ -453,9 +652,29 @@ def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', for
         recent_label = 'monthly'
 
     sample_total = sum(model_counts)
-    forecasts, model_source = _arima_forecast(model_counts, forecast_periods, forecast_unit)
-    if forecasts is None:
-        forecasts = _forecast_next_periods(model_counts, forecast_periods)
+    recommended_forecasts, recommended_source, recommended_model, model_comparison = _forecast_model_comparison(
+        model_counts,
+        forecast_periods,
+        forecast_unit,
+    )
+    selected_row = None
+    if forecast_model != 'all':
+        selected_row = next(
+            (row for row in model_comparison if row['key'] == forecast_model and row['available']),
+            None,
+        )
+    display_row = selected_row or next(
+        (row for row in model_comparison if row['key'] == recommended_model['key']),
+        None,
+    )
+    forecasts = display_row['forecasts'] if display_row else recommended_forecasts
+    model_source = display_row['source'] if display_row else recommended_source
+    displayed_model = {
+        'key': display_row['key'] if display_row else recommended_model['key'],
+        'label': display_row['label'] if display_row else recommended_model['label'],
+        'source': model_source,
+        'mae': display_row['mae'] if display_row else recommended_model['mae'],
+    }
     projected = sum(forecasts)
     recent_counts = counts[-3:] if len(counts) >= 3 else counts
     recent_average = sum(recent_counts) / len(recent_counts) if recent_counts else 0
@@ -502,35 +721,59 @@ def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', for
         level = 'Normal'
         interpretation = f'Incoming workload is close to the recent {recent_label} baseline.'
         action = 'Maintain current declarant assignment and continue daily monitoring.'
-        confidence = 'High' if model_source == 'ARIMA forecast' and sample_total >= 24 else 'Moderate'
-    if sample_total < 10 or model_source != 'ARIMA forecast':
+        confidence = 'High' if recommended_model['mae'] is not None and sample_total >= 24 else 'Moderate'
+    if sample_total < 10 or recommended_model['mae'] is None:
         confidence = 'Low'
         if sample_total < 10:
             interpretation = f'The {history_label.lower()} volume is limited, so this forecast should be treated as an indicative estimate.'
         action = 'Use this as a directional signal and keep monitoring incoming volume.'
 
+    def forecast_series_values(model_forecasts):
+        if forecast_unit == 'month':
+            if actual_periods:
+                values = [None] * (len(actual_periods) - 1) + [counts[-1]] + model_forecasts
+            else:
+                values = model_forecasts
+        else:
+            values = [None] * (len(counts) - 1) + [counts[-1]] + model_forecasts
+        return (values + [None] * len(labels))[:len(labels)]
+
     if forecast_unit == 'month':
         labels = period_labels + future_labels
         actual_count_map = {period: count for period, count in zip(actual_periods, counts)}
         historical_values = [actual_count_map.get(period) for period in actual_periods] + [None] * forecast_periods
-        if actual_periods:
-            forecast_values = [None] * (len(actual_periods) - 1) + [counts[-1]] + forecasts
-        else:
-            forecast_values = forecasts
-        forecast_values = (forecast_values + [None] * len(labels))[:len(labels)]
     else:
         labels = period_labels + future_labels
         historical_values = counts + [None] * forecast_periods
-        forecast_values = [None] * (len(counts) - 1) + [counts[-1]] + forecasts
+    forecast_values = forecast_series_values(forecasts)
+    visible_model_rows = [
+        row for row in model_comparison
+        if row['available'] and (forecast_model == 'all' or row['key'] == forecast_model)
+    ]
+    forecast_datasets = [
+        {
+            'key': row['key'],
+            'label': row['label'],
+            'values': forecast_series_values(row['forecasts']),
+            'color': FORECAST_MODEL_COLORS.get(row['key'], '#14B8A6'),
+            'recommended': row['key'] == recommended_model['key'],
+            'selected': row['key'] == displayed_model['key'],
+        }
+        for row in visible_model_rows
+    ]
 
     return {
         'forecast_months': forecast_periods,
         'forecast_periods': forecast_periods,
         'forecast_unit': forecast_unit,
         'forecast_year': selected_year,
+        'forecast_model': forecast_model,
         'forecast_label': forecast_label,
         'history_label': history_label,
         'model_source': model_source,
+        'recommended_model': recommended_model,
+        'displayed_model': displayed_model,
+        'model_comparison': model_comparison,
         'projected_next_7_days': projected,
         'projected_period_total': projected,
         'projected_low': projected_low,
@@ -550,6 +793,7 @@ def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', for
             'historical_label': chart_history_label,
             'historical_values': historical_values,
             'forecast_values': forecast_values,
+            'forecast_datasets': forecast_datasets,
         },
     }
 
@@ -600,7 +844,7 @@ def _hs_review_rows():
     }
 
 
-def _intelligence_context(risk_filter='high', forecast_periods=1, forecast_unit='month', forecast_year=None):
+def _intelligence_context(risk_filter='high', forecast_periods=1, forecast_unit='month', forecast_year=None, forecast_model='all'):
     shipments = (
         Shipment.objects
         .select_related('consignee', 'declarant')
@@ -613,11 +857,14 @@ def _intelligence_context(risk_filter='high', forecast_periods=1, forecast_unit=
     risk_filter = risk_filter if risk_filter in {'high', 'medium', 'low', 'all'} else 'high'
     risk_rows, risk_distribution, delay_model = _risk_rows(shipments_list, risk_filter)
     hs_review = _hs_review_rows()
-    workload_forecast = _workload_forecast(shipments_list, forecast_periods, forecast_unit, forecast_year)
-    delayed_count = sum(1 for shipment in shipments_list if getattr(shipment, 'kpi_timing_status', '') == 'delayed')
-    on_time_count = sum(1 for shipment in shipments_list if getattr(shipment, 'kpi_timing_status', '') in {'on_track', 'complete'})
-    measurable = delayed_count + on_time_count
-    on_time_rate = round(on_time_count / measurable * 100, 1) if measurable else 0
+    workload_forecast = _workload_forecast(shipments_list, forecast_periods, forecast_unit, forecast_year, forecast_model)
+    delayed_count = sum(
+        1 for shipment in shipments_list
+        if shipment.status not in TERMINAL_STATUSES
+        and getattr(shipment, 'kpi_timing_status', '') == 'delayed'
+    )
+    completed_kpi = _completed_kpi_performance(shipments_list)
+    on_time_rate = completed_kpi['rate']
 
     stage_chart = {
         'labels': [row['label'] for row in stage_rows[:6]],
@@ -662,10 +909,17 @@ def _intelligence_context(risk_filter='high', forecast_periods=1, forecast_unit=
         ],
         'delay_model': delay_model,
         'workload_forecast': workload_forecast,
+        'forecast_model_options': [{'key': 'all', 'label': 'All Models'}] + [
+            {'key': model['key'], 'label': model['label']}
+            for model in FORECAST_MODELS
+        ],
         'forecast_year_options': list(range(timezone.localdate().year - 5, timezone.localdate().year + 4)),
         'hs_review': hs_review,
         'delayed_count': delayed_count,
         'on_time_rate': on_time_rate,
+        'completed_kpi_total': completed_kpi['total'],
+        'completed_kpi_on_time': completed_kpi['on_time'],
+        'completed_kpi_late': completed_kpi['late'],
         'stage_chart_json': json.dumps(stage_chart),
         'risk_chart_json': json.dumps(risk_chart),
         'hs_chart_json': json.dumps(hs_chart),
@@ -685,6 +939,7 @@ def intelligence(request):
             request.GET.get('forecast_months', 1),
             request.GET.get('forecast_unit', 'month'),
             request.GET.get('forecast_year'),
+            request.GET.get('forecast_model', 'all'),
         ),
     )
 
@@ -694,10 +949,13 @@ def _export_rows(context):
         ['Average Processing Time', f"{context['avg_total_days']} days"],
         ['Median Processing Time', f"{context['median_total_days']} days"],
         ['On-Time Rate', f"{context['on_time_rate']}%"],
+        ['Completed KPI Samples', context['completed_kpi_total']],
+        ['Completed On Time', context['completed_kpi_on_time']],
+        ['Completed Late', context['completed_kpi_late']],
         ['High Risk Shipments', context['risk_distribution']['high']],
         ['Medium Risk Shipments', context['risk_distribution']['medium']],
         ['Low Risk Shipments', context['risk_distribution']['low']],
-        ['Delayed Shipments', context['delayed_count']],
+        ['Active Delayed Shipments', context['delayed_count']],
         [f"Projected Incoming {context['workload_forecast']['forecast_label']}", context['workload_forecast']['projected_period_total']],
         ['Projected Workload Range', f"{context['workload_forecast']['projected_low']} - {context['workload_forecast']['projected_high']}"],
         ['Projected Workload Level', context['workload_forecast']['level']],
@@ -746,6 +1004,7 @@ def intelligence_export(request):
         request.GET.get('forecast_months', 1),
         request.GET.get('forecast_unit', 'month'),
         request.GET.get('forecast_year'),
+        request.GET.get('forecast_model', 'all'),
     )
     summary, stages, risks, hs_rows = _export_rows(context)
     filename_date = timezone.localtime().strftime('%Y%m%d')
