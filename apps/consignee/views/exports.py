@@ -267,7 +267,7 @@ def _ecdt_xlsx(request, shipment, computation, advisory):
     ws2.row_dimensions[r2].height = 30
     r2 += 1
     ws2.merge_cells(f'A{r2}:C{r2}')
-    xcell(ws2, r2, 1, 'MCDA — Shipping Mode Advisory',
+    xcell(ws2, r2, 1, 'MCDA — Shipping Type Advisory',
           bold=True, color=NAVY, bg=WHITE, align=al_c, size=11)
     ws2.row_dimensions[r2].height = 18
     r2 += 2
@@ -275,12 +275,12 @@ def _ecdt_xlsx(request, shipment, computation, advisory):
     if advisory:
         ws2.merge_cells(f'A{r2}:C{r2}')
         xcell(ws2, r2, 1,
-              f'Declared Mode: '
+              f'Declared Type: '
               f'{shipment.get_shipment_type_display() if shipment.shipment_type else "—"}',
               bold=True, color=NAVY, bg=LGRAY, align=al_l, size=10)
         r2 += 1
 
-        for ci, h in enumerate(['MODE', 'SCORE', 'RESULT'], start=1):
+        for ci, h in enumerate(['TYPE', 'SCORE', 'RESULT'], start=1):
             xcell(ws2, r2, ci, h, bold=True, color=WHITE, bg=NAVY,
                   align=al_c, brd=thin, size=10)
         ws2.row_dimensions[r2].height = 20
@@ -564,12 +564,12 @@ def _ecdt_pdf(request, shipment, computation, advisory):
 
     # ── MCDA ─────────────────────────────────────────────────────────────────
     if advisory:
-        story.append(Paragraph('MCDA — SHIPPING MODE ADVISORY', p_section))
+        story.append(Paragraph('MCDA — SHIPPING TYPE ADVISORY', p_section))
         story.append(Spacer(1, 1))
 
         mode_scores = _ecdt_mode_scores(advisory)
         adv_rows = [[
-            Paragraph('<b>MODE</b>',   hdr8(TA_LEFT)),
+            Paragraph('<b>TYPE</b>',   hdr8(TA_LEFT)),
             Paragraph('<b>SCORE</b>',  hdr8(TA_CENTER)),
             Paragraph('<b>RESULT</b>', hdr8(TA_CENTER)),
         ]]

@@ -373,7 +373,7 @@ body.light-mode .shipping-analysis-card [style*="height:5px"][style*="background
     color: #4B5E76 !important;
 }
 
-.compute-advisory-panel [style*="font-size:10px"][style*="Declared Mode"] {
+.compute-advisory-panel [style*="font-size:10px"][style*="Declared Type"] {
     color: #4B5E76 !important;
 }
 
@@ -2150,9 +2150,9 @@ document.body.classList.add('light-mode');
 <!-- ── MCDA Shipping Analysis ────────────────────────────────────── -->
 {% if wmcda_scores %}
 <div class="card shipping-analysis-card" style="margin-bottom:14px;">
-    <p class="card-title">Shipping Mode Analysis</p>
+    <p class="card-title">Shipping Type Analysis</p>
 
-    <!-- ── PRIMARY: Declared Mode Score & Breakdown ────────────────── -->
+    <!-- ── PRIMARY: Declared Shipment Type Score & Breakdown ────────────────── -->
     {% if shipment.shipment_type and declared_score is not None %}
     <div class="compute-advisory-panel" style="background:#0f172a; border-radius:10px; padding:14px; margin-bottom:12px;
                 border:2px solid
@@ -2164,7 +2164,7 @@ document.body.classList.add('light-mode');
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
             <span style="font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;background:#1e293b;color:#94a3b8;">{{ shipment.get_shipment_type_display|upper }}</span>
             <div style="flex:1;">
-                <p style="color:#94a3b8; font-size:10px; margin:0; text-transform:uppercase; letter-spacing:0.5px;">Declared Mode</p>
+                <p style="color:#94a3b8; font-size:10px; margin:0; text-transform:uppercase; letter-spacing:0.5px;">Declared Type</p>
                 <p style="color:#f1f5f9; font-size:15px; font-weight:700; margin:2px 0 0;">
                     {{ shipment.get_shipment_type_display }}
                 </p>
@@ -2239,7 +2239,7 @@ document.body.classList.add('light-mode');
                     padding:8px 12px; display:flex; align-items:center; gap:8px;">
             <span style="color:#22c55e; font-size:16px;">&#10003;</span>
             <p style="color:#86efac; font-size:12px; font-weight:600; margin:0;">
-                Good choice &mdash; this is the recommended mode for this shipment's profile.
+                Good choice &mdash; this is the recommended type for this shipment's profile.
             </p>
         </div>
         {% else %}
@@ -2247,7 +2247,7 @@ document.body.classList.add('light-mode');
                     padding:8px 12px; display:flex; align-items:center; gap:8px;">
             <span style="color:#fcd34d; font-size:16px;">!</span>
             <p style="color:#fde68a; font-size:12px; font-weight:600; margin:0;">
-                Not the recommended mode for this shipment. Consider
+                Not the recommended type for this shipment. Consider
                 <strong>{% if wmcda_recommended == 'air' %}Air Freight{% elif wmcda_recommended == 'lcl' %}LCL{% else %}FCL{% endif %}</strong>
                 for this shipment profile.
             </p>
@@ -2256,7 +2256,7 @@ document.body.classList.add('light-mode');
     </div>
     {% endif %}
 
-    <!-- All mode scores -->
+    <!-- All shipment type scores -->
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px;">
         {% with sa=wmcda_scores.air %}
         <div style="background:#0f172a; border-radius:8px; padding:8px 10px; text-align:center;
@@ -2301,7 +2301,7 @@ document.body.classList.add('light-mode');
                 padding:12px 14px; margin-bottom:10px;">
         <p style="color:#22c55e; font-size:11px; font-weight:700; margin:0 0 4px;
                   text-transform:uppercase; letter-spacing:0.5px;">
-             Recommended Shipping Mode
+             Recommended Shipping Type
         </p>
         <div style="display:flex; align-items:center; gap:10px;">
             <span style="font-size:22px;">
