@@ -525,7 +525,7 @@
                         {% if recommendation_score is not None %}<em>Fit score: {% widthratio recommendation_score 1 100 %}%</em>{% endif %}
                     </div>
                     <div class="compare-tile">
-                        <span>Your Declared Mode</span>
+                        <span>Your Declared Type</span>
                         <strong>{{ declared_label|default:"Not specified" }}{% if declared_score is not None %} · {% widthratio declared_score 1 100 %}%{% endif %}</strong>
                     </div>
                 </div>
