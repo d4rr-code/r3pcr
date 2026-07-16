@@ -27,7 +27,6 @@ from apps.shipments.models import Shipment, HSCode, StatusLog, TariffSchedule, H
 from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
 from apps.notifications.utils import create_notification, notify_shipment_status_change
-from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
 from ..models import SystemConfig, Announcement, IssueReport
 
 logger = logging.getLogger(__name__)

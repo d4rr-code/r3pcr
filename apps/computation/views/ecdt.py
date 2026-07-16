@@ -187,9 +187,6 @@ def get_ipf(taxable_value):
 
 def _load_currency_rates():
     """Load PHP conversion rates for all supported invoice currencies."""
-    from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
-
-    ensure_daily_exchange_rates()
     rates = {}
     for code, key in _RATE_KEYS.items():
         try:
@@ -235,9 +232,9 @@ def _store_document_ocr(doc, fields, raw_text, quality):
 def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
                  arrastre=0, wharfage=0, csf_php=0, bank_charges=0):
     """
-    items_data keys: exw_usd, freight_usd, insurance_usd, duty_rate,
+    items_data keys: exw_usd, freight_usd, insurance_usd, other_charges_usd, duty_rate,
                      description, quantity, hs_code_id, gw, nw, pkgs
-    D/V = EXW + Freight + Insurance  (no auto-3% O/C — matches client CDT tool)
+    D/V = EXW + Freight + Insurance + O/C
     Total Landed Cost excludes VAT; VAT = 12% of Total Landed Cost
     Brokerage Fee: tiered table up to ₱200,000, then +0.125% of excess
     """
@@ -250,13 +247,15 @@ def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
         exw            = Decimal(str(item['exw_usd']))
         item_freight   = Decimal(str(item.get('freight_usd',   0) or 0))
         item_insurance = Decimal(str(item.get('insurance_usd', 0) or 0))
+        item_other     = Decimal(str(item.get('other_charges_usd', 0) or 0))
         duty_rate      = Decimal(str(item.get('duty_rate',     0) or 0))
 
-        # EXW follows invoice currency; freight/insurance are always USD.
+        # EXW follows invoice currency; freight/insurance/O.C. are always USD.
         exw_php       = exw * exchange_rate
         freight_php   = item_freight * usd_exchange_rate
         insurance_php = item_insurance * usd_exchange_rate
-        dv_php        = exw_php + freight_php + insurance_php
+        other_php     = item_other * usd_exchange_rate
+        dv_php        = exw_php + freight_php + insurance_php + other_php
         dv_usd_equiv  = dv_php / usd_exchange_rate if usd_exchange_rate else Decimal('0')
         cud     = dv_php * (duty_rate / Decimal('100'))
         total_dv_php += dv_php
@@ -274,6 +273,7 @@ def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
             'exw':            float(round(exw, 2)),
             'item_freight':   float(round(item_freight, 2)),
             'item_insurance': float(round(item_insurance, 2)),
+            'item_other_charges': float(round(item_other, 2)),
             'dv_usd':         float(round(dv_usd_equiv, 2)),
             'dv_php':         float(round(dv_php, 2)),
             'cud':            float(round(cud, 2)),

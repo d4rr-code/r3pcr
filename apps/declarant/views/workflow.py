@@ -9,6 +9,7 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.utils import timezone
 from apps.shipments.models import Shipment, StatusLog
+from apps.supervisor.audit import log_audit
 from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
 from apps.shipments.status_progress import build_status_progress
 from apps.notifications.utils import create_notification, notify_shipment_status_change, send_assessed_email, send_billed_email
@@ -186,6 +187,14 @@ def claim_shipment(request, shipment_id):
             new_status='arrived',
             notes='Claimed by declarant',
         )
+        log_audit(
+            'status_update',
+            f'Declarant claimed shipment {shipment.hawb_number}.',
+            request=request,
+            shipment=shipment,
+            target=shipment,
+            details={'old_status': 'incoming', 'new_status': 'arrived'},
+        )
         notify_shipment_status_change(
             shipment=shipment,
             old_status='incoming',
@@ -237,6 +246,14 @@ def run_ocr_sync(request, shipment_id):
     threading.Thread(
         target=_ocr_scan_in_background, args=(doc_ids,), daemon=True
     ).start()
+    log_audit(
+        'ocr_run',
+        f'OCR scan started for {shipment.hawb_number}.',
+        request=request,
+        shipment=shipment,
+        target=shipment,
+        details={'document_count': len(doc_ids)},
+    )
     return JsonResponse({'started': True, 'total': len(doc_ids)})
 
 
@@ -493,7 +510,7 @@ def process_shipment(request, shipment_id):
     return render(request, 'declarant/process.html', context)
 
 
-# ─── Update Shipping Mode ─────────────────────────────────────────────────────
+# ─── Update Shipping Type ─────────────────────────────────────────────────────
 
 @login_required
 @declarant_required
@@ -503,7 +520,7 @@ def update_shipping_mode(request, shipment_id):
 
     shipment = get_object_or_404(Shipment, id=shipment_id)
 
-    # Only the assigned declarant may update the shipping mode
+    # Only the assigned declarant may update the shipping type
     if shipment.declarant != request.user:
         messages.error(request, 'You are not assigned to this shipment.')
         return redirect('declarant:queue')
@@ -512,7 +529,7 @@ def update_shipping_mode(request, shipment_id):
     if mode in ('lcl', 'fcl'):
         shipment.shipment_type = mode
         shipment.save()
-        messages.success(request, f'Shipping mode refined to "{shipment.get_shipment_type_display()}".')
+        messages.success(request, f'Shipping type refined to "{shipment.get_shipment_type_display()}".')
     else:
         messages.error(request, 'Please select LCL or FCL.')
     return redirect('declarant:process', shipment_id=shipment_id)
@@ -579,6 +596,14 @@ def proceed_to_lodgement(request, shipment_id):
         new_status='lodgement',
         notes='Declarant proceeded to BOC lodgement through eTrade.',
     )
+    log_audit(
+        'status_update',
+        f'Declarant moved {shipment.hawb_number} to lodgement.',
+        request=request,
+        shipment=shipment,
+        target=shipment,
+        details={'old_status': old_status, 'new_status': 'lodgement'},
+    )
 
     create_notification(
         recipient=shipment.consignee,
@@ -633,6 +658,14 @@ def update_status(request, shipment_id):
         old_status=old_status,
         new_status=new_status,
         notes=notes or 'Status updated by declarant',
+    )
+    log_audit(
+        'status_update',
+        f'Declarant updated {shipment.hawb_number} to {shipment.get_status_display()}.',
+        request=request,
+        shipment=shipment,
+        target=shipment,
+        details={'old_status': old_status, 'new_status': new_status, 'notes': notes},
     )
 
     create_notification(

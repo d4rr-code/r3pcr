@@ -22,7 +22,7 @@ from apps.shipments.models import HSCode, Shipment, ShipmentHSCode, StatusLog
 from apps.computation.models import DutyComputation, ShipmentLineItem, ShippingAdvisory
 from apps.computation.wmcda import calculate_ahp_weights
 from apps.consignee.models import Feedback
-from apps.supervisor.models import SystemConfig
+from apps.supervisor.models import AuditLog, SystemConfig
 
 
 class SupervisorShipmentTrackingDisplayTests(TestCase):
@@ -117,6 +117,28 @@ class SupervisorShipmentTrackingDisplayTests(TestCase):
         self.assertContains(response, 'TGHU1234567')
 
 
+class SupervisorAuditTrailTests(TestCase):
+    def setUp(self):
+        self.supervisor = User.objects.create_user(
+            username='sup_audit', password='x', role='supervisor',
+            email='sup_audit@test.local', is_pending_approval=False,
+        )
+        self.client.force_login(self.supervisor)
+
+    def test_report_download_is_logged_and_visible(self):
+        response = self.client.get(reverse('supervisor:analytics_export'), {'format': 'xlsx'})
+
+        self.assertEqual(response.status_code, 200)
+        log = AuditLog.objects.get(action='report_download')
+        self.assertEqual(log.user, self.supervisor)
+        self.assertIn('analytics report', log.summary)
+
+        page = self.client.get(reverse('supervisor:audit_trail'), {'action': 'report_download'})
+        self.assertContains(page, 'Report Downloaded')
+        self.assertContains(page, 'sup_audit')
+        self.assertContains(page, 'analytics report')
+
+
 class SupervisorIntelligenceTests(TestCase):
     def setUp(self):
         self.supervisor = User.objects.create_user(
@@ -186,7 +208,7 @@ class SupervisorIntelligenceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'supervisor/intelligence.html')
-        self.assertContains(response, 'Pre-Clearance Intelligence')
+        self.assertContains(response, 'Clearance Intelligence')
         self.assertTrue(response.context['stage_rows'])
         self.assertNotIn('computed', {row['status'] for row in response.context['stage_rows']})
         self.assertGreaterEqual(response.context['risk_distribution']['high'], 1)
@@ -658,6 +680,15 @@ class AnalyticsExportTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn('spreadsheet', resp['Content-Type'])
         self.assertGreater(len(resp.content), 0)
+        from io import BytesIO
+        from openpyxl import load_workbook
+
+        wb = load_workbook(BytesIO(resp.content), read_only=True)
+        self.assertIn('Incoming Workload Forecast', wb.sheetnames)
+        self.assertIn('Forecast Periods', wb.sheetnames)
+        self.assertIn('Forecast Model Comparison', wb.sheetnames)
+        summary_values = [row[0] for row in wb['Summary'].iter_rows(values_only=True) if row and row[0]]
+        self.assertIn('Projected Incoming Workload', summary_values)
 
     def test_export_requires_supervisor(self):
         self.client.logout()

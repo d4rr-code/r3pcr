@@ -21,7 +21,6 @@ urlpatterns = [
     path('config/',                              views.config_home,              name='config'),
     path('config/home/',                         views.config_home,              name='config_home'),
     path('config/global/',                       views.config_global,            name='config_global'),
-    path('config/global/fetch-rates/',           views.fetch_exchange_rates,     name='fetch_exchange_rates'),
     path('config/fees/',                         views.config_fees,              name='config_fees'),
     path('config/wmcda/',                        views.config_wmcda,             name='config_wmcda'),
     path('config/hscodes/',                      views.config_hscodes_sections,  name='config_hscodes_sections'),
@@ -42,6 +41,7 @@ urlpatterns = [
     path('feedbacks/reject/<int:feedback_id>/',  views.reject_feedback,          name='reject_feedback'),
     path('issue-reports/',                       views.issue_reports,            name='issue_reports'),
     path('issue-reports/<int:report_id>/update/', views.update_issue_report,      name='update_issue_report'),
+    path('audit-trail/',                         views.audit_trail,              name='audit_trail'),
 
     # Shipment Records & Client Lists
     path('shipments/',           views.shipment_records, name='shipment_records'),

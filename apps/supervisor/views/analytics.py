@@ -9,6 +9,7 @@ from apps.accounts.models import User
 from apps.shipments.models import Shipment, StatusLog
 from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
+from apps.supervisor.audit import log_audit
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +147,43 @@ def _analytics_report_data(request):
             s.submitted_at.strftime('%Y-%m-%d'),
         ])
 
+    from .intelligence import _workload_forecast
+    workload_forecast = _workload_forecast(
+        list(qs),
+        forecast_periods=3,
+        forecast_unit='month',
+        forecast_year=timezone.localdate().year,
+        forecast_model='all',
+    )
+    forecast_summary_rows = [
+        ['Forecast Period', workload_forecast['forecast_label']],
+        ['Projected Incoming Workload', workload_forecast['projected_period_total']],
+        ['Expected Range', f"{workload_forecast['projected_low']} - {workload_forecast['projected_high']}"],
+        ['Workload Level', workload_forecast['level']],
+        ['Confidence', workload_forecast['confidence']],
+        ['Recommended Model', workload_forecast['recommended_model']['label']],
+        ['Displayed Model', workload_forecast['displayed_model']['label']],
+        ['Trend vs Previous Period', f"{workload_forecast['trend_pct']}%"],
+        ['Active Backlog', workload_forecast['active_backlog']],
+        ['Interpretation', workload_forecast['interpretation']],
+        ['Recommended Action', workload_forecast['action']],
+    ]
+    forecast_period_rows = [
+        [row['label'], row['date_range'], row['count']]
+        for row in workload_forecast['period_rows']
+    ]
+    forecast_model_rows = [
+        [row['label'], row['total'], row['mae_label'], row['status']]
+        for row in workload_forecast['model_comparison']
+    ]
+
+    report_notes = [
+        ['Decision Support Scope', 'Analytics summarize operational records and support supervisor planning; they do not replace customs-broker judgment.'],
+        ['Exchange Rates', 'Duties and landed-cost figures use the manually maintained rates saved by supervisors.'],
+        ['Shipping Type Advisory', 'MCDA results compare Air Freight, LCL, and FCL as advisory outputs.'],
+        ['Forecast Limitation', 'Incoming workload forecasts are planning estimates based on available shipment history, not guaranteed future volume.'],
+    ]
+
     return {
         'generated_at': timezone.localtime().strftime('%Y-%m-%d %H:%M'),
         'filters': {
@@ -162,16 +200,22 @@ def _analytics_report_data(request):
             ['Feedback Count', feedback_total],
             ['Average Feedback Rating', round(float(feedback_avg or 0), 1)],
             ['Positive Feedback %', f'{round(feedback_positive / feedback_total * 100, 1) if feedback_total else 0}%'],
+            ['Projected Incoming Workload', workload_forecast['projected_period_total']],
+            ['Forecast Confidence', workload_forecast['confidence']],
         ],
         'tables': [
+            ('Report Notes', ['Area', 'Note'], report_notes),
+            ('Incoming Workload Forecast', ['Metric', 'Value'], forecast_summary_rows),
+            ('Forecast Periods', ['Period', 'Type', 'Incoming'], forecast_period_rows),
+            ('Forecast Model Comparison', ['Model', 'Forecast Total', 'Backtest Error', 'Status'], forecast_model_rows),
             ('Status Pipeline', ['Status', 'Count', 'Share'], status_rows),
             ('Shipment Types', ['Type', 'Count', 'Share'], type_rows),
             ('Urgency Distribution', ['Urgency', 'Count', 'Share'], urgency_rows),
-            ('MCDA Recommendations', ['Mode', 'Recommended Count', 'Share', 'Average Score'], wmcda_rows),
+            ('MCDA Recommendations', ['Shipping Type', 'Recommended Count', 'Share', 'Average Score'], wmcda_rows),
             ('Currency Usage', ['Currency', 'Count', 'Share'], currency_rows),
-            ('Landed Cost By Mode', ['Mode', 'Computations', 'Average PHP', 'Total PHP', 'Min PHP', 'Max PHP'], cost_rows),
+            ('Landed Cost By Shipping Type', ['Shipping Type', 'Computations', 'Average PHP', 'Total PHP', 'Min PHP', 'Max PHP'], cost_rows),
             ('Declarant Performance', ['Declarant', 'Assigned', 'Computed+', 'Billed', 'Revision/Rejected', 'Completion %'], declarant_rows),
-            ('Recent Shipments', ['HAWB', 'Consignee', 'Mode', 'Status', 'Urgency', 'Submitted'], recent_rows),
+            ('Recent Shipments', ['HAWB', 'Consignee', 'Shipping Type', 'Status', 'Urgency', 'Submitted'], recent_rows),
         ],
     }
 
@@ -200,6 +244,12 @@ def analytics_export(request):
     fmt = (request.GET.get('format') or 'xlsx').lower()
     data = _analytics_report_data(request)
     filename_date = timezone.localtime().strftime('%Y%m%d')
+    log_audit(
+        'report_download',
+        f'Supervisor downloaded analytics report ({fmt}).',
+        request=request,
+        details={'format': fmt, 'filters': data['filters']},
+    )
 
     if fmt == 'pdf':
         from io import BytesIO
@@ -468,7 +518,7 @@ def _analytics_context_response(request):
     currency_chart_data   = _cur['currency_chart_data']
     currency_chart_colors = _cur['currency_chart_colors']
 
-    # Cost comparison by shipment type — avg/total landed cost per mode
+    # Cost comparison by shipment type — avg/total landed cost per shipping type
     _cost = _cost_by_type(date_from, date_to, declarant_filter)
     cost_by_type    = _cost['cost_by_type']
     cost_bar_labels = _cost['cost_bar_labels']

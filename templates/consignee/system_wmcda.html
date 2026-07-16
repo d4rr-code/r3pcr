@@ -37,7 +37,7 @@
 
     <p>
 
-        Scoring weights used to recommend shipping mode (FCL/LCL/Air)
+        Scoring weights used to recommend shipping type (FCL/LCL/Air)
         {% if wmcda_method == 'saaty_ahp' %}
             - derived through Saaty AHP{% if wmcda_consistency_ratio %} (CR {{ wmcda_consistency_ratio }}){% endif %}
         {% else %}
@@ -98,19 +98,19 @@
 
         <li>
 
-            <strong>Cost</strong> — Weighs total landed cost (freight + duties + fees); higher weight favors the most cost-efficient shipping mode
+            <strong>Cost</strong> — Weighs total landed cost (freight + duties + fees); higher weight favors the most cost-efficient shipping type
 
         </li>
 
         <li>
 
-            <strong>Time</strong> — Weighs urgency level (Rush/Urgent/Normal); higher weight favors faster modes like Air
+            <strong>Time</strong> — Weighs urgency level (Rush/Urgent/Normal); higher weight favors faster shipping types like Air
 
         </li>
 
         <li>
 
-            <strong>Weight</strong> — Weighs gross cargo weight; higher weight prioritizes modes suited for heavier shipments such as FCL
+            <strong>Weight</strong> — Weighs gross cargo weight; higher weight prioritizes shipping types suited for heavier shipments such as FCL
 
         </li>
 

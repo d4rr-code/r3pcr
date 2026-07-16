@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from apps.shipments.models import Shipment
 from apps.supervisor.models import SystemConfig
+from apps.supervisor.audit import log_audit
 from ..models import ShippingAdvisory
 from ..wmcda import load_wmcda_weights, wmcda_weight_rows
 
@@ -215,6 +216,19 @@ def shipping_advisory(request, shipment_id):
                     'computed_by':      request.user,
                 }
             )
+            log_audit(
+                'advisory_generate',
+                f'Shipping Type Advisory generated for {shipment.hawb_number}.',
+                request=request,
+                shipment=shipment,
+                target=shipment,
+                details={
+                    'recommended_type': recommended,
+                    'lcl_score': scores['lcl'],
+                    'fcl_score': scores['fcl'],
+                    'air_score': scores['air'],
+                },
+            )
             result = recommended
             messages.success(request, f'Recommendation: {recommended.upper()}')
 
@@ -314,6 +328,14 @@ def save_declarant_advisory(request, shipment_id):
     advisory.declarant_recommendation = recommendation or None
     advisory.declarant_note = note or None
     advisory.save(update_fields=['declarant_recommendation', 'declarant_note'])
+    log_audit(
+        'advisory_update',
+        f'Declarant advisory updated for {shipment.hawb_number}.',
+        request=request,
+        shipment=shipment,
+        target=advisory,
+        details={'declarant_recommendation': recommendation or None, 'has_note': bool(note)},
+    )
 
     if recommendation:
         label_map = {'air': 'Air Freight', 'lcl': 'LCL', 'fcl': 'FCL'}

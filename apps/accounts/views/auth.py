@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.core.cache import cache
 from django.conf import settings
+from apps.supervisor.audit import log_audit
 from ..models import User, OTP
 from .common import logger, _send_mail_async, redirect_by_role
 
@@ -56,6 +57,7 @@ def login_view(request):
             # ── OTP bypass: log in directly if otp_enabled is False ──
             if not user.otp_enabled:
                 login(request, user)
+                log_audit('login', 'User logged in without OTP.', request=request, user=user)
                 messages.success(request, f'Welcome, {user.first_name or user.username}!')
                 return redirect_by_role(user)
 
@@ -131,6 +133,7 @@ def verify_otp_view(request):
                 otp.is_used = True
                 otp.save()
                 login(request, user)
+                log_audit('login', 'User completed OTP login.', request=request, user=user)
                 request.session.pop('pre_auth_user_id', None)
                 request.session.pop('otp_attempts', None)
                 messages.success(request, f'Welcome, {user.first_name or user.username}!')
@@ -193,6 +196,9 @@ def resend_otp(request):
 
 
 def logout_view(request):
+    user = request.user if request.user.is_authenticated else None
+    if user:
+        log_audit('logout', 'User logged out.', request=request, user=user)
     logout(request)
     messages.success(request, 'You have been logged out.')
     return redirect('accounts:login')

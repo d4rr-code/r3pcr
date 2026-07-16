@@ -33,37 +33,10 @@
                     1 foreign currency to PHP &nbsp;-&nbsp; Used in all duty computations
                 </p>
             </div>
-            <button type="button" id="btn-fetch-rates"
-                    style="background:#EFF6FF; color:#1D4ED8;
-                           border:1px solid #BFDBFE; border-radius:6px;
-                           padding:8px 16px; font-size:12px; font-weight:600;
-                           cursor:pointer; display:flex; align-items:center; gap:6px;
-                           white-space:nowrap;">
-                    <svg id="fetch-icon" width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.1A7 7 0 0117 10a1 1 0 11-2 0 5 5 0 00-8.54-3.54L8 8H3a1 1 0 01-1-1V3a1 1 0 012 0v-.99zm11 15v-2.1A7 7 0 013 10a1 1 0 112 0 5 5 0 008.54 3.54L12 12h5a1 1 0 011 1v4a1 1 0 11-2 0v.01A1 1 0 0115 17z" clip-rule="evenodd"/>
-                    </svg>
-                    Refresh Now
-            </button>
         </div>
         <p style="color:#9CA3AF; font-size:11px; margin:0 0 20px;">
-            Rates are checked automatically once per day from live exchange-rate sources and are used by ECDT and user system reference pages.
-            {% if config_meta.exchange_rates_source %}
-                Source: {{ config_meta.exchange_rates_source.value }}.
-            {% endif %}
-            {% if config_meta.exchange_rates_last_success %}
-                Last live update: {{ config_meta.exchange_rates_last_success.updated_at|date:"M d, Y H:i" }}.
-            {% endif %}
-            Manual override is still available below when needed.
+            Exchange rates are maintained manually by supervisors and are used by ECDT and user system reference pages.
         </p>
-        {% if config_meta.exchange_rates_last_error %}
-        <div style="margin-bottom:12px; font-size:12px; padding:8px 12px; border-radius:6px;
-                    background:#FEF2F2; color:#991B1B; border:1px solid #FCA5A5;">
-            Latest live-rate attempt failed. Using the most recent saved rates.
-        </div>
-        {% endif %}
-
-        <div id="fetch-status" style="display:none; margin-bottom:12px;
-             font-size:12px; padding:8px 12px; border-radius:6px;"></div>
 
         <!-- Currency rows — 2-column grid -->
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
@@ -205,60 +178,5 @@
         </a>
     </div>
 </form>
-
-<script>
-document.getElementById('btn-fetch-rates').addEventListener('click', function () {
-    var btn    = this;
-    var status = document.getElementById('fetch-status');
-
-    btn.disabled    = true;
-    btn.style.opacity = '0.6';
-    status.style.display = 'none';
-
-    fetch('{% url "supervisor:fetch_exchange_rates" %}', {
-        method : 'POST',
-        headers: {
-            'X-CSRFToken'  : '{{ csrf_token }}',
-            'Content-Type' : 'application/json',
-        },
-    })
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-        if (data.ok) {
-            var rates = data.rates;
-            ['USD','EUR','JPY','HKD','CNY','GBP','SGD'].forEach(function (code) {
-                var el = document.getElementById('input-' + code);
-                if (el && rates[code] !== undefined) el.value = rates[code];
-            });
-            btn.style.color     = '#22c55e';
-            status.style.display   = 'block';
-            status.style.background = '#ECFDF5';
-            status.style.color      = '#047857';
-            status.style.border     = '1px solid #86EFAC';
-            status.textContent = 'Live rates refreshed and saved. The values below are now reflected across the system.';
-        } else {
-            status.style.display   = 'block';
-            status.style.background = '#FEF2F2';
-            status.style.color      = '#991B1B';
-            status.style.border     = '1px solid #FCA5A5';
-            status.textContent = 'Failed to fetch rates: ' + (data.error || 'unknown error');
-        }
-    })
-    .catch(function (e) {
-        status.style.display   = 'block';
-        status.style.background = '#FEF2F2';
-        status.style.color      = '#991B1B';
-        status.style.border     = '1px solid #FCA5A5';
-        status.textContent = 'Network error: ' + e;
-    })
-    .finally(function () {
-        btn.disabled      = false;
-        btn.style.opacity = '1';
-        setTimeout(function () {
-            btn.style.color  = '';
-        }, 4000);
-    });
-});
-</script>
 
 {% endblock %}

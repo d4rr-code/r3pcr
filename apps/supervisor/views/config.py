@@ -12,7 +12,7 @@ from django.core.files.storage import default_storage
 from django.utils import timezone
 from django.utils.text import slugify
 from apps.shipments.models import HSCode, TariffSchedule, HSCodeRate
-from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
+from apps.supervisor.audit import log_audit
 from apps.computation.wmcda import (
     WMCDA_WEIGHT_KEYS, WMCDA_METHOD_KEYS, calculate_ahp_weights, pairwise_pairs,
     serialize_ahp_matrix, wmcda_weight_rows,
@@ -109,27 +109,21 @@ def _load_tiers(key, defaults):
 
 
 def config_global(request):
-    if request.method != 'POST':
-        ensure_daily_exchange_rates(user=None)
-
     config   = _get_config()
     urgency_keys = ['urgency_days_standard', 'urgency_days_priority', 'urgency_days_urgent', 'urgency_days_rush']
-    rate_status_keys = [
-        'exchange_rates_last_success',
-        'exchange_rates_last_attempt',
-        'exchange_rates_last_error',
-        'exchange_rates_source',
-    ]
+    rate_status_keys = ['exchange_rates_manual_note']
     all_keys = _CURRENCY_KEYS + ['exchange_rate', 'vat_rate'] + urgency_keys + rate_status_keys
     meta     = _config_meta(all_keys)
 
     if request.method == 'POST':
+        changed_rate_keys = []
         for key in _CURRENCY_KEYS + ['vat_rate']:
             val = request.POST.get(key, '').strip()
             if val:
                 SystemConfig.objects.update_or_create(
                     key=key, defaults={'value': val, 'updated_by': request.user}
                 )
+                changed_rate_keys.append(key)
         # Keep legacy exchange_rate in sync with rate_USD
         usd_val = request.POST.get('rate_USD', '').strip()
         if usd_val:
@@ -155,6 +149,12 @@ def config_global(request):
             SystemConfig.objects.update_or_create(
                 key=key, defaults={'value': str(days), 'updated_by': request.user}
             )
+        log_audit(
+            'exchange_rate_update',
+            'Supervisor updated global rates and parameters.',
+            request=request,
+            details={'updated_rate_keys': changed_rate_keys, 'urgency_keys': urgency_keys},
+        )
         messages.success(request, 'Global parameters saved.')
         return redirect('supervisor:config_global')
 
@@ -220,6 +220,12 @@ def config_fees(request):
                 key='ipf_tiers',
                 defaults={'value': json.dumps(ipf_tiers), 'updated_by': request.user}
             )
+        log_audit(
+            'config_update',
+            'Supervisor updated fee schedules.',
+            request=request,
+            details={'brokerage_fee_changed': bf_changed, 'ipf_changed': ipf_changed},
+        )
         messages.success(request, 'Fee schedules saved.')
         return redirect('supervisor:config_fees')
 
@@ -245,22 +251,6 @@ def config_fees(request):
 
     return render(request, 'supervisor/config_fees.html', {
         'bf_rows': bf_rows, 'ipf_rows': ipf_rows,
-    })
-
-
-@login_required
-@supervisor_required
-def fetch_exchange_rates(request):
-    """Force-refresh live PHP-based rates and save to SystemConfig."""
-    from django.http import JsonResponse
-
-    result = ensure_daily_exchange_rates(user=request.user, force=True)
-    if result.get('error'):
-        return JsonResponse({'ok': False, 'error': result['error']}, status=500)
-    return JsonResponse({
-        'ok': True,
-        'rates': result.get('rates', {}),
-        'source': result.get('source', ''),
     })
 
 
@@ -299,6 +289,16 @@ def config_wmcda(request):
                 messages.success(request, 'Saaty AHP weights saved. Consistency ratio is acceptable.')
             else:
                 messages.warning(request, 'Saaty AHP weights saved, but the consistency ratio is above 0.10. Review the judgments if this is for formal reporting.')
+            log_audit(
+                'wmcda_update',
+                'Supervisor updated MCDA weights using Saaty AHP.',
+                request=request,
+                details={
+                    'method': 'saaty_ahp',
+                    'weights': ahp_result['weights_pct'],
+                    'consistency_ratio': round(ahp_result['consistency_ratio'], 4),
+                },
+            )
         else:
             posted = {}
             for key in WMCDA_WEIGHT_KEYS:
@@ -318,6 +318,12 @@ def config_wmcda(request):
             SystemConfig.objects.update_or_create(
                 key='wmcda_weight_method',
                 defaults={'value': 'manual', 'updated_by': request.user},
+            )
+            log_audit(
+                'wmcda_update',
+                'Supervisor updated manual MCDA weights.',
+                request=request,
+                details={'method': 'manual', 'weights': posted},
             )
             messages.success(request, 'Manual MCDA weights saved.')
         return redirect('supervisor:config_wmcda')
@@ -635,6 +641,18 @@ def upload_tariff_schedule(request):
                 batch_size=1000,
             )
             HSCodeRate.objects.bulk_create(rates, batch_size=1000)
+            log_audit(
+                'tariff_update',
+                f'Supervisor imported tariff schedule "{schedule.name}".',
+                request=request,
+                target=schedule,
+                details={
+                    'schedule_id': schedule.id,
+                    'valid_rows': parsed['stats']['valid_rows'],
+                    'rate_column': parsed['rate_column'],
+                    'make_active': make_active,
+                },
+            )
 
             request.session.pop('pending_tariff_import', None)
             if default_storage.exists(pending['path']):

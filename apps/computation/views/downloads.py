@@ -96,7 +96,7 @@ def _download_excel_report(shipment, computation):
         ('Consignee', consignee),
         ('Declarant', declarant),
         ('Date', computation.computed_at.strftime('%Y-%m-%d') if computation.computed_at else ''),
-        ('Shipment Mode', computation.container_type or shipment.shipment_type or ''),
+        ('Shipping Type', computation.container_type or shipment.shipment_type or ''),
         ('Container No.', shipment.container_number or ''),
         ('Job Number', shipment.job_order_reference or ''),
         ('Import Type', shipment.get_import_type_display()),
@@ -182,7 +182,7 @@ def _download_pdf_report(request, shipment, computation):
     details = [
         ['HAWB / BOL', shipment.hawb_number, 'Consignee', consignee],
         ['Declarant', declarant, 'Date', computation.computed_at.strftime('%Y-%m-%d') if computation.computed_at else ''],
-        ['Shipment Mode', computation.container_type or shipment.shipment_type or '', 'Import Currency', shipment.invoice_currency or 'USD'],
+        ['Shipping Type', computation.container_type or shipment.shipment_type or '', 'Import Currency', shipment.invoice_currency or 'USD'],
         ['Container No.', shipment.container_number or '', 'Job Number', shipment.job_order_reference or ''],
         ['Exchange Rate (to PHP)', f'{_num(computation.exchange_rate):,.4f}', '', ''],
     ]

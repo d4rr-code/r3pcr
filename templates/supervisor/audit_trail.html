@@ -1,0 +1,97 @@
+{% extends 'supervisor/base_supervisor.html' %}
+{% block title %}Audit Trail{% endblock %}
+{% block page_title %}Audit Trail{% endblock %}
+{% block nav_audit_trail %}active{% endblock %}
+{% block content %}
+
+<div class="card" style="padding:20px; margin-bottom:18px;">
+    <form method="GET" style="display:grid; grid-template-columns:repeat(5, minmax(140px, 1fr)) auto; gap:12px; align-items:end;">
+        <div>
+            <label class="form-label" style="font-size:11px;">Action</label>
+            <select name="action" class="form-input" style="font-size:12px;">
+                <option value="">All actions</option>
+                {% for key, label in action_choices %}
+                <option value="{{ key }}" {% if active_action == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label" style="font-size:11px;">User</label>
+            <input type="text" name="user" value="{{ active_user }}" class="form-input" placeholder="username" style="font-size:12px;">
+        </div>
+        <div>
+            <label class="form-label" style="font-size:11px;">Shipment</label>
+            <input type="text" name="shipment" value="{{ active_shipment }}" class="form-input" placeholder="HAWB" style="font-size:12px;">
+        </div>
+        <div>
+            <label class="form-label" style="font-size:11px;">From</label>
+            <input type="date" name="date_from" value="{{ active_date_from }}" class="form-input" style="font-size:12px;">
+        </div>
+        <div>
+            <label class="form-label" style="font-size:11px;">To</label>
+            <input type="date" name="date_to" value="{{ active_date_to }}" class="form-input" style="font-size:12px;">
+        </div>
+        <button type="submit" class="btn btn-primary" style="height:38px;">Filter</button>
+    </form>
+</div>
+
+<div class="card" style="padding:0; overflow:hidden;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 18px; border-bottom:1px solid #E5E7EB;">
+        <div>
+            <p class="card-title" style="margin:0;">System Audit Logs</p>
+            <p style="margin:4px 0 0; color:#64748B; font-size:12px;">{{ total_logs }} record{{ total_logs|pluralize }} found</p>
+        </div>
+    </div>
+    <div class="table-container" style="box-shadow:none; border:0; border-radius:0;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date/Time</th>
+                    <th>Action</th>
+                    <th>User</th>
+                    <th>Shipment</th>
+                    <th>Summary</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td style="white-space:nowrap;">{{ log.created_at|date:"M d, Y H:i" }}</td>
+                    <td>{{ log.get_action_display }}</td>
+                    <td>
+                        {% if log.user %}
+                            <strong>{{ log.user.username }}</strong><br>
+                            <span style="color:#64748B; font-size:11px;">{{ log.user_role|default:"-" }}</span>
+                        {% else %}
+                            System
+                        {% endif %}
+                    </td>
+                    <td>{% if log.shipment %}{{ log.shipment.hawb_number }}{% else %}-{% endif %}</td>
+                    <td>{{ log.display_summary }}</td>
+                    <td style="max-width:280px; color:#64748B; font-size:11px; word-break:break-word;">
+                        {% if log.details %}{{ log.details }}{% else %}-{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align:center; color:#64748B; padding:28px;">No audit logs found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if logs.has_other_pages %}
+    <div style="display:flex; justify-content:flex-end; gap:8px; padding:14px 18px; border-top:1px solid #E5E7EB;">
+        {% if logs.has_previous %}
+        <a class="btn btn-secondary" href="?page={{ logs.previous_page_number }}&action={{ active_action }}&user={{ active_user }}&shipment={{ active_shipment }}&date_from={{ active_date_from }}&date_to={{ active_date_to }}">Previous</a>
+        {% endif %}
+        <span style="align-self:center; color:#64748B; font-size:12px;">Page {{ logs.number }} of {{ logs.paginator.num_pages }}</span>
+        {% if logs.has_next %}
+        <a class="btn btn-secondary" href="?page={{ logs.next_page_number }}&action={{ active_action }}&user={{ active_user }}&shipment={{ active_shipment }}&date_from={{ active_date_from }}&date_to={{ active_date_to }}">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

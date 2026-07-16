@@ -47,7 +47,7 @@
 <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
     <div>
         <h2 style="color:#f1f5f9; font-size:18px; margin:0;">{{ shipment.hawb_number }}</h2>
-        <p style="color:#64748b; font-size:13px; margin:4px 0 0;">MCDA Shipping Mode Recommendation</p>
+        <p style="color:#64748b; font-size:13px; margin:4px 0 0;">MCDA Shipping Type Recommendation</p>
     </div>
     <a href="{% url 'declarant:process' shipment.id %}"
        class="btn btn-secondary" style="margin-left:auto; font-size:12px;">
@@ -185,7 +185,7 @@
             </span>
             <div>
                 <p style="color:#6B7280; font-size:12px; margin:0 0 4px;
-                           text-transform:uppercase; letter-spacing:.08em; font-weight:600;">Recommended Mode</p>
+                           text-transform:uppercase; letter-spacing:.08em; font-weight:600;">Recommended Shipping Type</p>
                 <p style="color:#111827; font-size:24px; font-weight:700; margin:0;">
                     {% if result == 'lcl' %}LCL — Less Container Load
                     {% elif result == 'fcl' %}FCL — Full Container Load
@@ -438,7 +438,7 @@
             <p class="card-title" style="margin-bottom:4px;">Your Advisory to Consignee</p>
             <p style="color:#64748b; font-size:12px; margin-bottom:18px;">
                 MCDA recommends <strong style="color:#f1f5f9;">{{ existing.recommended_type|upper }}</strong>.
-                You may confirm this or pick a different mode based on your judgment.
+                You may confirm this or pick a different shipping type based on your judgment.
             </p>
 
             {% if existing.declarant_recommendation %}

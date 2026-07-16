@@ -1326,9 +1326,9 @@ document.body.classList.add('light-mode');
 <div class="card" style="margin-bottom:12px;">
     <p class="card-title" style="margin-bottom:8px;">Parameters</p>
     <div style="display:grid; grid-template-columns:1fr 2fr; gap:10px; margin-bottom:10px;">
-        <!-- Shipment Mode -->
+        <!-- Shipping Type -->
         <div>
-            <label class="form-label" style="font-size:11px;">Shipment Mode</label>
+            <label class="form-label" style="font-size:11px;">Shipping Type</label>
             <select name="charge_mode" id="charge_mode" class="form-input"
                     style="padding:6px 8px; font-size:12px;" onchange="onChargeModeChange(this.value)">
                 <option value="lcl"
@@ -1382,6 +1382,15 @@ document.body.classList.add('light-mode');
             <input type="number" name="total_insurance" id="total_insurance" class="form-input"
                    style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
                    value="{{ prefill_insurance|default:'0' }}" oninput="distributeFreight()">
+        </div>
+        <div>
+            <label class="form-label" style="font-size:11px;">
+                Total O/C (USD)
+                <span style="color:#334155; font-weight:400; font-size:10px;"> &mdash; auto-distribute</span>
+            </label>
+            <input type="number" name="total_other_charges" id="total_other_charges" class="form-input"
+                   style="padding:6px 8px; font-size:12px;" step="0.01" placeholder="0.00"
+                   value="{{ prefill_other_charges|default:'0' }}" oninput="distributeFreight()">
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">Bank Charges (PHP)</label>
@@ -1636,6 +1645,7 @@ document.body.classList.add('light-mode');
                 <col style="width:86px">  <!-- EXW/FOB invoice currency -->
                 <col style="width:76px">  <!-- Freight USD (input) -->
                 <col style="width:76px">  <!-- Insurance USD (input) -->
+                <col style="width:76px">  <!-- O/C USD (input) -->
                 <col style="width:86px">  <!-- D/V USD equivalent (calc) -->
                 <col style="width:92px">  <!-- D/V &#8369; (calc) -->
                 <col style="width:130px"> <!-- HS Code -->
@@ -1655,6 +1665,7 @@ document.body.classList.add('light-mode');
                     <th title="Ex Works / Free on Board value">EXW/FOB&#10;(<span class="cur-code-lbl">{{ invoice_currency }}</span>)</th>
                     <th>Freight&#10;(USD)</th>
                     <th>Ins.&#10;(USD)</th>
+                    <th title="Other Charges included in dutiable value">O/C&#10;(USD)</th>
                     <th title="Dutiable Value in USD equivalent">D/V&#10;(USD equiv.)</th>
                     <th title="Dutiable Value in Philippine Peso">D/V&#10;(&#8369;)</th>
                     <th style="text-align:left;">HS Code</th>
@@ -1699,6 +1710,11 @@ document.body.classList.add('light-mode');
                     <td>
                         <input class="ecdt-input freight-input" type="number" name="item_insurance[]"
                                step="0.01" value="{{ item.item_insurance|default:'' }}" placeholder="0.00"
+                               oninput="recalcAll()">
+                    </td>
+                    <td>
+                        <input class="ecdt-input freight-input" type="number" name="item_other_charges[]"
+                               step="0.01" value="{{ item.item_other_charges|default:'' }}" placeholder="0.00"
                                oninput="recalcAll()">
                     </td>
                     <td class="calc" data-field="dvusd">{% if item.dv_usd %}{{ item.dv_usd|floatformat:2 }}{% else %}&mdash;{% endif %}</td>
@@ -1755,6 +1771,7 @@ document.body.classList.add('light-mode');
                     <td><input class="ecdt-input exw-input" type="number" name="exw_value[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
                     <td><input class="ecdt-input freight-input" type="number" name="item_freight[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
                     <td><input class="ecdt-input freight-input" type="number" name="item_insurance[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
+                    <td><input class="ecdt-input freight-input" type="number" name="item_other_charges[]" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
                     <td class="calc" data-field="dvusd">&mdash;</td>
                     <td class="calc dvphp" data-field="dvphp">&mdash;</td>
                     <td>
@@ -2632,7 +2649,7 @@ function _createHsPicker() {
 }
 
 // ── Build a new table row ─────────────────────────────────────────────────────
-// Col order: #, Desc, EXW, Freight USD, Ins USD, D/V USD equiv., D/V&#8369;, HS, Rate%, CUD&#8369;, GW, NW, QTY, Unit, PKGS, del
+// Col order: #, Desc, EXW, Freight USD, Ins USD, O/C USD, D/V USD equiv., D/V&#8369;, HS, Rate%, CUD&#8369;, GW, NW, QTY, Unit, PKGS, del
 function _makeRow(n, desc, exw, qty) {
     var tr = document.createElement('tr');
     tr.innerHTML =
@@ -2649,6 +2666,8 @@ function _makeRow(n, desc, exw, qty) {
         '<td><input class="ecdt-input freight-input" type="number" name="item_freight[]" ' +
              'step="0.01" placeholder="0.00" oninput="recalcAll()"></td>' +
         '<td><input class="ecdt-input freight-input" type="number" name="item_insurance[]" ' +
+             'step="0.01" placeholder="0.00" oninput="recalcAll()"></td>' +
+        '<td><input class="ecdt-input freight-input" type="number" name="item_other_charges[]" ' +
              'step="0.01" placeholder="0.00" oninput="recalcAll()"></td>' +
         '<td class="calc" data-field="dvusd">&mdash;</td>' +
         '<td class="calc dvphp" data-field="dvphp">&mdash;</td>' +
@@ -2761,7 +2780,7 @@ function syncGrossWeightFromRows(force) {
 }
 
 // ── Live recalculation ────────────────────────────────────────────────────────
-// EXW uses invoice currency; freight/insurance use USD.
+// EXW uses invoice currency; freight/insurance/O.C. use USD.
 // TLC = D/V + Bank Charges + CUD + BF + CDS + IPF + Arrastre + Wharfage + CSF
 // VAT = 12% * TLC
 // BOC Total = CUD + VAT + CDS + IPF
@@ -2831,17 +2850,20 @@ function recalcAll() {
         var exwInp  = row.querySelector('.exw-input');
         var frInp   = row.querySelector('[name="item_freight[]"]');
         var insInp  = row.querySelector('[name="item_insurance[]"]');
+        var ocInp   = row.querySelector('[name="item_other_charges[]"]');
         var rateInp = row.querySelector('.rate-input');
 
         var exw       = parseFloat(exwInp  ? exwInp.value  : 0) || 0;
         var freight   = parseFloat(frInp   ? frInp.value   : 0) || 0;
         var insurance = parseFloat(insInp  ? insInp.value  : 0) || 0;
+        var otherChg  = parseFloat(ocInp   ? ocInp.value   : 0) || 0;
         var dutyRate  = parseFloat(rateInp ? rateInp.value : 0) || 0;
 
         var exwPhp       = exw * exchRate;
         var freightPhp   = freight * usdRate;
         var insurancePhp = insurance * usdRate;
-        var dvPhp        = exwPhp + freightPhp + insurancePhp;
+        var otherPhp     = otherChg * usdRate;
+        var dvPhp        = exwPhp + freightPhp + insurancePhp + otherPhp;
         var dvUsd        = usdRate ? (dvPhp / usdRate) : 0;
         var cud   = dvPhp * (dutyRate / 100);
 
@@ -2890,10 +2912,12 @@ function recalcAll() {
     }
 }
 
-// ── Distribute global freight/insurance proportionally to per-row inputs ──────
+// ── Distribute global freight/insurance/O.C. proportionally to row EXW ────────
 function distributeFreight() {
     var totalFreight   = parseFloat(document.getElementById('total_freight').value)   || 0;
     var totalInsurance = parseFloat(document.getElementById('total_insurance').value) || 0;
+    var otherEl        = document.getElementById('total_other_charges');
+    var totalOther     = parseFloat(otherEl ? otherEl.value : 0) || 0;
     var rows           = document.querySelectorAll('#ecdt-body tr');
 
     // Sum total EXW for proportional distribution
@@ -2907,11 +2931,13 @@ function distributeFreight() {
         var exwInp = row.querySelector('.exw-input');
         var frInp  = row.querySelector('[name="item_freight[]"]');
         var insInp = row.querySelector('[name="item_insurance[]"]');
+        var ocInp  = row.querySelector('[name="item_other_charges[]"]');
         var exw    = parseFloat(exwInp ? exwInp.value : 0) || 0;
         var ratio  = totalExw > 0 ? exw / totalExw : 0;
 
         if (frInp)  frInp.value  = totalFreight   > 0 ? (totalFreight   * ratio).toFixed(2) : '';
         if (insInp) insInp.value = totalInsurance > 0 ? (totalInsurance * ratio).toFixed(2) : '';
+        if (ocInp)  ocInp.value  = totalOther     > 0 ? (totalOther     * ratio).toFixed(2) : '';
     });
 
     recalcAll();
@@ -3457,6 +3483,7 @@ initAllHsPickers();
             hs_code_id:    (tr.querySelector('[name*="hs_code_id"]') || {}).value || null,
             item_freight:   n('item_freight') || null,
             item_insurance: n('item_insurance') || null,
+            item_other_charges: n('item_other_charges') || null,
             gw:            n('gw') || null,
             nw:            n('nw') || null,
             pkgs:          n('pkgs') || null,
@@ -3518,6 +3545,7 @@ initAllHsPickers();
             exchange_rate:   (document.getElementById('exchange_rate')   || {}).value || '',
             total_freight:   (document.getElementById('total_freight')   || {}).value || '',
             total_insurance: (document.getElementById('total_insurance') || {}).value || '',
+            total_other_charges: (document.getElementById('total_other_charges') || {}).value || '',
             bank_charges:    (document.getElementById('bank_charges')    || {}).value || '',
             arrastre:        (document.getElementById('arrastre')        || {}).value || '',
             wharfage:        (document.getElementById('wharfage')        || {}).value || '',
@@ -3529,7 +3557,7 @@ initAllHsPickers();
         };
     }
 
-    var globalIds = ['exchange_rate', 'total_freight', 'total_insurance', 'bank_charges',
+    var globalIds = ['exchange_rate', 'total_freight', 'total_insurance', 'total_other_charges', 'bank_charges',
                      'arrastre', 'wharfage', 'csf_usd', 'cargo_volume', 'gross_weight_kg', 'distance_km'];
     globalIds.forEach(function(id) {
         var el = document.getElementById(id);

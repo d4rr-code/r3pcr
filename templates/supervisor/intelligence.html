@@ -1,7 +1,7 @@
 {% extends 'supervisor/base_supervisor.html' %}
 
-{% block title %}Pre-Clearance Intelligence{% endblock %}
-{% block page_title %}Pre-Clearance Intelligence{% endblock %}
+{% block title %}Clearance Intelligence{% endblock %}
+{% block page_title %}Clearance Intelligence{% endblock %}
 {% block nav_intelligence %}active{% endblock %}
 
 {% block content %}
@@ -97,7 +97,7 @@
     <section class="intel-hero">
         <div class="intel-hero-top">
             <div>
-                <h2>Pre-Clearance Intelligence</h2>
+                <h2>Clearance Intelligence</h2>
                 <p>
                     Diagnostic and predictive analytics for workflow bottlenecks, delay risk, and HS code review.
                     The risk model is intentionally explainable: it learns from completed shipment history when enough
@@ -317,7 +317,7 @@
         <summary>
             <div class="intel-head">
                 <div>
-                    <h3>Pre-Clearance Delay Risk Prediction</h3>
+                    <h3>Clearance Delay Risk Prediction</h3>
                     <p>{{ delay_model.summary }}</p>
                     <p>Model source: <strong>{{ delay_model.source }}</strong>. Samples: <strong>{{ delay_model.sample_count }}</strong>. Historical delayed rate: {{ delay_model.delayed_rate }}%.</p>
                 </div>

@@ -10,6 +10,7 @@ from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
 from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
 from apps.supervisor.models import SystemConfig
+from apps.supervisor.audit import log_audit
 from apps.computation.wmcda import wmcda_weight_rows
 from apps.notifications.utils import create_notification, notify_incoming_shipment, notify_shipment_status_change
 from ..models import Feedback
@@ -80,6 +81,21 @@ def submit_shipment(request):
                 document_type='other',
                 file=file,
             )
+
+        log_audit(
+            'shipment_submit',
+            f'Consignee submitted shipment {shipment.hawb_number}.',
+            request=request,
+            shipment=shipment,
+            target=shipment,
+            details={
+                'import_type': import_type,
+                'urgency': urgency,
+                'shipment_type': shipment_type,
+                'invoice_currency': invoice_currency,
+                'document_count': shipment.documents.count(),
+            },
+        )
 
         for declarant in []:
             create_notification(
@@ -432,6 +448,14 @@ def upload_receipt(request, shipment_id):
             shipment.payment_receipt = file
             shipment.payment_receipt_uploaded_at = timezone.now()
             shipment.save(update_fields=['payment_receipt', 'payment_receipt_uploaded_at', 'updated_at'])
+            log_audit(
+                'document_upload',
+                f'Payment receipt uploaded for {shipment.hawb_number}.',
+                request=request,
+                shipment=shipment,
+                target=shipment,
+                details={'document_type': 'payment_receipt'},
+            )
 
             # Audit trail — record receipt upload in status log
             StatusLog.objects.create(
@@ -518,6 +542,14 @@ def approve_computation(request, shipment_id):
                 new_status='approved',
                 notes='Consignee approved the computation.',
             )
+            log_audit(
+                'status_update',
+                f'Consignee approved computation for {shipment.hawb_number}.',
+                request=request,
+                shipment=shipment,
+                target=shipment,
+                details={'old_status': old_status, 'new_status': 'approved'},
+            )
             notify_shipment_status_change(
                 shipment=shipment,
                 old_status=old_status,
@@ -549,6 +581,14 @@ def revise_computation(request, shipment_id):
                 old_status=old_status,
                 new_status='for_revision',
                 notes=notes or 'Consignee requested revision of the computation.',
+            )
+            log_audit(
+                'status_update',
+                f'Consignee requested computation revision for {shipment.hawb_number}.',
+                request=request,
+                shipment=shipment,
+                target=shipment,
+                details={'old_status': old_status, 'new_status': 'for_revision', 'notes': notes},
             )
             notify_shipment_status_change(
                 shipment=shipment,
@@ -582,6 +622,14 @@ def reject_computation(request, shipment_id):
                 old_status=old_status,
                 new_status='rejected',
                 notes=notes or 'Consignee rejected the computation.',
+            )
+            log_audit(
+                'status_update',
+                f'Consignee rejected computation for {shipment.hawb_number}.',
+                request=request,
+                shipment=shipment,
+                target=shipment,
+                details={'old_status': old_status, 'new_status': 'rejected', 'notes': notes},
             )
             notify_shipment_status_change(
                 shipment=shipment,
@@ -663,6 +711,14 @@ def resubmit_documents(request, shipment_id):
             old_status=shipment.status,
             new_status=shipment.status,
             notes=f'Consignee resubmitted {files_uploaded} document(s) after deficiency flag.',
+        )
+        log_audit(
+            'document_upload',
+            f'Consignee resubmitted {files_uploaded} document(s) for {shipment.hawb_number}.',
+            request=request,
+            shipment=shipment,
+            target=shipment,
+            details={'files_uploaded': files_uploaded, 'reason': 'deficiency_resubmission'},
         )
 
         # Notify declarant

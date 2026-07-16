@@ -342,9 +342,6 @@ def report_issue(request):
 def system_parameters(request):
     """View global exchange rate parameters."""
     from apps.supervisor.models import SystemConfig
-    from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
-
-    ensure_daily_exchange_rates()
 
     rate_keys = {
         'USD': 'rate_USD', 'EUR': 'rate_EUR', 'JPY': 'rate_JPY',
@@ -408,17 +405,17 @@ def system_wmcda(request):
         {
             'key': 'wmcda_w_cost',
             'label': 'Cost',
-            'description': 'Weighs the total landed cost (freight + duties + fees) of each shipping mode. Higher weight favors the most cost-efficient option.',
+            'description': 'Weighs the total landed cost (freight + duties + fees) of each shipping type. Higher weight favors the most cost-efficient option.',
         },
         {
             'key': 'wmcda_w_time',
             'label': 'Time',
-            'description': 'Weighs transit time and urgency level of the shipment (Rush/Urgent/Normal). Higher weight favors faster shipping modes.',
+            'description': 'Weighs transit time and urgency level of the shipment (Rush/Urgent/Normal). Higher weight favors faster shipping types.',
         },
         {
             'key': 'wmcda_w_weight',
             'label': 'Weight',
-            'description': 'Weighs the gross cargo weight when scoring modes. Higher weight prioritizes modes suited for heavier shipments such as FCL.',
+            'description': 'Weighs the gross cargo weight when scoring shipping types. Higher weight prioritizes shipping types suited for heavier shipments such as FCL.',
         },
         {
             'key': 'wmcda_w_distance',

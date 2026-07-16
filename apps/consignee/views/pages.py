@@ -19,9 +19,6 @@ from .common import consignee_required, URGENCY_BUSINESS_DAYS
 
 def _system_rate_parameters():
     from apps.supervisor.models import SystemConfig
-    from apps.supervisor.exchange_rates import ensure_daily_exchange_rates
-
-    ensure_daily_exchange_rates()
 
     rate_keys = {
         'USD': 'rate_USD',
@@ -80,17 +77,17 @@ def _system_wmcda_items():
         {
             'key': 'wmcda_w_cost',
             'label': 'Cost',
-            'description': 'Weighs the total landed cost of each shipping mode. Higher weight favors the most cost-efficient option.',
+            'description': 'Weighs the total landed cost of each shipping type. Higher weight favors the most cost-efficient option.',
         },
         {
             'key': 'wmcda_w_time',
             'label': 'Time',
-            'description': 'Weighs transit time and urgency level. Higher weight favors faster shipping modes.',
+            'description': 'Weighs transit time and urgency level. Higher weight favors faster shipping types.',
         },
         {
             'key': 'wmcda_w_weight',
             'label': 'Weight',
-            'description': 'Weighs gross cargo weight. Higher weight prioritizes modes suited for heavier shipments.',
+            'description': 'Weighs gross cargo weight. Higher weight prioritizes shipping types suited for heavier shipments.',
         },
         {
             'key': 'wmcda_w_distance',

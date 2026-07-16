@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.utils import timezone
 from apps.shipments.models import Shipment, HSCode, ShipmentHSCode, StatusLog
+from apps.supervisor.audit import log_audit
 from apps.notifications.utils import notify_shipment_status_change
 from ..models import DutyComputation, ShipmentLineItem, ShippingAdvisory
 
@@ -159,7 +160,7 @@ def _apply_port_fee_defaults(shipment, container_type, arrastre, wharfage,
 
 
 def _distribute_freight_insurance(items_data, request):
-    """Spread a global total_freight / total_insurance across items by EXW share.
+    """Spread global freight / insurance / O.C. totals across items by EXW share.
 
     Only applies when the declarant entered a positive global total but left ALL
     per-item values at 0 (otherwise per-item values are respected). Mutates
@@ -168,8 +169,10 @@ def _distribute_freight_insurance(items_data, request):
     total_exw_for_dist = sum(Decimal(str(it['exw_usd'])) for it in items_data) or Decimal('1')
     total_freight_global   = Decimal(request.POST.get('total_freight',   '0') or '0')
     total_insurance_global = Decimal(request.POST.get('total_insurance', '0') or '0')
+    total_other_global     = Decimal(request.POST.get('total_other_charges', '0') or '0')
     all_fr_zero  = all(Decimal(str(it.get('freight_usd',   0) or 0)) == 0 for it in items_data)
     all_ins_zero = all(Decimal(str(it.get('insurance_usd', 0) or 0)) == 0 for it in items_data)
+    all_oc_zero  = all(Decimal(str(it.get('other_charges_usd', 0) or 0)) == 0 for it in items_data)
     if all_fr_zero and total_freight_global > 0:
         for it in items_data:
             prop = Decimal(str(it['exw_usd'])) / total_exw_for_dist
@@ -178,6 +181,10 @@ def _distribute_freight_insurance(items_data, request):
         for it in items_data:
             prop = Decimal(str(it['exw_usd'])) / total_exw_for_dist
             it['insurance_usd'] = float(round(total_insurance_global * prop, 4))
+    if all_oc_zero and total_other_global > 0:
+        for it in items_data:
+            prop = Decimal(str(it['exw_usd'])) / total_exw_for_dist
+            it['other_charges_usd'] = float(round(total_other_global * prop, 4))
     return items_data
 
 
@@ -193,6 +200,7 @@ def _parse_posted_line_items(request):
     exw_values    = request.POST.getlist('exw_value[]')
     freights_list = request.POST.getlist('item_freight[]')
     ins_list      = request.POST.getlist('item_insurance[]')
+    other_list    = request.POST.getlist('item_other_charges[]')
     quantities    = request.POST.getlist('quantity[]')
     units         = request.POST.getlist('unit[]')
     unit_prices   = request.POST.getlist('unit_price[]')
@@ -208,6 +216,7 @@ def _parse_posted_line_items(request):
         return (lst + [default] * n)[:n]
     freights_list = _pad(freights_list, '0')
     ins_list      = _pad(ins_list,      '0')
+    other_list    = _pad(other_list,    '0')
     hs_code_ids   = _pad(hs_code_ids,   '')
     duty_rates    = _pad(duty_rates,     '0')
     gws           = _pad(gws,            '')
@@ -230,6 +239,7 @@ def _parse_posted_line_items(request):
             'exw_usd':        e,
             'freight_usd':    f  or '0',
             'insurance_usd':  ins or '0',
+            'other_charges_usd': oc or '0',
             'quantity':       q,
             'unit':           unit,
             'unit_price':     unit_price,
@@ -240,8 +250,8 @@ def _parse_posted_line_items(request):
             'nw':             nw,
             'pkgs':           pk,
         }
-        for d, e, f, ins, q, unit, unit_price, h, dr, gw, nw, pk
-        in zip(descriptions, exw_values, freights_list, ins_list,
+        for d, e, f, ins, oc, q, unit, unit_price, h, dr, gw, nw, pk
+        in zip(descriptions, exw_values, freights_list, ins_list, other_list,
                quantities, units, unit_prices, hs_code_ids, duty_rates, gws, nws, pkgs_list)
         if e and float(e) > 0
     ]
@@ -604,6 +614,19 @@ def compute_shipment(request, shipment_id):
                     'computed_by':       request.user,
                 }
             )
+            log_audit(
+                'computation_save',
+                f'ECDT computation saved for {shipment.hawb_number}.',
+                request=request,
+                shipment=shipment,
+                target=shipment,
+                details={
+                    'exchange_rate': str(exchange_rate),
+                    'container_type': container_type or charge_mode,
+                    'total_landed_cost': str(summary['total_landed_cost']),
+                    'item_count': len(items_data),
+                },
+            )
 
             if shipment.status == 'arrived':
                 old_status = shipment.status
@@ -705,9 +728,11 @@ def compute_shipment(request, shipment_id):
     if existing:
         prefill_freight   = float(existing.total_freight   or 0)
         prefill_insurance = float(existing.total_insurance or 0)
+        prefill_other_charges = sum(float(it.get('item_other_charges', 0) or 0) for it in (items or []))
     else:
         prefill_freight   = float(shipment.freight_cost   or 0)
         prefill_insurance = float(shipment.insurance_cost or 0)
+        prefill_other_charges = 0
     # ── Determine initial charge mode for template (drives section visibility) ──
     if existing:
         _ct = (existing.container_type or '').lower()
@@ -750,6 +775,7 @@ def compute_shipment(request, shipment_id):
         'computed_mode':        computed_mode,
         'prefill_freight':        prefill_freight,
         'prefill_insurance':      prefill_insurance,
+        'prefill_other_charges':  prefill_other_charges,
         'prefill_volume':         prefill_volume,
         'prefill_volume_src':     prefill_volume_src,
         'prefill_gross_weight':   prefill_gross_weight,
