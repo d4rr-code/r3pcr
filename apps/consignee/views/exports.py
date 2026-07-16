@@ -39,7 +39,7 @@ def _info_block(shipment, computation, request):
         ('Consignee',       cname),
         ('Declarant',       decl_name),
         ('Date Computed',   date_str),
-        ('Shipment Mode',   mode_str),
+        ('Shipping Type',   mode_str),
         ('Container No.',   shipment.container_number or '—'),
         ('Job Number',     shipment.job_order_reference or '—'),
         ('Exchange Rate',   exrate),
@@ -72,7 +72,7 @@ def _ecdt_fee_rows(computation):
 
 
 def _ecdt_mode_scores(advisory):
-    """MCDA mode rows (label, key, score) in fixed Air/LCL/FCL order, shared by
+    """MCDA shipping type rows (label, key, score) in fixed Air/LCL/FCL order, shared by
     both generators (each sorts by score and applies its own styling)."""
     return [
         ('Air Freight',               'air',  advisory.air_score),

@@ -98,7 +98,7 @@ FEEDBACK_COMMENTS = [
     'Very professional handling. Documentation was thorough.',
     'Good service overall, a minor delay at assessment but well communicated.',
     'Transparent fees and responsive declarant. Highly recommended.',
-    'Reliable as always. The advisory helped us pick the right mode.',
+    'Reliable as always. The advisory helped us pick the right shipping type.',
     'Clear updates at every status change. Appreciated the heads-up emails.',
     'Quick turnaround from arrival to release. Great job.',
     'Helpful team, accurate computation, no surprises on the final cost.',
@@ -408,7 +408,7 @@ class Command(BaseCommand):
                 doc_types.pop(random.randrange(len(doc_types)))
                 shipment.has_deficiency = True
                 shipment.deficiency_type = 'missing_document'
-                shipment.deficiency_notes = 'Demo scenario: one required pre-clearance document is missing.'
+                shipment.deficiency_notes = 'Demo scenario: one required clearance document is missing.'
                 shipment.deficiency_flagged_at = submitted_at + timedelta(days=1)
                 shipment.save(update_fields=[
                     'has_deficiency', 'deficiency_type', 'deficiency_notes',

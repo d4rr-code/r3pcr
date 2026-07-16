@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db.models import Q, Count
 from apps.shipments.models import Shipment, HSCode, ShipmentHSCode
+from apps.supervisor.audit import log_audit
 from ..models import ShipmentLineItem
 
 logger = logging.getLogger('r3pcr.computation')
@@ -377,6 +378,14 @@ def confirm_hs_code(request, shipment_id):
         rel.is_confirmed = True
         rel.is_suggested = True
         rel.save(update_fields=['is_confirmed', 'is_suggested'])
+    log_audit(
+        'hs_code_update',
+        f'HS code {hs.code} confirmed for {shipment.hawb_number}.',
+        request=request,
+        shipment=shipment,
+        target=rel,
+        details={'hs_code': hs.code, 'source': 'shipment_confirmation'},
+    )
     return JsonResponse({'ok': True})
 
 
@@ -505,6 +514,14 @@ def update_line_item_hs(request, item_id):
     ShipmentHSCode.objects.get_or_create(
         shipment=shipment, hs_code=hs,
         defaults={'is_suggested': True, 'is_confirmed': True},
+    )
+    log_audit(
+        'hs_code_update',
+        f'Line item HS code updated to {hs.code} for {shipment.hawb_number}.',
+        request=request,
+        shipment=shipment,
+        target=item,
+        details={'line_item_id': item.id, 'hs_code': hs.code},
     )
 
     return JsonResponse({

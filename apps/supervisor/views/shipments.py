@@ -15,7 +15,8 @@ from apps.computation.models import DutyComputation
 from apps.computation.wmcda import wmcda_weight_rows
 from apps.consignee.models import Feedback
 from apps.notifications.utils import create_notification, notify_shipment_status_change
-from ..models import IssueReport, SystemConfig
+from ..models import AuditLog, IssueReport, SystemConfig
+from ..audit import log_audit
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +140,14 @@ def reset_shipment(request, shipment_id):
             new_status='incoming',
             notes='Reset to incoming by supervisor. Computation cleared.',
         )
+        log_audit(
+            'status_update',
+            f'Supervisor reset shipment {hawb} to incoming.',
+            request=request,
+            shipment=shipment,
+            target=shipment,
+            details={'old_status': old_status, 'new_status': 'incoming'},
+        )
         messages.success(request, f'Shipment {hawb} reset to Incoming.')
     return redirect('supervisor:dashboard')
 
@@ -176,6 +185,14 @@ def update_shipment_status(request, shipment_id):
             changed_by=request.user,
             notes=notes,
         )
+        log_audit(
+            'status_update',
+            f'Supervisor updated {shipment.hawb_number} to {shipment.get_status_display()}.',
+            request=request,
+            shipment=shipment,
+            target=shipment,
+            details={'old_status': old_status, 'new_status': new_status, 'notes': notes},
+        )
         messages.success(request, f'Shipment {shipment.hawb_number} marked {shipment.get_status_display()}.')
 
     return redirect('supervisor:dashboard')
@@ -198,6 +215,13 @@ def delete_shipment(request, shipment_id):
             shipment.status,
             request.user.username,
             timezone.now().isoformat(),
+        )
+        log_audit(
+            'shipment_delete',
+            f'Supervisor deleted shipment {hawb}.',
+            request=request,
+            target=shipment,
+            details={'hawb_number': hawb, 'consignee': shipment.consignee.username, 'status': shipment.status},
         )
 
         shipment.delete()
@@ -233,6 +257,44 @@ def reject_feedback(request, feedback_id):
         fb.delete()
         messages.success(request, 'Feedback removed.')
     return redirect('supervisor:feedbacks')
+
+
+#  Audit Trail
+
+@login_required
+@supervisor_required
+def audit_trail(request):
+    action_f = request.GET.get('action', '').strip()
+    user_f = request.GET.get('user', '').strip()
+    shipment_f = request.GET.get('shipment', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+
+    logs = AuditLog.objects.select_related('user', 'shipment')
+    if action_f:
+        logs = logs.filter(action=action_f)
+    if user_f:
+        logs = logs.filter(user__username__icontains=user_f)
+    if shipment_f:
+        logs = logs.filter(shipment__hawb_number__icontains=shipment_f)
+    if date_from:
+        logs = logs.filter(created_at__date__gte=date_from)
+    if date_to:
+        logs = logs.filter(created_at__date__lte=date_to)
+
+    paginator = Paginator(logs, 25)
+    page = paginator.get_page(request.GET.get('page', 1))
+
+    return render(request, 'supervisor/audit_trail.html', {
+        'logs': page,
+        'action_choices': AuditLog.ACTION_CHOICES,
+        'active_action': action_f,
+        'active_user': user_f,
+        'active_shipment': shipment_f,
+        'active_date_from': date_from,
+        'active_date_to': date_to,
+        'total_logs': logs.count(),
+    })
 
 
 #  System Issue Reports
@@ -308,6 +370,13 @@ def update_issue_report(request, report_id):
             f'Your issue report "{issue.title}" is now '
             f'{issue.get_status_display()}. {note or ""}'
         ).strip(),
+    )
+    log_audit(
+        'issue_update',
+        f'Supervisor updated issue report "{issue.title}".',
+        request=request,
+        target=issue,
+        details={'old_status': old_status, 'new_status': status, 'has_note': bool(note)},
     )
     messages.success(request, 'Issue report updated and reporter notified.')
     return redirect('supervisor:issue_reports')

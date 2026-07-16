@@ -82,6 +82,67 @@ class Announcement(models.Model):
         return [self.target_audience]
 
 
+class AuditLog(models.Model):
+    ACTION_CHOICES = [
+        ('login', 'Login'),
+        ('logout', 'Logout'),
+        ('shipment_submit', 'Shipment Submitted'),
+        ('document_upload', 'Document Uploaded'),
+        ('ocr_run', 'OCR Run'),
+        ('hs_code_update', 'HS Code Updated'),
+        ('computation_save', 'Computation Saved'),
+        ('advisory_generate', 'Shipping Type Advisory Generated'),
+        ('advisory_update', 'Declarant Advisory Updated'),
+        ('status_update', 'Shipment Status Updated'),
+        ('config_update', 'System Configuration Updated'),
+        ('exchange_rate_update', 'Exchange Rate Updated'),
+        ('wmcda_update', 'MCDA Weights Updated'),
+        ('tariff_update', 'Tariff Schedule Updated'),
+        ('report_download', 'Report Downloaded'),
+        ('shipment_delete', 'Shipment Deleted'),
+        ('issue_update', 'Issue Report Updated'),
+    ]
+
+    user = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='audit_logs',
+    )
+    user_role = models.CharField(max_length=30, blank=True)
+    action = models.CharField(max_length=40, choices=ACTION_CHOICES)
+    shipment = models.ForeignKey(
+        'shipments.Shipment',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='audit_logs',
+    )
+    target_type = models.CharField(max_length=80, blank=True)
+    target_id = models.CharField(max_length=80, blank=True)
+    summary = models.CharField(max_length=240)
+    details = models.JSONField(default=dict, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['action', '-created_at']),
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['shipment', '-created_at']),
+        ]
+
+    def __str__(self):
+        actor = self.user.username if self.user else 'System'
+        return f'{actor} - {self.get_action_display()} - {self.created_at:%Y-%m-%d %H:%M}'
+
+    @property
+    def display_summary(self):
+        return (self.summary or '').replace('WMCDA', 'MCDA')
+
+
 class IssueReport(models.Model):
     CATEGORY_CHOICES = [
         ('login_account', 'Login or Account'),

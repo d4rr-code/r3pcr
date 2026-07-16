@@ -137,15 +137,8 @@ class ComputeShipmentPostTests(TestCase):
             invoice_currency='USD',
             gross_weight=Decimal('100.00'),
         )
-        # Deterministic USD rate + short-circuit the daily live-rate network call.
-        # ensure_daily_exchange_rates() compares the stored success/attempt dates
-        # against timezone.localdate(), so seed them with localdate() (NOT
-        # now()/UTC, which can be a different calendar day and let the live fetch
-        # leak through and overwrite rate_USD).
+        # Deterministic manual USD rate for ECDT computation.
         SystemConfig.objects.create(key='rate_USD', value='50.0000')
-        _today_iso = timezone.localdate().isoformat()
-        SystemConfig.objects.create(key='exchange_rates_last_success', value=_today_iso)
-        SystemConfig.objects.create(key='exchange_rates_last_attempt', value=_today_iso)
         self.client.force_login(self.declarant)
         self.url = reverse('computation:compute', args=[self.shipment.id])
 
@@ -231,6 +224,19 @@ class ComputeShipmentPostTests(TestCase):
         self.assertEqual(dc.dutiable_value, Decimal('57500.00'))
         self.assertEqual(dc.customs_duty, Decimal('5750.00'))
 
+    def test_other_charges_usd_are_included_in_dutiable_value(self):
+        """Client ECDT sheets include O/C USD in D/V before CUD is computed."""
+        data = self._post_data()
+        data['item_other_charges[]'] = '25'
+
+        self.client.post(self.url, data)
+
+        dc = DutyComputation.objects.get(shipment=self.shipment)
+        items = dc.get_items()
+        self.assertEqual(dc.dutiable_value, Decimal('58750.00'))
+        self.assertEqual(dc.customs_duty, Decimal('5875.00'))
+        self.assertEqual(items[0]['item_other_charges'], 25.0)
+
     def test_status_transitions_arrived_to_computed(self):
         self.client.post(self.url, self._post_data())
         self.shipment.refresh_from_db()
@@ -292,10 +298,12 @@ class ComputeShipmentPostTests(TestCase):
             'csf_usd': '0', 'charge_mode': 'lcl', 'cargo_volume': '0',
             'distance_km': '2600', 'container_type': '',
             'total_freight': '100', 'total_insurance': '0',
+            'total_other_charges': '40',
             'description[]': ['A', 'B'],
             'exw_value[]': ['750', '250'],
             'item_freight[]': ['0', '0'],
             'item_insurance[]': ['0', '0'],
+            'item_other_charges[]': ['0', '0'],
             'quantity[]': ['1', '1'], 'unit[]': ['pcs', 'pcs'],
             'unit_price[]': ['750', '250'],
             'hs_code_id[]': [str(hs.id), str(hs.id)],
@@ -307,6 +315,8 @@ class ComputeShipmentPostTests(TestCase):
         items = dc.get_items()
         self.assertEqual(items[0]['item_freight'], 75.0)
         self.assertEqual(items[1]['item_freight'], 25.0)
+        self.assertEqual(items[0]['item_other_charges'], 30.0)
+        self.assertEqual(items[1]['item_other_charges'], 10.0)
         # total_freight stored on the model is the distributed sum.
         self.assertEqual(dc.total_freight, Decimal('100.00'))
 
@@ -345,10 +355,7 @@ class ComputeShipmentGetTests(TestCase):
             shipment_type='lcl', status='arrived', invoice_currency='USD',
             gross_weight=Decimal('80.00'),
         )
-        _today_iso = timezone.localdate().isoformat()
         SystemConfig.objects.create(key='rate_USD', value='50.0000')
-        SystemConfig.objects.create(key='exchange_rates_last_success', value=_today_iso)
-        SystemConfig.objects.create(key='exchange_rates_last_attempt', value=_today_iso)
         self.client.force_login(self.declarant)
         self.url = reverse('computation:compute', args=[self.shipment.id])
 

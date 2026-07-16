@@ -12,6 +12,7 @@ from django.utils import timezone
 from apps.computation.models import ShipmentLineItem, ShippingAdvisory
 from apps.computation.views.hs_codes import suggest_hs_codes
 from apps.shipments.models import Shipment, ShipmentHSCode, StatusLog
+from apps.supervisor.audit import log_audit
 
 from .common import supervisor_required
 
@@ -294,7 +295,7 @@ def _risk_for_shipment(shipment, model):
     if missing:
         score += min(len(missing) * weights['missing_doc'], weights['missing_docs_cap'])
         reasons.append('Missing ' + ', '.join(label.replace('_', ' ') for label in missing))
-        actions.append('Verify required pre-clearance documents.')
+        actions.append('Verify required clearance documents.')
 
     if shipment.urgency in {'urgent', 'rush'}:
         score += weights['urgent']
@@ -787,7 +788,7 @@ def _workload_forecast(shipments, forecast_periods=1, forecast_unit='month', for
         'pressure_total': active_backlog + projected,
         'interpretation': interpretation,
         'action': action,
-        'period_rows': period_rows[-6:] + forecast_rows,
+        'period_rows': period_rows + forecast_rows,
         'chart': {
             'labels': labels,
             'historical_label': chart_history_label,
@@ -984,15 +985,15 @@ def intelligence(request):
 
 def _export_rows(context):
     decision_support = [
-        ['Purpose', 'Supports supervisor and declarant decisions during pre-clearance; it does not replace licensed customs-broker judgment.'],
+        ['Purpose', 'Supports supervisor and declarant decisions during clearance; it does not replace licensed customs-broker judgment.'],
         ['Projected Incoming Workload', 'Forecasts expected workload so supervisors can plan declarant capacity and monitor queues.'],
         ['Delay Risk', 'Ranks active shipments that may need attention based on status age, KPI timing, deficiencies, missing documents, and urgency.'],
         ['HS Code Review', 'Highlights line items that may require Harmonized System code review before final computation.'],
-        ['Shipping Type Advisory', 'Uses Weighted Multi-Criteria Decision Analysis to recommend Air Freight, LCL, or FCL based on shipment profile.'],
+        ['Shipping Type Advisory', 'Uses Multi-Criteria Decision Analysis to recommend Air Freight, LCL, or FCL based on shipment profile.'],
     ]
     ecdt_explanation = [
         ['Input', 'Line-item EXW/FOB value, freight, insurance, HS code duty rate, fees, and exchange rates.'],
-        ['Dutiable Value', 'EXW/FOB value plus freight and insurance, converted to PHP.'],
+        ['Dutiable Value', 'EXW/FOB value plus freight, insurance, and other charges, converted to PHP.'],
         ['Customs Duty', 'Dutiable value multiplied by the selected HS code duty rate.'],
         ['Total Landed Cost', 'Dutiable value plus customs duty, brokerage fee, IPF, CDS, arrastre, wharfage, and bank charges.'],
         ['BOC Payable', 'Customs duty plus VAT, IPF, CDS, and FCL container security fee when applicable.'],
@@ -1068,6 +1069,17 @@ def intelligence_export(request):
         request.GET.get('forecast_year'),
         request.GET.get('forecast_model', 'all'),
     )
+    log_audit(
+        'report_download',
+        f'Supervisor downloaded clearance intelligence report ({fmt}).',
+        request=request,
+        details={
+            'format': fmt,
+            'risk': request.GET.get('risk', 'high'),
+            'forecast_unit': request.GET.get('forecast_unit', 'month'),
+            'forecast_model': request.GET.get('forecast_model', 'all'),
+        },
+    )
     summary, decision_support, ecdt_explanation, mcda_explanation, advisory_rows, stages, risks, hs_rows = _export_rows(context)
     filename_date = timezone.localtime().strftime('%Y%m%d')
 
@@ -1089,7 +1101,7 @@ def intelligence_export(request):
         styles = getSampleStyleSheet()
         cell_style = ParagraphStyle('cell', fontName='Helvetica', fontSize=8, leading=10)
         story = [
-            Paragraph('R3-PCR Pre-Clearance Intelligence Report', styles['Title']),
+            Paragraph('R3-PCR Clearance Intelligence Report', styles['Title']),
             Paragraph(f"Generated: {context['generated_at'].strftime('%b %d, %Y %I:%M %p')}", styles['Normal']),
             Spacer(1, 12),
         ]
@@ -1123,7 +1135,7 @@ def intelligence_export(request):
             story.extend([table, Spacer(1, 12)])
         doc.build(story)
         response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="R3PCR_Pre_Clearance_Intelligence_{filename_date}.pdf"'
+        response['Content-Disposition'] = f'attachment; filename="R3PCR_Clearance_Intelligence_{filename_date}.pdf"'
         return response
 
     from openpyxl import Workbook
@@ -1163,5 +1175,5 @@ def intelligence_export(request):
         buffer.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    response['Content-Disposition'] = f'attachment; filename="R3PCR_Pre_Clearance_Intelligence_{filename_date}.xlsx"'
+    response['Content-Disposition'] = f'attachment; filename="R3PCR_Clearance_Intelligence_{filename_date}.xlsx"'
     return response

@@ -61,7 +61,7 @@ def approve_registration(request, user_id):
                            You can now log in.</p>
                         <p><strong>Username:</strong> {user.username}</p>
                         <p style="color:#94a3b8;font-size:12px;margin-top:20px;">
-                            R3-PCR Pre-Clearance Decision Support System
+                            R3-PCR Clearance Decision Support System
                         </p>
                     </div>
                 ''',
