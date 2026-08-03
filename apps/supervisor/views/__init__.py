@@ -10,13 +10,14 @@ from .common import supervisor_required, _HS_SECTIONS, _chapter_num
 from .analytics import dashboard, analytics, analytics_export, analytics_status_counts
 from .intelligence import intelligence, intelligence_export
 from .users import (
-    user_management, approve_registration, reject_registration,
+    user_management, user_management_export, approve_registration, reject_registration,
     add_user, edit_user, toggle_user,
 )
 from .shipments import (
     shipment_detail, reset_shipment, update_shipment_status, delete_shipment,
     manage_feedbacks, approve_feedback, reject_feedback,
-    audit_trail, issue_reports, update_issue_report, shipment_records,
+    audit_trail, audit_trail_export, issue_reports, update_issue_report,
+    shipment_records, shipment_records_export,
     consignee_list, consignee_detail, declarant_list, declarant_detail,
 )
 from .memos import list_memos, create_memo, delete_memo, toggle_memo

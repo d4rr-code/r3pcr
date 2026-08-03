@@ -9,11 +9,11 @@ deterministic dataset.
 
 Run:  python manage.py test apps.supervisor --settings=config.settings_test
 """
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 import json
 
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -23,6 +23,7 @@ from apps.computation.models import DutyComputation, ShipmentLineItem, ShippingA
 from apps.computation.wmcda import calculate_ahp_weights
 from apps.consignee.models import Feedback
 from apps.supervisor.models import AuditLog, SystemConfig
+from apps.supervisor.audit import log_audit
 
 
 class SupervisorShipmentTrackingDisplayTests(TestCase):
@@ -221,9 +222,9 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertContains(response, 'Projected Workload')
         self.assertContains(response, 'Delay Model Weights')
         year = timezone.localdate().year
-        self.assertContains(response, f'?risk=all&forecast_unit=month&forecast_year={year}&forecast_model=all&forecast_months=3#delay-risk')
-        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=xlsx&risk=high&forecast_unit=month&forecast_year={year}&forecast_model=all')
-        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=pdf&risk=high&forecast_unit=month&forecast_year={year}&forecast_model=all')
+        self.assertContains(response, f'?risk=all&forecast_unit=month&forecast_year={year}&forecast_model=sarima&forecast_months=3#delay-risk')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=xlsx&risk=high&forecast_unit=month&forecast_year={year}&forecast_model=sarima')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=pdf&risk=high&forecast_unit=month&forecast_year={year}&forecast_model=sarima')
 
     def test_intelligence_trains_delay_model_from_completed_shipments(self):
         today = timezone.localdate()
@@ -296,19 +297,30 @@ class SupervisorIntelligenceTests(TestCase):
         forecast = response.context['workload_forecast']
         self.assertGreaterEqual(forecast['forecast_months'], 3)
         self.assertEqual(forecast['forecast_unit'], 'month')
-        self.assertGreater(forecast['projected_period_total'], 0)
-        self.assertEqual(forecast['recommended_model']['key'], 'moving_average')
-        self.assertEqual(forecast['model_source'], 'Moving average forecast')
+
+        # Only 7 shipments exist, so SARIMA cannot fit. With the weighted moving
+        # average removed there is no fallback: the page must declare the forecast
+        # unavailable rather than report an empty projection as a real prediction.
+        self.assertFalse(forecast['forecast_available'])
+        self.assertIsNone(forecast['projected_period_total'])
+        self.assertIsNone(forecast['projected_low'])
+        self.assertIsNone(forecast['projected_high'])
+        self.assertIsNone(forecast['trend_pct'])
+        self.assertEqual(forecast['level'], '')
+        self.assertNotEqual(forecast['level'], 'Light')
+        self.assertEqual(forecast['confidence'], 'Unavailable')
+        self.assertEqual(forecast['model_source'], 'Forecast unavailable')
+        self.assertTrue(forecast['unavailable_reason'])
+        self.assertContains(response, 'Insufficient data for forecast')
+
+        # SARIMA is the only registered model.
         self.assertEqual(
             {row['key'] for row in forecast['model_comparison']},
-            {'arima', 'holt_winters', 'seasonal_naive', 'moving_average'},
+            {'sarima'},
         )
-        self.assertEqual(forecast['forecast_model'], 'all')
-        self.assertEqual(forecast['displayed_model']['key'], 'moving_average')
-        self.assertEqual(
-            {row['key'] for row in forecast['chart']['forecast_datasets']},
-            {'seasonal_naive', 'moving_average'},
-        )
+        self.assertEqual(forecast['forecast_model'], 'sarima')
+        self.assertEqual(forecast['recommended_model']['key'], 'sarima')
+        self.assertEqual(forecast['displayed_model']['key'], 'sarima')
         expected_months = timezone.localdate().month + 3
         self.assertEqual(forecast['forecast_months'], 3)
         self.assertEqual(len(forecast['chart']['labels']), expected_months)
@@ -316,40 +328,32 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertEqual(len(forecast['chart']['forecast_values']), expected_months)
         self.assertEqual(forecast['chart']['historical_label'], 'Historical monthly volume')
         self.assertEqual(forecast['chart']['historical_values'][-3:], [None, None, None])
-        self.assertEqual(len(forecast['period_rows']), expected_months)
-        self.assertEqual(forecast['confidence'], 'Low')
-        self.assertContains(response, 'Monthly')
-        self.assertContains(response, 'Yearly')
-        self.assertContains(response, 'Expected Range')
-        self.assertContains(response, 'Recommended Model')
-        self.assertContains(response, 'Holt-Winters')
-        self.assertContains(response, 'Seasonal Naive')
-        self.assertContains(response, 'Weighted Moving Average')
+        # With no forecast produced, the period table lists only the actual months —
+        # no projected rows are appended.
+        self.assertEqual(len(forecast['period_rows']), timezone.localdate().month)
+        self.assertTrue(all(row['date_range'] == 'Actual' for row in forecast['period_rows']))
+        self.assertContains(response, 'SARIMA')
         self.assertContains(response, 'fallbackLineChart')
+        self.assertNotContains(response, 'Weighted Moving Average')
 
-        seasonal = self.client.get(reverse('supervisor:intelligence'), {
-            'forecast_model': 'seasonal_naive',
-        })
-        seasonal_forecast = seasonal.context['workload_forecast']
-        self.assertEqual(seasonal_forecast['forecast_model'], 'seasonal_naive')
-        self.assertEqual(seasonal_forecast['displayed_model']['key'], 'seasonal_naive')
-        self.assertEqual(
-            {row['key'] for row in seasonal_forecast['chart']['forecast_datasets']},
-            {'seasonal_naive'},
-        )
+        for row in forecast['model_comparison']:
+            self.assertIn('mae', row)
+            self.assertIn('rmse', row)
+            self.assertIn('mape', row)
+            self.assertIn('rmse_label', row)
+            self.assertIn('mape_label', row)
+            self.assertEqual(row['key'], 'sarima')
+            self.assertIn(row['status'], ('Active', 'Unavailable'))
 
-        three_year = self.client.get(reverse('supervisor:intelligence'), {
+        year_override = self.client.get(reverse('supervisor:intelligence'), {
             'forecast_unit': 'year',
         })
-        self.assertEqual(three_year.context['workload_forecast']['forecast_unit'], 'year')
-        self.assertEqual(three_year.context['workload_forecast']['forecast_months'], 3)
+        self.assertEqual(year_override.context['workload_forecast']['forecast_unit'], 'month')
         self.assertEqual(
-            three_year.context['workload_forecast']['chart']['historical_label'],
-            'Historical yearly volume',
+            year_override.context['workload_forecast']['chart']['historical_label'],
+            'Historical monthly volume',
         )
-        self.assertEqual(three_year.context['workload_forecast']['history_label'], 'Last 10 years')
-        self.assertEqual(len(three_year.context['workload_forecast']['chart']['labels']), 13)
-        self.assertIn(str(timezone.localdate().year + 1), three_year.context['workload_forecast']['forecast_label'])
+        self.assertIn('Next 3 months', year_override.context['workload_forecast']['forecast_label'])
 
     def test_intelligence_exports_xlsx_and_pdf(self):
         self._shipment('R3PCR-INTEL-EXPORT', 'billed')
@@ -363,6 +367,402 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertEqual(pdf.status_code, 200)
         self.assertEqual(pdf['Content-Type'], 'application/pdf')
         self.assertTrue(pdf.content.startswith(b'%PDF'))
+
+
+class AuditTrailExportTests(TestCase):
+    """CSV download on the supervisor audit trail page."""
+
+    def setUp(self):
+        self.supervisor = User.objects.create_user(
+            username='sup_audit_csv', password='pw', role='supervisor',
+            email='sup.audit@example.com', first_name='Ana', last_name='Reyes',
+        )
+        self.client.force_login(self.supervisor)
+        log_audit('login', 'Supervisor signed in.', user=self.supervisor)
+        log_audit('config_update', 'Updated MCDA weights.', user=self.supervisor)
+
+    def _download(self, **params):
+        return self.client.get(reverse('supervisor:audit_trail_export'), params)
+
+    def test_csv_download_returns_rows_with_headers(self):
+        response = self._download()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/csv', response['Content-Type'])
+        self.assertIn('attachment;', response['Content-Disposition'])
+        self.assertIn('R3PCR_Audit_Trail_', response['Content-Disposition'])
+        self.assertTrue(response['Content-Disposition'].rstrip('"').endswith('.csv'))
+
+        body = response.content.decode('utf-8-sig')
+        lines = [line for line in body.splitlines() if line.strip()]
+
+        # Metadata block sits above the table.
+        self.assertEqual(lines[0], 'R3-PCR Audit Trail Report')
+        self.assertIn(
+            'Date/Time,Action,User,Email,Role,Shipment,Summary,IP Address',
+            body,
+        )
+        self.assertIn('Updated MCDA weights.', body)
+        self.assertIn('Ana Reyes', body)
+        self.assertIn('sup.audit@example.com', body)
+
+    def test_csv_includes_report_metadata_block(self):
+        response = self._download(period='this_week')
+        body = response.content.decode('utf-8-sig')
+
+        self.assertIn('R3-PCR Audit Trail Report', body)
+        self.assertIn('Generated by:,Ana Reyes', body)
+        self.assertIn('Generated on:', body)
+        self.assertIn('Reporting Period:,This week', body)
+        self.assertIn('Applied Filters:', body)
+        self.assertIn('Total Records:', body)
+
+    def test_metadata_reflects_applied_filters(self):
+        body = self._download(action='config_update').content.decode('utf-8-sig')
+
+        self.assertIn('Action: System Configuration Updated', body)
+        self.assertIn('User: All', body)
+        self.assertIn('Shipment: All', body)
+
+    def test_csv_starts_with_bom_for_excel(self):
+        self.assertTrue(self._download().content.startswith(b'\xef\xbb\xbf'))
+
+    def test_export_respects_page_filters(self):
+        response = self._download(action='config_update')
+
+        body = response.content.decode('utf-8-sig')
+        self.assertIn('Updated MCDA weights.', body)
+        self.assertNotIn('Supervisor signed in.', body)
+
+    def test_formula_injection_is_neutralised(self):
+        log_audit('config_update', '=cmd|calc!A1', user=self.supervisor)
+
+        body = self._download(action='config_update').content.decode('utf-8-sig')
+
+        self.assertIn("'=cmd|calc!A1", body)
+
+    def test_download_is_itself_audited(self):
+        self._download()
+
+        entry = AuditLog.objects.filter(action='report_download').first()
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.details['format'], 'csv')
+
+    def test_non_supervisor_cannot_download(self):
+        self.client.logout()
+        consignee = User.objects.create_user(
+            username='con_audit_csv', password='pw', role='consignee',
+        )
+        self.client.force_login(consignee)
+
+        response = self._download()
+
+        self.assertNotEqual(response.status_code, 200)
+
+
+class DashboardReportCsvTests(TestCase):
+    """CSV format for the analytics and clearance intelligence reports."""
+
+    def setUp(self):
+        self.supervisor = User.objects.create_user(
+            username='sup_csv_reports', password='pw', role='supervisor',
+        )
+        self.client.force_login(self.supervisor)
+        SystemConfig.set('exchange_rates_last_success', timezone.localdate().isoformat())
+        SystemConfig.set('exchange_rates_last_attempt', timezone.localdate().isoformat())
+
+    def test_analytics_csv_export(self):
+        response = self.client.get(reverse('supervisor:analytics_export'), {'format': 'csv'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/csv', response['Content-Type'])
+        self.assertIn('R3PCR_Analytics_Report_', response['Content-Disposition'])
+        body = response.content.decode('utf-8-sig')
+        self.assertIn('R3-PCR Analytics Report', body)
+        self.assertIn('Executive Summary', body)
+        self.assertIn('Status Pipeline', body)
+
+    def test_intelligence_csv_export(self):
+        response = self.client.get(reverse('supervisor:intelligence_export'), {'format': 'csv'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/csv', response['Content-Type'])
+        body = response.content.decode('utf-8-sig')
+        self.assertIn('R3-PCR Clearance Intelligence Report', body)
+        self.assertIn('Executive Summary', body)
+        self.assertIn('Delay Risk', body)
+
+    def test_existing_formats_are_unaffected(self):
+        xlsx = self.client.get(reverse('supervisor:analytics_export'), {'format': 'xlsx'})
+        self.assertTrue(xlsx.content.startswith(b'PK'))
+
+        pdf = self.client.get(reverse('supervisor:analytics_export'), {'format': 'pdf'})
+        self.assertTrue(pdf.content.startswith(b'%PDF'))
+
+    def test_generate_reports_card_renders(self):
+        response = self.client.get(reverse('supervisor:dashboard'))
+
+        self.assertContains(response, 'Generate Reports')
+        self.assertContains(response, 'Reporting Period')
+        self.assertContains(response, 'Apply Filters')
+        self.assertContains(response, 'Export CSV')
+        self.assertContains(response, 'Export PDF')
+        # Excel was dropped from the card as redundant with CSV; the backend
+        # still serves format=xlsx for anyone hitting the URL directly.
+        self.assertNotContains(response, 'Export Excel')
+        self.assertContains(response, 'Last Month')
+        self.assertContains(response, 'This Quarter')
+
+
+class ReportingPeriodTests(SimpleTestCase):
+    """Reporting-period preset resolution shared by the operational exports."""
+
+    def _resolve(self, **params):
+        from django.test import RequestFactory
+        from apps.supervisor.views.reports import resolve_report_period
+
+        return resolve_report_period(RequestFactory().get('/x/', params))
+
+    def test_today_preset_spans_a_single_day(self):
+        today = timezone.localdate().isoformat()
+        period = self._resolve(period='today')
+
+        self.assertEqual(period['date_from'], today)
+        self.assertEqual(period['date_to'], today)
+        self.assertEqual(period['label'], 'Today')
+
+    def test_this_month_starts_on_the_first(self):
+        period = self._resolve(period='this_month')
+
+        self.assertEqual(period['date_from'], timezone.localdate().replace(day=1).isoformat())
+        self.assertEqual(period['date_to'], timezone.localdate().isoformat())
+
+    def test_last_month_ends_before_this_month_starts(self):
+        period = self._resolve(period='last_month')
+        first_this_month = timezone.localdate().replace(day=1)
+
+        self.assertLess(date.fromisoformat(period['date_to']), first_this_month)
+        self.assertEqual(date.fromisoformat(period['date_from']).day, 1)
+
+    def test_preset_overrides_raw_dates(self):
+        period = self._resolve(period='today', date_from='2020-01-01', date_to='2020-12-31')
+
+        self.assertEqual(period['date_from'], timezone.localdate().isoformat())
+
+    def test_raw_dates_are_preserved_without_a_preset(self):
+        period = self._resolve(date_from='2024-01-01', date_to='2024-06-30')
+
+        self.assertEqual(period['date_from'], '2024-01-01')
+        self.assertEqual(period['date_to'], '2024-06-30')
+        self.assertEqual(period['period'], 'custom')
+
+    def test_no_filters_means_all_time(self):
+        period = self._resolve()
+
+        self.assertEqual(period['date_from'], '')
+        self.assertEqual(period['date_to'], '')
+        self.assertEqual(period['label'], 'All time')
+
+    def test_malformed_inputs_are_ignored(self):
+        period = self._resolve(period='not_a_period', date_from='garbage')
+
+        self.assertEqual(period['period'], '')
+        self.assertEqual(period['date_from'], '')
+
+
+class ShipmentRegisterExportTests(TestCase):
+    """Supervisor shipment register export."""
+
+    def setUp(self):
+        self.supervisor = User.objects.create_user(
+            username='sup_ship_rep', password='pw', role='supervisor',
+        )
+        self.consignee = User.objects.create_user(
+            username='con_ship_rep', password='pw', role='consignee',
+            first_name='Rosa', last_name='Lim', company_name='Lim Trading',
+        )
+        self.client.force_login(self.supervisor)
+        self.recent = Shipment.objects.create(
+            hawb_number='R3PCR-REP-RECENT', consignee=self.consignee,
+            status='computed', shipment_type='air', urgency='urgent',
+            import_type='commercial', declared_value=Decimal('1500.00'),
+            invoice_currency='USD',
+        )
+        self.old = Shipment.objects.create(
+            hawb_number='R3PCR-REP-OLD', consignee=self.consignee,
+            status='billed', shipment_type='fcl',
+        )
+        Shipment.objects.filter(pk=self.old.pk).update(
+            submitted_at=timezone.now() - timedelta(days=400)
+        )
+
+    def _export(self, **params):
+        return self.client.get(reverse('supervisor:shipment_records_export'), params)
+
+    def test_csv_export_contains_expected_headers_and_rows(self):
+        response = self._export()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/csv', response['Content-Type'])
+        body = response.content.decode('utf-8-sig')
+        self.assertIn(
+            'HAWB,Consignee,Declarant,Type,Status,Urgency,Import Type,'
+            'Declared Value,Currency,Submitted,Last Updated,KPI Status',
+            body,
+        )
+        self.assertIn('R3PCR-REP-RECENT', body)
+        self.assertIn('Lim Trading', body)
+        self.assertIn('Unassigned', body)
+
+    def test_pdf_export_returns_a_pdf(self):
+        response = self._export(format='pdf')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertTrue(response.content.startswith(b'%PDF'))
+
+    def test_status_filter_is_honoured(self):
+        body = self._export(status_f='computed').content.decode('utf-8-sig')
+
+        self.assertIn('R3PCR-REP-RECENT', body)
+        self.assertNotIn('R3PCR-REP-OLD', body)
+
+    def test_reporting_period_excludes_older_shipments(self):
+        body = self._export(period='this_month').content.decode('utf-8-sig')
+
+        self.assertIn('R3PCR-REP-RECENT', body)
+        self.assertNotIn('R3PCR-REP-OLD', body)
+
+    def test_export_is_audited(self):
+        self._export()
+
+        entry = AuditLog.objects.filter(action='report_download').first()
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.details['format'], 'csv')
+
+    def test_non_supervisor_cannot_export(self):
+        self.client.logout()
+        self.client.force_login(self.consignee)
+
+        self.assertNotEqual(self._export().status_code, 200)
+
+
+class UserAccountsExportTests(TestCase):
+    """Supervisor user accounts export."""
+
+    def setUp(self):
+        self.supervisor = User.objects.create_user(
+            username='sup_user_rep', password='pw', role='supervisor',
+        )
+        self.client.force_login(self.supervisor)
+        User.objects.create_user(
+            username='con_active_rep', password='pw', role='consignee',
+            first_name='Ana', last_name='Cruz', email='ana@example.com',
+            company_name='Cruz Imports', is_active=True,
+        )
+        inactive = User.objects.create_user(
+            username='dec_inactive_rep', password='pw', role='declarant',
+            first_name='Ben', last_name='Tan',
+        )
+        User.objects.filter(pk=inactive.pk).update(is_active=False)
+
+    def _export(self, **params):
+        return self.client.get(reverse('supervisor:users_export'), params)
+
+    def test_csv_export_contains_headers_and_accounts(self):
+        response = self._export()
+
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode('utf-8-sig')
+        self.assertIn(
+            'Username,Full Name,Email,Role,Company,Phone,Active,'
+            'Email Verified,Date Joined',
+            body,
+        )
+        self.assertIn('con_active_rep', body)
+        self.assertIn('Cruz Imports', body)
+
+    def test_pdf_export_returns_a_pdf(self):
+        response = self._export(format='pdf')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content.startswith(b'%PDF'))
+
+    def test_role_filter_is_honoured(self):
+        body = self._export(role='declarant').content.decode('utf-8-sig')
+
+        self.assertIn('dec_inactive_rep', body)
+        self.assertNotIn('con_active_rep', body)
+
+    def test_status_filter_is_honoured(self):
+        body = self._export(status='inactive').content.decode('utf-8-sig')
+
+        self.assertIn('dec_inactive_rep', body)
+        self.assertNotIn('con_active_rep', body)
+
+    def test_export_is_audited(self):
+        self._export()
+
+        self.assertTrue(AuditLog.objects.filter(action='report_download').exists())
+
+    def test_non_supervisor_cannot_export(self):
+        self.client.logout()
+        consignee = User.objects.create_user(
+            username='con_blocked_rep', password='pw', role='consignee',
+        )
+        self.client.force_login(consignee)
+
+        self.assertNotEqual(self._export().status_code, 200)
+
+
+class ForecastModelTests(SimpleTestCase):
+    """SARIMA-only forecasting: model registry, metrics, and unavailable state."""
+
+    def test_sarima_is_the_only_registered_model(self):
+        from apps.supervisor.views.intelligence import FORECAST_MODELS
+
+        self.assertEqual([model['key'] for model in FORECAST_MODELS], ['sarima'])
+
+    def test_backtest_split_is_28_8_over_the_36_month_window(self):
+        from apps.supervisor.views.intelligence import _backtest_split
+
+        # Integer truncation makes the realised ratio 77.8%/22.2%, not 80/20.
+        self.assertEqual(_backtest_split(36), (28, 8))
+        self.assertEqual(_backtest_split(5), (0, 0))  # below the 6-observation floor
+
+    def test_sufficient_history_produces_sarima_forecast_with_all_metrics(self):
+        from apps.supervisor.views.intelligence import _forecast_model_comparison
+
+        # 36 months of seasonal-ish volume, comfortably past SARIMA's 24-point floor.
+        counts = [10, 11, 14, 13, 14, 10, 8, 14, 12, 13, 15, 13,
+                  10, 13, 12, 18, 11, 9, 8, 18, 9, 18, 10, 14,
+                  11, 12, 16, 19, 13, 12, 6, 16, 14, 16, 16, 15]
+
+        forecasts, source, recommended, rows = _forecast_model_comparison(counts, 3, 'month')
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['key'], 'sarima')
+        self.assertEqual(rows[0]['status'], 'Active')
+        self.assertEqual(len(forecasts), 3)
+        self.assertEqual(recommended['key'], 'sarima')
+        self.assertIn('SARIMA', source)
+        for metric in ('mae', 'rmse', 'mape'):
+            self.assertIsNotNone(recommended[metric], f'{metric} should be reported')
+
+    def test_insufficient_history_yields_no_forecast_and_no_fallback(self):
+        from apps.supervisor.views.intelligence import _forecast_model_comparison
+
+        counts = [1, 0, 2, 1, 0, 1, 1, 0]  # sum well below SARIMA's minimum
+
+        forecasts, source, recommended, rows = _forecast_model_comparison(counts, 3, 'month')
+
+        self.assertEqual(forecasts, [])
+        self.assertEqual(source, 'Forecast unavailable')
+        self.assertEqual(recommended['key'], 'sarima')
+        self.assertIsNone(recommended['mae'])
+        self.assertTrue(recommended['unavailable_reason'])
+        self.assertEqual([row['key'] for row in rows], ['sarima'])
+        self.assertEqual(rows[0]['status'], 'Unavailable')
 
 
 class WmcdaAhpTests(TestCase):
@@ -568,11 +968,18 @@ class AnalyticsDashboardContextTests(TestCase):
         self.assertContains(resp, 'All Years')
 
     def test_date_filter_controls_render_range_presets(self):
+        """The Generate Reports card exposes the reporting-period presets.
+
+        Replaces the earlier 'This Month / Last 30 Days / Custom Range' button
+        row; 'Last 30 Days' is intentionally no longer offered.
+        """
         resp = self.client.get(self.url)
 
-        self.assertContains(resp, 'This Month')
-        self.assertContains(resp, 'Last 30 Days')
-        self.assertContains(resp, 'Custom Range')
+        self.assertContains(resp, 'Reporting Period')
+        for option in ('All Time', 'Today', 'This Week', 'This Month',
+                       'Last Month', 'This Quarter', 'This Year', 'Custom Range'):
+            self.assertContains(resp, option)
+        self.assertNotContains(resp, 'Last 30 Days')
 
     def test_live_status_counts_respect_date_and_declarant_filters(self):
         today = timezone.localdate()

@@ -45,6 +45,12 @@ class DutyComputation(models.Model):
     )
     total_landed_cost = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
 
+    # BIR Documentary Stamp Tax (separate from Customs Doc Stamp)
+    bir_dst = models.DecimalField(
+        max_digits=15, decimal_places=2, default=Decimal('30'),
+        help_text='BIR Documentary Stamp Tax (default ₱30)'
+    )
+
     # Misc charges (declarant inputs — override-able)
     bank_charges   = models.DecimalField(max_digits=15, decimal_places=2, default=0,
                                          help_text='Bank charges (if any)')
@@ -80,13 +86,14 @@ class DutyComputation(models.Model):
 
     @property
     def boc_payable(self):
-        """Full BOC counter payment: CUD + VAT + IPF + CDS (fixed ₱130)."""
+        """Full BOC counter payment: CUD + VAT + IPF + CDS (fixed ₱130) + BIR DST."""
         from decimal import Decimal
         cud = self.customs_duty or Decimal('0')
         vat = self.vat_amount  or Decimal('0')
         ipf = self.ipf         or Decimal('0')
         cds = Decimal('130')
-        return round(cud + vat + ipf + cds, 2)
+        bir_dst = self.bir_dst or Decimal('30')
+        return round(cud + vat + ipf + cds + bir_dst, 2)
 
     @property
     def csf_php(self):

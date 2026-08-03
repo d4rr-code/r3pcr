@@ -17,7 +17,7 @@ logger = logging.getLogger('r3pcr.computation')
 from .ecdt import (
     compute_ecdt, _load_currency_rates, normalize_charge_mode,
     apply_transport_charges, _lookup_distance_from_country, _country_distance_options,
-    _RATE_KEYS, _RATE_DEFAULTS,
+    _RATE_KEYS, _RATE_DEFAULTS, _get_bir_dst, _get_insurance_default_rate,
 )
 from .advisory import compute_wmcda
 from .hs_codes import suggest_hs_codes
@@ -566,10 +566,11 @@ def compute_shipment(request, shipment_id):
                 shipment.gross_weight = gross_weight
                 shipment.save(update_fields=['gross_weight'])
 
+            is_dangerous = request.POST.get('is_dangerous_cargo') == '1'
             items, summary = compute_ecdt(
                 items_data, exchange_rate, usd_exchange_rate=usd_exchange_rate,
                 arrastre=arrastre, wharfage=wharfage, csf_php=csf_php_val,
-                bank_charges=bank_charges
+                bank_charges=bank_charges, is_dangerous_cargo=is_dangerous
             )
 
             # Totals for model storage
@@ -605,6 +606,7 @@ def compute_shipment(request, shipment_id):
                     'vat_amount':        summary['vat'],
                     'brokerage_fee':     summary['brokerage_fee'],
                     'ipf':               summary['ipf'],
+                    'bir_dst':           summary['bir_dst'],
                     'bank_charges':      bank_charges,
                     'arrastre':          arrastre,
                     'wharfage':          wharfage,
@@ -789,6 +791,8 @@ def compute_shipment(request, shipment_id):
         'all_currency_rates':   json.dumps(all_currency_rates),
         'usd_exchange_rate':    usd_exchange_rate,
         'default_rate':         default_rate,
+        'bir_dst_amount':       float(_get_bir_dst()),
+        'insurance_default_rate': float(_get_insurance_default_rate()) * 100,
     }
     # All saved line items (OCR + manual drafts) ordered for ECDT table restore
     context['confirmed_items'] = ShipmentLineItem.objects.filter(

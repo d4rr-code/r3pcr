@@ -6,6 +6,7 @@ app_name = 'supervisor'
 urlpatterns = [
     path('dashboard/',   views.dashboard,       name='dashboard'),
     path('users/',       views.user_management, name='users'),
+    path('users/export/', views.user_management_export, name='users_export'),
     path('users/add/',   views.add_user,        name='add_user'),
     path('users/<int:user_id>/edit/',           views.edit_user,            name='edit_user'),
     path('users/toggle/<int:user_id>/',         views.toggle_user,           name='toggle_user'),
@@ -42,9 +43,11 @@ urlpatterns = [
     path('issue-reports/',                       views.issue_reports,            name='issue_reports'),
     path('issue-reports/<int:report_id>/update/', views.update_issue_report,      name='update_issue_report'),
     path('audit-trail/',                         views.audit_trail,              name='audit_trail'),
+    path('audit-trail/export/',                  views.audit_trail_export,       name='audit_trail_export'),
 
     # Shipment Records & Client Lists
     path('shipments/',           views.shipment_records, name='shipment_records'),
+    path('shipments/export/',    views.shipment_records_export, name='shipment_records_export'),
     path('clients/consignees/',  views.consignee_list,   name='consignee_list'),
     path('clients/consignees/<int:user_id>/', views.consignee_detail, name='consignee_detail'),
     path('clients/declarants/',  views.declarant_list,   name='declarant_list'),

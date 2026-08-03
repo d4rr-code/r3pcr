@@ -366,6 +366,41 @@
         <a href="{% url 'supervisor:add_user' %}" class="um-add">+ ADD USER</a>
     </div>
 
+    <form method="GET" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap; margin:0 0 18px;">
+        <div class="um-field" style="min-width:150px;">
+            <label>Report — Role</label>
+            <select name="role" class="um-select" onchange="this.form.submit()">
+                <option value="">All roles</option>
+                {% for val, label in ROLE_CHOICES %}
+                <option value="{{ val }}" {% if active_role == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="um-field" style="min-width:150px;">
+            <label>Report — Status</label>
+            <select name="status" class="um-select" onchange="this.form.submit()">
+                <option value="">All status</option>
+                <option value="active" {% if active_status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if active_status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+        <div class="um-field" style="min-width:170px;">
+            <label>Date Joined — Period</label>
+            <select name="period" class="um-select" onchange="this.form.submit()">
+                {% for val, label in PERIOD_CHOICES %}
+                <option value="{{ val }}" {% if active_period == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <a class="btn btn-primary" style="height:38px; display:inline-flex; align-items:center; font-size:12px;"
+           href="{% url 'supervisor:users_export' %}?{{ export_query }}&format=csv">Download CSV</a>
+        <a class="btn" style="height:38px; display:inline-flex; align-items:center; font-size:12px; border:1px solid #DCE5EF;"
+           href="{% url 'supervisor:users_export' %}?{{ export_query }}&format=pdf">Download PDF</a>
+        <span style="font-size:12px; color:#64748B; align-self:center;">
+            {{ filtered_count }} account{{ filtered_count|pluralize }} · {{ period_label }}
+        </span>
+    </form>
+
     <div class="um-table-card">
         {% if users %}
         <div class="um-scroll">

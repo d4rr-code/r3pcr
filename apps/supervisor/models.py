@@ -85,6 +85,7 @@ class Announcement(models.Model):
 class AuditLog(models.Model):
     ACTION_CHOICES = [
         ('login', 'Login'),
+        ('login_failed', 'Login Failed'),
         ('logout', 'Logout'),
         ('shipment_submit', 'Shipment Submitted'),
         ('document_upload', 'Document Uploaded'),
@@ -110,6 +111,8 @@ class AuditLog(models.Model):
         related_name='audit_logs',
     )
     user_role = models.CharField(max_length=30, blank=True)
+    user_full_name = models.CharField(max_length=120, blank=True)
+    user_email = models.EmailField(blank=True)
     action = models.CharField(max_length=40, choices=ACTION_CHOICES)
     shipment = models.ForeignKey(
         'shipments.Shipment',
@@ -135,8 +138,12 @@ class AuditLog(models.Model):
         ]
 
     def __str__(self):
-        actor = self.user.username if self.user else 'System'
+        actor = self.user_full_name or (self.user.username if self.user else 'System')
         return f'{actor} - {self.get_action_display()} - {self.created_at:%Y-%m-%d %H:%M}'
+
+    @property
+    def display_name(self):
+        return self.user_full_name or (self.user.get_full_name() if self.user else 'System')
 
     @property
     def display_summary(self):

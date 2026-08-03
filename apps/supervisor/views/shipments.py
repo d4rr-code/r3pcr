@@ -17,6 +17,10 @@ from apps.consignee.models import Feedback
 from apps.notifications.utils import create_notification, notify_shipment_status_change
 from ..models import AuditLog, IssueReport, SystemConfig
 from ..audit import log_audit
+from .reports import (
+    REPORT_PERIOD_CHOICES, apply_period, build_report_meta, csv_report_response,
+    format_filters, pdf_report_response, resolve_report_period,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -263,24 +267,51 @@ def reject_feedback(request, feedback_id):
 
 @login_required
 @supervisor_required
-def audit_trail(request):
+def _audit_log_queryset(request):
+    """Filtered audit log queryset plus the applied filters.
+
+    Shared by the audit trail page and its export so both always apply exactly
+    the same filtering.
+    """
     action_f = request.GET.get('action', '').strip()
     user_f = request.GET.get('user', '').strip()
     shipment_f = request.GET.get('shipment', '').strip()
-    date_from = request.GET.get('date_from', '').strip()
-    date_to = request.GET.get('date_to', '').strip()
+    period = resolve_report_period(request)
+    date_from = period['date_from']
+    date_to = period['date_to']
 
     logs = AuditLog.objects.select_related('user', 'shipment')
     if action_f:
         logs = logs.filter(action=action_f)
     if user_f:
-        logs = logs.filter(user__username__icontains=user_f)
+        logs = logs.filter(
+            Q(user__username__icontains=user_f) |
+            Q(user_full_name__icontains=user_f) |
+            Q(user__first_name__icontains=user_f) |
+            Q(user__last_name__icontains=user_f) |
+            Q(user_email__icontains=user_f)
+        )
     if shipment_f:
         logs = logs.filter(shipment__hawb_number__icontains=shipment_f)
-    if date_from:
-        logs = logs.filter(created_at__date__gte=date_from)
-    if date_to:
-        logs = logs.filter(created_at__date__lte=date_to)
+    logs = apply_period(logs, period, 'created_at')
+
+    return logs, {
+        'action': action_f,
+        'user': user_f,
+        'shipment': shipment_f,
+        'date_from': date_from,
+        'date_to': date_to,
+        'period': period,
+    }
+
+
+def audit_trail(request):
+    logs, filters = _audit_log_queryset(request)
+    action_f = filters['action']
+    user_f = filters['user']
+    shipment_f = filters['shipment']
+    date_from = filters['date_from']
+    date_to = filters['date_to']
 
     paginator = Paginator(logs, 25)
     page = paginator.get_page(request.GET.get('page', 1))
@@ -294,7 +325,87 @@ def audit_trail(request):
         'active_date_from': date_from,
         'active_date_to': date_to,
         'total_logs': logs.count(),
+        'active_period': filters['period']['period'],
+        'period_label': filters['period']['label'],
+        'PERIOD_CHOICES': REPORT_PERIOD_CHOICES,
     })
+
+
+AUDIT_EXPORT_LIMIT = 5000
+
+AUDIT_EXPORT_HEADERS = [
+    'Date/Time', 'Action', 'User', 'Email', 'Role',
+    'Shipment', 'Summary', 'IP Address',
+]
+
+
+def _audit_export_rows(logs):
+    """Flatten audit logs into export rows, newest first."""
+    rows = []
+    for log in logs:
+        rows.append([
+            timezone.localtime(log.created_at).strftime('%Y-%m-%d %H:%M:%S'),
+            log.get_action_display(),
+            log.display_name,
+            log.user_email or (log.user.email if log.user else ''),
+            (log.user_role or '').title(),
+            log.shipment.hawb_number if log.shipment else '',
+            log.display_summary,
+            log.ip_address or '',
+        ])
+    return rows
+
+
+@login_required
+@supervisor_required
+def audit_trail_export(request):
+    """Download the audit trail as CSV or PDF, honouring the page's filters."""
+    fmt = (request.GET.get('format') or 'csv').lower()
+    logs, filters = _audit_log_queryset(request)
+    period = filters['period']
+    total = logs.count()
+    rows = _audit_export_rows(logs[:AUDIT_EXPORT_LIMIT])
+
+    log_audit(
+        'report_download',
+        f'Supervisor downloaded audit trail ({fmt}).',
+        request=request,
+        details={
+            'format': fmt,
+            'period': period['period'],
+            'date_from': period['date_from'],
+            'date_to': period['date_to'],
+            'action': filters['action'],
+            'rows': len(rows),
+            'matched': total,
+        },
+    )
+
+    title = 'R3-PCR Audit Trail Report'
+    total_label = (
+        f'{total} (showing most recent {AUDIT_EXPORT_LIMIT})'
+        if total > AUDIT_EXPORT_LIMIT else total
+    )
+    meta = build_report_meta(
+        request,
+        period=period,
+        filters=format_filters([
+            ('Action', dict(AuditLog.ACTION_CHOICES).get(filters['action'], filters['action'])),
+            ('User', filters['user']),
+            ('Shipment', filters['shipment']),
+        ]),
+        total=total_label,
+    )
+
+    if fmt == 'pdf':
+        return pdf_report_response(
+            'R3PCR_Audit_Trail', title, meta, AUDIT_EXPORT_HEADERS, rows,
+            empty_message='No audit entries match these filters.',
+        )
+
+    return csv_report_response(
+        'R3PCR_Audit_Trail', title, meta, AUDIT_EXPORT_HEADERS, rows,
+    )
 
 
 #  System Issue Reports
@@ -386,14 +497,18 @@ def update_issue_report(request, report_id):
 
 @login_required
 @supervisor_required
-def shipment_records(request):
+def _shipment_records_queryset(request):
+    """Filtered shipment queryset plus the applied filters.
+
+    Shared by the shipment records page and its export so both always apply
+    exactly the same filtering.
+    """
     q              = request.GET.get('q', '').strip()
     status_f       = request.GET.get('status_f', '').strip()
     stype_f        = request.GET.get('stype', '').strip()
     mcda_rec_f     = request.GET.get('mcda_rec', '').strip()
     import_type_f  = request.GET.get('import_type', '').strip()
-    date_from      = request.GET.get('date_from', '').strip()
-    date_to        = request.GET.get('date_to', '').strip()
+    period         = resolve_report_period(request)
     valid_shipment_types = {key for key, _label in Shipment.SHIPMENT_TYPE_CHOICES}
 
     all_shipments = Shipment.objects.select_related('consignee', 'declarant', 'shipping_advisory')
@@ -419,10 +534,28 @@ def shipment_records(request):
             mcda_rec_f = ''
     if import_type_f:
         qs = qs.filter(import_type=import_type_f)
-    if date_from:
-        qs = qs.filter(submitted_at__date__gte=date_from)
-    if date_to:
-        qs = qs.filter(submitted_at__date__lte=date_to)
+    qs = apply_period(qs, period, 'submitted_at')
+
+    return qs, all_shipments, {
+        'q': q,
+        'status_f': status_f,
+        'stype': stype_f,
+        'mcda_rec': mcda_rec_f,
+        'import_type': import_type_f,
+        'period': period,
+    }
+
+
+def shipment_records(request):
+    qs, all_shipments, applied = _shipment_records_queryset(request)
+    q             = applied['q']
+    status_f      = applied['status_f']
+    stype_f       = applied['stype']
+    mcda_rec_f    = applied['mcda_rec']
+    import_type_f = applied['import_type']
+    period        = applied['period']
+    date_from     = period['date_from']
+    date_to       = period['date_to']
 
     stat_qs = all_shipments
     urgency_counts = {
@@ -527,7 +660,105 @@ def shipment_records(request):
         'STATUS_CHOICES':      Shipment.STATUS_CHOICES,
         'TYPE_CHOICES':        shipment_type_filter_choices,
         'IMPORT_TYPE_CHOICES': Shipment.IMPORT_TYPE_CHOICES,
+        'active_period':       period['period'],
+        'period_label':        period['label'],
+        'PERIOD_CHOICES':      REPORT_PERIOD_CHOICES,
+        'export_query':        request.GET.urlencode(),
     })
+
+
+#  Shipment Register Export
+
+SHIPMENT_EXPORT_LIMIT = 5000
+
+SHIPMENT_EXPORT_HEADERS = [
+    'HAWB', 'Consignee', 'Declarant', 'Type', 'Status', 'Urgency',
+    'Import Type', 'Declared Value', 'Currency', 'Submitted',
+    'Last Updated', 'KPI Status',
+]
+
+
+def _shipment_export_rows(shipments):
+    rows = []
+    for s in shipments:
+        consignee = (
+            s.consignee.company_name
+            or s.consignee.get_full_name()
+            or s.consignee.username
+        ) if s.consignee else ''
+        declarant = (
+            s.declarant.get_full_name() or s.declarant.username
+        ) if s.declarant else 'Unassigned'
+        rows.append([
+            s.hawb_number,
+            consignee,
+            declarant,
+            s.get_shipment_type_display() or '',
+            s.get_status_display(),
+            s.get_urgency_display(),
+            s.get_import_type_display(),
+            f'{s.declared_value:.2f}' if s.declared_value is not None else '',
+            s.invoice_currency or '',
+            timezone.localtime(s.submitted_at).strftime('%Y-%m-%d %H:%M') if s.submitted_at else '',
+            timezone.localtime(s.updated_at).strftime('%Y-%m-%d %H:%M') if s.updated_at else '',
+            s.kpi_timing_label or '',
+        ])
+    return rows
+
+
+@login_required
+@supervisor_required
+def shipment_records_export(request):
+    """Download the shipment register as CSV or PDF, honouring the page filters."""
+    fmt = (request.GET.get('format') or 'csv').lower()
+    qs, _all_shipments, applied = _shipment_records_queryset(request)
+    period = applied['period']
+    total = qs.count()
+    rows = _shipment_export_rows(qs[:SHIPMENT_EXPORT_LIMIT])
+
+    log_audit(
+        'report_download',
+        f'Supervisor downloaded shipment register ({fmt}).',
+        request=request,
+        details={
+            'format': fmt,
+            'period': period['period'],
+            'date_from': period['date_from'],
+            'date_to': period['date_to'],
+            'status': applied['status_f'],
+            'shipment_type': applied['stype'],
+            'rows': len(rows),
+            'matched': total,
+        },
+    )
+
+    title = 'R3-PCR Shipment Register Report'
+    total_label = (
+        f'{total} (showing most recent {SHIPMENT_EXPORT_LIMIT})'
+        if total > SHIPMENT_EXPORT_LIMIT else total
+    )
+    meta = build_report_meta(
+        request,
+        period=period,
+        filters=format_filters([
+            ('Status', dict(Shipment.STATUS_CHOICES).get(applied['status_f'], applied['status_f'])),
+            ('Type', dict(Shipment.SHIPMENT_TYPE_CHOICES).get(applied['stype'], applied['stype'])),
+            ('Import Type', dict(Shipment.IMPORT_TYPE_CHOICES).get(applied['import_type'], applied['import_type'])),
+            ('MCDA', applied['mcda_rec']),
+            ('Search', applied['q']),
+        ]),
+        total=total_label,
+    )
+
+    if fmt == 'pdf':
+        return pdf_report_response(
+            'R3PCR_Shipment_Register', title, meta, SHIPMENT_EXPORT_HEADERS, rows,
+            empty_message='No shipments match these filters.',
+        )
+
+    return csv_report_response(
+        'R3PCR_Shipment_Register', title, meta, SHIPMENT_EXPORT_HEADERS, rows,
+    )
 
 
 #  Client Lists

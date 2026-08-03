@@ -229,16 +229,43 @@ def _store_document_ocr(doc, fields, raw_text, quality):
 
 # ─── Per-Item ECDT Formula ────────────────────────────────────────────────────
 
+def _get_insurance_default_rate(is_dangerous=False):
+    """Return the insurance default rate from SystemConfig.
+    Standard: 2% of EXW; Dangerous cargo: 4% of EXW."""
+    if is_dangerous:
+        raw = SystemConfig.get('insurance_default_rate_dangerous', '4')
+    else:
+        raw = SystemConfig.get('insurance_default_rate', '2')
+    try:
+        return Decimal(str(raw)) / Decimal('100')
+    except Exception:
+        return Decimal('0.04') if is_dangerous else Decimal('0.02')
+
+
+def _get_bir_dst():
+    """Return BIR Documentary Stamp Tax amount from SystemConfig (default ₱30)."""
+    raw = SystemConfig.get('bir_dst_amount', '30')
+    try:
+        return Decimal(str(raw))
+    except Exception:
+        return Decimal('30')
+
+
 def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
-                 arrastre=0, wharfage=0, csf_php=0, bank_charges=0):
+                 arrastre=0, wharfage=0, csf_php=0, bank_charges=0,
+                 is_dangerous_cargo=False):
     """
     items_data keys: exw_usd, freight_usd, insurance_usd, other_charges_usd, duty_rate,
                      description, quantity, hs_code_id, gw, nw, pkgs
     D/V = EXW + Freight + Insurance + O/C
     Total Landed Cost excludes VAT; VAT = 12% of Total Landed Cost
     Brokerage Fee: tiered table up to ₱200,000, then +0.125% of excess
+    BIR DST: configurable flat fee (default ₱30), separate from CDS (₱130)
+    Insurance: auto-fills at 2% of EXW (4% if dangerous cargo) when blank/zero
     """
     usd_exchange_rate = Decimal(str(usd_exchange_rate or exchange_rate))
+    insurance_rate = _get_insurance_default_rate(is_dangerous_cargo)
+    bir_dst = _get_bir_dst()
     computed_items = []
     total_dv_php   = Decimal('0')
     total_cud      = Decimal('0')
@@ -249,6 +276,11 @@ def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
         item_insurance = Decimal(str(item.get('insurance_usd', 0) or 0))
         item_other     = Decimal(str(item.get('other_charges_usd', 0) or 0))
         duty_rate      = Decimal(str(item.get('duty_rate',     0) or 0))
+
+        # Auto-fill insurance: if blank/zero, default to configured % of EXW
+        if item_insurance <= 0 and exw > 0:
+            item_insurance = round(exw * insurance_rate, 4)
+            item['insurance_usd'] = float(item_insurance)
 
         # EXW follows invoice currency; freight/insurance/O.C. are always USD.
         exw_php       = exw * exchange_rate
@@ -293,20 +325,17 @@ def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
     csf_d           = Decimal(str(csf_php      or 0))
     bank_charges_d  = Decimal(str(bank_charges or 0))
 
-    # Total Landed Cost = DV + Bank Charges + CUD + BF + Arrastre + Wharfage + CDS + IPF
-    # NOTE: CSF is NOT included in TLC — it appears only in the BOC fees total (FCL)
+    # Total Landed Cost = DV + Bank Charges + CUD + BF + Arrastre + Wharfage + CDS + IPF + BIR DST
     total_landed_cost = round(
         taxable_value + bank_charges_d + customs_duties + brokerage_fee
-        + cds + ipf + arrastre_d + wharfage_d, 2
+        + cds + ipf + arrastre_d + wharfage_d + bir_dst, 2
     )
 
     # VAT = 12% of Total Landed Cost (matches client CDT Excel convention)
     vat = round(total_landed_cost * Decimal('0.12'), 2)
 
-    # BOC total = CUD + VAT + CDS + IPF + CSF (for FCL).
-    # Verified from RTripleJ ECDT_FCL.xlsx: CSF appears in the SUMMARY/TOTAL column.
-    # For LCL/Air, csf_d = 0 so this formula is safe across all modes.
-    boc_total = round(customs_duties + vat + cds + ipf + csf_d, 2)
+    # BOC total = CUD + VAT + CDS + IPF + BIR DST + CSF (for FCL).
+    boc_total = round(customs_duties + vat + cds + ipf + bir_dst + csf_d, 2)
 
     summary = {
         'taxable_value':    taxable_value,
@@ -314,12 +343,13 @@ def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
         'customs_duties':   customs_duties,
         'brokerage_fee':    brokerage_fee,
         'cds':              cds,
+        'bir_dst':          bir_dst,
         'ipf':              ipf,
         'arrastre':         arrastre_d,
         'wharfage':         wharfage_d,
         'csf_php':          csf_d,
         'total_landed_cost': total_landed_cost,
-        'vat_base':         total_landed_cost,   # stored as vat_base in model
+        'vat_base':         total_landed_cost,
         'vat':              vat,
         'boc_total':        boc_total,
     }

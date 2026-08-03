@@ -11,9 +11,8 @@ class User(AbstractUser):
         ('supervisor', 'Supervisor'),
     ]
 
-    # Override AbstractUser's first_name/last_name (max_length 150 → 50)
-    first_name = models.CharField(max_length=50, blank=True)
-    last_name  = models.CharField(max_length=50, blank=True)
+    first_name = models.CharField(max_length=50)
+    last_name  = models.CharField(max_length=50)
 
     role = models.CharField(
         max_length=20,
@@ -31,6 +30,10 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.role})"
+
+    def get_full_name(self):
+        full = f'{self.first_name} {self.last_name}'.strip()
+        return full or self.username
 
     def is_consignee(self):
         return self.role == 'consignee'

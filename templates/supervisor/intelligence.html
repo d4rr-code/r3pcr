@@ -44,7 +44,8 @@
 .forecast-model-table th{background:#0F766E}
 .forecast-status{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:900;background:#EEF2FF;color:#3730A3;white-space:nowrap}
 .forecast-status.recommended{background:#DCFCE7;color:#15803D}
-.forecast-status.unavailable{background:#F1F5F9;color:#64748B}
+.forecast-status.fallback{background:#F1F5F9;color:#64748B}
+.forecast-status.unavailable{background:#FEF2F2;color:#991B1B}
 .forecast-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
 .forecast-controls{display:flex;gap:8px;flex-wrap:wrap}
 .forecast-toggle{display:inline-flex;align-items:center;justify-content:center;border:1px solid #DCE5EF;border-radius:999px;background:#fff;color:#1B3358;text-decoration:none;font-size:11px;font-weight:900;padding:7px 11px;white-space:nowrap}
@@ -149,13 +150,8 @@
                 </div>
                 <form class="forecast-controls" method="GET" aria-label="Forecast controls">
                     <input type="hidden" name="risk" value="{{ risk_filter }}">
-                    <select class="forecast-toggle" name="forecast_model" onchange="this.form.submit()" title="Forecast model">
-                        {% for model in forecast_model_options %}
-                        <option value="{{ model.key }}" {% if workload_forecast.forecast_model == model.key %}selected{% endif %}>{{ model.label }}</option>
-                        {% endfor %}
-                    </select>
-                    <button class="forecast-toggle {% if workload_forecast.forecast_unit == 'month' %}active{% endif %}" type="submit" name="forecast_unit" value="month">Monthly</button>
-                    <button class="forecast-toggle {% if workload_forecast.forecast_unit == 'year' %}active{% endif %}" type="submit" name="forecast_unit" value="year">Yearly</button>
+                    <input type="hidden" name="forecast_model" value="{{ workload_forecast.forecast_model }}">
+                    <input type="hidden" name="forecast_unit" value="month">
                     <select class="forecast-toggle" name="forecast_year" onchange="this.form.submit()" title="Forecast base year">
                         {% for year in forecast_year_options %}
                         <option value="{{ year }}" {% if workload_forecast.forecast_year == year %}selected{% endif %}>{{ year }}</option>
@@ -168,6 +164,7 @@
                 <div class="intel-chart-frame" id="workload-forecast"><canvas id="workloadForecastChart"></canvas></div>
                 <div class="forecast-summary">
                     <div class="forecast-metrics">
+                        {% if not workload_forecast.is_past_year and workload_forecast.forecast_available %}
                         <div class="forecast-metric">
                             <span>Forecast</span>
                             <strong>{{ workload_forecast.projected_period_total }}</strong>
@@ -176,31 +173,65 @@
                             <span>Expected Range</span>
                             <strong>{{ workload_forecast.projected_low }}-{{ workload_forecast.projected_high }}</strong>
                         </div>
+                        {% endif %}
                         <div class="forecast-metric">
-                            <span>{% if workload_forecast.forecast_model == 'all' %}Recommended Model{% else %}Selected Model{% endif %}</span>
+                            <span>Model</span>
                             <strong>{{ workload_forecast.displayed_model.label }}</strong>
                         </div>
+                        {% if not workload_forecast.is_past_year and workload_forecast.forecast_available %}
                         <div class="forecast-metric">
                             <span>Confidence</span>
-                        <strong>{{ workload_forecast.confidence }}</strong>
+                            <strong>{{ workload_forecast.confidence }}</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if not workload_forecast.forecast_available and not workload_forecast.is_past_year %}
+                    <p class="forecast-copy" role="status" style="border-left:3px solid #f59e0b; padding-left:10px; margin-top:8px">
+                        <strong>Insufficient data for forecast.</strong>
+                        {{ workload_forecast.unavailable_reason }}
+                        {{ workload_forecast.action }}
+                    </p>
+                    {% endif %}
+                    <div class="forecast-metrics" style="margin-top:6px">
+                        <div class="forecast-metric">
+                            <span>MAE</span>
+                            <strong>{% if workload_forecast.displayed_model.mae != None %}{{ workload_forecast.displayed_model.mae }}{% else %}-{% endif %}</strong>
+                        </div>
+                        <div class="forecast-metric">
+                            <span>RMSE</span>
+                            <strong>{% if workload_forecast.displayed_model.rmse != None %}{{ workload_forecast.displayed_model.rmse }}{% else %}-{% endif %}</strong>
+                        </div>
+                        <div class="forecast-metric">
+                            <span>MAPE</span>
+                            <strong>{% if workload_forecast.displayed_model.mape != None %}{{ workload_forecast.displayed_model.mape }}%{% else %}-{% endif %}</strong>
+                        </div>
+                        <div class="forecast-metric">
+                            <span>Train/Test</span>
+                            <strong title="Hold-out split over the last 36 months (~77.8% / 22.2%)">{{ workload_forecast.backtest_label }}</strong>
                         </div>
                     </div>
                     <p class="forecast-copy">
-                        {{ workload_forecast.interpretation }} {{ workload_forecast.model_source }}. Recommended model: <strong>{{ workload_forecast.recommended_model.label }}</strong>. Trend versus the previous period is
+                        {% if workload_forecast.is_past_year %}
+                        Historical data for {{ workload_forecast.forecast_year }}. {{ workload_forecast.model_source }}.
+                        {% elif workload_forecast.forecast_available %}
+                        {{ workload_forecast.interpretation }} {{ workload_forecast.model_source }}. Trend versus the previous period is
                         <strong>{{ workload_forecast.trend_pct }}%</strong>. Recommended action:
                         {{ workload_forecast.action }}
+                        {% endif %}
                     </p>
                     <table class="forecast-table forecast-model-table">
                         <thead>
                             <tr>
                                 <th>Model</th>
                                 <th>Forecast</th>
-                                <th>Backtest Error</th>
-                                <th>Status</th>
+                                <th>MAE</th>
+                                <th>RMSE</th>
+                                <th>MAPE</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for model in workload_forecast.model_comparison %}
+                            {% if model.key == 'sarima' %}
                             <tr>
                                 <td>
                                     <strong>{{ model.label }}</strong><br>
@@ -208,12 +239,10 @@
                                 </td>
                                 <td><strong>{{ model.total }}</strong></td>
                                 <td>{{ model.mae_label }}</td>
-                                <td>
-                                    <span class="forecast-status {% if model.status == 'Recommended' %}recommended{% elif not model.available %}unavailable{% endif %}">
-                                        {{ model.status }}
-                                    </span>
-                                </td>
+                                <td>{{ model.rmse_label }}</td>
+                                <td>{{ model.mape_label }}</td>
                             </tr>
+                            {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>
@@ -476,10 +505,10 @@
             width: 3
         }].concat((data.forecast_datasets || []).map(function(model){
             return {
-                label: model.label + (model.recommended ? ' (recommended)' : ''),
+                label: model.label,
                 values: model.values,
                 color: model.color || '#14B8A6',
-                width: model.selected ? 3 : 2,
+                width: model.recommended ? 3 : 1.5,
                 dashed: true
             };
         }));
@@ -570,12 +599,12 @@
                     recommended: true
                 }]).map(function(model){
                     return {
-                        label: model.label + (model.recommended ? ' (recommended)' : ''),
+                        label: model.label,
                         data: model.values,
                         borderColor: model.color || '#14B8A6',
                         backgroundColor: 'rgba(20,184,166,.08)',
-                        borderDash: model.recommended ? [6, 5] : [3, 4],
-                        borderWidth: model.selected ? 3 : 2,
+                        borderDash: [6, 4],
+                        borderWidth: model.recommended ? 3 : 1.5,
                         fill: false,
                         tension: 0.28,
                         pointRadius: model.selected ? 5 : 3,

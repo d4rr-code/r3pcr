@@ -555,12 +555,34 @@
             </div>
         </div>
 
-        <!-- Row 3: Date To -->
+        <!-- Row 3: Date To + Reporting Period -->
         <div class="sr-filters">
             <div class="sr-field">
                 <label>Date To</label>
                 <input class="sr-input" type="date" name="date_to" value="{{ date_to }}" onchange="this.form.submit()">
             </div>
+            <div class="sr-field">
+                <label>Reporting Period</label>
+                <select class="sr-input" name="period" onchange="this.form.submit()">
+                    {% for val, label in PERIOD_CHOICES %}
+                    <option value="{{ val }}" {% if active_period == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px;">
+            <span style="font-size:12px; color:#64748B;">
+                Reporting period: <strong>{{ period_label }}</strong>
+            </span>
+            <a class="btn btn-primary" style="height:34px; display:inline-flex; align-items:center; font-size:12px;"
+               href="{% url 'supervisor:shipment_records_export' %}?{{ export_query }}&format=csv">
+                Download CSV
+            </a>
+            <a class="btn" style="height:34px; display:inline-flex; align-items:center; font-size:12px; border:1px solid #DCE5EF;"
+               href="{% url 'supervisor:shipment_records_export' %}?{{ export_query }}&format=pdf">
+                Download PDF
+            </a>
         </div>
 
         {% if q or status_f or import_type_f or stype_f or mcda_rec_f or date_from or date_to %}

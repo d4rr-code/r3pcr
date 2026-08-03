@@ -106,6 +106,12 @@ def login_view(request):
             if remaining <= 3:
                 msg += f' {remaining} attempt(s) left before a temporary lockout.'
             messages.error(request, msg)
+            log_audit(
+                'login_failed',
+                f'Failed login attempt for "{username}".',
+                request=request,
+                details={'attempted_username': username, 'attempts': attempts},
+            )
 
     return render(request, 'accounts/login.html')
 

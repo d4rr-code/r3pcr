@@ -416,8 +416,15 @@ def _read_tariff_workbook(path, rate_column):
         raise ValueError('openpyxl is required to import tariff schedules.')
 
     try:
+        # Read the whole file into memory first. openpyxl's read_only mode reads
+        # rows lazily, so it must not depend on the storage handle staying open —
+        # with FileSystemStorage the handle is a real file that closes here and
+        # would raise "seek of closed file" on later iter_rows(). Buffering also
+        # keeps behaviour consistent across storage backends (S3, local).
+        from io import BytesIO
         with default_storage.open(path, 'rb') as f:
-            workbook = openpyxl.load_workbook(f, read_only=True, data_only=True)
+            buffer = BytesIO(f.read())
+        workbook = openpyxl.load_workbook(buffer, read_only=True, data_only=True)
     except Exception as exc:
         raise ValueError(f'Could not open workbook: {exc}')
 

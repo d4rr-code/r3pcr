@@ -11,10 +11,36 @@ from ..wmcda import load_wmcda_weights, wmcda_weight_rows
 
 logger = logging.getLogger('r3pcr.computation')
 
+
 def _lerp(x, x0, x1, y0, y1):
     if x <= x0: return y0
     if x >= x1: return y1
     return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+
+
+def _get_freight_rates():
+    """Load configurable freight rates from SystemConfig.
+    Returns dict with rates per mode: air_rate_per_kg, lcl_rate_per_kg,
+    fcl_base_20ft, fcl_base_40ft, fcl_rate_per_kg."""
+    def _cfg(key, default):
+        raw = SystemConfig.get(key, str(default))
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return float(default)
+    return {
+        'air_rate_per_kg':  _cfg('mcda_air_rate_per_kg', 180),
+        'lcl_rate_per_kg':  _cfg('mcda_lcl_rate_per_kg', 15),
+        'lcl_rate_per_cbm': _cfg('mcda_lcl_rate_per_cbm', 8000),
+        'lcl_min_charge':   _cfg('mcda_lcl_min_charge', 3000),
+        'fcl_base_20ft':    _cfg('mcda_fcl_base_20ft', 45000),
+        'fcl_base_40ft':    _cfg('mcda_fcl_base_40ft', 75000),
+        'fcl_rate_per_kg':  _cfg('mcda_fcl_rate_per_kg', 8),
+        'air_transit_days': _cfg('mcda_air_transit_days', 5),
+        'sea_transit_days': _cfg('mcda_sea_transit_days', 21),
+        'air_max_weight':   _cfg('mcda_air_max_weight', 500),
+        'fcl_min_volume':   _cfg('mcda_fcl_min_volume', 8),
+    }
 
 
 def compute_wmcda(weight, volume, value, urgency, distance):
@@ -34,40 +60,85 @@ def compute_wmcda(weight, volume, value, urgency, distance):
         'rush': 'rush',
     }.get(urgency, urgency)
 
+    rates = _get_freight_rates()
+
+    # ── Cost scoring: based on actual freight cost comparison ──────────────────
+    # Compute estimated freight cost per mode (PHP), then normalize.
+    # LCL: greater of (weight × per-kg rate) or (volume × per-CBM rate), with minimum
+    # Air: chargeable weight (actual vs dimensional) × per-kg rate
+    # FCL: fixed container base + per-kg surcharge for heavy cargo
+    chargeable_weight = weight
     if volume > 0:
-        lcl_cost = max(0.20, _lerp(volume, 0, 15, 0.92, 0.28))
-        fcl_cost = min(0.95, _lerp(volume, 0, 15, 0.22, 0.90))
-    else:
-        lcl_cost = max(0.25, _lerp(weight, 0, 1000, 0.88, 0.35))
-        fcl_cost = _lerp(value, 0, 30000, 0.30, 0.88)
-    air_cost = max(0.15, _lerp(weight, 0, 500, 0.55, 0.18))
+        vol_weight = volume * 167  # dimensional weight for air
+        chargeable_weight = max(weight, vol_weight)
 
-    base_lcl_time = max(0.30, _lerp(distance, 0, 2000, 0.72, 0.50))
-    base_fcl_time = max(0.35, _lerp(distance, 0, 2000, 0.78, 0.55))
-    base_air_time = 0.62
-    lcl_time = max(0.20, base_lcl_time - 0.37 * urgency_factor)
-    fcl_time = max(0.25, base_fcl_time - 0.30 * urgency_factor)
-    air_time = min(0.99, base_air_time + 0.34 * urgency_factor)
+    air_cost_php = chargeable_weight * rates['air_rate_per_kg']
 
-    lcl_weight_component = _lerp(weight, 0, 2000, 0.92, 0.28)
-    fcl_weight_component = _lerp(weight, 0, 2000, 0.18, 0.95)
-    air_weight_component = max(0.10, _lerp(weight, 0, 300, 0.95, 0.15))
+    lcl_by_weight = weight * rates['lcl_rate_per_kg']
+    lcl_by_volume = (volume or 0) * rates['lcl_rate_per_cbm']
+    lcl_cost_php = max(lcl_by_weight, lcl_by_volume, rates['lcl_min_charge'])
+
+    fcl_container = rates['fcl_base_20ft'] if (volume or 0) <= 20 else rates['fcl_base_40ft']
+    fcl_cost_php = fcl_container + max(0, weight - 1000) * rates['fcl_rate_per_kg']
+
+    costs = [air_cost_php, lcl_cost_php, fcl_cost_php]
+    min_cost = min(costs)
+    max_cost = max(costs) if max(costs) > 0 else 1
+    cost_range = max_cost - min_cost if max_cost > min_cost else 1
+    air_cost = round(0.9 - 0.7 * (air_cost_php - min_cost) / cost_range, 3)
+    lcl_cost = round(0.9 - 0.7 * (lcl_cost_php - min_cost) / cost_range, 3)
+    fcl_cost = round(0.9 - 0.7 * (fcl_cost_php - min_cost) / cost_range, 3)
+
+    # ── Time scoring: based on transit days + urgency factor ──────────────────
+    # At normal urgency, time differences are small (cost matters more).
+    # At urgent/rush, time gap widens to strongly favor Air.
+    air_days = rates['air_transit_days']
+    sea_days = rates['sea_transit_days']
+    sea_days_adj = sea_days * max(1.0, distance / 3000)
+    air_days_adj = air_days * max(1.0, distance / 8000)
+
+    # Base scores: narrow gap at normal urgency (both modes "acceptable")
+    base_air_time = 0.70
+    base_lcl_time = 0.55
+    base_fcl_time = 0.58
+    # Distance penalty: sea gets worse at long distances
+    if sea_days_adj > 0:
+        dist_penalty = min(0.15, (distance - 2000) / 20000 * 0.15) if distance > 2000 else 0
+        base_lcl_time = max(0.40, base_lcl_time - dist_penalty)
+        base_fcl_time = max(0.43, base_fcl_time - dist_penalty)
+
+    # Urgency widens the gap: Air gains, sea modes lose
+    air_time = min(0.99, base_air_time + 0.20 * urgency_factor)
+    lcl_time = max(0.15, base_lcl_time - 0.22 * urgency_factor)
+    fcl_time = max(0.20, base_fcl_time - 0.18 * urgency_factor)
+
+    # ── Cargo suitability scoring ─────────────────────────────────────────────
+    # Air: excellent for light cargo, degrades for heavy
+    air_weight_score = max(0.10, _lerp(weight, 0, rates['air_max_weight'], 0.95, 0.15))
+    # LCL: good for small-to-medium, drops off for heavy cargo
+    lcl_weight_score = _lerp(weight, 0, 1500, 0.88, 0.35)
+    # FCL: good for heavy/bulky
+    fcl_weight_score = _lerp(weight, 0, 1500, 0.20, 0.88)
+
     if volume > 0:
-        lcl_volume_component = max(0.15, _lerp(volume, 0, 15, 0.95, 0.18))
-        fcl_volume_component = min(0.95, _lerp(volume, 0, 15, 0.18, 0.95))
-        air_volume_component = max(0.10, _lerp(volume, 0, 3, 0.95, 0.10))
-        lcl_weight = round(0.55 * lcl_weight_component + 0.45 * lcl_volume_component, 3)
-        fcl_weight = round(0.55 * fcl_weight_component + 0.45 * fcl_volume_component, 3)
-        air_weight = round(0.55 * air_weight_component + 0.45 * air_volume_component, 3)
+        air_vol = max(0.10, _lerp(volume, 0, 3, 0.90, 0.10))
+        # LCL loses suitability above ~5 CBM; FCL gains above ~3 CBM
+        lcl_vol = _lerp(volume, 0, 6, 0.88, 0.25)
+        fcl_vol = _lerp(volume, 0, 5, 0.15, 0.92)
+        air_weight_final = round(0.5 * air_weight_score + 0.5 * air_vol, 3)
+        lcl_weight_final = round(0.5 * lcl_weight_score + 0.5 * lcl_vol, 3)
+        fcl_weight_final = round(0.5 * fcl_weight_score + 0.5 * fcl_vol, 3)
     else:
-        lcl_weight = lcl_weight_component
-        fcl_weight = fcl_weight_component
-        air_weight = air_weight_component
+        air_weight_final = round(air_weight_score, 3)
+        lcl_weight_final = round(lcl_weight_score, 3)
+        fcl_weight_final = round(fcl_weight_score, 3)
 
+    # ── Distance scoring ──────────────────────────────────────────────────────
+    # Air gains advantage at longer distances (less delay proportionally)
     distance_max = 20000
-    lcl_distance = max(0.45, _lerp(distance, 0, distance_max, 0.72, 0.80))
-    fcl_distance = min(0.95, _lerp(distance, 0, distance_max, 0.55, 0.92))
-    air_distance = min(0.95, _lerp(distance, 0, distance_max, 0.60, 0.95))
+    air_distance = min(0.95, _lerp(distance, 0, distance_max, 0.55, 0.95))
+    lcl_distance = max(0.35, _lerp(distance, 0, distance_max, 0.75, 0.45))
+    fcl_distance = max(0.40, _lerp(distance, 0, distance_max, 0.70, 0.55))
 
     try:
         _, weights = load_wmcda_weights(SystemConfig.get)
@@ -82,16 +153,16 @@ def compute_wmcda(weight, volume, value, urgency, distance):
         return round(cost * w_cost + time * w_time + cargo * w_weight + dist * w_dist, 4)
 
     scores = {
-        'lcl': tws(lcl_cost, lcl_time, lcl_weight, lcl_distance),
-        'fcl': tws(fcl_cost, fcl_time, fcl_weight, fcl_distance),
-        'air': tws(air_cost, air_time, air_weight, air_distance),
+        'lcl': tws(lcl_cost, lcl_time, lcl_weight_final, lcl_distance),
+        'fcl': tws(fcl_cost, fcl_time, fcl_weight_final, fcl_distance),
+        'air': tws(air_cost, air_time, air_weight_final, air_distance),
     }
     recommended = max(scores, key=scores.get)
 
     breakdown = {
-        'lcl': {'cost': round(lcl_cost, 3), 'time': round(lcl_time, 3), 'weight': round(lcl_weight, 3), 'distance': round(lcl_distance, 3)},
-        'fcl': {'cost': round(fcl_cost, 3), 'time': round(fcl_time, 3), 'weight': round(fcl_weight, 3), 'distance': round(fcl_distance, 3)},
-        'air': {'cost': round(air_cost, 3), 'time': round(air_time, 3), 'weight': round(air_weight, 3), 'distance': round(air_distance, 3)},
+        'lcl': {'cost': round(lcl_cost, 3), 'time': round(lcl_time, 3), 'weight': round(lcl_weight_final, 3), 'distance': round(lcl_distance, 3)},
+        'fcl': {'cost': round(fcl_cost, 3), 'time': round(fcl_time, 3), 'weight': round(fcl_weight_final, 3), 'distance': round(fcl_distance, 3)},
+        'air': {'cost': round(air_cost, 3), 'time': round(air_time, 3), 'weight': round(air_weight_final, 3), 'distance': round(air_distance, 3)},
     }
 
     weight_label = f'{weight:.0f} kg'
