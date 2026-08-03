@@ -43,19 +43,6 @@
     font-size: 13px;
     margin: 0;
 }
-.dash-filter {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-.dash-filter .form-input {
-    width: clamp(126px, 14vw, 180px);
-    padding: 6px 8px;
-    font-size: 13px;
-    background: #fff;
-    color: #111827;
-}
 .dash-btn {
     height: 30px;
     padding: 0 10px;
@@ -76,6 +63,123 @@
     background: var(--ink);
     border-color: var(--ink);
     color: #fff;
+}
+.dash-btn.is-primary {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #fff;
+}
+/* ── Generate Reports panel ─────────────────────────────────────────────── */
+.reports-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px 20px 20px;
+    margin: 0 0 18px;
+}
+.reports-inner { width: 100%; }
+.reports-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+.reports-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 2px;
+}
+.reports-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0;
+}
+/* Filters */
+.reports-filters {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+/* Fields grow to share the row instead of sitting at a fixed narrow width. */
+.reports-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1 1 200px;
+    max-width: 320px;
+}
+.reports-field > label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+}
+.reports-field .form-input {
+    width: 100%;
+    height: 34px;
+    padding: 6px 9px;
+    font-size: 13px;
+    background: #fff;
+    color: #111827;
+}
+.reports-filters .dash-btn {
+    height: 34px;
+    min-width: 130px;
+}
+/* Active-filter readout closes the row and tells the user what will export. */
+.reports-summary {
+    margin-left: auto;
+    align-self: center;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+}
+.reports-summary strong {
+    color: var(--ink);
+    font-weight: 600;
+}
+.reports-custom-range { display: contents; }
+.reports-custom-range[hidden] { display: none; }
+/* Export groups — each report gets its own titled tile */
+.reports-exports {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+.reports-export-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #FAFBFC;
+    padding: 12px 14px;
+}
+.reports-export-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 2px;
+}
+.reports-export-note {
+    font-size: 11px;
+    color: var(--muted);
+    margin: 0;
+}
+.reports-export-btns {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.reports-export-btns .dash-btn {
+    height: 32px;
+    min-width: 104px;
 }
 .dash-grid {
     display: grid;
@@ -544,10 +648,22 @@
 @media (max-width: 980px) {
     .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .wmcda-content { grid-template-columns: 1fr; align-items: stretch; }
+    .reports-field .form-input { width: 100%; }
+    .reports-field { flex: 1 1 190px; }
 }
 @media (max-width: 720px) {
     .dash-head { align-items: flex-start; flex-direction: column; }
-    .dash-filter, .dash-filter .form-input, .dash-btn { width: 100%; }
+    .dash-btn { width: 100%; }
+    .reports-filters, .reports-field, .reports-field .form-input { width: 100%; }
+    .reports-field { max-width: none; }
+    .reports-filters .dash-btn { width: 100%; }
+    .reports-summary { margin-left: 0; text-align: left; }
+    .reports-custom-range { display: block; }
+    .reports-custom-range[hidden] { display: none; }
+    .reports-exports { grid-template-columns: 1fr; }
+    .reports-export-card { align-items: flex-start; }
+    .reports-export-btns { width: 100%; }
+    .reports-export-btns .dash-btn { flex: 1 1 0; min-width: 0; }
     .metric-types, .metric-side, .status-grid, .wmcda-content { grid-template-columns: 1fr; }
     .status-item { border-right: 0; }
     .panel { padding: 18px; }
@@ -623,28 +739,95 @@ canvas { cursor: pointer; }
             <p class="dash-kicker">Welcome Back Admin!</p>
             <p class="dash-crumb">Dashboard/Analytics</p>
         </div>
-        <form class="dash-filter" method="GET">
+    </div>
+
+    <section class="reports-card" aria-labelledby="generate-reports-title">
+      <div class="reports-inner">
+        <div class="reports-card-head">
+            <div>
+                <p class="reports-title" id="generate-reports-title">Generate Reports</p>
+                <p class="reports-sub">Filter the dashboard, then export the analytics or clearance intelligence report.</p>
+            </div>
+            {% if date_from or date_to or declarant_filter %}
+            <a class="dash-btn" href="{% url 'supervisor:analytics' %}">Clear Filters</a>
+            {% endif %}
+        </div>
+
+        <form class="reports-filters" method="GET" id="reports-filter-form">
             {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
             {% if status_f %}<input type="hidden" name="status_f" value="{{ status_f }}">{% endif %}
-            <input type="date" name="date_from" value="{{ date_from }}" class="form-input" title="From date">
-            <input type="date" name="date_to" value="{{ date_to }}" class="form-input" title="To date">
-            <button class="dash-btn" type="button" data-range-preset="month">This Month</button>
-            <button class="dash-btn" type="button" data-range-preset="30d">Last 30 Days</button>
-            <button class="dash-btn {% if date_from or date_to %}is-active{% endif %}" type="submit">Custom Range</button>
-            <select name="declarant" class="form-input" title="Declarant">
-                <option value="">All Declarants</option>
-                {% for d in declarants %}
-                <option value="{{ d.username }}" {% if declarant_filter == d.username %}selected{% endif %}>{{ d.get_full_name|default:d.username }}</option>
-                {% endfor %}
-            </select>
-            <button class="dash-btn" type="submit">Apply</button>
-            <a class="dash-btn" href="{% url 'supervisor:analytics_export' %}?format=xlsx{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if declarant_filter %}&declarant={{ declarant_filter }}{% endif %}">Excel</a>
-            <a class="dash-btn" href="{% url 'supervisor:analytics_export' %}?format=pdf{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if declarant_filter %}&declarant={{ declarant_filter }}{% endif %}">PDF</a>
-            {% if date_from or date_to or declarant_filter %}
-            <a class="dash-btn" href="{% url 'supervisor:analytics' %}">Clear</a>
-            {% endif %}
+
+            <div class="reports-field">
+                <label for="report-period">Reporting Period</label>
+                <select name="period" id="report-period" class="form-input">
+                    <option value="" {% if not request.GET.period %}selected{% endif %}>All Time</option>
+                    <option value="today" {% if request.GET.period == 'today' %}selected{% endif %}>Today</option>
+                    <option value="this_week" {% if request.GET.period == 'this_week' %}selected{% endif %}>This Week</option>
+                    <option value="this_month" {% if request.GET.period == 'this_month' %}selected{% endif %}>This Month</option>
+                    <option value="last_month" {% if request.GET.period == 'last_month' %}selected{% endif %}>Last Month</option>
+                    <option value="this_quarter" {% if request.GET.period == 'this_quarter' %}selected{% endif %}>This Quarter</option>
+                    <option value="this_year" {% if request.GET.period == 'this_year' %}selected{% endif %}>This Year</option>
+                    <option value="custom" {% if request.GET.period == 'custom' %}selected{% endif %}>Custom Range</option>
+                </select>
+            </div>
+
+            <div class="reports-custom-range" id="report-custom-range" hidden>
+                <div class="reports-field">
+                    <label for="report-date-from">Date From</label>
+                    <input type="date" name="date_from" id="report-date-from" value="{{ date_from }}" class="form-input">
+                </div>
+                <div class="reports-field">
+                    <label for="report-date-to">Date To</label>
+                    <input type="date" name="date_to" id="report-date-to" value="{{ date_to }}" class="form-input">
+                </div>
+            </div>
+
+            <div class="reports-field">
+                <label for="report-declarant">Declarant</label>
+                <select name="declarant" id="report-declarant" class="form-input">
+                    <option value="">All Declarants</option>
+                    {% for d in declarants %}
+                    <option value="{{ d.username }}" {% if declarant_filter == d.username %}selected{% endif %}>{{ d.get_full_name|default:d.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button class="dash-btn is-primary" type="submit">Apply Filters</button>
+
+            <p class="reports-summary">
+                Reporting on
+                <strong>{% if date_from or date_to %}{{ date_from|default:'earliest' }} to {{ date_to|default:'latest' }}{% else %}all time{% endif %}</strong>
+                &middot;
+                <strong>{% if declarant_filter %}{{ declarant_filter }}{% else %}all declarants{% endif %}</strong>
+            </p>
         </form>
-    </div>
+
+        <div class="reports-exports">
+            <div class="reports-export-card">
+                <div>
+                    <p class="reports-export-title">Dashboard Analytics</p>
+                    <p class="reports-export-note">Uses the filters above.</p>
+                </div>
+                <div class="reports-export-btns">
+                    <a class="dash-btn" data-export-base="{% url 'supervisor:analytics_export' %}" data-export-format="csv"
+                       href="{% url 'supervisor:analytics_export' %}?format=csv{% if request.GET.period %}&period={{ request.GET.period }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if declarant_filter %}&declarant={{ declarant_filter }}{% endif %}">Export CSV</a>
+                    <a class="dash-btn" data-export-base="{% url 'supervisor:analytics_export' %}" data-export-format="pdf"
+                       href="{% url 'supervisor:analytics_export' %}?format=pdf{% if request.GET.period %}&period={{ request.GET.period }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if declarant_filter %}&declarant={{ declarant_filter }}{% endif %}">Export PDF</a>
+                </div>
+            </div>
+            <div class="reports-export-card">
+                <div>
+                    <p class="reports-export-title">Clearance Intelligence</p>
+                    <p class="reports-export-note">Forecasting, delay risk and HS review.</p>
+                </div>
+                <div class="reports-export-btns">
+                    <a class="dash-btn" href="{% url 'supervisor:intelligence_export' %}?format=csv">Export CSV</a>
+                    <a class="dash-btn" href="{% url 'supervisor:intelligence_export' %}?format=pdf">Export PDF</a>
+                </div>
+            </div>
+        </div>
+      </div>
+    </section>
 
     <div class="dash-grid">
         <a class="dash-card metric-total" href="{% url 'supervisor:shipment_records' %}">
@@ -1022,27 +1205,95 @@ canvas { cursor: pointer; }
         return y + '-' + m + '-' + d;
     }
 
-    document.querySelectorAll('[data-range-preset]').forEach(function (button) {
-        button.addEventListener('click', function () {
-            var form = button.closest('form');
-            if (!form) return;
-            var from = form.querySelector('input[name="date_from"]');
-            var to = form.querySelector('input[name="date_to"]');
-            if (!from || !to) return;
+    // ── Generate Reports card ────────────────────────────────────────────────
+    // The reporting-period presets resolve to date_from/date_to before submit,
+    // so the backend keeps its existing date-range contract unchanged.
+    (function reportsCard() {
+        var form = document.getElementById('reports-filter-form');
+        var periodSelect = document.getElementById('report-period');
+        var customRange = document.getElementById('report-custom-range');
+        var fromInput = document.getElementById('report-date-from');
+        var toInput = document.getElementById('report-date-to');
+        if (!form || !periodSelect || !customRange || !fromInput || !toInput) return;
 
+        function rangeFor(period) {
             var today = new Date();
-            if (button.dataset.rangePreset === 'month') {
-                from.value = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-                to.value = isoDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
-            } else if (button.dataset.rangePreset === '30d') {
-                var start = new Date(today);
-                start.setDate(today.getDate() - 29);
-                from.value = isoDate(start);
-                to.value = isoDate(today);
+            var y = today.getFullYear();
+            var m = today.getMonth();
+            switch (period) {
+                case 'today':
+                    return [today, today];
+                case 'this_week': {
+                    var monday = new Date(today);
+                    // getDay(): 0 = Sunday, so shift back to the preceding Monday.
+                    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+                    return [monday, today];
+                }
+                case 'this_month':
+                    return [new Date(y, m, 1), today];
+                case 'last_month':
+                    return [new Date(y, m - 1, 1), new Date(y, m, 0)];
+                case 'this_quarter':
+                    return [new Date(y, Math.floor(m / 3) * 3, 1), today];
+                case 'this_year':
+                    return [new Date(y, 0, 1), today];
+                default:
+                    return null;
             }
-            form.submit();
+        }
+
+        function syncCustomVisibility() {
+            customRange.hidden = periodSelect.value !== 'custom';
+        }
+
+        function applyPeriodToInputs() {
+            var period = periodSelect.value;
+            if (period === 'custom' || period === '') {
+                if (period === '') {
+                    fromInput.value = '';
+                    toInput.value = '';
+                }
+                return;
+            }
+            var range = rangeFor(period);
+            if (range) {
+                fromInput.value = isoDate(range[0]);
+                toInput.value = isoDate(range[1]);
+            }
+        }
+
+        function currentFilterParams() {
+            applyPeriodToInputs();
+            var params = new URLSearchParams();
+            // period is label-only for the report header; date_from/date_to
+            // still drive the actual filtering.
+            if (periodSelect.value) params.set('period', periodSelect.value);
+            if (fromInput.value) params.set('date_from', fromInput.value);
+            if (toInput.value) params.set('date_to', toInput.value);
+            var declarant = document.getElementById('report-declarant');
+            if (declarant && declarant.value) params.set('declarant', declarant.value);
+            return params;
+        }
+
+        periodSelect.addEventListener('change', function () {
+            syncCustomVisibility();
+            applyPeriodToInputs();
         });
-    });
+        form.addEventListener('submit', applyPeriodToInputs);
+
+        // Analytics exports mirror the live filter state; intelligence exports
+        // are unfiltered by date and keep their plain hrefs.
+        document.querySelectorAll('[data-export-base]').forEach(function (link) {
+            link.addEventListener('click', function (event) {
+                event.preventDefault();
+                var params = currentFilterParams();
+                params.set('format', link.dataset.exportFormat);
+                window.location.href = link.dataset.exportBase + '?' + params.toString();
+            });
+        });
+
+        syncCustomVisibility();
+    })();
 
     var customMonthInput = document.querySelector('input[name="custom_month"]');
     if (customMonthInput) {

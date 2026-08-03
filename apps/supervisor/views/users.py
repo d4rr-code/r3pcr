@@ -4,30 +4,158 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
+from django.db.models import Q
+from django.utils import timezone
 from apps.accounts.models import User
 from apps.accounts.views import _validate_phone_number
+from ..audit import log_audit
+from .reports import (
+    REPORT_PERIOD_CHOICES, apply_period, build_report_meta, csv_report_response,
+    format_filters, pdf_report_response, resolve_report_period,
+)
 
 logger = logging.getLogger(__name__)
 
 from .common import *  # noqa: F401,F403
 
+
+def _user_accounts_queryset(request):
+    """Filtered account queryset plus the applied filters.
+
+    Shared by the user management page and its export. Statistics are always
+    computed over the unfiltered set so the summary tiles stay stable.
+    """
+    role_f = request.GET.get('role', '').strip()
+    status_f = request.GET.get('status', '').strip()
+    q = request.GET.get('q', '').strip()
+    period = resolve_report_period(request)
+
+    valid_roles = {key for key, _label in User.ROLE_CHOICES}
+    base = User.objects.filter(is_pending_approval=False)
+    users = base.order_by('role', 'username')
+
+    if role_f in valid_roles:
+        users = users.filter(role=role_f)
+    else:
+        role_f = ''
+    if status_f == 'active':
+        users = users.filter(is_active=True)
+    elif status_f == 'inactive':
+        users = users.filter(is_active=False)
+    else:
+        status_f = ''
+    if q:
+        users = users.filter(
+            Q(username__icontains=q) | Q(first_name__icontains=q)
+            | Q(last_name__icontains=q) | Q(email__icontains=q)
+            | Q(company_name__icontains=q)
+        )
+    users = apply_period(users, period, 'date_joined')
+
+    return users, base, {
+        'role': role_f,
+        'status': status_f,
+        'q': q,
+        'period': period,
+    }
+
+
 @login_required
 @supervisor_required
 def user_management(request):
-    users   = User.objects.filter(is_pending_approval=False).order_by('role', 'username')
+    users, base, applied = _user_accounts_queryset(request)
     pending = User.objects.filter(is_pending_approval=True, email_verified=True).order_by('date_joined')
     user_stats = {
-        'total': users.count(),
-        'consignees': users.filter(role='consignee').count(),
-        'declarants': users.filter(role='declarant').count(),
-        'active': users.filter(is_active=True).count(),
-        'inactive': users.filter(is_active=False).count(),
+        'total': base.count(),
+        'consignees': base.filter(role='consignee').count(),
+        'declarants': base.filter(role='declarant').count(),
+        'active': base.filter(is_active=True).count(),
+        'inactive': base.filter(is_active=False).count(),
     }
     return render(request, 'supervisor/users.html', {
         'users':   users,
         'pending': pending,
         'user_stats': user_stats,
+        'active_role': applied['role'],
+        'active_status': applied['status'],
+        'active_q': applied['q'],
+        'active_period': applied['period']['period'],
+        'period_label': applied['period']['label'],
+        'ROLE_CHOICES': User.ROLE_CHOICES,
+        'PERIOD_CHOICES': REPORT_PERIOD_CHOICES,
+        'filtered_count': users.count(),
+        'export_query': request.GET.urlencode(),
     })
+
+
+#  User Accounts Export
+
+USER_EXPORT_HEADERS = [
+    'Username', 'Full Name', 'Email', 'Role', 'Company', 'Phone',
+    'Active', 'Email Verified', 'Date Joined',
+]
+
+
+def _user_export_rows(users):
+    return [
+        [
+            u.username,
+            u.get_full_name(),
+            u.email or '',
+            u.get_role_display(),
+            u.company_name or '',
+            u.phone_number or '',
+            'Yes' if u.is_active else 'No',
+            'Yes' if u.email_verified else 'No',
+            timezone.localtime(u.date_joined).strftime('%Y-%m-%d') if u.date_joined else '',
+        ]
+        for u in users
+    ]
+
+
+@login_required
+@supervisor_required
+def user_management_export(request):
+    """Download the user account list as CSV or PDF, honouring the page filters."""
+    fmt = (request.GET.get('format') or 'csv').lower()
+    users, _base, applied = _user_accounts_queryset(request)
+    period = applied['period']
+    rows = _user_export_rows(users)
+
+    log_audit(
+        'report_download',
+        f'Supervisor downloaded user accounts report ({fmt}).',
+        request=request,
+        details={
+            'format': fmt,
+            'role': applied['role'],
+            'status': applied['status'],
+            'period': period['period'],
+            'rows': len(rows),
+        },
+    )
+
+    title = 'R3-PCR User Accounts Report'
+    meta = build_report_meta(
+        request,
+        period=period,
+        filters=format_filters([
+            ('Role', dict(User.ROLE_CHOICES).get(applied['role'], applied['role'])),
+            ('Status', applied['status'].title() if applied['status'] else ''),
+            ('Search', applied['q']),
+        ]),
+        total=len(rows),
+    )
+
+    if fmt == 'pdf':
+        return pdf_report_response(
+            'R3PCR_User_Accounts', title, meta, USER_EXPORT_HEADERS, rows,
+            empty_message='No accounts match these filters.',
+        )
+
+    return csv_report_response(
+        'R3PCR_User_Accounts', title, meta, USER_EXPORT_HEADERS, rows,
+    )
 
 
 @login_required
@@ -136,6 +264,20 @@ def add_user(request):
             errors.append('Password must include at least one number.')
         if not re.search(r'[^A-Za-z0-9]', password):
             errors.append('Password must include at least one special character.')
+
+        # Duplicate-person detection: warn if someone with the same name exists
+        if first_name and last_name:
+            existing_person = User.objects.filter(
+                first_name__iexact=first_name,
+                last_name__iexact=last_name,
+            ).first()
+            if existing_person:
+                messages.warning(
+                    request,
+                    f'A user with this name already exists: '
+                    f'{existing_person.get_full_name()} ({existing_person.username}, '
+                    f'{existing_person.email}). Verify this is a different person.'
+                )
 
         if errors:
             for error in errors:

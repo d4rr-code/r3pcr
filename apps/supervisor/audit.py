@@ -28,9 +28,18 @@ def log_audit(action, summary, *, user=None, request=None, shipment=None, target
             target_type = target.__class__.__name__
             target_id = str(getattr(target, 'pk', '') or '')
 
+        # Capture identity at log time (survives user deletion/rename)
+        full_name = ''
+        email = ''
+        if actor and getattr(actor, 'is_authenticated', False):
+            full_name = actor.get_full_name() if hasattr(actor, 'get_full_name') else ''
+            email = getattr(actor, 'email', '') or ''
+
         AuditLog.objects.create(
             user=actor if getattr(actor, 'is_authenticated', False) else None,
             user_role=getattr(actor, 'role', '') or '',
+            user_full_name=full_name,
+            user_email=email,
             action=action,
             shipment=shipment,
             target_type=target_type,

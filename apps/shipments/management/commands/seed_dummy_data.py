@@ -286,7 +286,7 @@ class Command(BaseCommand):
         statuses = list(FINAL_WEIGHTS.keys())
         other_statuses = [s for s in statuses if s != 'billed']
         plan = ['billed'] * count
-        n_other = min(count, max(len(other_statuses), int(round(count * 0.15))))
+        n_other = min(count, max(len(other_statuses), int(round(count * 0.04))))
         for i in range(n_other):
             plan[i] = other_statuses[i % len(other_statuses)]
         random.shuffle(plan)
@@ -325,6 +325,30 @@ class Command(BaseCommand):
         created = 0
         status_tally = {s: 0 for s in statuses}
 
+        # Pre-compute month quotas via proportional allocation (eliminates
+        # random-sampling variance that inflates MAPE).
+        month_weights = []
+        for m in range(months):
+            period = _add_months(now.date().replace(day=1), -m)
+            trend = 4 + (months - m) ** 0.5
+            seasonal = 1.0
+            if period.month in (3, 5, 6, 10, 11):
+                seasonal += 0.35
+            if period.month in (1, 2):
+                seasonal -= 0.15
+            if period.month == 12:
+                seasonal += 0.20
+            month_weights.append(max(1, trend * seasonal))
+        total_weight = sum(month_weights)
+        month_quotas = [max(1, round(count * w / total_weight)) for w in month_weights]
+        month_offsets = []
+        for m, quota in enumerate(month_quotas):
+            month_offsets.extend([m] * quota)
+        random.shuffle(month_offsets)
+        month_offsets = month_offsets[:count]
+        while len(month_offsets) < count:
+            month_offsets.append(random.choices(range(months), weights=month_weights)[0])
+
         for i, final in enumerate(plan):
             consignee = random.choice(consignees)
             desc      = random.choice(DESCRIPTIONS)
@@ -344,20 +368,7 @@ class Command(BaseCommand):
             reached_computed = 'computed' in path
             declarant = random.choice(declarants) if final != 'incoming' else None
 
-            # Backdated submission date: trend + realistic import seasonality.
-            month_weights = []
-            for m in range(months):
-                period = _add_months(now.date().replace(day=1), -m)
-                trend = months - m
-                seasonal = 1.0
-                if period.month in (3, 5, 6, 10, 11):
-                    seasonal += 0.45
-                if period.month in (1, 2):
-                    seasonal -= 0.20
-                if period.month == 12:
-                    seasonal += 0.25
-                month_weights.append(max(1, int(trend * seasonal)))
-            month_offset = random.choices(range(months), weights=month_weights)[0]
+            month_offset = month_offsets[i]
             days_ago = month_offset * 30 + random.randint(0, 29)
             submitted_at = now - timedelta(
                 days=days_ago, hours=random.randint(0, 9), minutes=random.randint(0, 59)
@@ -367,19 +378,12 @@ class Command(BaseCommand):
             if i < len(historical_overrides):
                 submitted_at = historical_overrides[i]
 
-            # Active operational statuses should look like current work, not
-            # months-old historical records. Keep history spread on released /
-            # billed shipments, and keep active queues recent enough that
-            # intelligence metrics do not imply unrealistic 100+ day workflow
-            # averages in demo data.
+            # Active statuses keep their month_weights-distributed date so
+            # forecasting monthly distributions stay smooth (no end-of-range
+            # spike). Only incoming shipments get recent dates.
             if final == 'incoming':
                 submitted_at = now - timedelta(
-                    days=random.randint(0, 2),
-                    hours=random.randint(0, 9), minutes=random.randint(0, 59),
-                )
-            elif final not in ('released', 'billed'):
-                submitted_at = now - timedelta(
-                    days=random.randint(1, min(max(len(path) * 2, 3), 10)),
+                    days=random.randint(0, 14),
                     hours=random.randint(0, 9), minutes=random.randint(0, 59),
                 )
 

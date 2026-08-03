@@ -155,15 +155,25 @@ def _analytics_report_data(request):
         forecast_year=timezone.localdate().year,
         forecast_model='all',
     )
+    forecast_available = workload_forecast['forecast_available']
     forecast_summary_rows = [
         ['Forecast Period', workload_forecast['forecast_label']],
-        ['Projected Incoming Workload', workload_forecast['projected_period_total']],
-        ['Expected Range', f"{workload_forecast['projected_low']} - {workload_forecast['projected_high']}"],
-        ['Workload Level', workload_forecast['level']],
+        [
+            'Projected Incoming Workload',
+            workload_forecast['projected_period_total'] if forecast_available else 'Unavailable',
+        ],
+        [
+            'Expected Range',
+            f"{workload_forecast['projected_low']} - {workload_forecast['projected_high']}"
+            if forecast_available else 'Unavailable',
+        ],
+        ['Workload Level', workload_forecast['level'] or 'Unavailable'],
         ['Confidence', workload_forecast['confidence']],
-        ['Recommended Model', workload_forecast['recommended_model']['label']],
-        ['Displayed Model', workload_forecast['displayed_model']['label']],
-        ['Trend vs Previous Period', f"{workload_forecast['trend_pct']}%"],
+        ['Forecast Model', workload_forecast['displayed_model']['label']],
+        [
+            'Trend vs Previous Period',
+            f"{workload_forecast['trend_pct']}%" if forecast_available else 'Unavailable',
+        ],
         ['Active Backlog', workload_forecast['active_backlog']],
         ['Interpretation', workload_forecast['interpretation']],
         ['Recommended Action', workload_forecast['action']],
@@ -186,6 +196,7 @@ def _analytics_report_data(request):
 
     return {
         'generated_at': timezone.localtime().strftime('%Y-%m-%d %H:%M'),
+        'total': total,
         'filters': {
             'date_from': date_from or 'All',
             'date_to': date_to or 'All',
@@ -251,6 +262,26 @@ def analytics_export(request):
         details={'format': fmt, 'filters': data['filters']},
     )
 
+    from .reports import build_report_meta, format_filters, resolve_report_period
+
+    report_title = 'R3-PCR Analytics Report'
+    report_meta = build_report_meta(
+        request,
+        # Label only — filtering still uses the date_from/date_to already
+        # resolved by _analytics_report_data above.
+        period=resolve_report_period(request),
+        filters=format_filters([('Declarant', data['filters']['declarant'])]),
+        total=data['total'],
+    )
+
+    if fmt == 'csv':
+        from .reports import csv_multi_section_response
+
+        return csv_multi_section_response(
+            'R3PCR_Analytics_Report', report_title, report_meta,
+            [('Executive Summary', ['Metric', 'Value'], data['summary'])] + list(data['tables']),
+        )
+
     if fmt == 'pdf':
         from io import BytesIO
         from reportlab.lib import colors
@@ -262,14 +293,13 @@ def analytics_export(request):
         doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=24)
         styles = getSampleStyleSheet()
         cell_style = ParagraphStyle('cell', fontName='Helvetica', fontSize=8, leading=10)
+        from .reports import pdf_meta_flowables
+
         story = [
-            Paragraph('R3-PCR Analytics Report', styles['Title']),
-            Paragraph(f"Generated: {data['generated_at']}", styles['Normal']),
-            Paragraph(
-                f"Filters: From {data['filters']['date_from']} to {data['filters']['date_to']} | Declarant: {data['filters']['declarant']}",
-                styles['Normal'],
-            ),
-            Spacer(1, 12),
+            Paragraph(report_title, styles['Title']),
+            Spacer(1, 6),
+            pdf_meta_flowables(report_meta, doc.width),
+            Spacer(1, 14),
         ]
         for title, headers, rows in [('Executive Summary', ['Metric', 'Value'], data['summary'])] + data['tables']:
             story.append(Paragraph(title, styles['Heading2']))
@@ -312,13 +342,15 @@ def analytics_export(request):
     header_fill = PatternFill('solid', fgColor='1B3358')
     header_font = Font(color='FFFFFF', bold=True)
 
-    ws.append(['R3-PCR Analytics Report'])
+    ws.append([report_title])
     ws['A1'].font = Font(bold=True, size=16)
-    ws.append(['Generated', data['generated_at']])
-    ws.append(['Date From', data['filters']['date_from'], 'Date To', data['filters']['date_to'], 'Declarant', data['filters']['declarant']])
+    for label, value in report_meta:
+        ws.append([f'{label}:', value])
     ws.append([])
+
+    summary_header_row = ws.max_row + 1
     ws.append(['Metric', 'Value'])
-    for cell in ws[5]:
+    for cell in ws[summary_header_row]:
         cell.fill = header_fill
         cell.font = header_font
     for row in data['summary']:

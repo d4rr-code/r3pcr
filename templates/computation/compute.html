@@ -1819,7 +1819,7 @@ document.body.classList.add('light-mode');
 
         <!-- Row 2: fee chips -->
         <div style="border-top:1px solid #1e293b; padding-top:8px;
-                    display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:5px; margin-bottom:6px;">
+                    display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr; gap:5px; margin-bottom:6px;">
             <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
                 <p style="color:#64748b; font-size:9px; margin:0 0 2px;">Bank Charges</p>
                 <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-bc">&#8369;0.00</p>
@@ -1832,6 +1832,10 @@ document.body.classList.add('light-mode');
             <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
                 <p style="color:#64748b; font-size:9px; margin:0 0 2px;">CDS (fixed)</p>
                 <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;">&#8369;130.00</p>
+            </div>
+            <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
+                <p style="color:#64748b; font-size:9px; margin:0 0 2px;">BIR DST</p>
+                <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-bir-dst">&#8369;30.00</p>
             </div>
             <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
                 <p style="color:#64748b; font-size:9px; margin:0 0 2px;">IPF</p>
@@ -1880,7 +1884,7 @@ document.body.classList.add('light-mode');
             </div>
         </div>
         <p style="color:#334155; font-size:10px; margin:5px 0 0; text-align:right;">
-            TLC = D/V + Bank Chg + CUD + BF + CDS + IPF + Port Fees &middot; VAT = 12% &times; TLC &middot; BOC = CUD + VAT + CDS + IPF{% if shipment.shipment_type == 'fcl' %} &middot; CSF shown separately{% endif %}
+            TLC = D/V + Bank Chg + CUD + BF + CDS + BIR DST + IPF + Port Fees &middot; VAT = 12% &times; TLC &middot; BOC = CUD + VAT + CDS + BIR DST + IPF{% if shipment.shipment_type == 'fcl' %} &middot; CSF shown separately{% endif %}
         </p>
     </div>
 </div>
@@ -1999,6 +2003,15 @@ document.body.classList.add('light-mode');
             </div>
 
             <div class="summary-row">
+                <span class="summary-label">BIR DST (Documentary Stamp Tax)</span>
+                <span class="summary-value">
+                    {% if result %}&#8369;{{ result.bir_dst|floatformat:2 }}
+                    {% elif existing.bir_dst %}&#8369;{{ existing.bir_dst|floatformat:2 }}
+                    {% else %}&#8369;30.00{% endif %}
+                </span>
+            </div>
+
+            <div class="summary-row">
                 <span class="summary-label">IPF (Import Processing Fee)</span>
                 <span class="summary-value">
                     {% if result %}&#8369;{{ result.ipf|floatformat:2 }}
@@ -2058,6 +2071,14 @@ document.body.classList.add('light-mode');
                     <span style="color:#f1f5f9; font-weight:600;">&#8369;130.00</span>
                 </div>
                 <div class="boc-row">
+                    <span style="color:#94a3b8;">BIR DST</span>
+                    <span style="color:#f1f5f9; font-weight:600;">
+                        {% if result %}&#8369;{{ result.bir_dst|floatformat:2 }}
+                        {% elif existing.bir_dst %}&#8369;{{ existing.bir_dst|floatformat:2 }}
+                        {% else %}&#8369;30.00{% endif %}
+                    </span>
+                </div>
+                <div class="boc-row">
                     <span style="color:#94a3b8;">IPF</span>
                     <span style="color:#f1f5f9; font-weight:600;">
                         {% if result %}&#8369;{{ result.ipf|floatformat:2 }}
@@ -2069,12 +2090,13 @@ document.body.classList.add('light-mode');
                     <span style="color:#60a5fa; font-size:13px;">TOTAL BOC FEES</span>
                     <span style="color:#3b82f6; font-size:15px; font-weight:800;">
                         {% if result %}&#8369;{{ result.boc_total|floatformat:2 }}
+                        {% elif existing %}&#8369;{{ existing.boc_payable|floatformat:2 }}
                         {% else %}&mdash;{% endif %}
                     </span>
                 </div>
 
                 <p style="color:#334155; font-size:10px; margin:10px 0 0; text-align:center;">
-                    CUD + VAT + CDS + IPF
+                    CUD + VAT + CDS + BIR DST + IPF
                 </p>
                 {% if shipment.shipment_type == 'fcl' %}
                 <p style="color:#1e3a5f; font-size:10px; margin:3px 0 0; text-align:center;">
@@ -2781,9 +2803,11 @@ function syncGrossWeightFromRows(force) {
 
 // ── Live recalculation ────────────────────────────────────────────────────────
 // EXW uses invoice currency; freight/insurance/O.C. use USD.
-// TLC = D/V + Bank Charges + CUD + BF + CDS + IPF + Arrastre + Wharfage + CSF
+// TLC = D/V + Bank Charges + CUD + BF + CDS + BIR DST + IPF + Arrastre + Wharfage
 // VAT = 12% * TLC
-// BOC Total = CUD + VAT + CDS + IPF
+// BOC Total = CUD + VAT + CDS + BIR DST + IPF
+var BIR_DST = {{ bir_dst_amount|default:"30" }};
+var INSURANCE_DEFAULT_PCT = {{ insurance_default_rate|default:"2" }};
 function recalcAll() {
     var rows     = document.querySelectorAll('#ecdt-body tr');
     var exchRate = parseFloat(document.getElementById('exchange_rate').value) || 0;
@@ -2885,17 +2909,17 @@ function recalcAll() {
     document.getElementById('total-cud').textContent   = _fmt(totalCud);
 
     // Live fee summary
-    // NOTE: CSF is NOT in TLC and NOT in BOC &mdash; it is a separate port terminal charge
-    // shown for information only (matches client CDT Excel / PDF format).
     if (totalDvPhp > 0 || bankChg > 0) {
         var liveBf  = getBF(totalDvPhp);
         var liveIpf = getIPF(totalDvPhp);
-        // TLC excludes CSF
-        var liveTlc = totalDvPhp + bankChg + totalCud + liveBf + 130 + liveIpf
+        // TLC = D/V + Bank + CUD + BF + CDS + BIR DST + IPF + Arrastre + Wharfage
+        var liveTlc = totalDvPhp + bankChg + totalCud + liveBf + 130 + BIR_DST + liveIpf
                       + arrastre + wharfage;
         var liveVat = liveTlc * 0.12;
-        // BOC = CUD + VAT + CDS + IPF + CSF (CSF included for FCL, 0 for others)
-        var liveBoc = totalCud + liveVat + 130 + liveIpf + (chargeMode === 'fcl' ? csfPhp : 0);
+        // BOC = CUD + VAT + CDS + BIR DST + IPF + CSF (CSF for FCL only)
+        var liveBoc = totalCud + liveVat + 130 + BIR_DST + liveIpf + (chargeMode === 'fcl' ? csfPhp : 0);
+        var birDstEl = document.getElementById('live-bir-dst');
+        if (birDstEl) birDstEl.textContent = _fmt(BIR_DST);
 
         document.getElementById('live-bf').textContent      = _fmt(liveBf);
         document.getElementById('live-bf-tier').textContent = getBFTier(totalDvPhp);

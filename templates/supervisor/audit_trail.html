@@ -17,7 +17,7 @@
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">User</label>
-            <input type="text" name="user" value="{{ active_user }}" class="form-input" placeholder="username" style="font-size:12px;">
+            <input type="text" name="user" value="{{ active_user }}" class="form-input" placeholder="name or username" style="font-size:12px;">
         </div>
         <div>
             <label class="form-label" style="font-size:11px;">Shipment</label>
@@ -31,6 +31,14 @@
             <label class="form-label" style="font-size:11px;">To</label>
             <input type="date" name="date_to" value="{{ active_date_to }}" class="form-input" style="font-size:12px;">
         </div>
+        <div>
+            <label class="form-label" style="font-size:11px;">Reporting Period</label>
+            <select name="period" class="form-input" style="font-size:12px;" onchange="this.form.submit()">
+                {% for val, label in PERIOD_CHOICES %}
+                <option value="{{ val }}" {% if active_period == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <button type="submit" class="btn btn-primary" style="height:38px;">Filter</button>
     </form>
 </div>
@@ -39,8 +47,22 @@
     <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 18px; border-bottom:1px solid #E5E7EB;">
         <div>
             <p class="card-title" style="margin:0;">System Audit Logs</p>
-            <p style="margin:4px 0 0; color:#64748B; font-size:12px;">{{ total_logs }} record{{ total_logs|pluralize }} found</p>
+            <p style="margin:4px 0 0; color:#64748B; font-size:12px;">
+                {{ total_logs }} record{{ total_logs|pluralize }} found · {{ period_label }}
+            </p>
         </div>
+        {% if total_logs %}
+        <div style="display:flex; gap:8px;">
+            <a class="btn btn-primary" style="height:38px; display:inline-flex; align-items:center;"
+               href="{% url 'supervisor:audit_trail_export' %}?action={{ active_action|urlencode }}&user={{ active_user|urlencode }}&shipment={{ active_shipment|urlencode }}&period={{ active_period|urlencode }}&date_from={{ active_date_from|urlencode }}&date_to={{ active_date_to|urlencode }}&format=csv">
+                Download CSV
+            </a>
+            <a class="btn" style="height:38px; display:inline-flex; align-items:center; border:1px solid #DCE5EF;"
+               href="{% url 'supervisor:audit_trail_export' %}?action={{ active_action|urlencode }}&user={{ active_user|urlencode }}&shipment={{ active_shipment|urlencode }}&period={{ active_period|urlencode }}&date_from={{ active_date_from|urlencode }}&date_to={{ active_date_to|urlencode }}&format=pdf">
+                Download PDF
+            </a>
+        </div>
+        {% endif %}
     </div>
     <div class="table-container" style="box-shadow:none; border:0; border-radius:0;">
         <table>
@@ -51,6 +73,7 @@
                     <th>User</th>
                     <th>Shipment</th>
                     <th>Summary</th>
+                    <th>IP Address</th>
                     <th>Details</th>
                 </tr>
             </thead>
@@ -60,8 +83,11 @@
                     <td style="white-space:nowrap;">{{ log.created_at|date:"M d, Y H:i" }}</td>
                     <td>{{ log.get_action_display }}</td>
                     <td>
-                        {% if log.user %}
-                            <strong>{{ log.user.username }}</strong><br>
+                        {% if log.user or log.user_full_name %}
+                            <strong>{{ log.display_name }}</strong><br>
+                            {% if log.user_email %}
+                            <span style="color:#60a5fa; font-size:10px;">{{ log.user_email }}</span><br>
+                            {% endif %}
                             <span style="color:#64748B; font-size:11px;">{{ log.user_role|default:"-" }}</span>
                         {% else %}
                             System
@@ -69,13 +95,14 @@
                     </td>
                     <td>{% if log.shipment %}{{ log.shipment.hawb_number }}{% else %}-{% endif %}</td>
                     <td>{{ log.display_summary }}</td>
-                    <td style="max-width:280px; color:#64748B; font-size:11px; word-break:break-word;">
+                    <td style="font-size:11px; color:#64748B; white-space:nowrap;">{{ log.ip_address|default:"-" }}</td>
+                    <td style="max-width:240px; color:#64748B; font-size:11px; word-break:break-word;">
                         {% if log.details %}{{ log.details }}{% else %}-{% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" style="text-align:center; color:#64748B; padding:28px;">No audit logs found.</td>
+                    <td colspan="7" style="text-align:center; color:#64748B; padding:28px;">No audit logs found.</td>
                 </tr>
                 {% endfor %}
             </tbody>
