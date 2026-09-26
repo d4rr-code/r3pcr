@@ -92,10 +92,8 @@ def compute_wmcda(weight, volume, value, urgency, distance):
     # ── Time scoring: based on transit days + urgency factor ──────────────────
     # At normal urgency, time differences are small (cost matters more).
     # At urgent/rush, time gap widens to strongly favor Air.
-    air_days = rates['air_transit_days']
     sea_days = rates['sea_transit_days']
     sea_days_adj = sea_days * max(1.0, distance / 3000)
-    air_days_adj = air_days * max(1.0, distance / 8000)
 
     # Base scores: narrow gap at normal urgency (both modes "acceptable")
     base_air_time = 0.70

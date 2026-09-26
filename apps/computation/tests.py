@@ -11,7 +11,6 @@ from decimal import Decimal
 
 from django.test import TestCase, SimpleTestCase
 from django.urls import reverse
-from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.shipments.models import Shipment, HSCode, ShipmentDocument, ShipmentHSCode, StatusLog
