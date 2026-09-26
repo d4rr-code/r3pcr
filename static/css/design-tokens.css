@@ -1,0 +1,71 @@
+:root {
+    /* Brand and neutral surfaces */
+    --color-brand-700: #1B3358;
+    --color-brand-800: #152847;
+    --color-brand-100: #EEF2F8;
+    --color-page: #F0F2F5;
+    --color-surface: #FFFFFF;
+    --color-surface-subtle: #F8FAFC;
+    --color-control: #F3F4F6;
+    --color-border: #E5E7EB;
+    --color-border-strong: #CBD5E1;
+    --color-text: #1A1A2E;
+    --color-text-strong: #111827;
+    --color-text-secondary: #6B7280;
+    --color-text-muted: #94A3B8;
+
+    /* Semantic status colors */
+    --color-info-bg: #EFF6FF;
+    --color-info-border: #93C5FD;
+    --color-info-text: #1D4ED8;
+    --color-success-bg: #ECFDF5;
+    --color-success-border: #6EE7B7;
+    --color-success-text: #065F46;
+    --color-warning-bg: #FFFBEB;
+    --color-warning-border: #FCD34D;
+    --color-warning-text: #92400E;
+    --color-danger-bg: #FEF2F2;
+    --color-danger-border: #FCA5A5;
+    --color-danger-text: #991B1B;
+    --color-status-success-bg: #DCFCE7;
+    --color-status-success-text: #15803D;
+    --color-status-info-bg: #DBEAFE;
+    --color-status-info-text: #1D4ED8;
+    --color-status-warning-bg: #FEF3C7;
+    --color-status-warning-text: #B45309;
+    --color-status-danger-bg: #FEE2E2;
+    --color-status-danger-text: #B91C1C;
+
+    /* Spacing scale */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+
+    /* Shape and elevation */
+    --radius-sm: 6px;
+    --radius-control: 8px;
+    --radius-card: 14px;
+    --radius-pill: 999px;
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, .06), 0 4px 16px rgba(0, 0, 0, .04);
+
+    /* Repeated component dimensions */
+    --control-padding-y: 10px;
+    --control-padding-x: 14px;
+    --control-font-size: 13px;
+    --table-cell-padding-y: 13px;
+    --table-cell-padding-x: 16px;
+    --layout-gutter: 22px;
+    --layout-bottom-space: 32px;
+    --transition-fast: 150ms ease;
+}
+
+@media (max-width: 768px) {
+    :root {
+        --layout-gutter: 14px;
+        --layout-bottom-space: 24px;
+    }
+}

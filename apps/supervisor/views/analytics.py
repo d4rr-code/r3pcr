@@ -1,12 +1,14 @@
+import json
 import logging
 from collections import defaultdict
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Avg, Sum, Min, Max
+from django.db.models import Count, Avg, Sum, Min, Max, Q
+from django.urls import reverse
 from django.utils import timezone
 from django.http import HttpResponse
 from apps.accounts.models import User
-from apps.shipments.models import Shipment, StatusLog
+from apps.shipments.models import Shipment
 from apps.computation.models import DutyComputation, ShippingAdvisory
 from apps.consignee.models import Feedback
 from apps.supervisor.audit import log_audit
@@ -36,12 +38,12 @@ def _analytics_report_data(request):
     if declarant_filter:
         qs = qs.filter(declarant__username=declarant_filter)
 
-    total = qs.count()
     status_rows = []
     status_counts = {
         row['status']: row['count']
         for row in qs.values('status').annotate(count=Count('id'))
     }
+    total = sum(status_counts.values())
     for key, label in Shipment.STATUS_CHOICES:
         count = status_counts.get(key, 0)
         status_rows.append([label, count, f'{round(count / total * 100, 1) if total else 0}%'])
@@ -67,13 +69,13 @@ def _analytics_report_data(request):
 
     ids = qs.values_list('id', flat=True)
     advisory_qs = ShippingAdvisory.objects.filter(shipment_id__in=ids)
-    wmcda_total = advisory_qs.filter(recommended_type__isnull=False).count()
     wmcda_labels = {'air': 'Air Freight', 'lcl': 'LCL Sea', 'fcl': 'FCL Sea'}
     wmcda_counts = {
         row['recommended_type']: row['count']
         for row in advisory_qs.values('recommended_type').annotate(count=Count('id'))
         if row['recommended_type']
     }
+    wmcda_total = sum(wmcda_counts.values())
     wmcda_avg = advisory_qs.aggregate(
         avg_air=Avg('air_score'), avg_lcl=Avg('lcl_score'),
         avg_fcl=Avg('fcl_score'),
@@ -88,9 +90,15 @@ def _analytics_report_data(request):
             f'{round(float(wmcda_avg.get(f"avg_{key}") or 0) * 100, 1)}%',
         ])
 
-    currency_total = qs.exclude(invoice_currency='').count()
+    currency_counts = list(
+        qs.exclude(invoice_currency='')
+        .values('invoice_currency')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+    currency_total = sum(row['count'] for row in currency_counts)
     currency_rows = []
-    for row in qs.exclude(invoice_currency='').values('invoice_currency').annotate(count=Count('id')).order_by('-count'):
+    for row in currency_counts:
         count = row['count']
         currency_rows.append([
             row['invoice_currency'] or 'USD',
@@ -100,27 +108,49 @@ def _analytics_report_data(request):
 
     cost_rows = []
     cost_qs = DutyComputation.objects.filter(shipment_id__in=ids, total_landed_cost__isnull=False)
-    for key, label in Shipment.SHIPMENT_TYPE_CHOICES:
-        agg = cost_qs.filter(shipment__shipment_type=key).aggregate(
-            count=Count('id'), avg=Avg('total_landed_cost'), total=Sum('total_landed_cost'),
-            min_val=Min('total_landed_cost'), max_val=Max('total_landed_cost')
+    cost_aggregates = {
+        row['shipment__shipment_type']: row
+        for row in cost_qs.values('shipment__shipment_type').annotate(
+            count=Count('id'),
+            avg=Avg('total_landed_cost'),
+            total=Sum('total_landed_cost'),
+            min_val=Min('total_landed_cost'),
+            max_val=Max('total_landed_cost'),
         )
+    }
+    for key, label in Shipment.SHIPMENT_TYPE_CHOICES:
+        agg = cost_aggregates.get(key, {})
         cost_rows.append([
             label,
-            agg['count'],
-            round(float(agg['avg'] or 0), 2),
-            round(float(agg['total'] or 0), 2),
-            round(float(agg['min_val'] or 0), 2),
-            round(float(agg['max_val'] or 0), 2),
+            agg.get('count', 0),
+            round(float(agg.get('avg') or 0), 2),
+            round(float(agg.get('total') or 0), 2),
+            round(float(agg.get('min_val') or 0), 2),
+            round(float(agg.get('max_val') or 0), 2),
         ])
 
+    computed_statuses = [
+        'computed', 'approved', 'lodgement', 'ongoing',
+        'assessed', 'paid', 'released', 'billed',
+    ]
+    declarant_counts = {
+        row['declarant_id']: row
+        for row in qs.exclude(declarant_id=None).values('declarant_id').annotate(
+            assigned=Count('id'),
+            computed=Count('id', filter=Q(status__in=computed_statuses)),
+            completed=Count('id', filter=Q(status='billed')),
+            revision_flags=Count(
+                'id', filter=Q(status__in=['for_revision', 'rejected'])
+            ),
+        )
+    }
     declarant_rows = []
     for dec in User.objects.filter(role='declarant').order_by('first_name', 'username'):
-        dec_qs = qs.filter(declarant=dec)
-        assigned = dec_qs.count()
-        computed = dec_qs.filter(status__in=['computed', 'approved', 'lodgement', 'ongoing', 'assessed', 'paid', 'released', 'billed']).count()
-        completed = dec_qs.filter(status='billed').count()
-        revision_flags = dec_qs.filter(status__in=['for_revision', 'rejected']).count()
+        counts = declarant_counts.get(dec.id, {})
+        assigned = counts.get('assigned', 0)
+        computed = counts.get('computed', 0)
+        completed = counts.get('completed', 0)
+        revision_flags = counts.get('revision_flags', 0)
         if assigned or computed or completed or revision_flags:
             declarant_rows.append([
                 dec.get_full_name() or dec.username,
@@ -132,9 +162,14 @@ def _analytics_report_data(request):
             ])
 
     feedback_qs = Feedback.objects.filter(shipment_id__in=ids)
-    feedback_total = feedback_qs.count()
-    feedback_avg = feedback_qs.aggregate(avg=Avg('rating'))['avg']
-    feedback_positive = feedback_qs.filter(rating__gte=4).count()
+    feedback = feedback_qs.aggregate(
+        total=Count('id'),
+        avg=Avg('rating'),
+        positive=Count('id', filter=Q(rating__gte=4)),
+    )
+    feedback_total = feedback['total']
+    feedback_avg = feedback['avg']
+    feedback_positive = feedback['positive']
 
     recent_rows = []
     for s in qs.order_by('-submitted_at')[:100]:
@@ -194,6 +229,15 @@ def _analytics_report_data(request):
         ['Forecast Limitation', 'Incoming workload forecasts are planning estimates based on available shipment history, not guaranteed future volume.'],
     ]
 
+    active_user_counts = {
+        row['role']: row['count']
+        for row in User.objects.filter(
+            role__in=['consignee', 'declarant'],
+            is_active=True,
+            is_pending_approval=False,
+        ).values('role').annotate(count=Count('id'))
+    }
+
     return {
         'generated_at': timezone.localtime().strftime('%Y-%m-%d %H:%M'),
         'total': total,
@@ -204,9 +248,9 @@ def _analytics_report_data(request):
         },
         'summary': [
             ['Total Shipments', total],
-            ['Active Users', User.objects.filter(role__in=['consignee', 'declarant'], is_active=True, is_pending_approval=False).count()],
-            ['Consignees', User.objects.filter(role='consignee', is_active=True, is_pending_approval=False).count()],
-            ['Declarants', User.objects.filter(role='declarant', is_active=True, is_pending_approval=False).count()],
+            ['Active Users', sum(active_user_counts.values())],
+            ['Consignees', active_user_counts.get('consignee', 0)],
+            ['Declarants', active_user_counts.get('declarant', 0)],
             ['MCDA Advisories', wmcda_total],
             ['Feedback Count', feedback_total],
             ['Average Feedback Rating', round(float(feedback_avg or 0), 1)],
@@ -411,50 +455,10 @@ def _analytics_filters(request, all_shipments):
     if declarant_filter:
         chart_qs = chart_qs.filter(declarant__username=declarant_filter)
 
-    q        = request.GET.get('q', '').strip()
-    status_f = request.GET.get('status_f', '').strip()
-
-    table_qs = all_shipments.order_by('-submitted_at')
-    if q:
-        table_qs = (
-            all_shipments.filter(hawb_number__icontains=q)
-            | all_shipments.filter(consignee__first_name__icontains=q)
-            | all_shipments.filter(consignee__last_name__icontains=q)
-            | all_shipments.filter(consignee__username__icontains=q)
-        ).order_by('-submitted_at')
-    if status_f:
-        table_qs = table_qs.filter(status=status_f)
-    if date_from:
-        table_qs = table_qs.filter(submitted_at__date__gte=date_from)
-    if date_to:
-        table_qs = table_qs.filter(submitted_at__date__lte=date_to)
-
     return {
         'date_from': date_from, 'date_to': date_to,
         'declarant_filter': declarant_filter, 'overview_range': overview_range,
-        'q': q, 'status_f': status_f,
-        'chart_qs': chart_qs, 'chart_total': chart_qs.count(),
-        'table_qs': table_qs,
-    }
-
-
-def _kpi_strip():
-    """All-time computed/approved presentation counts + consignee approval rate."""
-    total_computed_presented = (
-        StatusLog.objects.filter(new_status='computed')
-        .values('shipment_id').distinct().count()
-    )
-    total_consignee_approved = (
-        StatusLog.objects.filter(new_status='approved')
-        .values('shipment_id').distinct().count()
-    )
-    return {
-        'total_computed_presented': total_computed_presented,
-        'total_consignee_approved': total_consignee_approved,
-        'consignee_approval_rate': (
-            round(total_consignee_approved / total_computed_presented * 100, 1)
-            if total_computed_presented else 0
-        ),
+        'chart_qs': chart_qs,
     }
 
 
@@ -467,27 +471,20 @@ def _analytics_context_response(request):
     date_to          = _f['date_to']
     declarant_filter = _f['declarant_filter']
     overview_range   = _f['overview_range']
-    q                = _f['q']
-    status_f         = _f['status_f']
     chart_qs         = _f['chart_qs']
-    chart_total      = _f['chart_total']
-    table_qs         = _f['table_qs']
 
     # KPI strip shipment counts respect the active analytics filters.
     filtered_shipments = chart_qs
-    total_all = chart_total
-    _kpi = _kpi_strip()
-    total_computed_presented = _kpi['total_computed_presented']
-    total_consignee_approved = _kpi['total_consignee_approved']
-    consignee_approval_rate  = _kpi['consignee_approval_rate']
-
     # Materialise chart_qs IDs once — reused for status, MCDA and declarant sections
     _chart_ids_qs = chart_qs.values_list('id', flat=True)
 
     # Status breakdown bar chart (respects chart filters)
-    _status = _status_breakdown(_chart_ids_qs, chart_total)
+    _status = _status_breakdown(_chart_ids_qs)
     pipeline_rows      = _status['pipeline_rows']
     status_rows_sorted = _status['status_rows_sorted']
+    status_counts      = _status['status_counts']
+    chart_total        = _status['chart_total']
+    total_all          = chart_total
 
     # MCDA scoreboard + declared-vs-recommended agreement matrix
     advisory_qs = ShippingAdvisory.objects.filter(shipment_id__in=_chart_ids_qs)
@@ -561,20 +558,59 @@ def _analytics_context_response(request):
     # Feedback summary respects the active analytics filters.
     feedback_summary = _feedback_summary(_chart_ids_qs)
 
+    user_counts = {
+        row['role']: row['count']
+        for row in User.objects.filter(
+            role__in=['consignee', 'declarant'],
+            is_active=True,
+            is_pending_approval=False,
+        ).values('role').annotate(count=Count('id'))
+    }
+    analytics_config = {
+        'urls': {
+            'shipmentRecords': reverse('supervisor:shipment_records'),
+            'statusCounts': reverse('supervisor:analytics_status_counts'),
+        },
+        'urgency': {
+            'labels': json.loads(urgency_chart_labels),
+            'data': json.loads(urgency_chart_data),
+            'colors': json.loads(urgency_chart_colors),
+        },
+        'dueDate': {
+            'labels': json.loads(due_date_chart_labels),
+            'data': json.loads(due_date_chart_data),
+            'colors': json.loads(due_date_chart_colors),
+        },
+        'monthly': {
+            'labels': json.loads(monthly_chart_labels),
+            'data': json.loads(monthly_chart_data),
+            'hasData': monthly_chart_has_data,
+        },
+        'cost': {
+            'keys': json.loads(cost_bar_keys),
+            'labels': json.loads(cost_bar_labels),
+            'data': json.loads(cost_bar_data),
+            'colors': json.loads(cost_bar_colors),
+        },
+        'wmcda': {
+            'keys': json.loads(wmcda_bar_keys),
+            'labels': json.loads(wmcda_bar_labels),
+            'data': json.loads(wmcda_bar_data),
+            'colors': json.loads(wmcda_bar_colors),
+        },
+    }
+
     return render(request, 'supervisor/analytics.html', {
         # KPI strip
         'total_all':                  total_all,
-        'total_incoming':             filtered_shipments.filter(status='incoming').count(),
-        'total_arrived':              filtered_shipments.filter(status='arrived').count(),
-        'total_computed':             filtered_shipments.filter(status='computed').count(),
-        'total_approved':             filtered_shipments.filter(status='approved').count(),
-        'total_rejected':             filtered_shipments.filter(status='rejected').count(),
-        'total_users':                User.objects.filter(role__in=['consignee', 'declarant'], is_active=True, is_pending_approval=False).count(),
-        'total_consignees':           User.objects.filter(role='consignee', is_active=True, is_pending_approval=False).count(),
-        'total_declarants':           User.objects.filter(role='declarant', is_active=True, is_pending_approval=False).count(),
-        'consignee_approval_rate':    consignee_approval_rate,
-        'total_computed_presented':   total_computed_presented,
-        'total_consignee_approved':   total_consignee_approved,
+        'total_incoming':             status_counts.get('incoming', 0),
+        'total_arrived':              status_counts.get('arrived', 0),
+        'total_computed':             status_counts.get('computed', 0),
+        'total_approved':             status_counts.get('approved', 0),
+        'total_rejected':             status_counts.get('rejected', 0),
+        'total_users':                sum(user_counts.values()),
+        'total_consignees':           user_counts.get('consignee', 0),
+        'total_declarants':           user_counts.get('declarant', 0),
         # chart data
         'chart_total':        chart_total,
         'status_rows':        status_rows_sorted,
@@ -593,10 +629,6 @@ def _analytics_context_response(request):
         'declarants':         declarants,
         # chart data
         'pipeline_rows':      pipeline_rows,
-        # shipment table
-        'recent':    table_qs,
-        'q':         q,
-        'status_f':  status_f,
         # redesigned dashboard
         'shipment_type_counts':  shipment_type_counts,
         'urgency_counts':        urgency_counts,
@@ -631,6 +663,7 @@ def _analytics_context_response(request):
         'currency_chart_labels':   currency_chart_labels,
         'currency_chart_data':     currency_chart_data,
         'currency_chart_colors':   currency_chart_colors,
+        'analytics_config':         analytics_config,
     })
 
 
@@ -650,14 +683,16 @@ def analytics_status_counts(request):
         qs = qs.filter(submitted_at__date__lte=date_to)
     if declarant_filter:
         qs = qs.filter(declarant__username=declarant_filter)
-    total = qs.count()
-    counts = {}
-    max_count = 0
-    for key, label in Shipment.STATUS_CHOICES:
-        c = qs.filter(status=key).count()
-        counts[key] = {'count': c, 'label': label}
-        if c > max_count:
-            max_count = c
+    status_totals = {
+        row['status']: row['count']
+        for row in qs.values('status').annotate(count=Count('id'))
+    }
+    counts = {
+        key: {'count': status_totals.get(key, 0), 'label': label}
+        for key, label in Shipment.STATUS_CHOICES
+    }
+    total = sum(status_totals.values())
+    max_count = max(status_totals.values(), default=0)
     return JsonResponse({'counts': counts, 'total': total, 'max_count': max_count})
 
 
