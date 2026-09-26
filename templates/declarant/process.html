@@ -398,7 +398,7 @@
 {% block content %}
 
 <!-- ══ OCR Overlay ══ -->
-<div id="ocr-overlay">
+<div id="ocr-overlay" role="status" aria-live="polite" aria-busy="true">
     <div class="ocr-overlay-card">
         <div class="ocr-spinner-ring"></div>
         <p id="ocr-doc-label" style="color:#111827;font-size:15px;margin:0;font-weight:700;">Analyzing Documents…</p>
@@ -411,10 +411,11 @@
 </div>
 
 <!-- ══ Fullscreen Doc Modal ══ -->
-<div id="doc-fullscreen-modal" class="doc-fullscreen-modal">
+<div id="doc-fullscreen-modal" class="doc-fullscreen-modal" role="dialog"
+     aria-modal="true" aria-labelledby="doc-fullscreen-title">
     <div style="display:flex;align-items:center;gap:12px;">
         <p id="doc-fullscreen-title" style="color:#f1f5f9;font-size:14px;font-weight:700;margin:0;"></p>
-        <button type="button" onclick="closeDocFullscreen()"
+        <button type="button" onclick="closeDocFullscreen()" aria-label="Close document preview"
                 style="margin-left:auto;background:none;border:1px solid #334155;color:#94a3b8;border-radius:6px;padding:5px 14px;cursor:pointer;font-size:12px;">
             Close
         </button>
@@ -423,11 +424,12 @@
 </div>
 
 <!-- ══ Update Status Modal ══ -->
-<div id="status-modal" class="modal-backdrop" onclick="if(event.target===this)closeModal('status-modal')">
+<div id="status-modal" class="modal-backdrop" role="dialog" aria-modal="true"
+     aria-labelledby="status-modal-title" onclick="if(event.target===this)closeModal('status-modal')">
     <div class="modal-box">
         <div class="modal-header">
-            <p class="modal-title">Update Shipment Status</p>
-            <button class="modal-close" onclick="closeModal('status-modal')">✕</button>
+            <p class="modal-title" id="status-modal-title">Update Shipment Status</p>
+            <button type="button" class="modal-close" aria-label="Close status dialog" onclick="closeModal('status-modal')">✕</button>
         </div>
         <form method="POST" action="{% url 'declarant:update_status' shipment.id %}">
             {% csrf_token %}
@@ -460,9 +462,7 @@
                     <select name="new_status" id="status-modal-select" class="modal-select" required>
                         <option value="">— Select new status —</option>
                         {% for key, label in manual_status_choices %}
-                        {% if key != 'lodgement' or shipment.status == 'approved' %}
                         <option value="{{ key }}">{{ label }}</option>
-                        {% endif %}
                         {% endfor %}
                     </select>
                 </div>
@@ -496,11 +496,12 @@
 </div>
 
 <!-- ══ Flag Deficiency Modal ══ -->
-<div id="flag-modal" class="modal-backdrop" onclick="if(event.target===this)closeModal('flag-modal')">
+<div id="flag-modal" class="modal-backdrop" role="dialog" aria-modal="true"
+     aria-labelledby="flag-modal-title" onclick="if(event.target===this)closeModal('flag-modal')">
     <div class="modal-box" style="max-width:400px;">
         <div class="modal-header">
-            <p class="modal-title" style="color:#7c3aed;">Flag Document Deficiency</p>
-            <button class="modal-close" onclick="closeModal('flag-modal')">✕</button>
+            <p class="modal-title" id="flag-modal-title" style="color:#7c3aed;">Flag Document Deficiency</p>
+            <button type="button" class="modal-close" aria-label="Close deficiency dialog" onclick="closeModal('flag-modal')">✕</button>
         </div>
         <form method="POST" action="{% url 'declarant:flag_deficiency' shipment.id %}">
             {% csrf_token %}
@@ -656,10 +657,12 @@
     <!-- Progress Bar -->
     <div class="progress-track">
         {% for step in status_steps %}
-        <div class="prog-step {{ step.state }}{% if step.key in 'lodgement,ongoing,assessed,paid,released,billed' %} clickable{% endif %}"
-             {% if step.key in 'lodgement,ongoing,assessed,paid,released,billed' %}
+        <div class="prog-step {{ step.state }}{% if step.key in manual_status_keys %} clickable{% endif %}"
+             {% if step.key in manual_status_keys %}
+             role="button" tabindex="0"
              onclick="openStatusModal('{{ step.key }}')"
-             title="Click to update to {{ step.label }}"
+             onkeydown="activateStatusStep(event, '{{ step.key }}')"
+             title="Update to {{ step.label }}"
              {% endif %}>
             <div class="prog-dot">
                 {% if step.state == 'completed' %}
@@ -1232,47 +1235,6 @@
     </div>
     {% endif %}
 
-    {% if shipment.status == 'legacy_billed_disabled' %}
-    <div class="dark-card" style="margin-top:16px; margin-bottom:0;">
-        <p class="dark-card-title">Billing Receipts</p>
-
-        {% for doc in shipment.documents.all %}
-        {% if doc.document_type == 'receipt' %}
-        <div class="support-doc-row">
-            <div class="support-doc-body">
-                <p class="support-doc-name">{{ doc.file.name|slice:"20:" }}</p>
-                <p class="support-doc-meta">Uploaded {{ doc.uploaded_at|date:"M d, Y H:i" }}</p>
-            </div>
-            <a href="{{ doc.file.url }}" target="_blank"
-               class="support-doc-view">
-                View →
-            </a>
-        </div>
-        {% endif %}
-        {% endfor %}
-
-        <form method="POST" enctype="multipart/form-data" action="{% url 'declarant:upload_receipt' shipment.id %}">
-            {% csrf_token %}
-            <p style="color:#6b7280;font-size:11px;margin:0 0 8px;">
-                Upload broker fee receipts, payment proofs, or any billing documents for the consignee.
-            </p>
-            <div style="display:flex;gap:8px;align-items:flex-end;">
-                <div style="flex:1;">
-                    <label style="display:block;color:#6b7280;font-size:11px;margin-bottom:4px;">
-                        Files (PDF/Image — multiple allowed)
-                    </label>
-                    <input type="file" name="receipt_files" class="form-input" multiple
-                           accept=".pdf,.jpg,.jpeg,.png" required style="font-size:12px;">
-                </div>
-                <button type="submit"
-                        style="padding:8px 14px;border:none;border-radius:7px;background:#059669;color:#fff;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;">
-                    Upload
-                </button>
-            </div>
-        </form>
-    </div>
-    {% endif %}
-
 </div>
 {% endif %}
 
@@ -1298,13 +1260,25 @@ function openEtradeForLodgement(url) {
 }
 
 /* ── Modals ── */
+var _modalReturnFocus = null;
 function openModal(id) {
-    document.getElementById(id).classList.add('open');
+    var modal = document.getElementById(id);
+    if (!modal) return;
+    _modalReturnFocus = document.activeElement;
+    modal.classList.add('open');
     document.body.style.overflow = 'hidden';
+    var first = modal.querySelector('select, textarea, input, button, [href], [tabindex]:not([tabindex="-1"])');
+    if (first) first.focus();
 }
 function closeModal(id) {
-    document.getElementById(id).classList.remove('open');
+    var modal = document.getElementById(id);
+    if (!modal || !modal.classList.contains('open')) return;
+    modal.classList.remove('open');
     document.body.style.overflow = '';
+    if (_modalReturnFocus && typeof _modalReturnFocus.focus === 'function') {
+        _modalReturnFocus.focus();
+    }
+    _modalReturnFocus = null;
 }
 function openStatusModal(statusKey) {
     var sel = document.getElementById('status-modal-select');
@@ -1314,6 +1288,11 @@ function openStatusModal(statusKey) {
         }
     }
     openModal('status-modal');
+}
+function activateStatusStep(eventObject, statusKey) {
+    if (eventObject.key !== 'Enter' && eventObject.key !== ' ') return;
+    eventObject.preventDefault();
+    openStatusModal(statusKey);
 }
 function refineMode(mode) {
     var form = document.createElement('form');
@@ -1325,7 +1304,28 @@ function refineMode(mode) {
     form.submit();
 }
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') { closeModal('status-modal'); closeModal('flag-modal'); closeDocFullscreen(); }
+    if (e.key === 'Escape') {
+        closeModal('status-modal');
+        closeModal('flag-modal');
+        closeDocFullscreen();
+    }
+    if (e.key === 'Tab') {
+        var modal = document.querySelector('.modal-backdrop.open, .doc-fullscreen-modal.open');
+        if (!modal) return;
+        var focusable = Array.from(modal.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ));
+        if (!focusable.length) return;
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
 });
 
 /* ── Document Viewer ── */
@@ -1372,13 +1372,22 @@ function openDocFullscreen(url, label) {
     } else {
         body.innerHTML = '<a href="' + url + '" target="_blank" style="padding:12px 24px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;">Open / Download</a>';
     }
-    document.getElementById('doc-fullscreen-modal').classList.add('open');
+    _modalReturnFocus = document.activeElement;
+    var modal = document.getElementById('doc-fullscreen-modal');
+    modal.classList.add('open');
     document.body.style.overflow = 'hidden';
+    modal.querySelector('button').focus();
 }
 function closeDocFullscreen() {
+    var modal = document.getElementById('doc-fullscreen-modal');
+    if (!modal.classList.contains('open')) return;
     document.getElementById('doc-fullscreen-body').innerHTML = '';
-    document.getElementById('doc-fullscreen-modal').classList.remove('open');
+    modal.classList.remove('open');
     document.body.style.overflow = '';
+    if (_modalReturnFocus && typeof _modalReturnFocus.focus === 'function') {
+        _modalReturnFocus.focus();
+    }
+    _modalReturnFocus = null;
 }
 
 /* ── OCR Text Tabs ── */

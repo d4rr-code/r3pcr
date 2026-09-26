@@ -6,12 +6,17 @@ page) before extracting its nested closures into helpers.
 
 Run:  python manage.py test apps.declarant --settings=config.settings_test
 """
+from datetime import timedelta
+
+from django.core import mail
 from django.test import TestCase
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.shipments.models import Shipment, ShipmentDocument
+from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.supervisor.models import IssueReport
 
 
@@ -112,6 +117,41 @@ class QueueManagerTests(TestCase):
         self.assertEqual(resp.json()['container_number'], 'TGHU1234567')
         self.assertEqual(resp.json()['job_order_reference'], 'JO-2026-000123')
 
+    def test_claim_requires_post(self):
+        shipment = self._shipment(97, 'incoming')
+
+        response = self.client.get(reverse('declarant:claim', args=[shipment.id]))
+
+        self.assertEqual(response.status_code, 302)
+        shipment.refresh_from_db()
+        self.assertEqual(shipment.status, 'incoming')
+
+    def test_claim_is_atomic_and_cannot_be_stolen(self):
+        shipment = self._shipment(98, 'incoming')
+        shipment.declarant = None
+        shipment.save(update_fields=['declarant'])
+        claim_url = reverse('declarant:claim', args=[shipment.id])
+
+        first_response = self.client.post(claim_url)
+        other = User.objects.create_user(
+            username='dec_q_other', password='x', role='declarant',
+            email='dec_q_other@test.local',
+        )
+        self.client.force_login(other)
+        second_response = self.client.post(claim_url)
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 302)
+        shipment.refresh_from_db()
+        self.assertEqual(shipment.declarant, self.declarant)
+        self.assertEqual(shipment.status, 'arrived')
+        self.assertEqual(
+            shipment.status_logs.filter(
+                old_status='incoming', new_status='arrived'
+            ).count(),
+            1,
+        )
+
     def test_queue_tables_show_job_number_column(self):
         shipment = self._shipment(100, 'incoming')
         shipment.job_order_reference = 'SRJJJ2511001234'
@@ -139,6 +179,40 @@ class QueueManagerTests(TestCase):
         self.assertEqual(resp.context['status_filter'], 'billed')
         self.assertEqual(resp.context['in_review'].paginator.count, 0)
         self.assertEqual(list(resp.context['history'].object_list), [billed])
+
+    def test_queue_query_budget_does_not_scale_with_visible_documents(self):
+        for index in range(10):
+            shipment = self._shipment(index, 'arrived')
+            ShipmentDocument.objects.create(
+                shipment=shipment,
+                document_type='invoice',
+                file=f'shipment_documents/queue-{index}.pdf',
+            )
+        pending = self._shipment(50, 'incoming')
+        ShipmentDocument.objects.create(
+            shipment=pending,
+            document_type='packing_list',
+            file='shipment_documents/pending.pdf',
+        )
+
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(len(queries), 16)
+
+    def test_queue_render_does_not_send_or_record_overdue_alerts(self):
+        shipment = self._shipment(51, 'incoming')
+        Shipment.objects.filter(pk=shipment.pk).update(
+            submitted_at=timezone.now() - timedelta(days=30),
+        )
+
+        response = self.client.get(self.url)
+
+        shipment.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(mail.outbox, [])
+        self.assertIsNone(shipment.overdue_notified_at)
 
 
 class ProcessShipmentTests(TestCase):
@@ -178,6 +252,32 @@ class ProcessShipmentTests(TestCase):
             self.assertIn(key, resp.context)
         self.assertIsInstance(resp.context['ocr_items_from_docs'], list)
         self.assertEqual(resp.context['ocr_items_from_docs'], [])
+
+    def test_process_page_query_budget_with_documents(self):
+        for index, document_type in enumerate(('invoice', 'packing_list', 'payment_proof')):
+            ShipmentDocument.objects.create(
+                shipment=self.shipment,
+                document_type=document_type,
+                file=f'shipment_documents/process-{index}.pdf',
+            )
+        self.client.force_login(self.declarant)
+
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(len(queries), 15)
+
+    def test_process_modals_expose_accessible_dialog_semantics(self):
+        self.client.force_login(self.declarant)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, '/static/css/design-tokens.css')
+        self.assertContains(response, 'role="dialog"', count=3)
+        self.assertContains(response, 'aria-modal="true"', count=3)
+        self.assertContains(response, 'aria-labelledby="status-modal-title"')
+        self.assertContains(response, 'aria-labelledby="flag-modal-title"')
 
     def test_assigned_declarant_can_update_job_number(self):
         self.client.force_login(self.declarant)
@@ -346,6 +446,43 @@ class ProcessShipmentTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.shipment.refresh_from_db()
         self.assertEqual(self.shipment.status, 'lodgement')
+
+    def test_manual_status_update_allows_only_next_operational_step(self):
+        self.shipment.status = 'paid'
+        self.shipment.save(update_fields=['status'])
+        self.client.force_login(self.declarant)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(
+            response.context['manual_status_choices'],
+            [('released', 'Released')],
+        )
+
+        update_response = self.client.post(
+            reverse('declarant:update_status', args=[self.shipment.id]),
+            {'new_status': 'released'},
+        )
+        self.assertEqual(update_response.status_code, 302)
+        self.shipment.refresh_from_db()
+        self.assertEqual(self.shipment.status, 'released')
+
+    def test_manual_status_update_rejects_skips_reversals_and_noops(self):
+        self.shipment.status = 'paid'
+        self.shipment.save(update_fields=['status'])
+        self.client.force_login(self.declarant)
+        update_url = reverse('declarant:update_status', args=[self.shipment.id])
+
+        for invalid_status in ('billed', 'assessed', 'paid'):
+            response = self.client.post(
+                update_url,
+                {'new_status': invalid_status},
+            )
+            self.assertEqual(response.status_code, 302)
+
+        self.shipment.refresh_from_db()
+        self.assertEqual(self.shipment.status, 'paid')
+        self.assertFalse(StatusLog.objects.filter(shipment=self.shipment).exists())
 
 
 class DeclarantDashboardTests(TestCase):

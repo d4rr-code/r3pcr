@@ -1,6 +1,8 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from io import StringIO
 from unittest.mock import patch
 
+from django.core import mail
 from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
@@ -182,3 +184,67 @@ class ResolveDemoOverduesCommandTests(TestCase):
         seeded.refresh_from_db()
         self.assertEqual(seeded.status, 'assessed')
         self.assertEqual(seeded.kpi_timing_status, 'delayed')
+
+
+class SendOverdueAlertsCommandTests(TestCase):
+    def setUp(self):
+        self.supervisor = User.objects.create_user(
+            username='alert_supervisor', password='x', role='supervisor',
+            email='alert_supervisor@test.local',
+        )
+        self.consignee = User.objects.create_user(
+            username='alert_consignee', password='x', role='consignee',
+            email='alert_consignee@test.local',
+        )
+        self.declarant = User.objects.create_user(
+            username='alert_declarant', password='x', role='declarant',
+            email='alert_declarant@test.local',
+        )
+
+    def _shipment(self, hawb_number, *, age_days=30):
+        shipment = Shipment.objects.create(
+            hawb_number=hawb_number,
+            consignee=self.consignee,
+            declarant=self.declarant,
+            urgency='rush',
+            status='incoming',
+        )
+        Shipment.objects.filter(pk=shipment.pk).update(
+            submitted_at=timezone.now() - timedelta(days=age_days),
+        )
+        shipment.refresh_from_db()
+        return shipment
+
+    def test_dry_run_reports_without_sending_or_marking(self):
+        shipment = self._shipment('R3PCR-ALERT-DRY')
+        stdout = StringIO()
+
+        call_command('send_overdue_alerts', stdout=stdout)
+
+        shipment.refresh_from_db()
+        self.assertIn('Would send 1 overdue alert(s).', stdout.getvalue())
+        self.assertEqual(mail.outbox, [])
+        self.assertIsNone(shipment.overdue_notified_at)
+
+    def test_apply_sends_to_supervisors_and_declarant_once_per_day(self):
+        shipment = self._shipment('R3PCR-ALERT-APPLY')
+
+        call_command('send_overdue_alerts', '--apply')
+        call_command('send_overdue_alerts', '--apply')
+
+        shipment.refresh_from_db()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertCountEqual(
+            mail.outbox[0].to,
+            [self.supervisor.email, self.declarant.email],
+        )
+        self.assertEqual(shipment.overdue_notified_at, timezone.localdate())
+
+    def test_apply_ignores_shipments_that_are_not_overdue(self):
+        shipment = self._shipment('R3PCR-ALERT-FRESH', age_days=0)
+
+        call_command('send_overdue_alerts', '--apply')
+
+        shipment.refresh_from_db()
+        self.assertEqual(mail.outbox, [])
+        self.assertIsNone(shipment.overdue_notified_at)
