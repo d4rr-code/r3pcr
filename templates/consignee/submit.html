@@ -22,11 +22,23 @@
 </div>
 <hr class="sub-hr" style="margin-top:0; margin-bottom:16px;">
 
-<form method="POST" enctype="multipart/form-data">
+<form method="POST" enctype="multipart/form-data" id="submission-form">
     {% csrf_token %}
 
+    {% if form.errors %}
+    <div class="submission-errors" role="alert" tabindex="-1" id="submission-errors">
+        <p>Please correct the highlighted fields.</p>
+        <ul>
+            {% for field in form %}
+                {% for error in field.errors %}<li><strong>{{ field.label }}:</strong> {{ error }}</li>{% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
     <!-- ── IMPORT TYPE ──────────────────────────────────────────────────────── -->
-    <div style="margin-bottom:18px; display:-webkit-box; column-gap:53px;">
+    <div class="submission-meta-grid">
        
         <div style="margin-bottom:12px; display:flex; gap:12px; flex-direction:column;">
         
@@ -34,13 +46,13 @@
         <p class="sub-hint">CMTA classification</p>
         <select name="import_type" class="sub-select" required>
             <option value="">— SELECT —</option>
-            <option value="commercial" {% if shipment.import_type == 'commercial' %}selected{% endif %}>Commercial / Trade Goods</option>
-            <option value="personal" {% if shipment.import_type == 'personal' %}selected{% endif %}>Personal Effects &amp; Household Goods</option>
-            <option value="balikbayan" {% if shipment.import_type == 'balikbayan' %}selected{% endif %}>Balikbayan Box (RA 10021)</option>
-            <option value="samples" {% if shipment.import_type == 'samples' %}selected{% endif %}>Samples / No Commercial Value</option>
-            <option value="machinery" {% if shipment.import_type == 'machinery' %}selected{% endif %}>Machinery &amp; Equipment (Capital Goods)</option>
-            <option value="raw_materials" {% if shipment.import_type == 'raw_materials' %}selected{% endif %}>Raw Materials &amp; Inputs</option>
-            <option value="ecommerce" {% if shipment.import_type == 'ecommerce' %}selected{% endif %}>Online Purchase / E-Commerce</option>
+            <option value="commercial" {% if form_values.import_type == 'commercial' %}selected{% endif %}>Commercial / Trade Goods</option>
+            <option value="personal" {% if form_values.import_type == 'personal' %}selected{% endif %}>Personal Effects &amp; Household Goods</option>
+            <option value="balikbayan" {% if form_values.import_type == 'balikbayan' %}selected{% endif %}>Balikbayan Box (RA 10021)</option>
+            <option value="samples" {% if form_values.import_type == 'samples' %}selected{% endif %}>Samples / No Commercial Value</option>
+            <option value="machinery" {% if form_values.import_type == 'machinery' %}selected{% endif %}>Machinery &amp; Equipment (Capital Goods)</option>
+            <option value="raw_materials" {% if form_values.import_type == 'raw_materials' %}selected{% endif %}>Raw Materials &amp; Inputs</option>
+            <option value="ecommerce" {% if form_values.import_type == 'ecommerce' %}selected{% endif %}>Online Purchase / E-Commerce</option>
         </select>
     </div>
 
@@ -50,13 +62,13 @@
             <select name="invoice_currency" id="invoice_currency" class="c-input"
                     style="width:auto; min-width:200px; padding:7px 14px;color: #1f3d66; font-weight: 500;padding: 12px 18px;"
                     onchange="updateCurrencyLabels(this.value)">
-                <option value="USD" {% if shipment.invoice_currency == 'USD' %}selected{% endif %}>US Dollar (USD)</option>
-                <option value="EUR" {% if shipment.invoice_currency == 'EUR' %}selected{% endif %}>Euro (EUR)</option>
-                <option value="JPY" {% if shipment.invoice_currency == 'JPY' %}selected{% endif %}>Japanese Yen (JPY)</option>
-                <option value="HKD" {% if shipment.invoice_currency == 'HKD' %}selected{% endif %}>Hong Kong Dollar (HKD)</option>
-                <option value="CNY" {% if shipment.invoice_currency == 'CNY' %}selected{% endif %}>Chinese Yuan (CNY)</option>
-                <option value="GBP" {% if shipment.invoice_currency == 'GBP' %}selected{% endif %}>British Pound (GBP)</option>
-                <option value="SGD" {% if shipment.invoice_currency == 'SGD' %}selected{% endif %}>Singapore Dollar (SGD)</option>
+                <option value="USD" {% if form_values.invoice_currency == 'USD' %}selected{% endif %}>US Dollar (USD)</option>
+                <option value="EUR" {% if form_values.invoice_currency == 'EUR' %}selected{% endif %}>Euro (EUR)</option>
+                <option value="JPY" {% if form_values.invoice_currency == 'JPY' %}selected{% endif %}>Japanese Yen (JPY)</option>
+                <option value="HKD" {% if form_values.invoice_currency == 'HKD' %}selected{% endif %}>Hong Kong Dollar (HKD)</option>
+                <option value="CNY" {% if form_values.invoice_currency == 'CNY' %}selected{% endif %}>Chinese Yuan (CNY)</option>
+                <option value="GBP" {% if form_values.invoice_currency == 'GBP' %}selected{% endif %}>British Pound (GBP)</option>
+                <option value="SGD" {% if form_values.invoice_currency == 'SGD' %}selected{% endif %}>Singapore Dollar (SGD)</option>
             </select>
             
         </div>
@@ -65,8 +77,7 @@
     <!-- ── URGENCY LEVEL ────────────────────────────────────────────────────── -->
     <div style="margin-bottom:18px;">
         <label class="sub-label">URGENCY LEVEL <span class="sub-req">*</span></label>
-        <div style="background:#EFF6FF; border:1px solid #93C5FD; border-radius:8px;
-                    padding:10px 14px; margin-bottom:14px; display:flex; align-items:flex-start; gap:8px; width:70rem;">
+        <div class="submission-note">
             <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"
                  style="color:#1D4ED8; flex-shrink:0; margin-top:1px;">
                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
@@ -78,8 +89,8 @@
         <div class="urg-grid">
             <!-- Standard -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="urgency" value="standard" required style="display:none;" onchange="selUrg(this)" {% if shipment.urgency == 'standard' or shipment.urgency == 'normal' %}checked{% endif %}>
-                <div class="urg-card {% if shipment.urgency == 'standard' or shipment.urgency == 'normal' %}s-std{% endif %}" id="urg-standard">
+                <input type="radio" name="urgency" value="standard" required class="choice-input" onchange="selUrg(this)" {% if form_values.urgency == 'standard' or form_values.urgency == 'normal' %}checked{% endif %}>
+                <div class="urg-card {% if form_values.urgency == 'standard' or form_values.urgency == 'normal' %}s-std{% endif %}" id="urg-standard">
                     <div class="urg-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
@@ -95,8 +106,8 @@
 
             <!-- Priority -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="urgency" value="priority" style="display:none;" onchange="selUrg(this)" {% if shipment.urgency == 'priority' %}checked{% endif %}>
-                <div class="urg-card {% if shipment.urgency == 'priority' %}s-pri{% endif %}" id="urg-priority">
+                <input type="radio" name="urgency" value="priority" class="choice-input" onchange="selUrg(this)" {% if form_values.urgency == 'priority' %}checked{% endif %}>
+                <div class="urg-card {% if form_values.urgency == 'priority' %}s-pri{% endif %}" id="urg-priority">
                     <div class="urg-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M5.5 12h13M13 6l6 6-6 6"/>
@@ -111,8 +122,8 @@
 
             <!-- Urgent -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="urgency" value="urgent" style="display:none;" onchange="selUrg(this)" {% if shipment.urgency == 'urgent' %}checked{% endif %}>
-                <div class="urg-card {% if shipment.urgency == 'urgent' %}s-urg{% endif %}" id="urg-urgent">
+                <input type="radio" name="urgency" value="urgent" class="choice-input" onchange="selUrg(this)" {% if form_values.urgency == 'urgent' %}checked{% endif %}>
+                <div class="urg-card {% if form_values.urgency == 'urgent' %}s-urg{% endif %}" id="urg-urgent">
                     <div class="urg-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -126,8 +137,8 @@
 
             <!-- Rush -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="urgency" value="rush" style="display:none;" onchange="selUrg(this)" {% if shipment.urgency == 'rush' %}checked{% endif %}>
-                <div class="urg-card {% if shipment.urgency == 'rush' %}s-rush{% endif %}" id="urg-rush">
+                <input type="radio" name="urgency" value="rush" class="choice-input" onchange="selUrg(this)" {% if form_values.urgency == 'rush' %}checked{% endif %}>
+                <div class="urg-card {% if form_values.urgency == 'rush' %}s-rush{% endif %}" id="urg-rush">
                     <div class="urg-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
@@ -149,8 +160,8 @@
 
             <!-- Air Freight -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="shipment_type" value="air" required style="display:none;" onchange="selShip(this)" {% if shipment.shipment_type == 'air' %}checked{% endif %}>
-                <div class="ship-card {% if shipment.shipment_type == 'air' %}s-sel{% endif %}" id="ship-air">
+                <input type="radio" name="shipment_type" value="air" required class="choice-input" onchange="selShip(this)" {% if form_values.shipment_type == 'air' %}checked{% endif %}>
+                <div class="ship-card {% if form_values.shipment_type == 'air' %}s-sel{% endif %}" id="ship-air">
                     <div class="ship-icon">
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
@@ -163,8 +174,8 @@
 
             <!-- LCL -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="shipment_type" value="lcl" style="display:none;" onchange="selShip(this)" {% if shipment.shipment_type == 'lcl' %}checked{% endif %}>
-                <div class="ship-card {% if shipment.shipment_type == 'lcl' %}s-sel{% endif %}" id="ship-lcl">
+                <input type="radio" name="shipment_type" value="lcl" class="choice-input" onchange="selShip(this)" {% if form_values.shipment_type == 'lcl' %}checked{% endif %}>
+                <div class="ship-card {% if form_values.shipment_type == 'lcl' %}s-sel{% endif %}" id="ship-lcl">
                     <div class="ship-icon">
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
@@ -180,8 +191,8 @@
 
             <!-- FCL -->
             <label style="cursor:pointer; display:block; margin:0;">
-                <input type="radio" name="shipment_type" value="fcl" style="display:none;" onchange="selShip(this)" {% if shipment.shipment_type == 'fcl' %}checked{% endif %}>
-                <div class="ship-card {% if shipment.shipment_type == 'fcl' %}s-sel{% endif %}" id="ship-fcl">
+                <input type="radio" name="shipment_type" value="fcl" class="choice-input" onchange="selShip(this)" {% if form_values.shipment_type == 'fcl' %}checked{% endif %}>
+                <div class="ship-card {% if form_values.shipment_type == 'fcl' %}s-sel{% endif %}" id="ship-fcl">
                     <div class="ship-icon">
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="2" y="7" width="13" height="10" rx="1"/>
@@ -202,7 +213,7 @@
     <!-- Estimated Arrival Date -->
     <div style="margin-bottom:18px;">
         <label class="sub-label">ESTIMATED ARRIVAL DATE</label>
-        <input type="date" name="estimated_arrival_date" class="c-input" style="max-width:260px;">
+        <input type="date" name="estimated_arrival_date" value="{{ form_values.estimated_arrival_date }}" class="c-input" style="max-width:260px;">
         <p style="font-size:11px; color:#6B7280; margin:7px 0 0; max-width:640px; line-height:1.45;">
             Optional shipment ETA. Use the expected cargo arrival date from your forwarder, airline, or shipping line if available.
         </p>
@@ -213,17 +224,16 @@
         <label class="sub-label">DESCRIPTION OF GOODS <span class="sub-req">*</span></label>
         <textarea name="description" class="c-input" rows="3" required
                   style="resize:vertical; width:100%;"
-                  placeholder="Brief description of the shipment contents.....">{% if shipment.description %}{{ shipment.description }}{% endif %}</textarea>
+                  placeholder="Brief description of the shipment contents.....">{{ form_values.description }}</textarea>
     </div>
 
     <!-- ── REQUIRED DOCUMENTS ────────────────────────────────────────────────── -->
     <div style="margin-bottom:18px;">
-        <label class="sub-label">REQUIRED DOCUMENTS <span class="sub-req">*</span></label>
+        <label class="sub-label">SHIPPING DOCUMENTS <span class="sub-optional">(Upload available documents)</span></label>
 
         <!-- Template instructions note — full width, above the upload grid -->
         {% if invoice_template_url or packing_list_template_url %}
-        <div style="background:#EFF6FF; border:1px solid #93C5FD; border-radius:8px;
-                    padding:10px 14px; margin-bottom:14px; display:flex; align-items:flex-start; gap:8px; width:59rem">
+        <div class="submission-note">
             <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"
                  style="color:#1D4ED8; flex-shrink:0; margin-top:1px;">
                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
@@ -253,7 +263,9 @@
                     {% endif %}
                 </div>
                 <div class="upload-zone" id="zone-invoice"
-                     onclick="trigFile('f-invoice')"
+                     role="button" tabindex="0" aria-controls="f-invoice"
+                     onclick="trigFile('f-invoice', event)"
+                     onkeydown="uploadZoneKeydown(event,'f-invoice')"
                      ondragover="dzOver(event,'zone-invoice')"
                      ondragleave="dzLeave('zone-invoice')"
                      ondrop="dzDrop(event,'zone-invoice','f-invoice')">
@@ -263,12 +275,12 @@
                         </svg>
                     </div>
                     <p class="up-text">Choose a file or drag &amp; drop it here.</p>
-                    <p class="up-hint">PNG/JPG/PDF and all file formats up to 50MB</p>
+                    <p class="up-hint">PDF, PNG, or JPG up to 50MB</p>
                     <span class="up-browse">Browse Files</span>
                     <input type="file" id="f-invoice" name="invoice"
                            style="display:none;" accept=".pdf,.jpg,.jpeg,.png"
                            onchange="showFn(this,'zone-invoice')">
-                    <p class="up-fname" id="fn-zone-invoice"></p>
+                    <p class="up-fname" id="fn-zone-invoice" aria-live="polite"></p>
                 </div>
             </div>
 
@@ -289,7 +301,9 @@
                     {% endif %}
                 </div>
                 <div class="upload-zone" id="zone-packing"
-                     onclick="trigFile('f-packing')"
+                     role="button" tabindex="0" aria-controls="f-packing"
+                     onclick="trigFile('f-packing', event)"
+                     onkeydown="uploadZoneKeydown(event,'f-packing')"
                      ondragover="dzOver(event,'zone-packing')"
                      ondragleave="dzLeave('zone-packing')"
                      ondrop="dzDrop(event,'zone-packing','f-packing')">
@@ -299,12 +313,12 @@
                         </svg>
                     </div>
                     <p class="up-text">Choose a file or drag &amp; drop it here.</p>
-                    <p class="up-hint">PNG/JPG/PDF and all file formats up to 50MB</p>
+                    <p class="up-hint">PDF, PNG, or JPG up to 50MB</p>
                     <span class="up-browse">Browse Files</span>
                     <input type="file" id="f-packing" name="packing_list"
                            style="display:none;" accept=".pdf,.jpg,.jpeg,.png"
                            onchange="showFn(this,'zone-packing')">
-                    <p class="up-fname" id="fn-zone-packing"></p>
+                    <p class="up-fname" id="fn-zone-packing" aria-live="polite"></p>
                 </div>
             </div>
 
@@ -315,7 +329,9 @@
                     <span aria-hidden="true" style="min-width:1px;"></span>
                 </div>
                 <div class="upload-zone" id="zone-awb"
-                     onclick="trigFile('f-awb')"
+                     role="button" tabindex="0" aria-controls="f-awb"
+                     onclick="trigFile('f-awb', event)"
+                     onkeydown="uploadZoneKeydown(event,'f-awb')"
                      ondragover="dzOver(event,'zone-awb')"
                      ondragleave="dzLeave('zone-awb')"
                      ondrop="dzDrop(event,'zone-awb','f-awb')">
@@ -325,12 +341,12 @@
                         </svg>
                     </div>
                     <p class="up-text">Choose a file or drag &amp; drop it here.</p>
-                    <p class="up-hint">PNG/JPG/PDF and all file formats up to 50MB</p>
+                    <p class="up-hint">PDF, PNG, or JPG up to 50MB</p>
                     <span class="up-browse">Browse Files</span>
                     <input type="file" id="f-awb" name="airway_bill"
                            style="display:none;" accept=".pdf,.jpg,.jpeg,.png"
                            onchange="showFn(this,'zone-awb')">
-                    <p class="up-fname" id="fn-zone-awb"></p>
+                    <p class="up-fname" id="fn-zone-awb" aria-live="polite"></p>
                 </div>
             </div>
         </div>
@@ -355,7 +371,9 @@
         </p>
         <div style="max-width:360px;">
             <div class="upload-zone" id="zone-other"
-                 onclick="trigFile('f-other')"
+                 role="button" tabindex="0" aria-controls="f-other"
+                 onclick="trigFile('f-other', event)"
+                 onkeydown="uploadZoneKeydown(event,'f-other')"
                  ondragover="dzOver(event,'zone-other')"
                  ondragleave="dzLeave('zone-other')"
                  ondrop="dzDrop(event,'zone-other','f-other')">
@@ -365,19 +383,19 @@
                     </svg>
                 </div>
                 <p class="up-text">Choose a file or drag &amp; drop it here.</p>
-                <p class="up-hint">PNG/JPG/PDF, and all file formats up to 50MB</p>
+                <p class="up-hint">PDF, PNG, or JPG up to 50MB each</p>
                 <span class="up-browse">Browse Files</span>
                 <input type="file" id="f-other" name="other_docs" multiple
                        style="display:none;" accept=".pdf,.jpg,.jpeg,.png"
                        onchange="showFn(this,'zone-other')">
-                <p class="up-fname" id="fn-zone-other"></p>
+                <p class="up-fname" id="fn-zone-other" aria-live="polite"></p>
             </div>
         </div>
     </div>
 
     <!-- ── Submit Buttons ─────────────────────────────────────────────────────── -->
     <div style="display:flex; gap:12px; padding-top:20px; border-top:1px solid #E5E7EB;">
-        <button type="submit" class="c-btn c-btn-primary"
+        <button type="submit" class="c-btn c-btn-primary" id="submission-submit"
                 style="padding:11px 22px; font-size:11px; font-weight:600; letter-spacing:0.4px;">
             {% if is_edit %}SAVE CHANGES{% else %}+ SUBMIT SHIPMENT{% endif %}
         </button>
@@ -385,6 +403,7 @@
            style="padding:11px 28px; font-size:13px; font-weight:700; letter-spacing:0.4px;">
             CANCEL
         </a>
+        <span id="submission-status" class="submission-status" aria-live="polite"></span>
     </div>
 
 </form>

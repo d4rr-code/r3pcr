@@ -23,10 +23,16 @@
     };
 
     /* ── Upload zone helpers ───────────────────────────────────────────────── */
-    window.trigFile = function(inputId) {
-        if (event) event.stopPropagation();
+    window.trigFile = function(inputId, eventObject) {
+        if (eventObject) eventObject.stopPropagation();
         var input = document.getElementById(inputId);
         if (input) input.click();
+    };
+
+    window.uploadZoneKeydown = function(eventObject, inputId) {
+        if (eventObject.key !== 'Enter' && eventObject.key !== ' ') return;
+        eventObject.preventDefault();
+        window.trigFile(inputId, eventObject);
     };
 
     window.showFn = function(input, zoneId) {
@@ -70,5 +76,23 @@
             el.textContent = code;
         });
     };
+
+    var form = document.getElementById('submission-form');
+    if (form) {
+        form.addEventListener('submit', function() {
+            if (!form.checkValidity()) return;
+            var button = document.getElementById('submission-submit');
+            var status = document.getElementById('submission-status');
+            if (button) {
+                button.disabled = true;
+                button.setAttribute('aria-disabled', 'true');
+                button.textContent = 'SUBMITTING...';
+            }
+            if (status) status.textContent = 'Uploading documents and saving shipment.';
+        });
+    }
+
+    var errors = document.getElementById('submission-errors');
+    if (errors) errors.focus();
 
 })();
