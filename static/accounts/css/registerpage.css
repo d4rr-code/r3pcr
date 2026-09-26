@@ -31,7 +31,7 @@
 
 body{
     font-family:'Poppins',sans-serif;
-    background:url('../img/BG MAIN.png') center/cover no-repeat fixed;
+    background:url('../../images/BG MAIN.png') center/cover no-repeat fixed;
     min-height:100vh;
     display:flex;
     flex-direction:column;

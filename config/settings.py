@@ -49,7 +49,6 @@ INSTALLED_APPS = [
     'apps.accounts',
     'apps.shipments',
     'apps.computation',
-    'apps.analytics',
     'apps.notifications',
 
     # Role Apps
