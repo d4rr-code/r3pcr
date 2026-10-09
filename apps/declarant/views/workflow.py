@@ -6,6 +6,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db.models import prefetch_related_objects
 from django.http import JsonResponse
 from django.utils import timezone
 from apps.shipments.models import Shipment, StatusLog
@@ -27,12 +28,33 @@ STATUS_DOCUMENT_FILTERS = {
     'billed': ('billing_doc', 'receipt'),
 }
 
+DECLARANT_STATUS_TRANSITIONS = {
+    'approved': ('lodgement',),
+    'lodgement': ('ongoing',),
+    'ongoing': ('assessed',),
+    'assessed': ('paid',),
+    'paid': ('released',),
+    'released': ('billed',),
+}
+
+
+def _manual_status_choices(current_status):
+    allowed = set(DECLARANT_STATUS_TRANSITIONS.get(current_status, ()))
+    return [
+        (key, label)
+        for key, label in Shipment.MANUAL_STATUS_CHOICES
+        if key in allowed
+    ]
+
 
 @login_required
 @declarant_required
 def shipment_preview(request, shipment_id):
     """Return JSON details for the queue preview modal (incoming shipments only)."""
-    shipment = get_object_or_404(Shipment, id=shipment_id)
+    shipment = get_object_or_404(
+        Shipment.objects.select_related('consignee', 'computation').prefetch_related('documents'),
+        id=shipment_id,
+    )
 
     # Documents list
     docs = []
@@ -92,7 +114,9 @@ def queue_manager(request):
         return f'?{params.urlencode()}'
 
     # Incoming queue with optional filters
-    pending_qs = Shipment.objects.filter(status='incoming').select_related('consignee')
+    pending_qs = Shipment.objects.filter(status='incoming').select_related(
+        'consignee', 'declarant'
+    )
     if status_filter and status_filter != 'incoming':
         pending_qs = pending_qs.none()
 
@@ -102,15 +126,6 @@ def queue_manager(request):
 
     pending = list(pending_qs)
     _annotate_due(pending, today)
-
-    # Send overdue email alerts (once per day per shipment)
-    newly_overdue = [
-        s for s in pending
-        if s.due_days_left < 0
-        and s.overdue_notified_at != today
-    ]
-    if newly_overdue:
-        _send_overdue_emails(newly_overdue, today)
 
     # Due-within server-side filter
     due_filter = request.GET.get('due', '')
@@ -125,6 +140,7 @@ def queue_manager(request):
     paginator    = Paginator(pending, 25)
     page_number  = request.GET.get('page', 1)
     pending_page = paginator.get_page(page_number)
+    prefetch_related_objects(pending_page.object_list, 'documents')
 
     # In-review: all active shipments from arrived through released
     in_review_statuses = [
@@ -141,7 +157,7 @@ def queue_manager(request):
     in_review_qs = Shipment.objects.filter(
         declarant=request.user,
         status__in=in_review_statuses,
-    ).select_related('consignee').prefetch_related('computation').order_by('-updated_at')
+    ).select_related('consignee', 'computation').prefetch_related('documents').order_by('-updated_at')
     in_review = Paginator(in_review_qs, 10).get_page(request.GET.get('review_page', 1))
 
     # Processed: only fully billed shipments
@@ -175,11 +191,22 @@ def queue_manager(request):
 @declarant_required
 def claim_shipment(request, shipment_id):
     """Any active declarant may claim an unclaimed incoming shipment."""
-    shipment = get_object_or_404(Shipment, id=shipment_id)
-    if shipment.status == 'incoming':
+    if request.method != 'POST':
+        messages.error(request, 'Shipment claims must be submitted from the queue.')
+        return redirect('declarant:queue')
+
+    shipment = get_object_or_404(Shipment.objects.select_related('consignee'), id=shipment_id)
+    claimed = Shipment.objects.filter(
+        id=shipment_id,
+        status='incoming',
+    ).update(
+        declarant=request.user,
+        status='arrived',
+        updated_at=timezone.now(),
+    )
+    if claimed:
         shipment.declarant = request.user
         shipment.status = 'arrived'
-        shipment.save()
         StatusLog.objects.create(
             shipment=shipment,
             changed_by=request.user,
@@ -201,14 +228,6 @@ def claim_shipment(request, shipment_id):
             new_status='arrived',
             changed_by=request.user,
             notes='Claimed by declarant.',
-        )
-        if False:
-            create_notification(
-            recipient=shipment.consignee,
-            shipment=shipment,
-            notification_type='status_update',
-            title=f'Shipment {shipment.hawb_number} — Now Under Review',
-            message=f'Your shipment {shipment.hawb_number} is being reviewed by a declarant.',
         )
         messages.success(request, f'Shipment {shipment.hawb_number} claimed.')
         # "Claim & Process" from preview modal — go straight to process page
@@ -442,22 +461,32 @@ def _collect_ocr_hs_suggestions(docs_by_type):
 @login_required
 @declarant_required
 def process_shipment(request, shipment_id):
-    shipment = get_object_or_404(Shipment, id=shipment_id)
+    shipment = get_object_or_404(
+        Shipment.objects.select_related(
+            'consignee',
+            'computation',
+            'computation__computed_by',
+            'shipping_advisory',
+        ).prefetch_related('documents'),
+        id=shipment_id,
+    )
 
     # Only the assigned declarant may access the process page
     if shipment.declarant != request.user:
         messages.error(request, 'You are not assigned to this shipment.')
         return redirect('declarant:queue')
 
-    documents = shipment.documents.all()
+    documents = list(shipment.documents.all())
     document_filter_status = request.GET.get('doc_status', '').strip()
     if document_filter_status not in STATUS_DOCUMENT_FILTERS:
         document_filter_status = ''
     document_filter_types = STATUS_DOCUMENT_FILTERS.get(document_filter_status)
     if document_filter_types:
-        visible_documents = documents.filter(document_type__in=document_filter_types)
+        visible_documents = [
+            doc for doc in documents if doc.document_type in document_filter_types
+        ]
     else:
-        visible_documents = documents.exclude(document_type='sad')
+        visible_documents = [doc for doc in documents if doc.document_type != 'sad']
     # Check if any docs still need OCR (e.g. declarant navigated directly, skipping the queue flow)
     _pending_ocr = [
         doc for doc in documents
@@ -465,7 +494,7 @@ def process_shipment(request, shipment_id):
     ]
     has_pending_ocr = bool(_pending_ocr)  # kept for template auto-reload fallback
 
-    status_logs = shipment.status_logs.order_by('-changed_at')[:5]
+    status_logs = shipment.status_logs.select_related('changed_by').order_by('-changed_at')[:5]
 
     # ── Extract OCR line items + HS suggestions from scanned documents ──────────
     docs_by_type        = _priority_docs_by_type(documents)
@@ -483,7 +512,10 @@ def process_shipment(request, shipment_id):
 
     from apps.supervisor.models import SystemConfig
     vasp_url     = SystemConfig.get('vasp_url', ETRADE_LODGEMENT_URL)
-    sad_document = shipment.documents.filter(document_type='sad').first()
+    sad_document = next(
+        (doc for doc in documents if doc.document_type == 'sad'),
+        None,
+    )
     fan_rows = fan_assessment_rows(sad_document)
 
     context = {
@@ -499,7 +531,10 @@ def process_shipment(request, shipment_id):
         'ocr_hs_suggestions':  ocr_hs_suggestions,
         'ocr_toast':           ocr_toast,
         'has_pending_ocr':     has_pending_ocr,
-        'manual_status_choices': Shipment.MANUAL_STATUS_CHOICES,
+        'manual_status_choices': _manual_status_choices(shipment.status),
+        'manual_status_keys': [
+            key for key, _label in _manual_status_choices(shipment.status)
+        ],
         'status_steps':        build_status_progress(shipment.status, 'declarant'),
         'vasp_url':            vasp_url,
         'etrade_lodgement_url': ETRADE_LODGEMENT_URL,
@@ -636,14 +671,17 @@ def update_status(request, shipment_id):
     new_status = request.POST.get('new_status', '').strip()
     notes      = request.POST.get('notes', '').strip()
 
-    # Validate status against known choices — prevents arbitrary string injection
-    valid_statuses = Shipment.MANUAL_STATUS_KEYS
-    if not new_status or new_status not in valid_statuses:
+    if not new_status or new_status not in Shipment.MANUAL_STATUS_KEYS:
         messages.error(request, 'Invalid status selected.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
-    if new_status == 'lodgement' and shipment.status != 'approved':
-        messages.error(request, 'ECDT must be approved before proceeding to lodgement.')
+    allowed_statuses = DECLARANT_STATUS_TRANSITIONS.get(shipment.status, ())
+    if new_status not in allowed_statuses:
+        messages.error(
+            request,
+            f'Cannot move shipment from {shipment.get_status_display()} '
+            f'to {dict(Shipment.STATUS_CHOICES).get(new_status, new_status)}.',
+        )
         return redirect('declarant:process', shipment_id=shipment_id)
 
     old_status = shipment.status

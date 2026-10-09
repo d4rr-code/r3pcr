@@ -11,7 +11,7 @@ from apps.accounts.models import User
 from apps.shipments.models import HSCode, Shipment, StatusLog
 from apps.notifications.utils import create_notification
 from apps.supervisor.models import IssueReport
-from apps.supervisor.views import _HS_SECTIONS, _chapter_num
+from apps.supervisor.tariff import _HS_SECTIONS, _chapter_num
 
 logger = logging.getLogger('r3pcr.declarant')
 

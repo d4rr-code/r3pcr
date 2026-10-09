@@ -8,7 +8,7 @@
 
 body {
     font-family: 'Poppins', sans-serif;
-    background: #F0F2F5;
+    background: var(--color-page);
     display: flex;
     min-height: 100vh;
     overflow-x: hidden;
@@ -21,7 +21,7 @@ body {
 .c-sidebar {
     width: 64px;
     min-height: 100vh;
-    background: #FFFFFF;
+    background: var(--color-surface);
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.07);
 
     display: flex;
@@ -80,9 +80,9 @@ body {
     align-items: center;
     justify-content: center;
 
-    background: #EEF2F8;
+    background: var(--color-brand-100);
 
-    border-radius: 8px;
+    border-radius: var(--radius-control);
 
     flex-shrink: 0;
 
@@ -155,7 +155,7 @@ body {
 
     text-decoration: none;
 
-    color: #374151;
+    color: var(--color-text-secondary);
 
     font-size: 13px;
     font-weight: 500;
@@ -173,13 +173,13 @@ body {
 }
 
 .c-nav-item:hover {
-    background: #EEF2F8;
-    color: #1B3358;
+    background: var(--color-brand-100);
+    color: var(--color-brand-700);
 }
 
 .c-nav-item.active {
-    background: #1B3358;
-    color: #FFFFFF;
+    background: var(--color-brand-700);
+    color: var(--color-surface);
     font-weight: 600;
 }
 
@@ -557,10 +557,10 @@ body {
 =================================================================== */
 
 .c-card {
-    background: #FFFFFF;
-    border-radius: 14px;
-    padding: 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 4px 16px rgba(0, 0, 0, .04);
+    background: var(--color-surface);
+    border-radius: var(--radius-card);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-card);
 }
 
 /* ===================================================================
@@ -570,7 +570,7 @@ body {
 .c-label {
     display: block;
     margin-bottom: 6px;
-    color: #6B7280;
+    color: var(--color-text-secondary);
     font-size: 11px;
     font-weight: 500;
 }
@@ -581,19 +581,19 @@ body {
 
 .c-input {
     width: 100%;
-    padding: 10px 14px;
-    border: 1.5px solid #E5E7EB;;
-    color: #1A1A2E;
-    font-size: 13px;
+    padding: var(--control-padding-y) var(--control-padding-x);
+    border: 1.5px solid var(--color-border);
+    color: var(--color-text);
+    font-size: var(--control-font-size);
     font-family: 'Poppins', sans-serif;
     outline: none;
     transition: border-color .15s, background .15s;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
 }
 
 .c-input:focus {
-    border-color: #1B3358;
-    background: #FFFFFF;
+    border-color: var(--color-brand-700);
+    background: var(--color-surface);
 }
 
 .c-input[readonly] {
@@ -610,7 +610,7 @@ body {
     gap: 6px;
     padding: 9px 22px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     cursor: pointer;
     text-decoration: none;
     font-size: 13px;
@@ -620,8 +620,8 @@ body {
 }
 
 .c-btn-primary {
-    background: #1B3358;
-    color: #FFFFFF;
+    background: var(--color-brand-700);
+    color: var(--color-surface);
     font-family: 'Poppins', sans-serif;
 }
 
@@ -631,9 +631,9 @@ body {
 }
 
 .c-btn-outline {
-    background: #FFFFFF;
-    color: #1B3358;
-    border: 1.5px solid #1B3358;
+    background: var(--color-surface);
+    color: var(--color-brand-700);
+    border: 1.5px solid var(--color-brand-700);
     padding: 8px 22px;
     font-family: 'Poppins', sans-serif;
 }
@@ -650,7 +650,7 @@ body {
 .c-badge {
     display: inline-block;
     padding: 3px 12px;
-    border-radius: 20px;
+    border-radius: var(--radius-pill);
     font-size: 11px;
     font-weight: 600;
     white-space: nowrap;
@@ -686,13 +686,13 @@ body {
 }
 
 .c-table thead tr {
-    background: #1B3358;
+    background: var(--color-brand-700);
 }
 
 .c-table thead th {
-    padding: 12px 16px;
+    padding: var(--space-3) var(--table-cell-padding-x);
     text-align: left;
-    color: #FFFFFF;
+    color: var(--color-surface);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: .3px;
@@ -705,12 +705,12 @@ body {
 }
 
 .c-table tbody tr:hover {
-    background: #F8FAFC;
+    background: var(--color-surface-subtle);
 }
 
 .c-table tbody td {
-    padding: 13px 16px;
-    color: #374151;
+    padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
+    color: var(--color-text-secondary);
     font-size: 12.5px;
 }
 
@@ -722,32 +722,32 @@ body {
 .c-msg {
     padding: 10px 16px;
     margin-bottom: 16px;
-    border-radius: 8px;
-    font-size: 13px;
+    border-radius: var(--radius-control);
+    font-size: var(--control-font-size);
 }
 
 .c-msg.success {
-    background: #ECFDF5;
-    color: #065F46;
-    border: 1px solid #6EE7B7;
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
+    border: 1px solid var(--color-success-border);
 }
 
 .c-msg.error {
-    background: #FEF2F2;
-    color: #991B1B;
-    border: 1px solid #FCA5A5;
+    background: var(--color-danger-bg);
+    color: var(--color-danger-text);
+    border: 1px solid var(--color-danger-border);
 }
 
 .c-msg.warning {
-    background: #FFFBEB;
-    color: #92400E;
-    border: 1px solid #FCD34D;
+    background: var(--color-warning-bg);
+    color: var(--color-warning-text);
+    border: 1px solid var(--color-warning-border);
 }
 
 .c-msg.info {
-    background: #EFF6FF;
-    color: #1D4ED8;
-    border: 1px solid #93C5FD;
+    background: var(--color-info-bg);
+    color: var(--color-info-text);
+    border: 1px solid var(--color-info-border);
 }
 
 /* ===================================================================

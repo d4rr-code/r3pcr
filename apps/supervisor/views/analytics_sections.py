@@ -1,46 +1,31 @@
 import json
-import logging
-import os
-import re
-import threading
-import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, date as date_type
-from decimal import Decimal, InvalidOperation
-from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.db.models import Count, Avg, Sum, Min, Max, F, ExpressionWrapper, DurationField, Q
-from django.db.models.functions import TruncDay, TruncMonth, TruncYear
-from django.core.files.storage import default_storage
-from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
-from django.utils.text import slugify
-from django.core.mail import send_mail
-from django.conf import settings
-from django.core.paginator import Paginator
-from django.http import HttpResponse
-from apps.accounts.models import User
-from apps.accounts.views import _validate_phone_number
-from apps.shipments.models import Shipment, HSCode, StatusLog, TariffSchedule, HSCodeRate
-from apps.computation.models import DutyComputation, ShippingAdvisory
-from apps.consignee.models import Feedback
-from apps.notifications.utils import create_notification, notify_shipment_status_change
-from ..models import SystemConfig, Announcement, IssueReport
+from datetime import timedelta
 
-logger = logging.getLogger(__name__)
+from django.db.models import Avg, Count, Max, Min, Q, Sum
+from django.db.models.functions import TruncMonth, TruncYear
+from django.utils import timezone
+
+from apps.computation.models import DutyComputation
+from apps.consignee.models import Feedback
+from apps.shipments.models import Shipment, StatusLog
 
 from .common import *  # noqa: F401,F403
+
 
 def _feedback_summary(shipment_ids=None):
     """Consignee feedback aggregates for the analytics dashboard."""
     fb_qs = Feedback.objects.all()
     if shipment_ids is not None:
         fb_qs = fb_qs.filter(shipment_id__in=shipment_ids)
-    fb_total    = fb_qs.count()
-    fb_avg      = fb_qs.aggregate(avg=Avg('rating'))['avg']
-    fb_positive = fb_qs.filter(rating__gte=4).count()
+    aggregates = fb_qs.aggregate(
+        total=Count('id'),
+        avg=Avg('rating'),
+        positive=Count('id', filter=Q(rating__gte=4)),
+    )
+    fb_total = aggregates['total']
+    fb_avg = aggregates['avg']
+    fb_positive = aggregates['positive']
     summary = {
         'total':        fb_total,
         'avg_rating':   round(float(fb_avg), 1) if fb_avg else 0,
@@ -56,12 +41,12 @@ def _feedback_summary(shipment_ids=None):
 
 
 def _shipment_type_counts(all_shipments):
-    """All-time shipment counts per transport mode."""
-    return {
-        'air':  all_shipments.filter(shipment_type='air').count(),
-        'lcl':  all_shipments.filter(shipment_type='lcl').count(),
-        'fcl':  all_shipments.filter(shipment_type='fcl').count(),
+    """Shipment counts per transport mode in one grouped query."""
+    grouped = {
+        row['shipment_type']: row['count']
+        for row in all_shipments.values('shipment_type').annotate(count=Count('id'))
     }
+    return {key: grouped.get(key, 0) for key in ('air', 'lcl', 'fcl')}
 
 
 def _currency_breakdown(chart_ids):
@@ -111,15 +96,25 @@ def _cost_by_type(date_from, date_to, declarant_filter):
         ('lcl',  'LCL - Less Container Load',   '#38BDF8'),
         ('fcl',  'FCL - Full Container Load',   '#8B5CF6'),
     ]
-    cost_by_type = []
-    for code, label, color in cost_type_meta:
-        agg = cost_qs.filter(shipment__shipment_type=code).aggregate(
+    grouped = {
+        row['shipment__shipment_type']: row
+        for row in cost_qs.values('shipment__shipment_type').annotate(
             avg=Avg('total_landed_cost'),
             total=Sum('total_landed_cost'),
             count=Count('id'),
             min_val=Min('total_landed_cost'),
             max_val=Max('total_landed_cost'),
         )
+    }
+    cost_by_type = []
+    for code, label, color in cost_type_meta:
+        agg = grouped.get(code, {
+            'avg': None,
+            'total': None,
+            'count': 0,
+            'min_val': None,
+            'max_val': None,
+        })
         cost_by_type.append({
             'code': code, 'label': label, 'color': color,
             'avg':   round(float(agg['avg'] or 0), 2),
@@ -137,7 +132,7 @@ def _cost_by_type(date_from, date_to, declarant_filter):
     }
 
 
-def _status_breakdown(chart_ids, chart_total):
+def _status_breakdown(chart_ids):
     """Per-status counts -> wireframe pipeline rows (respects chart filters)."""
     status_colors = {
         'incoming':    '#f59e0b', 'arrived':    '#3b82f6', 'computed':    '#8b5cf6',
@@ -153,6 +148,7 @@ def _status_breakdown(chart_ids, chart_total):
             .annotate(count=Count('id'))
         )
     }
+    chart_total = sum(status_counts_raw.values())
     status_rows = []
     for key, label in Shipment.STATUS_CHOICES:
         count = status_counts_raw.get(key, 0)
@@ -194,7 +190,12 @@ def _status_breakdown(chart_ids, chart_total):
     for row in pipeline_rows:
         row['subtitle'] = status_meta.get(row['key'], {}).get('subtitle', '')
         row['display_label'] = display_labels.get(row['key'], row['label'])
-    return {'pipeline_rows': pipeline_rows, 'status_rows_sorted': status_rows_sorted}
+    return {
+        'pipeline_rows': pipeline_rows,
+        'status_rows_sorted': status_rows_sorted,
+        'status_counts': status_counts_raw,
+        'chart_total': chart_total,
+    }
 
 
 def _wmcda_scoreboard(advisory_qs):
@@ -204,12 +205,12 @@ def _wmcda_scoreboard(advisory_qs):
         ('lcl',  'LCL Sea',      '#38bdf8', 'LCL'),
         ('fcl',  'FCL Sea',      '#8b5cf6', 'FCL'),
     ]
-    wmcda_total = advisory_qs.filter(recommended_type__isnull=False).count()
     type_counts = {
         r['recommended_type']: r['cnt']
         for r in advisory_qs.values('recommended_type').annotate(cnt=Count('id'))
         if r['recommended_type']
     }
+    wmcda_total = sum(type_counts.values())
     avg_agg = advisory_qs.aggregate(
         avg_air=Avg('air_score'), avg_lcl=Avg('lcl_score'),
         avg_fcl=Avg('fcl_score'),
@@ -434,7 +435,6 @@ def _due_date_buckets(chart_qs):
     today = timezone.now().date()
     d1 = d3 = d5 = d5plus = 0
     active_qs = chart_qs.exclude(status__in=done_statuses)
-    due_total = active_qs.count()
     for s in active_qs.values('urgency', 'submitted_at'):
         alloc     = _urgency_days_for(s['urgency'])
         deadline  = _add_business_days(s['submitted_at'], alloc)
@@ -451,7 +451,7 @@ def _due_date_buckets(chart_qs):
         'due_date_data': {
             'one_day': d1, 'three_days': d3,
             'five_days': d5, 'over_five': d5plus,
-            'total': due_total,
+            'total': d1 + d3 + d5 + d5plus,
         },
         'due_date_chart_data':   json.dumps([d1, d3, d5, d5plus]),
         'due_date_chart_labels': json.dumps(['1 Day Left', '3 Days Left', '5 Days Left', '5+ Days Left']),

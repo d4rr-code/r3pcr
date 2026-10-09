@@ -1,13 +1,13 @@
 import json
 import logging
 import os
-import re
 import threading
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, date as date_type
 from decimal import Decimal, InvalidOperation
 from functools import wraps
+from apps.supervisor.tariff import _HS_SECTIONS, _chapter_num
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
@@ -93,39 +93,6 @@ def _business_days_diff(from_date, to_date):
         if d.weekday() < 5:
             count += 1
     return sign * count
-
-
-#  HS Code Section / Chapter Hierarchy
-_HS_SECTIONS = [
-    (1,  'I',     'Live Animals; Animal Products',                  list(range(1, 6))),
-    (2,  'II',    'Vegetable Products',                             list(range(6, 15))),
-    (3,  'III',   'Animal or Vegetable Fats and Oils',             [15]),
-    (4,  'IV',    'Prepared Foodstuffs; Beverages; Tobacco',        list(range(16, 25))),
-    (5,  'V',     'Mineral Products',                               list(range(25, 28))),
-    (6,  'VI',    'Chemical or Allied Industry Products',            list(range(28, 39))),
-    (7,  'VII',   'Plastics and Rubber',                            [39, 40]),
-    (8,  'VIII',  'Raw Hides, Leather, Furskins',                  list(range(41, 44))),
-    (9,  'IX',    'Wood, Cork, Straw',                             list(range(44, 47))),
-    (10, 'X',     'Pulp of Wood, Paper, Paperboard',               list(range(47, 50))),
-    (11, 'XI',    'Textiles and Textile Articles',                 list(range(50, 64))),
-    (12, 'XII',   'Footwear, Headgear, Umbrellas',                 list(range(64, 68))),
-    (13, 'XIII',  'Articles of Stone, Ceramics, Glass',            list(range(68, 71))),
-    (14, 'XIV',   'Precious Stones, Precious Metals',              [71]),
-    (15, 'XV',    'Base Metals and Articles',                      list(range(72, 84))),
-    (16, 'XVI',   'Machinery and Mechanical Appliances',           [84, 85]),
-    (17, 'XVII',  'Vehicles, Aircraft, Vessels',                   list(range(86, 90))),
-    (18, 'XVIII', 'Optical, Photographic, Medical Instruments',    list(range(90, 93))),
-    (19, 'XIX',   'Arms and Ammunition',                            [93]),
-    (20, 'XX',    'Miscellaneous Manufactured Articles',            list(range(94, 97))),
-    (21, 'XXI',   'Works of Art, Collectors Pieces, Antiques',     [97]),
-]
-
-def _chapter_num(chapter_str):
-    """Extract numeric chapter from 'Chapter 84', '84', 'Chapter 01', '01', etc."""
-    if not chapter_str:
-        return None
-    m = re.search(r'\d+', str(chapter_str))
-    return int(m.group()) if m else None
 
 
 def _send_mail_async(subject, message, from_email, recipient_list, html_message=None, log_tag=''):

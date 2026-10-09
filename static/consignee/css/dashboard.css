@@ -1,6 +1,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
 
 /* Status grid */
+.dashboard-welcome {
+    margin-bottom: 16px;
+}
+
+.dashboard-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1B3358;
+    margin-bottom: 10px;
+    line-height: 1.2;
+}
+
+.dash-kpi-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    min-width: 0;
+    overflow: hidden;
+}
+
 .dash-status-grid {
     font-family: 'Poppins', sans-serif;
     display: grid;
@@ -125,6 +145,31 @@
 .dash-bottom-row > * {
     min-width: 0;
     overflow: hidden;
+}
+
+.shipment-overview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.shipment-overview-title {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.shipping-type-card {
+    padding: 35px 48px;
+}
+
+.shipping-type-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
 }
 
 .c-card-title {
@@ -777,4 +822,276 @@ a.status-card:hover {
 
 .picker-grid-btn.disabled {
     color: #9CA3AF;
+}
+
+@media (max-width: 1180px) {
+    .dash-chart-row,
+    .dash-bottom-row {
+        grid-template-columns: 1fr;
+    }
+
+    .reminder-card {
+        width: 100%;
+        min-height: 0;
+    }
+
+    #reminder-list {
+        max-height: 260px;
+    }
+
+    .shipping-type-card {
+        padding: 24px;
+    }
+}
+
+@media (max-width: 860px) {
+    .dash-kpi-row {
+        display: grid !important;
+        grid-template-columns: 1fr;
+        width: 100% !important;
+        overflow: visible !important;
+    }
+
+    .dash-status-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100% !important;
+        flex: none !important;
+        overflow: visible !important;
+    }
+
+    .dash-summary-stack {
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        flex: none !important;
+    }
+
+    .dash-total-link,
+    .dash-total-link .dash-total-card,
+    .dash-flags-card {
+        width: 100% !important;
+    }
+
+    .dash-total-card {
+        min-height: 103px;
+    }
+
+    .total-subtitle {
+        margin-bottom: 12px;
+    }
+
+    .status-card,
+    a.status-card {
+        height: auto;
+        min-height: 74px;
+        gap: 12px;
+        padding: 10px 12px;
+    }
+
+    .dash-flags-card {
+        min-height: 74px;
+        padding: 10px 12px;
+    }
+
+    .sc-count,
+    .dash-flags-card .flags-count {
+        font-size: 28px;
+    }
+
+    .shipment-overview-header,
+    .shipping-type-header,
+    .urgency-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .chart-range-group {
+        justify-content: flex-start;
+    }
+
+    #chart-start-trigger,
+    #chart-end-trigger,
+    .chart-filter-btn {
+        min-width: 0;
+        justify-content: center;
+    }
+
+    .shipment-overview-card {
+        min-height: 330px;
+    }
+
+    .shipment-chart-wrap {
+        min-height: 250px;
+    }
+
+    .urgency-filter-btn {
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 640px) {
+    .dashboard-title {
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+
+    .dash-status-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 6px;
+    }
+
+    .dash-summary-stack {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px;
+    }
+
+    .status-card,
+    a.status-card,
+    .dash-total-card {
+        min-height: 54px;
+        border-radius: 8px;
+    }
+
+    .sc-icon,
+    .dash-flags-card .flags-icon-wrap {
+        width: 20px;
+        height: 20px;
+    }
+
+    .sc-icon img,
+    .dash-flags-card .flags-icon-wrap img {
+        width: 34px;
+        height: 24px;
+    }
+
+    .sc-label {
+        font-size: 7.5px;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    .sc-sub {
+        display: none;
+    }
+
+    .sc-count,
+    .dash-flags-card .flags-count {
+        font-size: 19px;
+    }
+
+    .total-title {
+        font-size: 12px;
+    }
+
+    .total-count {
+        font-size: 26px;
+    }
+
+    .total-subtitle {
+        display: none;
+    }
+
+    .overall-icon-wrap {
+        width: 24px;
+        height: 24px;
+        margin-bottom: 2px;
+    }
+
+    .status-card,
+    a.status-card {
+        gap: 5px;
+        padding: 7px 8px;
+    }
+
+    .dash-flags-card {
+        min-height: 54px;
+        padding: 7px 8px;
+    }
+
+    .dash-total-card {
+        padding: 8px;
+    }
+
+    .shipment-overview-card,
+    .urgency-card,
+    .shipping-type-card {
+        padding: 16px;
+    }
+
+    .chart-range-group {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .chart-filter-btn {
+        width: 100%;
+        padding: 6px 8px;
+        font-size: 10px;
+        white-space: normal;
+    }
+
+    .shipment-overview-card {
+        min-height: 310px;
+    }
+
+    .shipment-chart-wrap {
+        min-height: 220px;
+    }
+
+    .ship-type-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ship-type-item {
+        padding: 12px 10px;
+    }
+
+    .ship-type-label {
+        margin-bottom: 10px;
+        white-space: normal;
+    }
+
+    .urgency-donut-wrap canvas {
+        max-width: 100%;
+    }
+
+    #month-picker {
+        left: 14px !important;
+        right: 14px !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+
+    #month-grid,
+    #year-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    .picker-grid-btn {
+        height: 44px;
+    }
+}
+
+@media (max-width: 380px) {
+    .dash-status-grid,
+    .dash-summary-stack {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .status-card,
+    a.status-card {
+        padding: 7px;
+    }
+
+    .sc-left {
+        gap: 4px;
+    }
+
+    .sc-count,
+    .dash-flags-card .flags-count {
+        font-size: 18px;
+    }
 }

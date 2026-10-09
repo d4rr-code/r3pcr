@@ -5,7 +5,6 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.dateparse import parse_date
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
 from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
@@ -14,56 +13,47 @@ from apps.supervisor.audit import log_audit
 from apps.computation.wmcda import wmcda_weight_rows
 from apps.notifications.utils import create_notification, notify_incoming_shipment, notify_shipment_status_change
 from ..models import Feedback
+from ..forms import ShipmentSubmissionForm, submission_form_values
 
 logger = logging.getLogger('r3pcr.consignee')
 from .common import consignee_required, generate_hawb
+
+
+def _submission_template_context(form, shipment=None):
+    from django.templatetags.static import static
+
+    return {
+        'form': form,
+        'form_values': submission_form_values(form),
+        'is_edit': shipment is not None,
+        'shipment': shipment,
+        'invoice_template_url': (
+            SystemConfig.get('invoice_template_url', '')
+            or static('templates/RTripleJ_Commercial_Invoice.xlsx')
+        ),
+        'packing_list_template_url': (
+            SystemConfig.get('packing_list_template_url', '')
+            or static('templates/RTripleJ_Packing_List.xlsx')
+        ),
+    }
 
 @login_required
 @consignee_required
 def submit_shipment(request):
     if request.method == 'POST':
-        import_type   = request.POST.get('import_type')
-        urgency       = request.POST.get('urgency')
-        shipment_type = request.POST.get('shipment_type', '').strip()
-        description   = request.POST.get('description', '').strip()
+        form = ShipmentSubmissionForm(request.POST)
+        if not form.is_valid():
+            return render(
+                request,
+                'consignee/submit.html',
+                _submission_template_context(form),
+            )
 
-        # Optional shipment values — consignee-provided, unverified
-        def _decimal_or_none(key):
-            v = request.POST.get(key, '').strip()
-            try:
-                return float(v) if v else None
-            except ValueError:
-                return None
-
-        declared_value   = _decimal_or_none('declared_value')
-        freight_cost     = _decimal_or_none('freight_cost')
-        insurance_cost   = _decimal_or_none('insurance_cost')
-        quantity         = _decimal_or_none('quantity')
-        estimated_arrival_raw = request.POST.get('estimated_arrival_date', '').strip()
-        estimated_arrival_date = parse_date(estimated_arrival_raw) if estimated_arrival_raw else None
-        invoice_currency = (request.POST.get('invoice_currency', 'USD') or 'USD').strip().upper()
-        # Validate against allowed currencies
-        _allowed = {'USD', 'EUR', 'JPY', 'HKD', 'CNY', 'GBP', 'SGD'}
-        if invoice_currency not in _allowed:
-            invoice_currency = 'USD'
-
-        hawb_number = generate_hawb()
-
-        shipment = Shipment.objects.create(
-            hawb_number=hawb_number,
-            consignee=request.user,
-            import_type=import_type,
-            urgency=urgency,
-            shipment_type=shipment_type or None,
-            description=description,
-            status='incoming',
-            declared_value=declared_value,
-            freight_cost=freight_cost,
-            insurance_cost=insurance_cost,
-            quantity=quantity,
-            estimated_arrival_date=estimated_arrival_date,
-            invoice_currency=invoice_currency,
-        )
+        shipment = form.save(commit=False)
+        shipment.hawb_number = generate_hawb()
+        shipment.consignee = request.user
+        shipment.status = 'incoming'
+        shipment.save()
 
         for doc_type in ['invoice', 'packing_list', 'airway_bill']:
             file = request.FILES.get(doc_type)
@@ -89,48 +79,29 @@ def submit_shipment(request):
             shipment=shipment,
             target=shipment,
             details={
-                'import_type': import_type,
-                'urgency': urgency,
-                'shipment_type': shipment_type,
-                'invoice_currency': invoice_currency,
+                'import_type': shipment.import_type,
+                'urgency': shipment.urgency,
+                'shipment_type': shipment.shipment_type,
+                'invoice_currency': shipment.invoice_currency,
                 'document_count': shipment.documents.count(),
             },
         )
 
-        for declarant in []:
-            create_notification(
-                recipient=declarant,
-                shipment=shipment,
-                notification_type='submission',
-                title=f'New Shipment Ready to Claim — {hawb_number}',
-                message=(
-                    f'A new shipment ({hawb_number}) is in the incoming queue and '
-                    f'available for any declarant to claim and process.'
-                ),
-            )
         notify_incoming_shipment(shipment)
 
         messages.success(
             request,
             f'Shipment submitted! Your Shipment Reference No. is '
-            f'{hawb_number}.'
+            f'{shipment.hawb_number}.'
         )
         return redirect('consignee:my_submissions')
 
-    from apps.supervisor.models import SystemConfig
-    from django.templatetags.static import static
-    invoice_template_url = (
-        SystemConfig.get('invoice_template_url', '')
-        or static('templates/RTripleJ_Commercial_Invoice.xlsx')
+    form = ShipmentSubmissionForm()
+    return render(
+        request,
+        'consignee/submit.html',
+        _submission_template_context(form),
     )
-    packing_list_template_url = (
-        SystemConfig.get('packing_list_template_url', '')
-        or static('templates/RTripleJ_Packing_List.xlsx')
-    )
-    return render(request, 'consignee/submit.html', {
-        'invoice_template_url':      invoice_template_url,
-        'packing_list_template_url': packing_list_template_url,
-    })
 
 
 @login_required
@@ -142,17 +113,14 @@ def edit_submission(request, shipment_id):
         return redirect('consignee:shipment_detail', shipment_id=shipment.id)
 
     if request.method == 'POST':
-        shipment.import_type = request.POST.get('import_type') or shipment.import_type
-        shipment.urgency = request.POST.get('urgency') or shipment.urgency
-        shipment.shipment_type = (request.POST.get('shipment_type', '').strip() or None)
-        shipment.description = request.POST.get('description', '').strip()
-        invoice_currency = (request.POST.get('invoice_currency', shipment.invoice_currency) or 'USD').strip().upper()
-        if invoice_currency in {'USD', 'EUR', 'JPY', 'HKD', 'CNY', 'GBP', 'SGD'}:
-            shipment.invoice_currency = invoice_currency
-        shipment.save(update_fields=[
-            'import_type', 'urgency', 'shipment_type', 'description',
-            'invoice_currency', 'updated_at',
-        ])
+        form = ShipmentSubmissionForm(request.POST, instance=shipment)
+        if not form.is_valid():
+            return render(
+                request,
+                'consignee/submit.html',
+                _submission_template_context(form, shipment),
+            )
+        shipment = form.save()
 
         for doc_type in ['invoice', 'packing_list', 'airway_bill']:
             file = request.FILES.get(doc_type)
@@ -174,21 +142,12 @@ def edit_submission(request, shipment_id):
         messages.success(request, f'Shipment {shipment.hawb_number} updated.')
         return redirect('consignee:my_submissions')
 
-    from django.templatetags.static import static
-    invoice_template_url = (
-        SystemConfig.get('invoice_template_url', '')
-        or static('templates/RTripleJ_Commercial_Invoice.xlsx')
+    form = ShipmentSubmissionForm(instance=shipment)
+    return render(
+        request,
+        'consignee/submit.html',
+        _submission_template_context(form, shipment),
     )
-    packing_list_template_url = (
-        SystemConfig.get('packing_list_template_url', '')
-        or static('templates/RTripleJ_Packing_List.xlsx')
-    )
-    return render(request, 'consignee/submit.html', {
-        'is_edit': True,
-        'shipment': shipment,
-        'invoice_template_url': invoice_template_url,
-        'packing_list_template_url': packing_list_template_url,
-    })
 
 
 # ─── My Submissions ───────────────────────────────────────────────────────────
@@ -213,8 +172,6 @@ def my_submissions(request):
     sort          = request.GET.get('sort', '').strip()
 
     valid_statuses = {key for key, _label in Shipment.STATUS_CHOICES}
-    valid_urgencies = {key for key, _label in Shipment.URGENCY_CHOICES}
-    valid_shipment_types = {key for key, _label in Shipment.SHIPMENT_TYPE_CHOICES}
 
     if status_filter in valid_statuses:
         shipments = shipments.filter(status=status_filter)

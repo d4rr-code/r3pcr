@@ -9,7 +9,7 @@
 body{
     font-family:'Poppins',sans-serif;
     min-height:calc(100vh - 75px);
-    background:url('../img/BG MAIN.png');
+    background:url('../../images/BG MAIN.png');
     background-size:cover;
     background-position:center;
     background-repeat:no-repeat;

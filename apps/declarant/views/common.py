@@ -1,10 +1,8 @@
-import datetime
 import json
 import logging
 import os
 import re
 import tempfile
-import threading
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 from functools import wraps
@@ -15,17 +13,21 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.utils import timezone
-from django.core.mail import send_mail
-from django.conf import settings
-from apps.accounts.models import User
 from apps.shipments.models import HSCode, Shipment, ShipmentDocument, StatusLog
+from apps.shipments.due_dates import (
+    URGENCY_BUSINESS_DAYS,
+    add_business_days as _add_business_days,
+    annotate_due as _annotate_due,
+    business_days_diff as _business_days_diff,
+    urgency_business_days as _urgency_business_days,
+    urgency_days_for as _urgency_days_for,
+)
 from apps.shipments.fan import FAN_ASSESSMENT_FIELDS, fan_assessment_has_values, fan_assessment_rows
 from apps.shipments.status_progress import build_status_progress
 from apps.notifications.utils import create_notification, notify_shipment_status_change, send_assessed_email, send_billed_email
 from apps.computation.ocr import process_document, _extract_line_items, _extract_hs_anchored_items
 from apps.computation.models import ShipmentLineItem
 from apps.supervisor.models import IssueReport
-from apps.supervisor.views import _HS_SECTIONS, _chapter_num
 
 logger = logging.getLogger('r3pcr.declarant')
 
@@ -151,143 +153,9 @@ def declarant_required(view_func):
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
-URGENCY_BUSINESS_DAYS = {
-    'rush': 3, 'urgent': 5, 'priority': 10, 'standard': 15, 'normal': 15,
-}
-
-
 def _fan_amount(value):
     cleaned = re.sub(r'[^0-9.]', '', str(value or ''))
     return cleaned
-
-
-def _urgency_business_days():
-    from apps.supervisor.models import SystemConfig
-    values = dict(URGENCY_BUSINESS_DAYS)
-    for key in ('standard', 'priority', 'urgent', 'rush'):
-        raw = SystemConfig.get(f'urgency_days_{key}', '')
-        try:
-            days = int(raw)
-        except (TypeError, ValueError):
-            continue
-        if 1 <= days <= 60:
-            values[key] = days
-    values['normal'] = values['standard']
-    return values
-
-
-def _urgency_days_for(urgency):
-    return _urgency_business_days().get(urgency or 'standard', URGENCY_BUSINESS_DAYS['standard'])
-
-
-def _add_business_days(start_dt, n):
-    """Return date that is n business days (Mon–Fri) after start_dt."""
-    d = start_dt.date() if hasattr(start_dt, 'date') else start_dt
-    added = 0
-    while added < n:
-        d += datetime.timedelta(days=1)
-        if d.weekday() < 5:  # 0=Mon … 4=Fri
-            added += 1
-    return d
-
-
-def _business_days_diff(from_date, to_date):
-    """Signed count of business days from from_date to to_date.
-    Positive = future (days left), negative = past (overdue)."""
-    from_date = from_date.date() if hasattr(from_date, 'date') else from_date
-    to_date   = to_date.date()   if hasattr(to_date,   'date') else to_date
-    if from_date == to_date:
-        return 0
-    sign = 1 if to_date > from_date else -1
-    a, b = (from_date, to_date) if to_date > from_date else (to_date, from_date)
-    count, d = 0, a
-    while d < b:
-        d += datetime.timedelta(days=1)
-        if d.weekday() < 5:
-            count += 1
-    return sign * count
-
-
-def _annotate_due(shipments, today):
-    """Attach due_date, due_days_left (business days), due_color per shipment."""
-    urgency_days = _urgency_business_days()
-    for s in shipments:
-        alloc = urgency_days.get(s.urgency or 'standard', urgency_days['standard'])
-        s.due_date      = _add_business_days(s.submitted_at, alloc)
-        s.due_days_left = _business_days_diff(today, s.due_date)
-        if s.due_days_left < 0:
-            s.due_color = 'red'
-        elif s.due_days_left <= 1:
-            s.due_color = 'orange'
-        else:
-            s.due_color = 'green'
-
-
-def _send_overdue_emails(overdue_shipments, today):
-    """
-    For each overdue shipment not yet notified today:
-    - Email all supervisors
-    - Email the assigned declarant
-    Runs in a background thread; marks overdue_notified_at = today.
-    """
-    def _do_send():
-        supervisors = list(
-            User.objects.filter(role='supervisor', is_active=True)
-                        .exclude(email='')
-                        .values_list('email', flat=True)
-        )
-
-        for shipment in overdue_shipments:
-            days_over   = abs(shipment.due_days_left)
-            urgency_lbl = shipment.get_urgency_display()
-            consignee   = shipment.consignee.get_full_name() or shipment.consignee.username
-            declarant   = (shipment.declarant.get_full_name() or shipment.declarant.username
-                           ) if shipment.declarant else 'Unassigned'
-
-            subject = (
-                f'⚠️ Overdue Shipment — {shipment.hawb_number} '
-                f'({days_over} business day{"s" if days_over != 1 else ""} overdue)'
-            )
-
-            body = (
-                f'This is an automated overdue alert from R3-PCR.\n\n'
-                f'Shipment Reference : {shipment.hawb_number}\n'
-                f'Urgency Level      : {urgency_lbl}\n'
-                f'Consignee          : {consignee}\n'
-                f'Assigned Declarant : {declarant}\n'
-                f'Days Overdue       : {days_over} business day{"s" if days_over != 1 else ""}\n'
-                f'Due Date           : {shipment.due_date}\n\n'
-                f'This shipment has passed its processing deadline. '
-                f'Failure to process promptly may result in Demurrage & Detention (D&D) '
-                f'charges and potential Bureau of Customs (BOC) penalties.\n\n'
-                f'Please log in to R3-PCR and take action immediately.\n\n'
-                f'— R3-PCR Automated Alert'
-            )
-
-            # Collect recipients
-            recipients = list(supervisors)
-            if (shipment.declarant
-                    and shipment.declarant.email
-                    and shipment.declarant.email not in recipients):
-                recipients.append(shipment.declarant.email)
-
-            if recipients:
-                try:
-                    send_mail(
-                        subject=subject,
-                        message=body,
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=recipients,
-                        fail_silently=True,
-                    )
-                except Exception as e:
-                    logger.debug('Overdue-shipment email failed: %s', e)
-
-            # Mark notified today (outside the email try so it always saves)
-            Shipment.objects.filter(pk=shipment.pk).update(overdue_notified_at=today)
-
-    thread = threading.Thread(target=_do_send, daemon=True)
-    thread.start()
 
 
 def _run_and_store_document_ocr(doc):
@@ -356,7 +224,7 @@ __all__ = [
     'declarant_required', '_CHAPTER_TITLES', 'ETRADE_LODGEMENT_URL',
     'URGENCY_BUSINESS_DAYS', '_fan_amount',
     '_urgency_business_days', '_urgency_days_for', '_add_business_days',
-    '_business_days_diff', '_annotate_due', '_send_overdue_emails',
+    '_business_days_diff', '_annotate_due',
     '_run_and_store_document_ocr', '_ocr_scan_in_background',
     '_ocr_display_documents',
 ]

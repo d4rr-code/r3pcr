@@ -13,7 +13,9 @@ from datetime import date, timedelta
 from decimal import Decimal
 import json
 
-from django.test import SimpleTestCase, TestCase
+from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -24,6 +26,11 @@ from apps.computation.wmcda import calculate_ahp_weights
 from apps.consignee.models import Feedback
 from apps.supervisor.models import AuditLog, SystemConfig
 from apps.supervisor.audit import log_audit
+from apps.supervisor.views.analytics import (
+    _analytics_context_response,
+    _analytics_report_data,
+    analytics_status_counts,
+)
 
 
 class SupervisorShipmentTrackingDisplayTests(TestCase):
@@ -54,6 +61,7 @@ class SupervisorShipmentTrackingDisplayTests(TestCase):
     def test_shipment_records_table_prioritizes_job_number(self):
         response = self.client.get(reverse('supervisor:shipment_records'))
 
+        self.assertContains(response, '/static/css/design-tokens.css')
         self.assertContains(response, '<th>Job Number</th>', html=False)
         self.assertNotContains(response, '<th>Import Type</th>', html=False)
         self.assertContains(response, 'SRJJJ2511001234')
@@ -270,7 +278,7 @@ class SupervisorIntelligenceTests(TestCase):
 
     def test_intelligence_filters_delay_risk_rows(self):
         medium = self._shipment('R3PCR-RISK-MEDIUM', 'incoming')
-        low = self._shipment('R3PCR-RISK-LOW', 'incoming')
+        self._shipment('R3PCR-RISK-LOW', 'incoming')
         Shipment.objects.filter(pk=medium.pk).update(submitted_at=timezone.now() - timedelta(days=3))
 
         response = self.client.get(reverse('supervisor:intelligence'), {'risk': 'medium'})
@@ -874,7 +882,9 @@ class AnalyticsDashboardContextTests(TestCase):
         return resp.context
 
     def test_kpi_strip_counts(self):
-        ctx = self._ctx()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        ctx = response.context
         self.assertEqual(ctx['total_all'], 5)
         self.assertEqual(ctx['total_incoming'], 1)
         self.assertEqual(ctx['total_arrived'], 1)
@@ -883,6 +893,17 @@ class AnalyticsDashboardContextTests(TestCase):
         self.assertEqual(ctx['total_rejected'], 0)
         self.assertEqual(ctx['total_declarants'], 2)
         self.assertEqual(ctx['total_consignees'], 1)
+        self.assertContains(response, 'Operations Overview')
+        self.assertNotContains(response, '+8.6%')
+        self.assertContains(response, '5 shipments')
+        self.assertContains(response, 'across all declarants')
+        self.assertContains(response, '/static/css/supervisor-analytics.css')
+        self.assertNotContains(response, '.dash {')
+        self.assertContains(response, 'id="analytics-config"')
+        self.assertContains(response, '/static/js/vendor/chart.umd.min.js')
+        self.assertContains(response, '/static/js/supervisor-analytics.js')
+        self.assertContains(response, 'data-export-download', count=4)
+        self.assertNotContains(response, 'var urgencyData =')
 
     def test_shipment_type_counts(self):
         ctx = self._ctx()
@@ -999,6 +1020,25 @@ class AnalyticsDashboardContextTests(TestCase):
         self.assertEqual(data['counts']['incoming']['count'], 1)
         self.assertEqual(data['counts']['arrived']['count'], 0)
 
+    def test_live_status_counts_uses_one_aggregate_query(self):
+        request = RequestFactory().get(reverse('supervisor:analytics_status_counts'))
+        request.user = self.supervisor
+
+        with self.assertNumQueries(1):
+            response = analytics_status_counts(request)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_dashboard_stays_within_query_budget(self):
+        request = RequestFactory().get(self.url)
+        request.user = self.supervisor
+
+        with CaptureQueriesContext(connection) as queries:
+            response = _analytics_context_response(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(len(queries), 21)
+
     def test_wmcda_scoreboard_and_agreement(self):
         def _adv(shipment, recommended):
             return ShippingAdvisory.objects.create(
@@ -1069,11 +1109,47 @@ class AnalyticsExportTests(TestCase):
         self.consignee = User.objects.create_user(
             username='con_ex', password='x', role='consignee',
             email='conex@test.local', is_pending_approval=False)
-        Shipment.objects.create(
+        self.declarant = User.objects.create_user(
+            username='dec_ex', password='x', role='declarant',
+            email='decex@test.local', is_pending_approval=False,
+            first_name='Export', last_name='Declarant')
+        self.shipment = Shipment.objects.create(
             hawb_number='EX-1', consignee=self.consignee, status='billed',
-            shipment_type='lcl', invoice_currency='USD')
+            declarant=self.declarant, shipment_type='lcl', invoice_currency='USD')
+        DutyComputation.objects.create(
+            shipment=self.shipment, total_landed_cost=Decimal('1250.50'))
+        Feedback.objects.create(
+            consignee=self.consignee, shipment=self.shipment,
+            rating=5, comment='Clear process')
         self.client.force_login(self.supervisor)
         self.url = reverse('supervisor:analytics_export')
+
+    def test_report_data_values_and_query_budget(self):
+        for index in range(8):
+            User.objects.create_user(
+                username=f'unassigned_dec_{index}', password='x', role='declarant',
+                email=f'unassigned_dec_{index}@test.local', is_pending_approval=False)
+
+        request = RequestFactory().get(self.url)
+        request.user = self.supervisor
+        with CaptureQueriesContext(connection) as queries:
+            report = _analytics_report_data(request)
+
+        self.assertEqual(len(queries), 13)
+        self.assertEqual(report['total'], 1)
+        summary = dict(report['summary'])
+        self.assertEqual(summary['Feedback Count'], 1)
+        self.assertEqual(summary['Average Feedback Rating'], 5.0)
+        self.assertEqual(summary['Positive Feedback %'], '100.0%')
+        tables = {title: rows for title, _headers, rows in report['tables']}
+        self.assertEqual(
+            tables['Declarant Performance'],
+            [['Export Declarant', 1, 1, 1, 0, '100.0%']],
+        )
+        self.assertEqual(
+            tables['Landed Cost By Shipping Type'][1],
+            ['LCL - Less Container Load', 1, 1250.5, 1250.5, 1250.5, 1250.5],
+        )
 
     def test_pdf_export(self):
         resp = self.client.get(self.url, {'format': 'pdf'})

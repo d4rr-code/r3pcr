@@ -302,6 +302,51 @@ class ConsigneeMySubmissionsTests(TestCase):
         self.assertNotContains(response, 'name="container_number"')
         self.assertNotContains(response, 'name="job_order_reference"')
 
+    def test_submit_rejects_invalid_server_side_values(self):
+        response = self.client.post(reverse('consignee:submit'), {
+            'import_type': 'not-a-real-type',
+            'urgency': 'instant',
+            'shipment_type': '',
+            'estimated_arrival_date': 'not-a-date',
+            'description': '',
+            'invoice_currency': 'USD',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Shipment.objects.filter(consignee=self.consignee).count(), 0)
+        self.assertContains(response, 'Please correct the highlighted fields.')
+        self.assertContains(response, 'Select a valid choice')
+
+    def test_edit_submission_updates_estimated_arrival_date(self):
+        shipment = self._shipment(399, estimated_arrival_date=None)
+
+        response = self.client.post(
+            reverse('consignee:edit_submission', args=[shipment.id]),
+            {
+                'import_type': 'commercial',
+                'urgency': 'priority',
+                'shipment_type': 'fcl',
+                'estimated_arrival_date': '2026-10-15',
+                'description': 'Updated machine parts',
+                'invoice_currency': 'EUR',
+            },
+        )
+
+        self.assertRedirects(response, reverse('consignee:my_submissions'))
+        shipment.refresh_from_db()
+        self.assertEqual(shipment.estimated_arrival_date.isoformat(), '2026-10-15')
+        self.assertEqual(shipment.description, 'Updated machine parts')
+
+    def test_submit_controls_expose_keyboard_and_loading_semantics(self):
+        response = self.client.get(reverse('consignee:submit'))
+
+        self.assertContains(response, '/static/css/design-tokens.css')
+        self.assertContains(response, 'class="choice-input"')
+        self.assertContains(response, 'role="button"')
+        self.assertContains(response, 'tabindex="0"')
+        self.assertContains(response, 'aria-live="polite"')
+        self.assertContains(response, 'id="submission-status"')
+
     def test_my_submissions_table_prioritizes_job_number(self):
         shipment = self._shipment(400)
         shipment.job_order_reference = 'SRJJJ2511001234'
