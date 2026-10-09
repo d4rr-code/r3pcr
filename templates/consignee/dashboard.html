@@ -4,21 +4,21 @@
 {% block nav_dashboard %}active{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'consignee/css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'consignee/css/dashboard.css' %}?v=20261009-mobile-compact-2">
 {% endblock %}
 
 {% block content %}
 
 <!-- -- Welcome ----------------------------------------------- -->
-<div style="margin-bottom:16px;">
-    <h1 style="font-size:22px; font-weight:700; color:#1B3358; margin-bottom:10px;">
+<div class="dashboard-welcome">
+    <h1 class="dashboard-title">
         Welcome Back {{ user.first_name|default:user.username }}!
     </h1>
 </div>
 
 <!-- -- Status Grid + Total ------------------------------------------------- -->
-<div style="display:flex; gap:10px; align-items:stretch; min-width:0; overflow:hidden;">
-    <div class="dash-status-grid" style="flex:1; min-width:0;">
+<div class="dash-kpi-row" style="display:flex; gap:10px; align-items:stretch; min-width:0; overflow:hidden;">
+    <div class="dash-status-grid" style="flex:1 1 0; min-width:0;">
 
         <!-- ARRIVED -->
         <a class="status-card status-arrived" href="{% url 'consignee:my_submissions' %}?status=arrived">
@@ -181,8 +181,8 @@
 
     <!-- Shipment Overview Line Chart -->
     <div class="c-card shipment-overview-card">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-            <p class="c-card-title" style="margin:0;">Shipment Overview</p>
+        <div class="shipment-overview-header">
+            <p class="c-card-title shipment-overview-title">Shipment Overview</p>
             <div class="chart-range-group">
                 <span class="chart-range-summary" aria-label="Last 12 Months">Last 12 Months</span>
                 <span class="chart-range-summary" aria-label="Cumulative">Cumulative</span>
@@ -249,8 +249,8 @@
 <div class="dash-bottom-row">
 
     <!-- Shipping Type Overview -->
-    <div class="c-card" style="padding:35px 48px;">
-        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+    <div class="c-card shipping-type-card">
+        <div class="shipping-type-header">
             <div>
                 <p style="font-size:16px; font-weight:700; color:#1B3358; margin:0 0 2px;">Shipping Type Overview</p>
                 <p style="font-size:10px; color:#9CA3AF;">Breakdown of shipments based on cargo structure and handling type</p>
