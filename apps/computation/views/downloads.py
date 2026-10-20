@@ -43,8 +43,8 @@ def _resolve_report_items(computation):
 
 
 def _summary_rows(computation):
-    csf_php = (computation.csf_usd or 0) * (computation.exchange_rate or 0)
-    boc_total = (computation.customs_duty or 0) + (computation.vat_amount or 0) + Decimal('130') + (computation.ipf or 0)
+    csf_php = computation.csf_php
+    boc_total = computation.boc_payable
     return [
         ('Dutiable Value', computation.dutiable_value or 0),
         ('Bank Charges', computation.bank_charges or 0),
@@ -54,6 +54,7 @@ def _summary_rows(computation):
         ('Wharfage', computation.wharfage or 0),
         ('Container Service Fee', csf_php),
         ('Customs Documentary Stamp', Decimal('130')),
+        ('BIR Documentary Stamp', computation.bir_dst),
         ('Import Processing Fee', computation.ipf or 0),
         ('Total Landed Cost', computation.total_landed_cost or 0),
         ('VAT', computation.vat_amount or 0),
@@ -104,6 +105,8 @@ def _download_excel_report(shipment, computation):
         ('Exchange Rate (to PHP)', _num(computation.exchange_rate)),
         ('Prepared By', prepared),
     ]
+    if computation.requires_csf_review:
+        detail_rows.append(('CSF review required', 'Legacy foreign-currency conversion: verify or recompute before relying on totals.'))
     for row, (label, value) in enumerate(detail_rows, 4):
         ws_details.cell(row=row, column=1, value=label).font = bold
         ws_details.cell(row=row, column=2, value=value)
@@ -186,6 +189,8 @@ def _download_pdf_report(request, shipment, computation):
         ['Container No.', shipment.container_number or '', 'Job Number', shipment.job_order_reference or ''],
         ['Exchange Rate (to PHP)', f'{_num(computation.exchange_rate):,.4f}', '', ''],
     ]
+    if computation.requires_csf_review:
+        details.append(['CSF review required', 'Legacy conversion: verify totals', '', ''])
     detail_table = Table(details, colWidths=[1.1 * inch, 2.0 * inch, 1.1 * inch, 2.3 * inch])
     detail_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),

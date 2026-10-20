@@ -434,6 +434,8 @@ class ProcessShipmentTests(TestCase):
         self.assertEqual(self.shipment.status, 'arrived')
 
     def test_can_update_to_lodgement_after_ecdt_approval(self):
+        from apps.computation.models import DutyComputation
+        DutyComputation.objects.create(shipment=self.shipment, items_json='[{"description":"Widget"}]', total_landed_cost=100)
         self.shipment.status = 'approved'
         self.shipment.save(update_fields=['status'])
         self.client.force_login(self.declarant)
@@ -448,6 +450,8 @@ class ProcessShipmentTests(TestCase):
         self.assertEqual(self.shipment.status, 'lodgement')
 
     def test_manual_status_update_allows_only_next_operational_step(self):
+        for kind in ('sad', 'payment_proof', 'release_doc'):
+            ShipmentDocument.objects.create(shipment=self.shipment, document_type=kind, file=kind + '.pdf')
         self.shipment.status = 'paid'
         self.shipment.save(update_fields=['status'])
         self.client.force_login(self.declarant)

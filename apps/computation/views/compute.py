@@ -23,13 +23,13 @@ from .advisory import compute_wmcda
 from .hs_codes import suggest_hs_codes
 from ..wmcda import wmcda_weight_rows
 from apps.supervisor.models import SystemConfig
+from apps.shipments.workflow import COMPUTABLE_STATUSES, DRAFT_STATUSES
+from ..validation import decimal_value
+from .ecdt import _get_vat_rate
 
 
 def _decimal_or_zero(value):
-    try:
-        return Decimal(str(value or '0'))
-    except Exception:
-        return Decimal('0')
+    return decimal_value(value or '0', 'Weight')
 
 
 def _posted_gross_weight(request, shipment):
@@ -167,9 +167,9 @@ def _distribute_freight_insurance(items_data, request):
     items_data in place and returns it.
     """
     total_exw_for_dist = sum(Decimal(str(it['exw_usd'])) for it in items_data) or Decimal('1')
-    total_freight_global   = Decimal(request.POST.get('total_freight',   '0') or '0')
-    total_insurance_global = Decimal(request.POST.get('total_insurance', '0') or '0')
-    total_other_global     = Decimal(request.POST.get('total_other_charges', '0') or '0')
+    total_freight_global   = decimal_value(request.POST.get('total_freight') or '0', 'Total freight')
+    total_insurance_global = decimal_value(request.POST.get('total_insurance') or '0', 'Total insurance')
+    total_other_global     = decimal_value(request.POST.get('total_other_charges') or '0', 'Total other charges')
     all_fr_zero  = all(Decimal(str(it.get('freight_usd',   0) or 0)) == 0 for it in items_data)
     all_ins_zero = all(Decimal(str(it.get('insurance_usd', 0) or 0)) == 0 for it in items_data)
     all_oc_zero  = all(Decimal(str(it.get('other_charges_usd', 0) or 0)) == 0 for it in items_data)
@@ -253,7 +253,7 @@ def _parse_posted_line_items(request):
         for d, e, f, ins, oc, q, unit, unit_price, h, dr, gw, nw, pk
         in zip(descriptions, exw_values, freights_list, ins_list, other_list,
                quantities, units, unit_prices, hs_code_ids, duty_rates, gws, nws, pkgs_list)
-        if e and float(e) > 0
+        if e and decimal_value(e, 'Item value') > 0
     ]
 
 
@@ -495,8 +495,10 @@ def _collect_hs_suggestions(shipment, ocr_items, existing):
 
 
 @login_required
+@transaction.atomic
 def compute_shipment(request, shipment_id):
-    shipment = get_object_or_404(Shipment, id=shipment_id)
+    queryset = Shipment.objects.select_for_update() if request.method == 'POST' else Shipment.objects
+    shipment = get_object_or_404(queryset, id=shipment_id)
 
     # Only the assigned declarant may compute duties for a shipment
     if request.user.role != 'declarant' or shipment.declarant != request.user:
@@ -527,21 +529,23 @@ def compute_shipment(request, shipment_id):
     usd_exchange_rate = Decimal(str(all_currency_rates.get('USD', _RATE_DEFAULTS['USD'])))
 
     if request.method == 'POST':
+        if shipment.status not in COMPUTABLE_STATUSES:
+            messages.error(request, 'Estimates are locked after lodgement. Ask your supervisor to reset the shipment for corrections.')
+            return redirect('declarant:process', shipment_id=shipment_id)
         posted_currency = (request.POST.get('invoice_currency', '') or '').strip().upper()
         if posted_currency in _RATE_KEYS:
             invoice_currency = posted_currency
             shipment.invoice_currency = invoice_currency
-            shipment.save(update_fields=['invoice_currency'])
             default_rate = all_currency_rates.get(invoice_currency, default_rate)
         try:
-            exchange_rate   = Decimal(request.POST.get('exchange_rate', default_rate) or default_rate)
-            arrastre        = Decimal(request.POST.get('arrastre',   '0') or '0')
-            wharfage        = Decimal(request.POST.get('wharfage',   '0') or '0')
-            csf_usd_val     = Decimal(request.POST.get('csf_usd',   '0') or '0')
-            bank_charges    = Decimal(request.POST.get('bank_charges', '0') or '0')
+            exchange_rate   = decimal_value(request.POST.get('exchange_rate') or default_rate, 'Exchange rate', minimum=Decimal('0.000001'), maximum=Decimal('1000000'))
+            arrastre        = decimal_value(request.POST.get('arrastre') or '0', 'Arrastre')
+            wharfage        = decimal_value(request.POST.get('wharfage') or '0', 'Wharfage')
+            csf_usd_val     = decimal_value(request.POST.get('csf_usd') or '0', 'Container service fee')
+            bank_charges    = decimal_value(request.POST.get('bank_charges') or '0', 'Bank charges')
             container_type  = (request.POST.get('container_type', '') or '').strip()
             charge_mode     = normalize_charge_mode(request.POST.get('charge_mode'), shipment.shipment_type)
-            cargo_volume    = Decimal(request.POST.get('cargo_volume', '0') or '0')
+            cargo_volume    = decimal_value(request.POST.get('cargo_volume') or '0', 'Cargo volume')
             gross_weight    = _posted_gross_weight(request, shipment)
             arrastre, wharfage, revenue_ton = apply_transport_charges(
                 charge_mode, arrastre, wharfage,
@@ -562,10 +566,6 @@ def compute_shipment(request, shipment_id):
 
             _distribute_freight_insurance(items_data, request)
 
-            if gross_weight > 0 and shipment.gross_weight != gross_weight:
-                shipment.gross_weight = gross_weight
-                shipment.save(update_fields=['gross_weight'])
-
             is_dangerous = request.POST.get('is_dangerous_cargo') == '1'
             items, summary = compute_ecdt(
                 items_data, exchange_rate, usd_exchange_rate=usd_exchange_rate,
@@ -577,6 +577,8 @@ def compute_shipment(request, shipment_id):
             total_freight   = sum(Decimal(str(it.get('freight_usd',   0) or 0)) for it in items_data)
             total_insurance = sum(Decimal(str(it.get('insurance_usd', 0) or 0)) for it in items_data)
             result = summary
+            shipment.gross_weight = gross_weight or shipment.gross_weight
+            shipment.save(update_fields=['invoice_currency', 'gross_weight'])
 
             # Use first item's HS code + duty rate for model-level fields
             first_hs_id   = next((it['hs_code_id'] for it in items_data if it.get('hs_code_id')), None)
@@ -611,6 +613,7 @@ def compute_shipment(request, shipment_id):
                     'arrastre':          arrastre,
                     'wharfage':          wharfage,
                     'csf_usd':           csf_usd_val,
+                    'csf_php_amount':    summary['csf_php'],
                     'container_type':    container_type or charge_mode,
                     'total_landed_cost': summary['total_landed_cost'],
                     'computed_by':       request.user,
@@ -630,7 +633,7 @@ def compute_shipment(request, shipment_id):
                 },
             )
 
-            if shipment.status == 'arrived':
+            if shipment.status in {'arrived', 'for_revision', 'rejected', 'approved'}:
                 old_status = shipment.status
                 shipment.status = 'computed'
                 if not shipment.processed_at:
@@ -662,11 +665,15 @@ def compute_shipment(request, shipment_id):
             messages.success(request, 'Computation & shipping analysis saved!')
             return redirect('computation:compute', shipment_id=shipment.id)
 
-        except ValueError:
-            pass
-        except Exception as e:
-            messages.error(request, f'Computation error: {e}')
-            items = result = None
+        except ValueError as exc:
+            transaction.set_rollback(True)
+            messages.error(request, str(exc))
+            return redirect('computation:compute', shipment_id=shipment.id)
+        except Exception:
+            transaction.set_rollback(True)
+            logger.exception('Computation failed for shipment %s', shipment.id)
+            messages.error(request, 'The computation could not be saved. Check the inputs and try again.')
+            return redirect('computation:compute', shipment_id=shipment.id)
 
     else:
         # ── GET: pre-load saved data ───────────────────────────────────────────
@@ -788,8 +795,12 @@ def compute_shipment(request, shipment_id):
         'country_distance_options': country_distance_options,
         'country_distance_map':   json.dumps(country_distance_map),
         'invoice_currency':       invoice_currency,
-        'all_currency_rates':   json.dumps(all_currency_rates),
+        'all_currency_rates':   all_currency_rates,
         'usd_exchange_rate':    usd_exchange_rate,
+        'vat_rate_pct':         _get_vat_rate() * Decimal('100'),
+        'saved_vat_rate_pct':   existing.vat_rate_pct if existing else _get_vat_rate() * Decimal('100'),
+        'draft_editable':       shipment.status in DRAFT_STATUSES,
+        'estimate_editable':    shipment.status in COMPUTABLE_STATUSES,
         'default_rate':         default_rate,
         'bir_dst_amount':       float(_get_bir_dst()),
         'insurance_default_rate': float(_get_insurance_default_rate()) * 100,

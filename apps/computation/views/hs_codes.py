@@ -6,6 +6,8 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db.models import Q, Count
+from django.db import transaction
+from apps.shipments.workflow import DRAFT_STATUSES
 from apps.shipments.models import Shipment, HSCode, ShipmentHSCode
 from apps.supervisor.audit import log_audit
 from ..models import ShipmentLineItem
@@ -476,6 +478,7 @@ def hs_code_suggest(request):
 # ─── Update ShipmentLineItem HS Code (AJAX PATCH) ────────────────────────────
 
 @login_required
+@transaction.atomic
 def update_line_item_hs(request, item_id):
     """
     PATCH /computation/line-item/<id>/hs/
@@ -487,10 +490,12 @@ def update_line_item_hs(request, item_id):
         return JsonResponse({'ok': False, 'error': 'POST/PATCH required.'}, status=405)
 
     item = get_object_or_404(ShipmentLineItem, id=item_id)
-    shipment = item.shipment
+    shipment = Shipment.objects.select_for_update().get(pk=item.shipment_id)
 
     if request.user.role != 'declarant' or shipment.declarant != request.user:
         return JsonResponse({'ok': False, 'error': 'Access denied.'}, status=403)
+    if shipment.status not in DRAFT_STATUSES:
+        return JsonResponse({'ok': False, 'error': 'This estimate is locked. Request revision before changing classifications.'}, status=409)
 
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
@@ -507,8 +512,9 @@ def update_line_item_hs(request, item_id):
         return JsonResponse({'ok': False, 'error': 'HS code not found.'}, status=404)
 
     item.hs_code     = hs
+    item.duty_rate = hs.duty_rate
     item.is_confirmed = True
-    item.save(update_fields=['hs_code', 'is_confirmed', 'updated_at'])
+    item.save(update_fields=['hs_code', 'duty_rate', 'is_confirmed', 'updated_at'])
 
     # Record the confirmation for historical boost
     ShipmentHSCode.objects.get_or_create(

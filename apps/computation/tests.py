@@ -399,7 +399,7 @@ class ComputeShipmentGetTests(TestCase):
 
         resp = self.client.get(self.url)
 
-        rates = json.loads(resp.context['all_currency_rates'])
+        rates = resp.context['all_currency_rates']
         self.assertEqual(rates['USD'], '50.0000')
         self.assertEqual(rates['EUR'], '70.1234')
         self.assertEqual(rates['JPY'], '0.3900')
