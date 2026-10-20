@@ -160,7 +160,18 @@ _SUPABASE_URL   = os.getenv('SUPABASE_URL', '')          # e.g. https://xxxx.sup
 _SUPABASE_KEY   = os.getenv('SUPABASE_SECRET_KEY', '')   # sb_secret_...
 _SUPABASE_BUCKET = os.getenv('SUPABASE_BUCKET', 'r3pcr-media')
 
-if _SUPABASE_URL and _SUPABASE_KEY:
+SHIPMENT_STORAGE_MODE = os.getenv('SHIPMENT_STORAGE_MODE', 'auto').lower()
+from django.core.exceptions import ImproperlyConfigured
+if SHIPMENT_STORAGE_MODE not in {'auto', 'local', 'supabase'}:
+    raise ImproperlyConfigured('SHIPMENT_STORAGE_MODE must be auto, local, or supabase.')
+if SHIPMENT_STORAGE_MODE == 'supabase' and not (_SUPABASE_URL and _SUPABASE_KEY):
+    raise ImproperlyConfigured('Supabase storage requires its URL and API key.')
+
+if SHIPMENT_STORAGE_MODE != 'local' and _SUPABASE_URL and _SUPABASE_KEY:
+    from .storage import validate_storage_project
+    validate_storage_project(DATABASES['default'], _SUPABASE_URL)
+    if not (os.getenv('SUPABASE_S3_ACCESS_KEY_ID') and os.getenv('SUPABASE_S3_SECRET_ACCESS_KEY')):
+        raise ImproperlyConfigured('Supabase storage requires S3 access credentials.')
     STORAGES['default']['BACKEND'] = 'apps.shipments.storage.PrivateS3Storage'
 
     AWS_ACCESS_KEY_ID       = os.getenv('SUPABASE_S3_ACCESS_KEY_ID', '')
