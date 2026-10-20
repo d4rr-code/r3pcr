@@ -157,25 +157,31 @@ STORAGES = {
 
 # ── Supabase Storage (django-storages S3 backend) ─────────────────────────────
 _SUPABASE_URL   = os.getenv('SUPABASE_URL', '')          # e.g. https://xxxx.supabase.co
-_SUPABASE_KEY   = os.getenv('SUPABASE_SECRET_KEY', '')   # sb_secret_...
 _SUPABASE_BUCKET = os.getenv('SUPABASE_BUCKET', 'r3pcr-media')
 
-if _SUPABASE_URL and _SUPABASE_KEY:
-    STORAGES['default']['BACKEND'] = 'storages.backends.s3boto3.S3Boto3Storage'
+SHIPMENT_STORAGE_MODE = os.getenv('SHIPMENT_STORAGE_MODE', 'auto').lower()
+from django.core.exceptions import ImproperlyConfigured
+if SHIPMENT_STORAGE_MODE not in {'auto', 'local', 'supabase'}:
+    raise ImproperlyConfigured('SHIPMENT_STORAGE_MODE must be auto, local, or supabase.')
+if SHIPMENT_STORAGE_MODE == 'supabase' and not _SUPABASE_URL:
+    raise ImproperlyConfigured('Supabase storage requires its project URL.')
 
-    _project_id = _SUPABASE_URL.replace('https://', '').split('.')[0]
+if SHIPMENT_STORAGE_MODE != 'local' and _SUPABASE_URL:
+    from .storage import validate_storage_project
+    validate_storage_project(DATABASES['default'], _SUPABASE_URL)
+    if not (os.getenv('SUPABASE_S3_ACCESS_KEY_ID') and os.getenv('SUPABASE_S3_SECRET_ACCESS_KEY')):
+        raise ImproperlyConfigured('Supabase storage requires S3 access credentials.')
+    STORAGES['default']['BACKEND'] = 'apps.shipments.storage.PrivateS3Storage'
 
     AWS_ACCESS_KEY_ID       = os.getenv('SUPABASE_S3_ACCESS_KEY_ID', '')
     AWS_SECRET_ACCESS_KEY   = os.getenv('SUPABASE_S3_SECRET_ACCESS_KEY', '')
     AWS_STORAGE_BUCKET_NAME = _SUPABASE_BUCKET
-    AWS_S3_ENDPOINT_URL     = f'{_SUPABASE_URL}/storage/v1/s3'
+    AWS_S3_ENDPOINT_URL     = f"{_SUPABASE_URL.rstrip('/').replace('.supabase.co', '.storage.supabase.co')}/storage/v1/s3"
     AWS_S3_REGION_NAME      = 'ap-southeast-1'
-    AWS_DEFAULT_ACL         = 'public-read'
+    AWS_DEFAULT_ACL         = None
     AWS_S3_FILE_OVERWRITE   = False
-    AWS_QUERYSTRING_AUTH    = False
-    # Generate public URLs via Supabase's public endpoint (not the S3 endpoint)
-    AWS_S3_CUSTOM_DOMAIN    = f'{_project_id}.supabase.co/storage/v1/object/public/{_SUPABASE_BUCKET}'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+    AWS_QUERYSTRING_AUTH    = True
+    AWS_S3_CUSTOM_DOMAIN    = None
 
 # Auth
 LOGIN_URL = '/accounts/login/'

@@ -34,7 +34,7 @@ def _info_block(shipment, computation, request):
             computation.computed_by.get_full_name()
             or computation.computed_by.username
         )
-    return [
+    rows = [
         ('HAWB / BOL No.',  shipment.hawb_number),
         ('Consignee',       cname),
         ('Declarant',       decl_name),
@@ -44,6 +44,9 @@ def _info_block(shipment, computation, request):
         ('Job Number',     shipment.job_order_reference or '—'),
         ('Exchange Rate',   exrate),
     ]
+    if computation and computation.requires_csf_review:
+        rows.append(('CSF review required', 'Legacy foreign-currency conversion: verify or recompute totals.'))
+    return rows
 
 
 def _ecdt_fee_rows(computation):
@@ -53,10 +56,12 @@ def _ecdt_fee_rows(computation):
     """
     rows = [
         ('Customs Duty (CUD)',                   computation.customs_duty,   'normal'),
-        ('Value Added Tax — 12% (VAT)',          computation.vat_amount,     'normal'),
+        (f'Value Added Tax — {computation.vat_rate_pct}% (VAT)', computation.vat_amount, 'normal'),
         ('Import Processing Fee (IPF)',          computation.ipf,            'normal'),
         ('Documentary Stamp (CDS)',              130,                        'cds'),
-        ('BOC Payable  (CUD + VAT + IPF + CDS)', computation.boc_payable,    'boc'),
+        ('BIR Documentary Stamp', computation.bir_dst, 'normal'),
+        ('Container Service Fee', computation.csf_php, 'normal'),
+        ('BOC Payable (including BIR DST and CSF)', computation.boc_payable, 'boc'),
         ('Brokerage Fee',                        computation.brokerage_fee,  'normal'),
     ]
     if computation.arrastre:
@@ -65,8 +70,6 @@ def _ecdt_fee_rows(computation):
         rows.append(('Wharfage',              computation.wharfage,     'normal'))
     if computation.bank_charges:
         rows.append(('Bank Charges',          computation.bank_charges, 'normal'))
-    if computation.csf_php:
-        rows.append(('Container Service Fee', computation.csf_php,      'normal'))
     rows.append(('TOTAL LANDED COST', computation.total_landed_cost, 'total'))
     return rows
 

@@ -8,6 +8,9 @@ from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.core.files.storage import default_storage
 from django.utils import timezone
 from django.utils.text import slugify
@@ -108,6 +111,9 @@ def _load_tiers(key, defaults):
         return list(defaults)
 
 
+@login_required
+@supervisor_required
+@transaction.atomic
 def config_global(request):
     config   = _get_config()
     urgency_keys = ['urgency_days_standard', 'urgency_days_priority', 'urgency_days_urgent', 'urgency_days_rush']
@@ -116,6 +122,26 @@ def config_global(request):
     meta     = _config_meta(all_keys)
 
     if request.method == 'POST':
+        # Validate the whole request before changing any shared parameters.
+        try:
+            for key in _CURRENCY_KEYS + ['vat_rate']:
+                raw = request.POST.get(key, '').strip()
+                if raw:
+                    number = Decimal(raw)
+                    minimum = Decimal('0') if key == 'vat_rate' else Decimal('0.000001')
+                    maximum = Decimal('100') if key == 'vat_rate' else Decimal('1000000')
+                    if not number.is_finite() or not minimum <= number <= maximum:
+                        raise ValueError('Rates must be finite positive numbers; VAT must be between 0 and 100.')
+            for key in urgency_keys:
+                if not 1 <= int(request.POST.get(key, '')) <= 60:
+                    raise ValueError('Urgency business days must be between 1 and 60.')
+            for key in ('invoice_template_url', 'packing_list_template_url'):
+                url = request.POST.get(key, '').strip()
+                if url:
+                    URLValidator(schemes=['https', 'http'])(url)
+        except (InvalidOperation, ValueError, TypeError, ValidationError):
+            messages.error(request, 'Enter valid numeric rates, urgency days from 1 to 60, and HTTP(S) template URLs.')
+            return redirect('supervisor:config_global')
         changed_rate_keys = []
         for key in _CURRENCY_KEYS + ['vat_rate']:
             val = request.POST.get(key, '').strip()

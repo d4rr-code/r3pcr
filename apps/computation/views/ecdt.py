@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.utils import timezone
 from apps.supervisor.models import SystemConfig
+from ..validation import decimal_value
 
 logger = logging.getLogger('r3pcr.computation')
 
@@ -193,6 +194,10 @@ def _load_currency_rates():
             rates[code] = str(SystemConfig.objects.get(key=key).value)
         except SystemConfig.DoesNotExist:
             rates[code] = _RATE_DEFAULTS[code]
+        try:
+            decimal_value(rates[code], 'Exchange rate', minimum=Decimal('0.000001'), maximum=Decimal('1000000'))
+        except ValueError:
+            rates[code] = _RATE_DEFAULTS[code]
     return rates
 
 
@@ -251,6 +256,10 @@ def _get_bir_dst():
         return Decimal('30')
 
 
+def _get_vat_rate():
+    return decimal_value(SystemConfig.get('vat_rate', '12'), 'VAT rate', maximum=Decimal('100')) / Decimal('100')
+
+
 def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
                  arrastre=0, wharfage=0, csf_php=0, bank_charges=0,
                  is_dangerous_cargo=False):
@@ -258,29 +267,33 @@ def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
     items_data keys: exw_usd, freight_usd, insurance_usd, other_charges_usd, duty_rate,
                      description, quantity, hs_code_id, gw, nw, pkgs
     D/V = EXW + Freight + Insurance + O/C
-    Total Landed Cost excludes VAT; VAT = 12% of Total Landed Cost
+    Total Landed Cost excludes VAT; VAT uses the configured percentage
     Brokerage Fee: tiered table up to ₱200,000, then +0.125% of excess
     BIR DST: configurable flat fee (default ₱30), separate from CDS (₱130)
     Insurance: auto-fills at 2% of EXW (4% if dangerous cargo) when blank/zero
     """
-    usd_exchange_rate = Decimal(str(usd_exchange_rate or exchange_rate))
+    exchange_rate = decimal_value(exchange_rate, 'Exchange rate', minimum=Decimal('0.000001'), maximum=Decimal('1000000'))
+    usd_exchange_rate = decimal_value(exchange_rate if usd_exchange_rate is None else usd_exchange_rate,
+        'USD exchange rate', minimum=Decimal('0.000001'), maximum=Decimal('1000000'))
     insurance_rate = _get_insurance_default_rate(is_dangerous_cargo)
-    bir_dst = _get_bir_dst()
+    insurance_rate = decimal_value(insurance_rate, 'Insurance rate', maximum=Decimal('1'))
+    bir_dst = decimal_value(_get_bir_dst(), 'BIR documentary stamp')
+    vat_rate = _get_vat_rate()
     computed_items = []
     total_dv_php   = Decimal('0')
     total_cud      = Decimal('0')
 
     for i, item in enumerate(items_data):
-        exw            = Decimal(str(item['exw_usd']))
-        item_freight   = Decimal(str(item.get('freight_usd',   0) or 0))
-        item_insurance = Decimal(str(item.get('insurance_usd', 0) or 0))
-        item_other     = Decimal(str(item.get('other_charges_usd', 0) or 0))
-        duty_rate      = Decimal(str(item.get('duty_rate',     0) or 0))
+        exw            = decimal_value(item['exw_usd'], 'Item value', minimum=Decimal('0.000001'))
+        item_freight   = decimal_value(item.get('freight_usd', 0) or 0, 'Freight')
+        item_insurance = decimal_value(item.get('insurance_usd', 0) or 0, 'Insurance')
+        item_other     = decimal_value(item.get('other_charges_usd', 0) or 0, 'Other charges')
+        duty_rate      = decimal_value(item.get('duty_rate', 0) or 0, 'Duty rate', maximum=Decimal('100'))
 
         # Auto-fill insurance: if blank/zero, default to configured % of EXW
         if item_insurance <= 0 and exw > 0:
-            item_insurance = round(exw * insurance_rate, 4)
-            item['insurance_usd'] = float(item_insurance)
+            item_insurance = round(exw * exchange_rate * insurance_rate / usd_exchange_rate, 4)
+            item['insurance_usd'] = str(item_insurance)
 
         # EXW follows invoice currency; freight/insurance/O.C. are always USD.
         exw_php       = exw * exchange_rate
@@ -320,10 +333,10 @@ def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
     cds             = Decimal('130')
     ipf             = get_ipf(taxable_value)
 
-    arrastre_d      = Decimal(str(arrastre     or 0))
-    wharfage_d      = Decimal(str(wharfage     or 0))
-    csf_d           = Decimal(str(csf_php      or 0))
-    bank_charges_d  = Decimal(str(bank_charges or 0))
+    arrastre_d      = decimal_value(arrastre or 0, 'Arrastre')
+    wharfage_d      = decimal_value(wharfage or 0, 'Wharfage')
+    csf_d           = decimal_value(csf_php or 0, 'Container service fee')
+    bank_charges_d  = decimal_value(bank_charges or 0, 'Bank charges')
 
     # Total Landed Cost = DV + Bank Charges + CUD + BF + Arrastre + Wharfage + CDS + IPF + BIR DST
     total_landed_cost = round(
@@ -331,8 +344,9 @@ def compute_ecdt(items_data, exchange_rate, usd_exchange_rate=None,
         + cds + ipf + arrastre_d + wharfage_d + bir_dst, 2
     )
 
-    # VAT = 12% of Total Landed Cost (matches client CDT Excel convention)
-    vat = round(total_landed_cost * Decimal('0.12'), 2)
+    # Preserve the existing TLC tax base and apply the configured VAT percentage.
+    decimal_value(total_landed_cost, 'Total landed cost')
+    vat = round(total_landed_cost * vat_rate, 2)
 
     # BOC total = CUD + VAT + CDS + IPF + BIR DST + CSF (for FCL).
     boc_total = round(customs_duties + vat + cds + ipf + bir_dst + csf_d, 2)

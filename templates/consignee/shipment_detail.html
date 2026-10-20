@@ -290,10 +290,13 @@
                     <div class="computation-split">
                         <div class="split-panel">
                             <h4 class="split-title">BOC Payable Computation</h4>
+                            {% if computation.requires_csf_review %}<p role="alert">This older estimate requires the declarant to verify the container-fee conversion before you rely on the total.</p>{% endif %}
                             <div class="fee-row"><span>Custom Duty (CUD)</span><strong>&#8369; {{ computation.customs_duty|floatformat:2|default:"0.00" }}</strong></div>
-                            <div class="fee-row"><span>VAT (12%)</span><strong>&#8369; {{ computation.vat_amount|floatformat:2|default:"0.00" }}</strong></div>
+                            <div class="fee-row"><span>VAT ({{ computation.vat_rate_pct|floatformat:2 }}%)</span><strong>&#8369; {{ computation.vat_amount|floatformat:2|default:"0.00" }}</strong></div>
                             <div class="fee-row"><span>Import Processing Fee</span><strong>&#8369; {{ computation.ipf|floatformat:2|default:"0.00" }}</strong></div>
                             <div class="fee-row"><span>Documentary Stamp (CDS)</span><strong>&#8369; 130.00</strong></div>
+                            <div class="fee-row"><span>BIR Documentary Stamp</span><strong>&#8369; {{ computation.bir_dst|floatformat:2 }}</strong></div>
+                            {% if computation.csf_php %}<div class="fee-row"><span>Container Service Fee</span><strong>&#8369; {{ computation.csf_php|floatformat:2 }}</strong></div>{% endif %}
                             <div class="fee-row fee-total"><span></span><strong>&#8369; {{ computation.boc_payable|floatformat:2 }}</strong></div>
                         </div>
                         <div class="split-panel">
@@ -302,7 +305,6 @@
                             {% if computation.arrastre %}<div class="fee-row"><span>Arrastre</span><strong>&#8369; {{ computation.arrastre|floatformat:2 }}</strong></div>{% endif %}
                             {% if computation.wharfage %}<div class="fee-row"><span>Wharfage</span><strong>&#8369; {{ computation.wharfage|floatformat:2 }}</strong></div>{% endif %}
                             {% if computation.bank_charges %}<div class="fee-row"><span>Bank Charges</span><strong>&#8369; {{ computation.bank_charges|floatformat:2 }}</strong></div>{% endif %}
-                            {% if computation.csf_php %}<div class="fee-row"><span>Container Service Fee</span><strong>&#8369; {{ computation.csf_php|floatformat:2 }}</strong></div>{% endif %}
                             <div class="fee-row fee-total"><span></span><strong>&#8369; {{ computation.total_landed_cost|floatformat:2|default:"0.00" }}</strong></div>
                         </div>
                     </div>
@@ -331,6 +333,7 @@
                     </form>
                     <form method="POST" action="{% url 'consignee:approve_computation' shipment.id %}">
                         {% csrf_token %}
+                        <input type="hidden" name="computation_version" value="{{ computation.updated_at|date:'c' }}">
                         <button type="submit" class="outline-action approve" data-action="approve-computation">
                             <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-7.25 9.5a.75.75 0 01-1.127.075l-4.25-4.25a.75.75 0 111.06-1.06l3.648 3.647 6.724-8.821a.75.75 0 011.052-.143z" clip-rule="evenodd"/>

@@ -14,6 +14,18 @@ from .text_utils import assess_quality
 
 logger = logging.getLogger('r3pcr.ocr')
 
+
+def _env_int(name, default):
+    try:
+        return int(os.getenv(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
+OCR_PDF_DPI = _env_int('OCR_PDF_DPI', 150)
+OCR_MAX_PDF_PAGES = _env_int('OCR_MAX_PDF_PAGES', 3)
+OCR_TESSERACT_TIMEOUT = _env_int('OCR_TESSERACT_TIMEOUT', 20)
+
 def _vision_api_call(api_key, image_bytes):
     """Send raw image bytes to Google Vision API. Returns extracted text string."""
     url = f'https://vision.googleapis.com/v1/images:annotate?key={api_key}'
@@ -88,7 +100,10 @@ def _tesseract_extract(image, config):
     """
     try:
         data = pytesseract.image_to_data(
-            image, config=config, output_type=pytesseract.Output.DICT
+            image,
+            config=config,
+            output_type=pytesseract.Output.DICT,
+            timeout=OCR_TESSERACT_TIMEOUT,
         )
         words  = data.get('text', [])
         confs  = data.get('conf', [])
@@ -238,11 +253,12 @@ def extract_text_from_file(file_path):
                 num_pages = 10  # safe fallback
 
             full_text = ''
-            for page_num in range(1, num_pages + 1):
+            page_limit = min(num_pages, OCR_MAX_PDF_PAGES) if OCR_MAX_PDF_PAGES > 0 else num_pages
+            for page_num in range(1, page_limit + 1):
                 try:
                     images = convert_from_path(
                         file_path,
-                        dpi=200,
+                        dpi=OCR_PDF_DPI,
                         first_page=page_num,
                         last_page=page_num,
                         poppler_path=poppler_path,
@@ -278,5 +294,3 @@ def extract_text_from_file(file_path):
     except Exception as e:
         logger.warning("extraction error: %s", e)
         return ''
-
-

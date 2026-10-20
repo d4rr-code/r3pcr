@@ -9,6 +9,8 @@ from django.core.paginator import Paginator
 from django.db.models import prefetch_related_objects
 from django.http import JsonResponse
 from django.utils import timezone
+from django.db import transaction
+from apps.shipments.workflow import TRANSITIONS, DRAFT_STATUSES, transition_error
 from apps.shipments.models import Shipment, StatusLog
 from apps.supervisor.audit import log_audit
 from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
@@ -28,14 +30,7 @@ STATUS_DOCUMENT_FILTERS = {
     'billed': ('billing_doc', 'receipt'),
 }
 
-DECLARANT_STATUS_TRANSITIONS = {
-    'approved': ('lodgement',),
-    'lodgement': ('ongoing',),
-    'ongoing': ('assessed',),
-    'assessed': ('paid',),
-    'paid': ('released',),
-    'released': ('billed',),
-}
+DECLARANT_STATUS_TRANSITIONS = TRANSITIONS
 
 
 def _manual_status_choices(current_status):
@@ -189,6 +184,7 @@ def queue_manager(request):
 
 @login_required
 @declarant_required
+@transaction.atomic
 def claim_shipment(request, shipment_id):
     """Any active declarant may claim an unclaimed incoming shipment."""
     if request.method != 'POST':
@@ -549,11 +545,12 @@ def process_shipment(request, shipment_id):
 
 @login_required
 @declarant_required
+@transaction.atomic
 def update_shipping_mode(request, shipment_id):
     if request.method != 'POST':
         return redirect('declarant:process', shipment_id=shipment_id)
 
-    shipment = get_object_or_404(Shipment, id=shipment_id)
+    shipment = get_object_or_404(Shipment.objects.select_for_update(), id=shipment_id)
 
     # Only the assigned declarant may update the shipping type
     if shipment.declarant != request.user:
@@ -561,7 +558,16 @@ def update_shipping_mode(request, shipment_id):
         return redirect('declarant:queue')
 
     mode = request.POST.get('shipment_type', '').strip()
+    if shipment.status not in DRAFT_STATUSES | {'computed', 'approved'}:
+        messages.error(request, 'Shipping type is locked after lodgement.')
+        return redirect('declarant:process', shipment_id=shipment_id)
     if mode in ('lcl', 'fcl'):
+        old_status = shipment.status
+        if mode != shipment.shipment_type and old_status in {'computed', 'approved'}:
+            shipment.status = 'for_revision'
+            StatusLog.objects.create(shipment=shipment, changed_by=request.user,
+                old_status=old_status, new_status='for_revision',
+                notes='Shipping type changed; a new computation and client approval are required.')
         shipment.shipment_type = mode
         shipment.save()
         messages.success(request, f'Shipping type refined to "{shipment.get_shipment_type_display()}".')
@@ -606,11 +612,12 @@ def update_tracking_fields(request, shipment_id):
 
 @login_required
 @declarant_required
+@transaction.atomic
 def proceed_to_lodgement(request, shipment_id):
     if request.method != 'POST':
         return redirect('declarant:process', shipment_id=shipment_id)
 
-    shipment = get_object_or_404(Shipment, id=shipment_id)
+    shipment = get_object_or_404(Shipment.objects.select_for_update(), id=shipment_id)
 
     if shipment.declarant != request.user:
         messages.error(request, 'You are not assigned to this shipment.')
@@ -618,6 +625,11 @@ def proceed_to_lodgement(request, shipment_id):
 
     if shipment.status != 'approved':
         messages.error(request, 'Only approved ECDT shipments can proceed to BOC lodgement.')
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    error = transition_error(shipment, 'lodgement')
+    if error:
+        messages.error(request, error)
         return redirect('declarant:process', shipment_id=shipment_id)
 
     old_status = shipment.status
@@ -657,11 +669,12 @@ def proceed_to_lodgement(request, shipment_id):
 
 @login_required
 @declarant_required
+@transaction.atomic
 def update_status(request, shipment_id):
     if request.method != 'POST':
         return redirect('declarant:queue')
 
-    shipment = get_object_or_404(Shipment, id=shipment_id)
+    shipment = get_object_or_404(Shipment.objects.select_for_update(), id=shipment_id)
 
     # Only the assigned declarant may change shipment status
     if shipment.declarant != request.user:
@@ -682,6 +695,11 @@ def update_status(request, shipment_id):
             f'Cannot move shipment from {shipment.get_status_display()} '
             f'to {dict(Shipment.STATUS_CHOICES).get(new_status, new_status)}.',
         )
+        return redirect('declarant:process', shipment_id=shipment_id)
+
+    error = transition_error(shipment, new_status)
+    if error:
+        messages.error(request, error)
         return redirect('declarant:process', shipment_id=shipment_id)
 
     old_status = shipment.status

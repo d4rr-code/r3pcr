@@ -6,6 +6,8 @@ from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count, Q
+from django.db import transaction
+from apps.shipments.workflow import COMPUTABLE_STATUSES
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.core.paginator import Paginator
@@ -158,15 +160,22 @@ def reset_shipment(request, shipment_id):
 
 @login_required
 @supervisor_required
+@transaction.atomic
 def update_shipment_status(request, shipment_id):
     if request.method == 'POST':
-        shipment = get_object_or_404(Shipment, id=shipment_id)
+        shipment = get_object_or_404(Shipment.objects.select_for_update(), id=shipment_id)
         new_status = request.POST.get('status', '').strip()
         notes = request.POST.get('notes', '').strip()
-        allowed = {'approved', 'rejected', 'for_revision'}
+        # Financial approval must come from the consignee who reviewed the
+        # current estimate; administrative corrections must not fabricate it.
+        allowed = {'rejected', 'for_revision'}
 
         if new_status not in allowed:
             messages.error(request, 'Invalid supervisor status.')
+            return redirect('supervisor:dashboard')
+
+        if shipment.status not in COMPUTABLE_STATUSES:
+            messages.error(request, 'Use an explicit shipment reset to correct a shipment after lodgement.')
             return redirect('supervisor:dashboard')
 
         old_status = shipment.status

@@ -963,51 +963,31 @@ function _hideScanOverlay() {
 }
 
 /**
- * "Process →" in My In-Review: run sync OCR, then navigate to process page.
+ * "Process →" in My In-Review: start OCR, then open the process page while
+ * results continue landing in the background.
  */
 function scanThenProcess(ocrSyncUrl, processUrl, statusUrl) {
     _showScanOverlay();
-    _setOverlayMessage('Checking documents…', 'Running OCR and identifying HS codes.');
+    _setOverlayMessage('Checking documents…', 'Starting OCR in the background.');
 
     function goToProcess() {
         _hideScanOverlay();
         window.location.href = processUrl;
     }
 
-    // OCR now runs in a background thread on the server, so this returns
-    // immediately; we poll the status endpoint for progress.
     fetch(ocrSyncUrl, { credentials: 'same-origin' })
         .then(function(res) {
             if (!res.ok) throw new Error('HTTP ' + res.status);
             return res.json();
         })
         .then(function(data) {
-            if (data.already_done || !data.started) {
+            if (data.already_done || !data.started || data.done) {
                 _setOverlayMessage('Documents already analyzed.', 'Loading results…');
                 setTimeout(goToProcess, 600);
                 return;
             }
-            var poll = setInterval(function() {
-                fetch(statusUrl, { credentials: 'same-origin' })
-                    .then(function(r) { return r.json(); })
-                    .then(function(st) {
-                        _setOverlayMessage(
-                            'Scanning documents… (' + st.scanned + '/' + st.total + ')',
-                            'Running OCR and identifying HS codes.'
-                        );
-                        if (st.done) {
-                            clearInterval(poll);
-                            _setOverlayMessage(
-                                'OCR complete — ' + st.scanned + ' document(s) scanned.',
-                                'Loading process page…'
-                            );
-                            setTimeout(goToProcess, 600);
-                        }
-                    })
-                    .catch(function() { /* transient — keep polling */ });
-            }, 1500);
-            // Safety net: never hang the overlay; the process page polls too.
-            setTimeout(function() { clearInterval(poll); goToProcess(); }, 120000);
+            _setOverlayMessage('OCR started.', 'Opening the process page now…');
+            setTimeout(goToProcess, 700);
         })
         .catch(function() { goToProcess(); });
 }
@@ -1056,11 +1036,11 @@ function claimThenScanProcess() {
         if (res.type !== 'opaqueredirect' && res.status >= 400) {
             throw new Error('Claim failed with status ' + res.status);
         }
-        // Step 2: Run sync OCR — declarant is now assigned
+        // Step 2: Start OCR — declarant is now assigned
         return fetch(ocrSyncUrl, { credentials: 'same-origin' });
     })
     .then(function() {
-        // Step 3: Navigate to process page
+        // Step 3: Navigate to process page while OCR continues in the background
         _hideScanOverlay();
         window.location.href = processUrl;
     })

@@ -182,7 +182,7 @@ def dashboard(request):
         item['label'] = import_labels.get(item['import_type'], item['import_type'])
 
     mode_breakdown = list(
-        shipments.values('shipment_type')
+        shipments_filtered.values('shipment_type')
                  .annotate(count=Count('id'))
                  .order_by('-count')
     )
@@ -191,7 +191,7 @@ def dashboard(request):
         item['label'] = mode_labels.get(item['shipment_type'], item['shipment_type'] or 'Not specified')
 
     urgency_breakdown = list(
-        shipments.values('urgency')
+        shipments_filtered.values('urgency')
                  .annotate(count=Count('id'))
                  .order_by('-count')
     )

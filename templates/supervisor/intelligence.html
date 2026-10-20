@@ -136,8 +136,8 @@
         </div>
         <div class="intel-card">
             <p class="intel-label">Projected Workload</p>
-            <p class="intel-value">{{ workload_forecast.projected_period_total }}</p>
-            <p class="intel-note">{{ workload_forecast.level }} {{ workload_forecast.forecast_label|lower }}, {{ workload_forecast.trend_pct }}% trend.</p>
+            <p class="intel-value">{% if workload_forecast.forecast_available %}{{ workload_forecast.projected_period_total }}{% else %}Unavailable{% endif %}</p>
+            <p class="intel-note">{% if workload_forecast.forecast_available %}{{ workload_forecast.level }} {{ workload_forecast.forecast_label|lower }}, {{ workload_forecast.trend_pct }}% trend.{% else %}{{ workload_forecast.unavailable_reason }}{% endif %}</p>
         </div>
     </section>
 
@@ -150,7 +150,12 @@
                 </div>
                 <form class="forecast-controls" method="GET" aria-label="Forecast controls">
                     <input type="hidden" name="risk" value="{{ risk_filter }}">
-                    <input type="hidden" name="forecast_model" value="{{ workload_forecast.forecast_model }}">
+                    <select class="forecast-toggle" name="forecast_model" onchange="this.form.submit()" aria-label="Forecast model">
+                        <option value="all" {% if workload_forecast.forecast_model == 'all' %}selected{% endif %}>Compare all models</option>
+                        {% for model in forecast_model_options %}
+                        <option value="{{ model.key }}" {% if workload_forecast.forecast_model == model.key %}selected{% endif %}>{{ model.label }}</option>
+                        {% endfor %}
+                    </select>
                     <input type="hidden" name="forecast_unit" value="month">
                     <select class="forecast-toggle" name="forecast_year" onchange="this.form.submit()" title="Forecast base year">
                         {% for year in forecast_year_options %}
@@ -170,8 +175,8 @@
                             <strong>{{ workload_forecast.projected_period_total }}</strong>
                         </div>
                         <div class="forecast-metric">
-                            <span>Expected Range</span>
-                            <strong>{{ workload_forecast.projected_low }}-{{ workload_forecast.projected_high }}</strong>
+                            <span>Planning Range</span>
+                            <strong>{% if workload_forecast.projected_low != None %}{{ workload_forecast.projected_low }}-{{ workload_forecast.projected_high }}{% else %}Unavailable{% endif %}</strong>
                         </div>
                         {% endif %}
                         <div class="forecast-metric">
@@ -180,14 +185,14 @@
                         </div>
                         {% if not workload_forecast.is_past_year and workload_forecast.forecast_available %}
                         <div class="forecast-metric">
-                            <span>Confidence</span>
+                            <span>Backtest Reliability</span>
                             <strong>{{ workload_forecast.confidence }}</strong>
                         </div>
                         {% endif %}
                     </div>
                     {% if not workload_forecast.forecast_available and not workload_forecast.is_past_year %}
                     <p class="forecast-copy" role="status" style="border-left:3px solid #f59e0b; padding-left:10px; margin-top:8px">
-                        <strong>Insufficient data for forecast.</strong>
+                        <strong>Forecast unavailable.</strong>
                         {{ workload_forecast.unavailable_reason }}
                         {{ workload_forecast.action }}
                     </p>
@@ -210,6 +215,7 @@
                             <strong title="Hold-out split over the last 36 months (~77.8% / 22.2%)">{{ workload_forecast.backtest_label }}</strong>
                         </div>
                     </div>
+                    <p class="forecast-copy">Reliability is a heuristic based on holdout RMSE relative to average volume: High ≤20%, Moderate ≤50%, otherwise Low. Unvalidated means the backtest could not be scored. The planning range is the forecast ± RMSE × forecast months, not a statistical prediction interval. MAPE excludes months with fewer than 5 shipments. Current-month volume is partial.</p>
                     <p class="forecast-copy">
                         {% if workload_forecast.is_past_year %}
                         Historical data for {{ workload_forecast.forecast_year }}. {{ workload_forecast.model_source }}.
@@ -231,18 +237,17 @@
                         </thead>
                         <tbody>
                             {% for model in workload_forecast.model_comparison %}
-                            {% if model.key == 'sarima' %}
                             <tr>
                                 <td>
                                     <strong>{{ model.label }}</strong><br>
                                     <span class="muted">{{ model.description }}</span>
+                                    <br><span class="muted">{{ model.status }}{% if model.status != 'Active' %}: {{ model.note }}{% endif %}</span>
                                 </td>
-                                <td><strong>{{ model.total }}</strong></td>
+                                <td><strong>{% if model.available %}{{ model.total }}{% elif model.status == 'On demand' %}Not run{% else %}Unavailable{% endif %}</strong></td>
                                 <td>{{ model.mae_label }}</td>
                                 <td>{{ model.rmse_label }}</td>
                                 <td>{{ model.mape_label }}</td>
                             </tr>
-                            {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>

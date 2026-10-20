@@ -5,6 +5,10 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.utils import timezone
+from django.db import transaction
+from django.utils.dateparse import parse_datetime
+from apps.shipments.uploads import validate_document_uploads
+from apps.shipments.workflow import COMPUTABLE_STATUSES
 from apps.shipments.models import Shipment, ShipmentDocument, StatusLog
 from apps.shipments.status_progress import build_status_progress
 from apps.shipments.fan import fan_assessment_has_values, fan_assessment_rows
@@ -39,6 +43,8 @@ def _submission_template_context(form, shipment=None):
 
 @login_required
 @consignee_required
+@validate_document_uploads
+@transaction.atomic
 def submit_shipment(request):
     if request.method == 'POST':
         form = ShipmentSubmissionForm(request.POST)
@@ -106,6 +112,8 @@ def submit_shipment(request):
 
 @login_required
 @consignee_required
+@validate_document_uploads
+@transaction.atomic
 def edit_submission(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
     if shipment.status != 'incoming':
@@ -392,6 +400,7 @@ def shipment_detail(request, shipment_id):
 
 @login_required
 @consignee_required
+@validate_document_uploads
 def upload_receipt(request, shipment_id):
     shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
 
@@ -481,13 +490,24 @@ def submit_feedback(request, shipment_id):
 
 @login_required
 @consignee_required
+@transaction.atomic
 def approve_computation(request, shipment_id):
     """Consignee approves the ECDT+MCDA computation, advancing status to approved."""
-    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+    shipment = get_object_or_404(Shipment.objects.select_for_update(), id=shipment_id, consignee=request.user)
 
     if request.method == 'POST':
+        computation = getattr(shipment, 'computation', None)
+        version = request.POST.get('computation_version', '')
+        try:
+            reviewed_at = parse_datetime(version) if version else None
+        except (ValueError, TypeError):
+            reviewed_at = None
         if shipment.status != 'computed':
             messages.error(request, 'This shipment is not awaiting your approval.')
+        elif shipment.has_deficiency or not computation or not computation.items_json or computation.total_landed_cost is None or computation.requires_csf_review:
+            messages.error(request, 'A complete computation with no document deficiencies is required before approval.')
+        elif reviewed_at != computation.updated_at:
+            messages.error(request, 'The computation has changed. Reload and review the current estimate before approving.')
         else:
             old_status = shipment.status
             shipment.status = 'approved'
@@ -520,9 +540,10 @@ def approve_computation(request, shipment_id):
 
 @login_required
 @consignee_required
+@transaction.atomic
 def revise_computation(request, shipment_id):
     """Consignee requests revision — sends status back to for_revision."""
-    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+    shipment = get_object_or_404(Shipment.objects.select_for_update(), id=shipment_id, consignee=request.user)
 
     if request.method == 'POST':
         if shipment.status != 'computed':
@@ -561,9 +582,10 @@ def revise_computation(request, shipment_id):
 
 @login_required
 @consignee_required
+@transaction.atomic
 def reject_computation(request, shipment_id):
     """Consignee rejects the computation entirely."""
-    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+    shipment = get_object_or_404(Shipment.objects.select_for_update(), id=shipment_id, consignee=request.user)
 
     if request.method == 'POST':
         if shipment.status != 'computed':
@@ -623,10 +645,15 @@ def cancel_submission(request, shipment_id):
 
 @login_required
 @consignee_required
+@validate_document_uploads
+@transaction.atomic
 def resubmit_documents(request, shipment_id):
-    shipment = get_object_or_404(Shipment, id=shipment_id, consignee=request.user)
+    shipment = get_object_or_404(Shipment.objects.select_for_update(), id=shipment_id, consignee=request.user)
 
     if request.method == 'POST':
+        if shipment.status not in COMPUTABLE_STATUSES | {'incoming'}:
+            messages.error(request, 'Pre-clearance documents are locked after lodgement. Contact your supervisor for corrections.')
+            return redirect('consignee:shipment_detail', shipment_id=shipment_id)
         if not shipment.has_deficiency:
             messages.error(request, 'No deficiency flag on this shipment.')
             return redirect('consignee:shipment_detail', shipment_id=shipment_id)
@@ -652,11 +679,15 @@ def resubmit_documents(request, shipment_id):
             return redirect('consignee:shipment_detail', shipment_id=shipment_id)
 
         # Clear deficiency flag
+        old_status = shipment.status
+        if shipment.status in {'computed', 'approved'}:
+            shipment.status = 'for_revision'
         shipment.has_deficiency       = False
         shipment.deficiency_type      = None
         shipment.deficiency_notes     = None
         shipment.deficiency_flagged_at = None
         shipment.save(update_fields=[
+            'status', 'updated_at',
             'has_deficiency', 'deficiency_type',
             'deficiency_notes', 'deficiency_flagged_at',
         ])
@@ -665,7 +696,7 @@ def resubmit_documents(request, shipment_id):
         StatusLog.objects.create(
             shipment=shipment,
             changed_by=request.user,
-            old_status=shipment.status,
+            old_status=old_status,
             new_status=shipment.status,
             notes=f'Consignee resubmitted {files_uploaded} document(s) after deficiency flag.',
         )

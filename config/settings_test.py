@@ -10,6 +10,9 @@ Run:
 """
 from .settings import *  # noqa: F401,F403
 
+# Synthetic signing key for isolated tests; never used by deployed settings.
+SECRET_KEY = 'r3pcr-isolated-tests-only-not-a-production-secret'
+
 # ── Isolated, in-memory database ──────────────────────────────────────────────
 DATABASES = {
     'default': {
@@ -22,6 +25,10 @@ DATABASES = {
 # MD5 hashing keeps user-creation cheap; locmem email captures mail without SMTP.
 PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
 
 # Quiet the console during test runs.
 LOGGING = {'version': 1, 'disable_existing_loggers': True}

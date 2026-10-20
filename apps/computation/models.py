@@ -62,6 +62,8 @@ class DutyComputation(models.Model):
         max_digits=10, decimal_places=2, default=0,
         help_text='Container Service Fee in USD (FCL only)'
     )
+    csf_php_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True,
+        help_text='Container service fee converted with the USD rate at computation time.')
     container_type = models.CharField(
         max_length=10, blank=True, default='',
         help_text='20ft or 40ft (FCL only)'
@@ -86,19 +88,34 @@ class DutyComputation(models.Model):
 
     @property
     def boc_payable(self):
-        """Full BOC counter payment: CUD + VAT + IPF + CDS (fixed ₱130) + BIR DST."""
+        """The estimate's CUD + VAT + IPF + CDS + BIR DST + saved PHP CSF."""
         from decimal import Decimal
         cud = self.customs_duty or Decimal('0')
         vat = self.vat_amount  or Decimal('0')
         ipf = self.ipf         or Decimal('0')
         cds = Decimal('130')
-        bir_dst = self.bir_dst or Decimal('30')
-        return round(cud + vat + ipf + cds + bir_dst, 2)
+        bir_dst = self.bir_dst if self.bir_dst is not None else Decimal('30')
+        return round(cud + vat + ipf + cds + bir_dst + self.csf_php, 2)
 
     @property
     def csf_php(self):
-        """CSF converted to PHP using stored exchange rate."""
+        """Use the saved PHP conversion; retain the fallback for legacy records."""
+        if self.csf_php_amount is not None:
+            return self.csf_php_amount
+        # Legacy estimates did not retain the separate USD rate. Recompute old
+        # non-USD estimates to replace this historical fallback with a snapshot.
         return (self.csf_usd or 0) * (self.exchange_rate or 0)
+
+    @property
+    def requires_csf_review(self):
+        return bool(self.csf_usd and self.csf_php_amount is None
+                    and (self.shipment.invoice_currency or 'USD') != 'USD')
+
+    @property
+    def vat_rate_pct(self):
+        if self.vat_base and self.vat_amount is not None:
+            return round(self.vat_amount / self.vat_base * Decimal('100'), 2)
+        return Decimal('12')
 
     def get_items(self):
         import json

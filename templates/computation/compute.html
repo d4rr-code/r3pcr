@@ -1320,6 +1320,14 @@ document.body.classList.add('light-mode');
 ════════════════════════════════════════════════════════════════════════════ -->
 <div id="col-right">
 <form method="POST" id="compute-form" action="#ecdt-summary-card">
+{% if not estimate_editable %}
+<p role="status" class="message warning">This estimate is locked after lodgement. Contact your supervisor if a correction is required.</p>
+{% elif not draft_editable %}
+<p role="status" class="message warning">Changes are saved when you choose Compute &amp; Analyze. The updated estimate will require client approval again.</p>
+{% endif %}
+{% if existing.requires_csf_review %}
+<p role="alert" class="message warning">This older foreign-currency estimate has no saved USD conversion for its container fee. Recompute it before relying on the payable total.</p>
+{% endif %}
 {% csrf_token %}
 
 <!-- ── Parameters ─────────────────────────────────────────────────── -->
@@ -1842,7 +1850,7 @@ document.body.classList.add('light-mode');
                 <p style="color:#f1f5f9; font-size:11px; font-weight:700; margin:0;" id="live-ipf">&mdash;</p>
             </div>
             <div style="background:#1e293b; border-radius:6px; padding:5px 6px; text-align:center;">
-                <p style="color:#a78bfa; font-size:9px; margin:0 0 2px;">VAT 12%</p>
+                <p style="color:#a78bfa; font-size:9px; margin:0 0 2px;">VAT {{ vat_rate_pct|floatformat:2 }}%</p>
                 <p style="color:#a78bfa; font-size:11px; font-weight:700; margin:0;" id="live-vat">&mdash;</p>
             </div>
         </div>
@@ -1884,14 +1892,14 @@ document.body.classList.add('light-mode');
             </div>
         </div>
         <p style="color:#334155; font-size:10px; margin:5px 0 0; text-align:right;">
-            TLC = D/V + Bank Chg + CUD + BF + CDS + BIR DST + IPF + Port Fees &middot; VAT = 12% &times; TLC &middot; BOC = CUD + VAT + CDS + BIR DST + IPF{% if shipment.shipment_type == 'fcl' %} &middot; CSF shown separately{% endif %}
+            TLC = D/V + Bank Chg + CUD + BF + CDS + BIR DST + IPF + Port Fees &middot; VAT = {{ vat_rate_pct|floatformat:2 }}% &times; TLC &middot; BOC = CUD + VAT + CDS + BIR DST + IPF + CSF
         </p>
     </div>
 </div>
 
 <!-- ── Submit Button ─────────────────────────────────────────────── -->
 <div style="display:flex; gap:10px; margin-bottom:14px;">
-    <button type="submit" class="btn btn-primary" style="flex:1;">
+    <button type="submit" class="btn btn-primary" style="flex:1;" {% if not estimate_editable %}disabled{% endif %}>
         Compute &amp; Analyze
     </button>
 </div>
@@ -2031,7 +2039,7 @@ document.body.classList.add('light-mode');
 
             <!-- VAT below TLC (matches Excel layout) -->
             <div class="summary-row vat-row">
-                <span class="summary-label" style="color:#c4b5fd;">VAT (12% of TLC)</span>
+                <span class="summary-label" style="color:#c4b5fd;">VAT ({{ saved_vat_rate_pct|floatformat:2 }}% of TLC)</span>
                 <span class="summary-value vat-value">
                     {% if result %}&#8369;{{ result.vat|floatformat:2 }}
                     {% elif existing.vat_amount %}&#8369;{{ existing.vat_amount|floatformat:2 }}
@@ -2059,7 +2067,7 @@ document.body.classList.add('light-mode');
                     </span>
                 </div>
                 <div class="boc-row">
-                    <span style="color:#94a3b8;">VAT (12% of TLC)</span>
+                    <span style="color:#94a3b8;">VAT ({{ saved_vat_rate_pct|floatformat:2 }}% of TLC)</span>
                     <span style="color:#a78bfa; font-weight:600;">
                         {% if result %}&#8369;{{ result.vat|floatformat:2 }}
                         {% elif existing.vat_amount %}&#8369;{{ existing.vat_amount|floatformat:2 }}
@@ -2148,7 +2156,7 @@ document.body.classList.add('light-mode');
         </div>
         <div style="color:#334155; font-size:18px; font-weight:300; display:flex; align-items:center;">+</div>
         <div style="min-width:150px; text-align:center;">
-            <p style="color:#94a3b8; font-size:11px; margin:0 0 2px;">VAT (12%)</p>
+            <p style="color:#94a3b8; font-size:11px; margin:0 0 2px;">VAT ({{ saved_vat_rate_pct|floatformat:2 }}%)</p>
             <p style="color:#93c5fd; font-size:22px; font-weight:800; margin:0; font-family:monospace;">
                 &#8369;{{ vat|floatformat:2 }}
             </p>
@@ -2167,7 +2175,7 @@ document.body.classList.add('light-mode');
     </div>
     {% if comp.shipment_type == 'fcl' or shipment.shipment_type == 'fcl' %}
     <p style="color:#64748b; font-size:10px; margin:8px 0 0;">
-        * CSF (Container Service Fee) is paid separately at the port terminal and is not included above.
+        * The grand total includes the Container Service Fee (CSF).
     </p>
     {% endif %}
 </div>
@@ -2175,7 +2183,8 @@ document.body.classList.add('light-mode');
 (function() {
     var tlc = parseFloat("{{ tlc|default:'0' }}") || 0;
     var vat = parseFloat("{{ vat|default:'0' }}") || 0;
-    var grand = tlc + vat;
+    var csf = parseFloat("{{ comp.csf_php|default:'0' }}") || 0;
+    var grand = tlc + vat + csf;
     var el = document.getElementById('grand-total-display');
     if (el && grand > 0) {
         el.textContent = '₱' + grand.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -2406,6 +2415,7 @@ document.body.classList.add('light-mode');
 {% endblock %}
 
 {% block extra_js %}
+{{ all_currency_rates|json_script:"currency-rates" }}
 <script>
 // ── OCR data from Django context ──────────────────────────────────────────────
 var ocrData = {
@@ -2766,7 +2776,7 @@ function getIPF(dvPhp) {
 }
 
 // ── Currency auto-fill ────────────────────────────────────────────────────────
-var _CURRENCY_RATES = {{ all_currency_rates|safe }};
+var _CURRENCY_RATES = JSON.parse(document.getElementById('currency-rates').textContent);
 function onCurrencyChange(code) {
     var rate = _CURRENCY_RATES[code];
     if (rate) {
@@ -2883,6 +2893,10 @@ function recalcAll() {
         var otherChg  = parseFloat(ocInp   ? ocInp.value   : 0) || 0;
         var dutyRate  = parseFloat(rateInp ? rateInp.value : 0) || 0;
 
+        if (insurance <= 0 && exw > 0 && usdRate > 0) {
+            insurance = Math.round(exw * exchRate * INSURANCE_DEFAULT_PCT / 100 / usdRate * 10000) / 10000;
+        }
+
         var exwPhp       = exw * exchRate;
         var freightPhp   = freight * usdRate;
         var insurancePhp = insurance * usdRate;
@@ -2915,7 +2929,7 @@ function recalcAll() {
         // TLC = D/V + Bank + CUD + BF + CDS + BIR DST + IPF + Arrastre + Wharfage
         var liveTlc = totalDvPhp + bankChg + totalCud + liveBf + 130 + BIR_DST + liveIpf
                       + arrastre + wharfage;
-        var liveVat = liveTlc * 0.12;
+        var liveVat = liveTlc * {{ vat_rate_pct|default_if_none:'12' }} / 100;
         // BOC = CUD + VAT + CDS + BIR DST + IPF + CSF (CSF for FCL only)
         var liveBoc = totalCud + liveVat + 130 + BIR_DST + liveIpf + (chargeMode === 'fcl' ? csfPhp : 0);
         var birDstEl = document.getElementById('live-bir-dst');
@@ -3447,6 +3461,9 @@ initAllHsPickers();
 
 // ── Auto-save (draft) ─────────────────────────────────────────────────────────
 (function () {
+    // Submitted estimates are changed only by a complete recomputation so
+    // existing approvals and displayed totals cannot be edited by autosave.
+    if (!{{ draft_editable|yesno:'true,false' }}) return;
     var CSRF       = document.querySelector('[name=csrfmiddlewaretoken]').value;
     var SHIP_ID    = {{ shipment.id }};
     var ITEM_URL   = '{% url "computation:draft_item" shipment.id %}';
@@ -3479,7 +3496,7 @@ initAllHsPickers();
             body: JSON.stringify(body),
             credentials: 'same-origin',
         })
-        .then(function(r) { return r.json(); })
+        .then(function(r) { if (!r.ok) throw new Error('Save rejected'); return r.json(); })
         .then(function(d) {
             _status('Saved', 'green');
             if (onDone) onDone(d);

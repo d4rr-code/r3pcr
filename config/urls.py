@@ -1,7 +1,6 @@
 from django.contrib import admin
-from django.urls import path, include, re_path
-from django.conf import settings
-from django.views.static import serve
+from django.urls import path, include
+from apps.shipments.views import protected_media
 from django.shortcuts import render, redirect
 from django.views.generic import TemplateView
 
@@ -96,7 +95,6 @@ urlpatterns = [
     path('about/', TemplateView.as_view(template_name='about.html'),        name='about'),
 ]
 
-# Serve media files in all environments using serve() directly — static() ignores DEBUG=False
 urlpatterns += [
-    re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+    path('media/<path:path>', protected_media, name='protected_media'),
 ]

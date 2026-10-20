@@ -382,7 +382,7 @@
             <span style="color:#374151; font-size:13px; font-weight:600;"> {{ computation.customs_duty|floatformat:2|default:"0.00" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between;">
-            <span style="color:#6B7280; font-size:13px;">VAT (12%)</span>
+            <span style="color:#6B7280; font-size:13px;">VAT ({{ computation.vat_rate_pct|floatformat:2 }}%)</span>
             <span style="color:#374151; font-size:13px; font-weight:600;"> {{ computation.vat_amount|floatformat:2|default:"0.00" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between;">

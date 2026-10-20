@@ -8,6 +8,9 @@ from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
+from django.db import transaction
+from apps.shipments.uploads import validate_document_uploads
+from apps.shipments.workflow import DRAFT_STATUSES, transition_error
 from apps.shipments.models import HSCode, Shipment, ShipmentDocument, StatusLog
 from apps.shipments.fan import FAN_ASSESSMENT_FIELDS
 from apps.notifications.utils import create_notification, send_assessed_email, send_billed_email
@@ -49,12 +52,14 @@ def _process_fan_document_ocr(fan_doc):
 
 @login_required
 @declarant_required
+@validate_document_uploads
+@transaction.atomic
 def upload_sad(request, shipment_id):
     """Declarant uploads the FAN Document and advances ongoing shipments to assessed."""
     if request.method != 'POST':
         return redirect('declarant:process', shipment_id=shipment_id)
 
-    shipment = get_object_or_404(Shipment, id=shipment_id)
+    shipment = get_object_or_404(Shipment.objects.select_for_update(), id=shipment_id)
     if shipment.declarant != request.user:
         messages.error(request, 'You are not assigned to this shipment.')
         return redirect('declarant:queue')
@@ -69,6 +74,11 @@ def upload_sad(request, shipment_id):
         return redirect('declarant:process', shipment_id=shipment_id)
 
     old_status = shipment.status
+    if old_status == 'ongoing':
+        error = transition_error(shipment, 'assessed', {'sad'})
+        if error:
+            messages.error(request, error)
+            return redirect('declarant:process', shipment_id=shipment_id)
 
     # Replace any existing FAN document
     shipment.documents.filter(document_type='sad').delete()
@@ -155,12 +165,14 @@ def save_fan_assessment(request, shipment_id):
 
 @login_required
 @declarant_required
+@validate_document_uploads
+@transaction.atomic
 def upload_supporting_document(request, shipment_id, stage):
     """Upload post-assessment documents and advance the shipment when appropriate."""
     if request.method != 'POST':
         return redirect('declarant:process', shipment_id=shipment_id)
 
-    shipment = get_object_or_404(Shipment, id=shipment_id)
+    shipment = get_object_or_404(Shipment.objects.select_for_update(), id=shipment_id)
     if shipment.declarant != request.user:
         messages.error(request, 'You are not assigned to this shipment.')
         return redirect('declarant:queue')
@@ -208,6 +220,12 @@ def upload_supporting_document(request, shipment_id, stage):
         messages.error(request, 'Please select at least one file to upload.')
         return redirect('declarant:process', shipment_id=shipment_id)
 
+    if shipment.status == config['from_status']:
+        error = transition_error(shipment, config['next_status'], {config['doc_type']})
+        if error:
+            messages.error(request, error)
+            return redirect('declarant:process', shipment_id=shipment_id)
+
     for f in files:
         ShipmentDocument.objects.create(
             shipment=shipment,
@@ -247,6 +265,7 @@ def upload_supporting_document(request, shipment_id, stage):
 
 @login_required
 @declarant_required
+@validate_document_uploads
 def upload_receipt(request, shipment_id):
     """Declarant uploads billing receipts / payment proof when billing a shipment."""
     if request.method != 'POST':
@@ -355,6 +374,7 @@ def flag_deficiency(request, shipment_id):
 
 @login_required
 @declarant_required
+@transaction.atomic
 def save_ocr_items(request, shipment_id):
     """
     Accept the declarant's verified OCR item rows and selected HS code IDs.
@@ -364,10 +384,14 @@ def save_ocr_items(request, shipment_id):
     if request.method != 'POST':
         return redirect('declarant:process', shipment_id=shipment_id)
 
-    shipment = get_object_or_404(Shipment, id=shipment_id)
+    shipment = get_object_or_404(Shipment.objects.select_for_update(), id=shipment_id)
     if shipment.declarant != request.user:
         messages.error(request, 'You are not assigned to this shipment.')
         return redirect('declarant:queue')
+
+    if shipment.status not in DRAFT_STATUSES:
+        messages.error(request, 'Verified items are locked while an estimate is under review or after approval.')
+        return redirect('declarant:process', shipment_id=shipment_id)
 
     hs_code_ids = [
         _id for _id in request.POST.getlist('hs_code_id[]')
