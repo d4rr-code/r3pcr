@@ -230,9 +230,9 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertContains(response, 'Projected Workload')
         self.assertContains(response, 'Delay Model Weights')
         year = timezone.localdate().year
-        self.assertContains(response, f'?risk=all&forecast_unit=month&forecast_year={year}&forecast_model=sarima&forecast_months=3#delay-risk')
-        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=xlsx&risk=high&forecast_unit=month&forecast_year={year}&forecast_model=sarima')
-        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=pdf&risk=high&forecast_unit=month&forecast_year={year}&forecast_model=sarima')
+        self.assertContains(response, f'?risk=all&forecast_unit=month&forecast_year={year}&forecast_model=all&forecast_months=3#delay-risk')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=xlsx&risk=high&forecast_unit=month&forecast_year={year}&forecast_model=all')
+        self.assertContains(response, reverse('supervisor:intelligence_export') + f'?format=pdf&risk=high&forecast_unit=month&forecast_year={year}&forecast_model=all')
 
     def test_intelligence_trains_delay_model_from_completed_shipments(self):
         today = timezone.localdate()
@@ -306,9 +306,9 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertGreaterEqual(forecast['forecast_months'], 3)
         self.assertEqual(forecast['forecast_unit'], 'month')
 
-        # Only 7 shipments exist, so SARIMA cannot fit. With the weighted moving
-        # average removed there is no fallback: the page must declare the forecast
-        # unavailable rather than report an empty projection as a real prediction.
+        # Only 7 shipments exist, so neither registered workload model has enough
+        # history. The page must declare the forecast unavailable rather than
+        # report an empty projection as a real prediction.
         self.assertFalse(forecast['forecast_available'])
         self.assertIsNone(forecast['projected_period_total'])
         self.assertIsNone(forecast['projected_low'])
@@ -319,14 +319,16 @@ class SupervisorIntelligenceTests(TestCase):
         self.assertEqual(forecast['confidence'], 'Unavailable')
         self.assertEqual(forecast['model_source'], 'Forecast unavailable')
         self.assertTrue(forecast['unavailable_reason'])
-        self.assertContains(response, 'Insufficient data for forecast')
+        self.assertContains(response, 'Forecast unavailable')
+        self.assertContains(response, 'Compare all models')
+        self.assertContains(response, 'Seasonal Baseline')
+        self.assertContains(response, '<p class="intel-value">Unavailable</p>', html=True)
 
-        # SARIMA is the only registered model.
         self.assertEqual(
             {row['key'] for row in forecast['model_comparison']},
-            {'sarima'},
+            {'sarima', 'seasonal_baseline'},
         )
-        self.assertEqual(forecast['forecast_model'], 'sarima')
+        self.assertEqual(forecast['forecast_model'], 'all')
         self.assertEqual(forecast['recommended_model']['key'], 'sarima')
         self.assertEqual(forecast['displayed_model']['key'], 'sarima')
         expected_months = timezone.localdate().month + 3
@@ -350,7 +352,6 @@ class SupervisorIntelligenceTests(TestCase):
             self.assertIn('mape', row)
             self.assertIn('rmse_label', row)
             self.assertIn('mape_label', row)
-            self.assertEqual(row['key'], 'sarima')
             self.assertIn(row['status'], ('Active', 'Unavailable'))
 
         year_override = self.client.get(reverse('supervisor:intelligence'), {
@@ -724,12 +725,114 @@ class UserAccountsExportTests(TestCase):
 
 
 class ForecastModelTests(SimpleTestCase):
-    """SARIMA-only forecasting: model registry, metrics, and unavailable state."""
+    """Workload forecasting model registry, metrics, and unavailable state."""
 
-    def test_sarima_is_the_only_registered_model(self):
+    def test_backtest_rejects_incomplete_or_nonfinite_predictions(self):
+        from apps.supervisor.views.intelligence import _backtest_forecast_model
+        for predictions in ([12], [float('nan'), 12], [float('inf'), 12]):
+            with self.subTest(predictions=predictions):
+                result = _backtest_forecast_model(
+                    lambda *_: (predictions, 'Invalid'), [12] * 10, 'month')
+                self.assertEqual(result, (None, None, None))
+
+    def test_workload_uses_selected_model_validation_and_year_labels(self):
+        import importlib
+        from datetime import date
+        from unittest.mock import patch
+        intel = importlib.import_module('apps.supervisor.views.intelligence')
+        stable = {'key': 'seasonal_baseline', 'label': 'Baseline', 'source': 'Baseline',
+                  'forecasts': [20] * 3, 'available': True, 'mae': 1, 'rmse': 1, 'mape': 5}
+        unvalidated = dict(stable, key='sarima', label='SARIMA', mae=None, rmse=None, mape=None)
+        with patch.object(intel.timezone, 'localdate', return_value=date(2026, 10, 20)), \
+                patch.object(intel, '_month_count', return_value=20), \
+                patch.object(intel, '_forecast_model_comparison',
+                             return_value=([20] * 3, 'Baseline', stable, [stable, unvalidated])):
+            result = intel._workload_forecast([], forecast_year=2026, forecast_model='sarima')
+        self.assertEqual(result['confidence'], 'Unvalidated')
+        self.assertIsNone(result['projected_low'])
+        self.assertIsNone(result['projected_high'])
+        self.assertEqual(result['chart']['labels'][-1], 'Jan 2027')
+
+    def test_nonconverged_sarima_is_rejected(self):
+        from unittest.mock import patch
+        from apps.supervisor.views.intelligence import _sarima_forecast
+        with patch('apps.supervisor.views.intelligence.cache.get', return_value=None), \
+                patch('statsmodels.tsa.statespace.sarimax.SARIMAX') as model:
+            model.return_value.fit.return_value.mle_retvals = {'converged': False}
+            forecasts, note = _sarima_forecast([20] * 36, 3)
+        self.assertIsNone(forecasts)
+        self.assertIn('converge', note)
+
+    def test_unavailable_selected_model_does_not_silently_show_baseline(self):
+        import importlib
+        from unittest.mock import patch
+        intel = importlib.import_module('apps.supervisor.views.intelligence')
+        baseline = {'key': 'seasonal_baseline', 'label': 'Baseline', 'source': 'Baseline',
+                    'forecasts': [12] * 3, 'available': True, 'mae': 1, 'rmse': 1, 'mape': 5}
+        unavailable = dict(baseline, key='sarima', label='SARIMA', forecasts=[], available=False,
+                           mae=None, rmse=None, mape=None, note='SARIMA fit did not converge.')
+        with patch.object(intel, '_forecast_model_comparison',
+                          return_value=([12] * 3, 'Baseline', baseline, [unavailable, baseline])):
+            result = intel._workload_forecast([], forecast_model='sarima')
+        self.assertFalse(result['forecast_available'])
+        self.assertEqual(result['confidence'], 'Unavailable')
+        self.assertEqual(result['displayed_model']['key'], 'sarima')
+        self.assertIn('did not converge', result['unavailable_reason'])
+
+    def test_explosive_forward_forecast_is_unavailable(self):
+        import importlib
+        from unittest.mock import patch
+        intel = importlib.import_module('apps.supervisor.views.intelligence')
+        model = dict(intel.FORECAST_MODELS[0], method=lambda *args: ([94024] * args[1], 'Explosive'))
+        with patch.object(intel, 'FORECAST_MODELS', [model]):
+            forecasts, _, _, rows = intel._forecast_model_comparison([12] * 36, 3)
+        self.assertEqual(forecasts, [])
+        self.assertFalse(rows[0]['available'])
+        self.assertIn('unstable', rows[0]['note'].lower())
+
+    def test_reliability_uses_displayed_error_not_workload_level(self):
+        from apps.supervisor.views.intelligence import _forecast_reliability
+        self.assertEqual(_forecast_reliability({'rmse': 253890.54}, [20] * 8), 'Low')
+        self.assertEqual(_forecast_reliability({'rmse': None}, [20] * 8), 'Unvalidated')
+        self.assertEqual(_forecast_reliability({'rmse': 8}, [20] * 8), 'Moderate')
+        self.assertEqual(_forecast_reliability({'rmse': 2}, [20] * 8), 'High')
+        self.assertEqual(_forecast_reliability({'rmse': 0}, [0] * 8), 'Low')
+
+    def test_unvalidated_model_is_explicitly_labelled(self):
+        import importlib
+        from unittest.mock import patch
+        intel = importlib.import_module('apps.supervisor.views.intelligence')
+        def method(training, periods, unit):
+            return ([94024] if len(training) < 36 else [12]) * periods, 'Synthetic'
+        model = dict(intel.FORECAST_MODELS[0], method=method)
+        with patch.object(intel, 'FORECAST_MODELS', [model]):
+            _, _, _, rows = intel._forecast_model_comparison([12] * 36, 3)
+        self.assertEqual(rows[0]['status'], 'Unvalidated')
+        self.assertIn('backtest', rows[0]['note'].lower())
+
+    def test_comparison_runs_all_models_unless_explicitly_disabled(self):
+        import importlib
+        from unittest.mock import Mock, patch
+        intel = importlib.import_module('apps.supervisor.views.intelligence')
+        method = Mock(side_effect=lambda counts, periods, unit: ([12] * periods, 'Synthetic forecast'))
+        model = {'key': 'sarima', 'label': 'SARIMA', 'source': 'Synthetic',
+                 'description': 'Synthetic', 'method': method, 'expensive': True}
+        with patch.object(intel, 'FORECAST_MODELS', [model]):
+            _, _, _, rows = intel._forecast_model_comparison([12] * 36, 3)
+            self.assertTrue(method.called)
+            self.assertEqual(rows[0]['status'], 'Active')
+            method.reset_mock()
+            _, _, _, rows = intel._forecast_model_comparison([12] * 36, 3, include_expensive=False)
+            method.assert_not_called()
+            self.assertEqual(rows[0]['status'], 'On demand')
+
+    def test_registered_forecast_models_include_sarima_and_seasonal_baseline(self):
         from apps.supervisor.views.intelligence import FORECAST_MODELS
 
-        self.assertEqual([model['key'] for model in FORECAST_MODELS], ['sarima'])
+        self.assertEqual(
+            [model['key'] for model in FORECAST_MODELS],
+            ['sarima', 'seasonal_baseline'],
+        )
 
     def test_backtest_split_is_28_8_over_the_36_month_window(self):
         from apps.supervisor.views.intelligence import _backtest_split
@@ -738,7 +841,7 @@ class ForecastModelTests(SimpleTestCase):
         self.assertEqual(_backtest_split(36), (28, 8))
         self.assertEqual(_backtest_split(5), (0, 0))  # below the 6-observation floor
 
-    def test_sufficient_history_produces_sarima_forecast_with_all_metrics(self):
+    def test_sufficient_history_produces_forecast_with_stable_metrics(self):
         from apps.supervisor.views.intelligence import _forecast_model_comparison
 
         # 36 months of seasonal-ish volume, comfortably past SARIMA's 24-point floor.
@@ -748,19 +851,97 @@ class ForecastModelTests(SimpleTestCase):
 
         forecasts, source, recommended, rows = _forecast_model_comparison(counts, 3, 'month')
 
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]['key'], 'sarima')
-        self.assertEqual(rows[0]['status'], 'Active')
+        self.assertEqual([row['key'] for row in rows], ['sarima', 'seasonal_baseline'])
+        sarima_row = next(row for row in rows if row['key'] == 'sarima')
+        baseline_row = next(row for row in rows if row['key'] == 'seasonal_baseline')
+        self.assertIn(sarima_row['status'], {'Active', 'Unvalidated', 'Unavailable'})
+        if not sarima_row['available']:
+            self.assertTrue(sarima_row['note'])
+        self.assertEqual(baseline_row['status'], 'Active')
         self.assertEqual(len(forecasts), 3)
-        self.assertEqual(recommended['key'], 'sarima')
-        self.assertIn('SARIMA', source)
+        self.assertIn(recommended['key'], {'sarima', 'seasonal_baseline'})
+        self.assertTrue(source)
         for metric in ('mae', 'rmse', 'mape'):
             self.assertIsNotNone(recommended[metric], f'{metric} should be reported')
+
+    def test_unstable_backtest_predictions_are_not_reported_as_metrics(self):
+        from apps.supervisor.views.intelligence import _backtest_forecast_model
+
+        counts = [9, 13, 12, 22, 20, 21, 40, 1, 0, 20, 26, 24,
+                  9, 13, 12, 22, 20, 21, 40, 1, 0, 20, 26, 24,
+                  9, 13, 12, 22, 20, 21, 40, 1, 0, 20, 26, 24]
+
+        def explosive_forecast(_training, periods, _unit):
+            return [94024 for _ in range(periods)], 'explosive test forecast'
+
+        self.assertEqual(
+            _backtest_forecast_model(explosive_forecast, counts, 'month'),
+            (None, None, None),
+        )
+
+    def test_reasonable_backtest_predictions_still_report_metrics(self):
+        from apps.supervisor.views.intelligence import _backtest_forecast_model
+
+        counts = [10, 11, 12, 13, 14, 15, 16, 17]
+
+        def stable_forecast(_training, periods, _unit):
+            return [16 for _ in range(periods)], 'stable test forecast'
+
+        self.assertEqual(
+            _backtest_forecast_model(stable_forecast, counts, 'month'),
+            (0.5, 0.71, 2.94),
+        )
+
+    def test_recommended_model_prefers_stable_backtest_metrics(self):
+        import importlib
+        from unittest.mock import patch
+
+        intel = importlib.import_module('apps.supervisor.views.intelligence')
+
+        counts = [12, 6, 16, 14, 16, 16, 15, 0,
+                  20, 26, 12, 12, 6, 16, 14, 16,
+                  16, 15, 0, 20, 26, 12, 12, 6,
+                  16, 14, 16, 15, 0, 20, 26, 12,
+                  12, 6, 16, 14]
+
+        def unstable_model(training, periods, _unit):
+            if len(training) < len(counts):
+                return [94024 for _ in range(periods)], 'unstable backtest'
+            return [20 for _ in range(periods)], 'unstable model forward forecast'
+
+        def stable_model(_training, periods, _unit):
+            return [12 for _ in range(periods)], 'stable baseline forecast'
+
+        models = [
+            {
+                'key': 'sarima',
+                'label': 'SARIMA',
+                'source': 'SARIMA forecast',
+                'method': unstable_model,
+                'description': 'Unstable test model.',
+            },
+            {
+                'key': 'seasonal_baseline',
+                'label': 'Seasonal Baseline',
+                'source': 'Seasonal baseline forecast',
+                'method': stable_model,
+                'description': 'Stable test model.',
+            },
+        ]
+
+        with patch.object(intel, 'FORECAST_MODELS', models):
+            forecasts, source, recommended, rows = intel._forecast_model_comparison(counts, 3, 'month')
+
+        self.assertEqual(recommended['key'], 'seasonal_baseline')
+        self.assertEqual(forecasts, [12, 12, 12])
+        self.assertEqual(source, 'Seasonal baseline forecast')
+        self.assertIsNone(next(row for row in rows if row['key'] == 'sarima')['mae'])
+        self.assertIsNotNone(recommended['mae'])
 
     def test_insufficient_history_yields_no_forecast_and_no_fallback(self):
         from apps.supervisor.views.intelligence import _forecast_model_comparison
 
-        counts = [1, 0, 2, 1, 0, 1, 1, 0]  # sum well below SARIMA's minimum
+        counts = [1, 0, 2, 1, 0, 1, 1, 0]  # below every model's minimum
 
         forecasts, source, recommended, rows = _forecast_model_comparison(counts, 3, 'month')
 
@@ -769,8 +950,8 @@ class ForecastModelTests(SimpleTestCase):
         self.assertEqual(recommended['key'], 'sarima')
         self.assertIsNone(recommended['mae'])
         self.assertTrue(recommended['unavailable_reason'])
-        self.assertEqual([row['key'] for row in rows], ['sarima'])
-        self.assertEqual(rows[0]['status'], 'Unavailable')
+        self.assertEqual([row['key'] for row in rows], ['sarima', 'seasonal_baseline'])
+        self.assertTrue(all(row['status'] == 'Unavailable' for row in rows))
 
 
 class WmcdaAhpTests(TestCase):
