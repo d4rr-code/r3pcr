@@ -10,6 +10,9 @@ Run:
 """
 from .settings import *  # noqa: F401,F403
 
+# Synthetic signing key for isolated tests; never used by deployed settings.
+SECRET_KEY = 'r3pcr-isolated-tests-only-not-a-production-secret'
+
 # ── Isolated, in-memory database ──────────────────────────────────────────────
 DATABASES = {
     'default': {
