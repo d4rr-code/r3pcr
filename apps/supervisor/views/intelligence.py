@@ -5,7 +5,7 @@ import math
 import warnings
 
 from django.core.cache import cache
-from django.db.models import Avg, Count, F
+from django.db.models import Avg, Count, F, Prefetch
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -133,18 +133,22 @@ def _stage_metrics(shipments):
 
 
 def _current_status_age_days(shipment):
-    log = (
-        StatusLog.objects
-        .filter(shipment=shipment, new_status=shipment.status)
-        .order_by('-changed_at')
-        .first()
-    )
+    if hasattr(shipment, '_intelligence_status_logs'):
+        log = next((log for log in shipment._intelligence_status_logs
+                    if log.new_status == shipment.status), None)
+    else:
+        log = (
+            StatusLog.objects
+            .filter(shipment=shipment, new_status=shipment.status)
+            .order_by('-changed_at')
+            .first()
+        )
     start = log.changed_at if log else shipment.submitted_at
     return _duration_days(start, timezone.now())
 
 
 def _risk_factor(shipment):
-    uploaded = set(shipment.documents.values_list('document_type', flat=True))
+    uploaded = {document.document_type for document in shipment.documents.all()}
     missing_docs = len(REQUIRED_DOCUMENTS - uploaded)
     if shipment.has_deficiency:
         return 'deficiency'
@@ -289,7 +293,7 @@ def _risk_for_shipment(shipment, model):
         reasons.append('Waiting for consignee revision')
         actions.append('Follow up document resubmission.')
 
-    uploaded = set(shipment.documents.values_list('document_type', flat=True))
+    uploaded = {document.document_type for document in shipment.documents.all()}
     missing = sorted(REQUIRED_DOCUMENTS - uploaded)
     if missing:
         score += min(len(missing) * weights['missing_doc'], weights['missing_docs_cap'])
@@ -928,7 +932,10 @@ def _intelligence_context(risk_filter='high', forecast_periods=1, forecast_unit=
     shipments = (
         Shipment.objects
         .select_related('consignee', 'declarant')
-        .prefetch_related('documents')
+        .prefetch_related('documents', Prefetch(
+            'status_logs', queryset=StatusLog.objects.order_by('-changed_at'),
+            to_attr='_intelligence_status_logs',
+        ))
         .order_by('-submitted_at')
     )
     shipments_list = list(shipments[:2000])

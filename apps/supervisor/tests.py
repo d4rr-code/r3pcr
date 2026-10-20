@@ -173,6 +173,31 @@ class SupervisorIntelligenceTests(TestCase):
             shipment_type='lcl',
         )
 
+    def test_risk_scoring_reuses_prefetched_documents_and_status_logs(self):
+        from django.db.models import Prefetch
+        from apps.shipments.models import ShipmentDocument
+        from apps.supervisor.views.intelligence import (
+            _current_status_age_days, _risk_factor, _risk_for_shipment, DEFAULT_RISK_WEIGHTS,
+        )
+        shipment = self._shipment('INTEL-PREFETCH', 'computed')
+        for document_type in ('invoice', 'packing_list', 'airway_bill'):
+            ShipmentDocument.objects.create(shipment=shipment, document_type=document_type,
+                                            file='synthetic/' + document_type + '.pdf')
+        StatusLog.objects.create(shipment=shipment, changed_by=self.declarant,
+                                 old_status='arrived', new_status='computed')
+        model = {'weights': DEFAULT_RISK_WEIGHTS}
+        expected_factor = _risk_factor(shipment)
+        expected_risk = _risk_for_shipment(shipment, model)
+        loaded = Shipment.objects.prefetch_related('documents', Prefetch(
+            'status_logs', queryset=StatusLog.objects.order_by('-changed_at'),
+            to_attr='_intelligence_status_logs')).get(pk=shipment.pk)
+        with self.assertNumQueries(0):
+            self.assertEqual(_risk_factor(loaded), expected_factor)
+            result = _risk_for_shipment(loaded, model)
+            self.assertEqual(result['score'], expected_risk['score'])
+            self.assertEqual(result['reasons'], expected_risk['reasons'])
+            self.assertGreaterEqual(_current_status_age_days(loaded), 0)
+
     def test_intelligence_page_reports_bottlenecks_risk_and_hs_review(self):
         base = timezone.now() - timedelta(days=6)
         shipment = self._shipment('R3PCR-INTEL-RISK', 'computed')
