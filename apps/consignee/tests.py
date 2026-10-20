@@ -194,6 +194,32 @@ class ConsigneeDashboardChartTests(TestCase):
         self.assertEqual(payload['labels'], labels)
         self.assertEqual(payload['data'], data)
 
+    def test_monthly_breakdowns_exclude_other_months_and_consignees(self):
+        self._shipment_on('DASH-MONTH-CURRENT', self._month_start(0))
+        old = self._shipment_on('DASH-MONTH-OLD', self._month_start(-1))
+        Shipment.objects.filter(pk=old.pk).update(shipment_type='air', urgency='rush')
+        other = User.objects.create_user(username='other_dashboard', role='consignee')
+        Shipment.objects.create(hawb_number='DASH-OTHER-OWNER', consignee=other,
+                                shipment_type='fcl', urgency='urgent')
+
+        response = self.client.get(reverse('consignee:dashboard'))
+        self.assertEqual(response.context['total'], 2)
+        self.assertEqual(response.context['shipping_total'], 1)
+        self.assertEqual(response.context['urgency_total'], 1)
+        self.assertEqual(response.context['mode_breakdown'], [
+            {'shipment_type': 'lcl', 'count': 1, 'label': 'LCL - Less Container Load'},
+        ])
+        self.assertEqual(sum(item['count'] for item in response.context['urgency_breakdown']), 1)
+        self.assertContains(response, '(100%)')
+
+        # Explicitly move both owned shipments to the previous month.
+        previous = timezone.make_aware(datetime.combine(self._month_start(-1), time(hour=9)))
+        Shipment.objects.filter(consignee=self.consignee).update(submitted_at=previous)
+        empty = self.client.get(reverse('consignee:dashboard'))
+        self.assertEqual(empty.context['shipping_total'], 0)
+        self.assertEqual(empty.context['mode_breakdown'], [])
+        self.assertEqual(empty.context['urgency_breakdown'], [])
+
     def test_dashboard_flags_match_flagged_submission_rules(self):
         Shipment.objects.create(
             hawb_number='R3PCR-DASH-FLAG-1',
