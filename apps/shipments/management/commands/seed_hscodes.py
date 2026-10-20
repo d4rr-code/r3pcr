@@ -457,22 +457,8 @@ class Command(BaseCommand):
             if was_created:
                 created += 1
             else:
-                # Update existing if description or rate changed
-                changed = False
-                if obj.description != desc:
-                    obj.description = desc
-                    changed = True
-                if float(obj.duty_rate) != rate:
-                    obj.duty_rate = rate
-                    changed = True
-                if obj.chapter != chapter:
-                    obj.chapter = chapter
-                    changed = True
-                if changed:
-                    obj.save()
-                    updated += 1
-                else:
-                    skipped += 1
+                # Seeding may fill missing codes, never replace maintained data.
+                skipped += 1
 
         self.stdout.write(
             self.style.SUCCESS(
