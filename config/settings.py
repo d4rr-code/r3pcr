@@ -157,17 +157,16 @@ STORAGES = {
 
 # ── Supabase Storage (django-storages S3 backend) ─────────────────────────────
 _SUPABASE_URL   = os.getenv('SUPABASE_URL', '')          # e.g. https://xxxx.supabase.co
-_SUPABASE_KEY   = os.getenv('SUPABASE_SECRET_KEY', '')   # sb_secret_...
 _SUPABASE_BUCKET = os.getenv('SUPABASE_BUCKET', 'r3pcr-media')
 
 SHIPMENT_STORAGE_MODE = os.getenv('SHIPMENT_STORAGE_MODE', 'auto').lower()
 from django.core.exceptions import ImproperlyConfigured
 if SHIPMENT_STORAGE_MODE not in {'auto', 'local', 'supabase'}:
     raise ImproperlyConfigured('SHIPMENT_STORAGE_MODE must be auto, local, or supabase.')
-if SHIPMENT_STORAGE_MODE == 'supabase' and not (_SUPABASE_URL and _SUPABASE_KEY):
-    raise ImproperlyConfigured('Supabase storage requires its URL and API key.')
+if SHIPMENT_STORAGE_MODE == 'supabase' and not _SUPABASE_URL:
+    raise ImproperlyConfigured('Supabase storage requires its project URL.')
 
-if SHIPMENT_STORAGE_MODE != 'local' and _SUPABASE_URL and _SUPABASE_KEY:
+if SHIPMENT_STORAGE_MODE != 'local' and _SUPABASE_URL:
     from .storage import validate_storage_project
     validate_storage_project(DATABASES['default'], _SUPABASE_URL)
     if not (os.getenv('SUPABASE_S3_ACCESS_KEY_ID') and os.getenv('SUPABASE_S3_SECRET_ACCESS_KEY')):
@@ -177,7 +176,7 @@ if SHIPMENT_STORAGE_MODE != 'local' and _SUPABASE_URL and _SUPABASE_KEY:
     AWS_ACCESS_KEY_ID       = os.getenv('SUPABASE_S3_ACCESS_KEY_ID', '')
     AWS_SECRET_ACCESS_KEY   = os.getenv('SUPABASE_S3_SECRET_ACCESS_KEY', '')
     AWS_STORAGE_BUCKET_NAME = _SUPABASE_BUCKET
-    AWS_S3_ENDPOINT_URL     = f'{_SUPABASE_URL}/storage/v1/s3'
+    AWS_S3_ENDPOINT_URL     = f"{_SUPABASE_URL.rstrip('/').replace('.supabase.co', '.storage.supabase.co')}/storage/v1/s3"
     AWS_S3_REGION_NAME      = 'ap-southeast-1'
     AWS_DEFAULT_ACL         = None
     AWS_S3_FILE_OVERWRITE   = False

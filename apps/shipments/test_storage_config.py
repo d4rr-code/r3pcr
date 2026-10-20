@@ -44,7 +44,7 @@ class StorageStartupTests(SimpleTestCase):
             env = {key: os.environ[key] for key in ('PATH', 'SYSTEMROOT', 'TEMP', 'TMP') if key in os.environ}
             env.update(SECRET_KEY='synthetic-test-key', DB_USER='postgres.devref',
                        SHIPMENT_STORAGE_MODE=mode, SUPABASE_URL=f'https://{storage_ref}.supabase.co',
-                       SUPABASE_SECRET_KEY='synthetic', SUPABASE_S3_ACCESS_KEY_ID='synthetic',
+                       SUPABASE_S3_ACCESS_KEY_ID='synthetic',
                        SUPABASE_S3_SECRET_ACCESS_KEY='synthetic')
             with self.subTest(mode=mode, storage_ref=storage_ref):
                 result = subprocess.run([sys.executable, '-B', '-c', script], env=env,
